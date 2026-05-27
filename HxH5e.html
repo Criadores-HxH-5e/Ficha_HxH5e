@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Hunter x Hunter RPG Sheet</title>
+
+    <!-- Fontes Google -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              display: ['Orbitron', 'sans-serif'],
+              sans: ['Rajdhani', 'sans-serif'],
+            },
+            colors: {
+              'neon-green': '#00ff9d',
+              'neon-blue': '#00f0ff',
+              'neon-red': '#ff0055',
+              'neon-yellow': '#ffe600',
+              'neon-theme': 'var(--theme-color-hex, #00ff9d)',
+              'neon-dark': '#0a0a0f',
+              'neon-card': '#0e0e14',
+              'discord': '#5865F2',
+              'discord-dark': '#4752C4'
+            },
+            animation: {
+                'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            }
+          }
+        }
+      }
+    </script>
+
+    <!-- Ícones Lucide -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap');
+        .btn-hatsu-container {
+                margin-top: 10px;
+                width: 250px;
+                display: flex;
+                justify-content: center;
+                border: 1px solid #00FF9D;
+                background-color: #00FF9D;
+                border-radius: 4px;
+            }
+            .btn-hatsu-container:hover{
+                transform: scale(1.01);
+                transition: 0.5s;
+                background-color: #01e68e;
+            }
+
+            .btn-hatsu {
+
+                color: #000000;
+                font-family: 'Orbitron', sans-serif;
+                font-size: 14px;
+                font-weight: bold;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                padding: 12px 24px;
+                border: none;
+                border-radius: 10px;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                width: 100%;
+                max-width: 280px;
+                justify-content: center;
+            }
+
+            .btn-hatsu:hover {
+                filter: brightness(1.1);
+
+            }
+
+
+        :root {
+            --theme-color-hex: #00ff9d;
+            --theme-rgb: 0, 255, 157;
+        }
+
+        body {
+            background-color: #050505;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+            overflow: hidden; /* App-like feel */
+        }
+
+        /* Utilitários de Scroll */
+        .custom-scrollbar { overflow-y: auto; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Inputs limpos */
+        input, select, textarea { background: transparent; outline: none; }
+
+        /* Containers */
+        #app {
+            height: 100vh; /* Fallback */
+            height: 100dvh; /* Mobile modern browsers */
+            display: flex;
+            flex-direction: column;
+            max-width: 480px; /* Mobile width constraint on desktop */
+            margin: 0 auto;
+            background-color: #0a0a0f;
+            position: relative;
+            border-left: 1px solid #1f2937;
+            border-right: 1px solid #1f2937;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        /* Safe Area Padding */
+        .pb-safe {
+            padding-bottom: env(safe-area-inset-bottom, 20px);
+        }
+
+        /* Nen Hexagon Styles */
+        .nen-node {
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .nen-node:active {
+            transform: scale(0.95) !important;
+        }
+
+        /* Accordion transition */
+        .accordion-content {
+            transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease-in-out;
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+        }
+        .accordion-content.open {
+            max-height: 2000px; /* Increased for content */
+            opacity: 1;
+        }
+
+        .shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+
+        /* Custom glow for shield */
+        .shield-glow {
+            filter: drop-shadow(0 0 4px currentColor);
+        }
+        .shield-expert {
+            filter: drop-shadow(0 0 6px #ffe600);
+        }
+
+        /* Radio Button Custom Styling */
+        .custom-radio:checked + div {
+            border-color: var(--theme-color-hex);
+            background-color: rgba(var(--theme-rgb), 0.1);
+        }
+        .custom-radio:checked + div .radio-indicator {
+            background-color: var(--theme-color-hex);
+            border-color: var(--theme-color-hex);
+        }
+
+        /* Drag and Drop Styles */
+        .dragging {
+            opacity: 0.5;
+            cursor: grabbing !important;
+        }
+        .drop-zone-active {
+            border-color: var(--theme-color-hex) !important;
+            background-color: rgba(var(--theme-rgb), 0.1) !important;
+            box-shadow: 0 0 15px rgba(var(--theme-rgb), 0.2);
+        }
+
+        /* Animation for Roll Modal */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            100% { transform: scale(1.3); opacity: 0; }
+        }
+        .pulse-ring::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; right: 0; bottom: 0;
+            border-radius: 50%;
+            border: 2px solid var(--theme-color-hex);
+            animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+
+        /* Toast Notification */
+        .toast-enter {
+            transform: translateY(100%);
+            opacity: 0;
+        }
+        .toast-enter-active {
+            transform: translateY(0);
+            opacity: 1;
+            transition: all 300ms ease-out;
+        }
+        .toast-exit {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        .toast-exit-active {
+            transform: translateY(100%);
+            opacity: 0;
+            transition: all 300ms ease-in;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app">
+        <!-- O conteúdo será injetado aqui via JavaScript -->
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         SCRIPTS — carregados em ordem de dependência
+         Dados → Estado → Supabase → Auth → Views → Render → Init
+         ═══════════════════════════════════════════════════════ -->
+
+    <!-- 1. Dados estáticos (sem dependências) -->
+    <script src="js/data/config.js"></script>
+
+    <!-- 2. Estado global (depende de SYSTEM_DB) -->
+    <script src="js/core/state.js"></script>
+
+    <!-- 3. Supabase + utilitários (depende de state, SYSTEM_DB) -->
+    <script src="js/core/supabase.js"></script>
+
+    <!-- 4. Dados de bestiário e Nen (sem dependências de função) -->
+    <script src="js/data/bestiary-data.js"></script>
+    <script src="js/data/transmutacao-db.js"></script>
+    <script src="js/data/hatsu-db.js"></script>
+    <script src="js/data/nen-affinity.js"></script>
+
+    <!-- 5. Auth e admin (depende de state, supabase, DISCORD_CONFIG) -->
+    <script src="js/auth/auth.js"></script>
+
+    <!-- 6. Views (dependem de state, dados, auth) -->
+    <script src="js/views/login.js"></script>
+    <script src="js/views/list.js"></script>
+    <script src="js/views/admin.js"></script>
+    <script src="js/views/mestre.js"></script>
+    <script src="js/views/bestiario.js"></script>
+    <script src="js/views/hatsu-creator.js"></script>
+    <script src="js/views/creator.js"></script>
+    <script src="js/views/sheet.js"></script>
+    <script src="js/views/hatsu-detail.js"></script>
+
+    <!-- 7. Render principal (depende de todas as views) -->
+    <script src="js/core/render.js"></script>
+
+    <!-- 8. Inicialização — deve ser o último -->
+    <script src="js/init.js"></script>
+
+</body>
+</html>

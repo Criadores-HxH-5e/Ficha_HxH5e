@@ -1,0 +1,8 @@
+{
+  "name": "hxh5e-rpg",
+  "version": "1.0.0",
+  "description": "Hunter x Hunter 5e RPG — Ficha de Personagem",
+  "scripts": {
+    "start": "npx serve . --listen 3000 --no-clipboard"
+  }
+}

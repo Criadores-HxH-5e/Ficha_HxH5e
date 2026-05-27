@@ -1,0 +1,116 @@
+{{classTable,frame,decoration
+### Efeitos Materialização 1/3
+{color:,text-align:center}
+| Efeito | Descrição | Pré-requisito |
+|:-----:|:-----------------:|:---------:|
+|<br><br> Forjar Objeto, Arma ou Equipamento Conjurada(o)| Cria um objeto, equipamento ou arma com as mesmas propriedades de um real que pode ser "alimentado" por aura (ao usar munições).<br>Causa 2d6 de dano (ao escolher arma)| <br><br><br>Nível 1 |
+| <br><br>Golem de Aura | Cria um constructo pequeno com o [material escolhido](p#50) <br> (PV = 5 + CON x2, 1 ação por rodada e 1 [Característica de Invocação](#p54).) | <br>Nível 1<br>Acesso a Manipulação |
+| Características Básicas | Adiciona uma [Característica de Invocação](#p54) | Nível 1 |
+|<br><br> Dimensão de bolso | Envia até 3 objetos ou criaturas para a Dimensão em até o dobro de tamanho/peso do alvo (cada)  | <br>Nível 1 **Característica Dimensão** |
+|Aparências Enganam|Permite acessar a [Tabela de Conjuração com <br>Alterações Físicas](#p57)|<br>Nível 1|
+|<br><br>Conjuração Modular| O(s) Objeto(s), Arma(s) ou Equipamento(s) Conju-rado(s) podem ser diferen-tes cada vez que conjura. Alternar entre eles depois de conjurados requer Ação bônus ou Reação. |<br> Nível 2<br>Forjar Objeto, Arma ou Equipamento Conjurada(o|
+|<br><br>Cópia Perfeita|Permite copiar através de conjuração um objeto marcado ou tocado com todas as suas propriedades originais, mesmo sendo conjurações.|<br><br>Nível 2|
+|<br><br><br> Imbuir Conjuração | Adiciona um efeito de qualquer categoria **até seu nível** que não possua pré-requisitos, _como outro efeito dependente ou determinado valor de atributo._ <br> Não aplicável a efeitos <br>de Especialização | <br><br><br><br>Nível 2 |
+}}
+
+{{descriptive
+**VÍNCULO SUSTENTADO:** Esse efeito ativa após qualquer efeito de tempo de duração comprado para o Hatsu terminar. Veja ainda outros detalhes do uso do [Vínculo Sustentado ao fim da página 42](#p64)
+}}
+
+{{classTable,frame,decoration
+### Efeitos Materialização 2/3
+{color:,text-align:center}
+| Efeito | Descrição | Pré-requisito |
+|:-----:|:-----------------:|:---------|
+|<br>Pesos e Medidas|Permite reduzir e/ou aumentar o peso e/ou tamanho da conjuração na metade (reduzindo) ou dobro (aumentando) |<br><br>Nível 2|
+|<br> Dano Complexo | A criatura pode causar +1 dado de dano ao empurrar com sucesso inimigos. | <br>Nível 4 |
+|<br><br> **Vínculo Sustentado*** | O Hatsu dura enquanto o usuário mantiver concentração e gastar 5% de aura a cada 2 rodadas.<br> **Para compartilhar sentidos o gasto passa a ser por rodada** | <br><br><br>Nível 4 |
+|<br> Aura Condensada | O item armazena até 10% da aura para liberar depois como impulso de dano +1d8 ou de defesa (1d8 RD). | <br>Nível 5 |
+| <br>Forja Avançada | Ao gastar uma ação bônus, a arma ganha +1d8 | <br>Nível 5 |
+| <br>Forma Evoluída | 10 PV, +2 CA e uma [Característica de Invocação](#p26) adicional. | <br>Nível 6 |
+| <br>Lugar secreto/Pique esconde | A **Dimensão** pode ser usada como um espaço de 12x12m com a composição (ambiente, aparencia, mobilia) que o usuário pré-definir | <br>Nível 6<br>**Característica Dimensão** |
+|<br>**Invencível***<br>(Requer consciência)|Não pode ser destruida ou desfeita a não ser pelo usuário _ou pela duração_ **E** Adiciona temporariamente o valor máximo natural em 2 atributos.|<br>Nível 6<br>Restrições Específicas|
+| <br><br>Proativo | A conjuração pode realizar um ataque a mais no turno, consumindo reações do usuário | <br>Nível 7 |
+| <br>Encantamento Especializado | Escolhe uma das propriedades abaixo:  **Desarmar, Mortal x3, Oculto/Finta** | <br>Nível 8 |
+
+}}
+
+{{descriptive 
+**INVENCÍVEL:** O efeito´apenas pode ser aplicado cumprindo os 2 requisitos abaixo:<br>
+**Requisito 1** - O Hatsu não pode causar dano direto **pelo usuário** ou ser utilizado para causar dano direto  ou condições diretamente e fisicamente prejudiciais (como "cego" para receber um ataque) **pelo usuário**.<br>
+**Requisito 2** - Depende de:<br> 2 Restrições Pesadas **OU** 1 Restrição Extrema.
+}}
+
+
+<div class='pageNumber auto'></div>
+\page
+
+{{classTable,frame,decoration,wide
+### Efeitos Materialização 3/3
+{color:,text-align:center}
+| Efeito | Descrição | Pré-requisito |
+|:-----:|:-----------------:|:---------|
+|<br><br> Fusão ou Divisão de Constructos |<br> Ao fundir duas criaturas conjuradas em uma única, adicione +10 PV, **unindo** suas habilidades e recebendo +1 grau/passo em acerto ou dano. <br>Ao dividir, aplique -10 PV, -5 CA e -1 grau/passo em acerto ou dano.| Nível 8 <br>Forjar Objeto, Arma ou Equipamento Conjurada(o)<br>**ou**<br>Golem de Aura|
+| <br>Constructo Apex | Sua criatura ganha +1 Ação Principal **e**<br> um efeito de outra categoria (respeitando a tabela de acesso) | Nível 11|
+|<br> Relíquia Viva | Artefato se torna permanente <br>independente do tempo de duração ou concentração. <br>Pode ser desfeito apenas ao ser destruído| <br>Nível 12 |
+}}
+
+{{note,wide
+Fazer uso da tabela abaixo, **aplica um gasto de aura de 10%** a mais para cada Tamanho (Categoria) **acima do original** do usuário.
+}}
+{{classTable,frame,decoration,wide
+#### Conjuração com Alterações Físicas
+{color:,text-align:center}
+| Efeito | Descrição | Pré-requisito |
+|:---:|:----------------:|:---------:|
+|<br>Aparência por partes|Permite simular, imitar ou reproduzir **até no máximo 3 características**, como voz, cor da pele, olhos, tamanho e peso (da mesma categoria de tamanho), cabelo, roupas e detalhes menores de uma criatura qualquer ou objeto/material.|Nível 1<br>**Interação Sensorial Simples** sobre aquilo que será Simulado, Imitado ou Reproduzido para aplicar a correspondência necessária|
+|<br>Aparência completa |Permite simular, imitar ou reproduzir <br> **completamente a aparência** de uma criatura qualquer ou <br>objeto/material (da mesma categoria de tamanho)|Nível 5<br>**Interação Sensorial Simples** e **Conhecimento do Alvo** sobre aquilo que será Simulado, Imitado ou Reproduzido para aplicar a correspondência necessária|
+|<br>**Funções em partes*** |Permite simular, imitar ou reproduzir outras partes físicas (extras ou não) de uma criatura qualquer ou objeto/material (da mesma categoria de tamanho) por suas funções. |Nível 1<br>Ter conhecimento profundo das dimenções e propriedades do que será conjurado, com interações constantes ou profundas (como no antecedente), um ferimento ou algo específico.|
+|<br>**Funções Completas***|Permite simular, imitar ou reproduzir completamente funções de uma criatura qualquer ou objeto/material.<br>_Normalmente requer uma alteração na categoria de tamanho_|Nível 5<br>Ter conhecimento profundo das dimenções e propriedades do que será conjurado, com interações profundas ou constantes (como no antecedente) ou pontuais, mas importantes como um trauma.|
+|Ben 10|A conjuração **pode** assumir os **Atributos Físicos** além das funções no caso de seres vivos.|Nível 6<br>Funções em partes **ou** Funções Completas|
+}}
+
+
+{{classTable,frame
+|Tamanho (Categoria)|  Tamanho (Medida) |Quadrados (Ocupados) |
+|:-----------------:|:-----------------:|:--------------------|
+|  Minúsculo/Miúdo  | Menor que 75cm    |Menos de 1/2 Quadrado|
+|  Pequeno          | Entre 75cm - 1,49 |1/2 - 1 Quadrado     |
+|  Médio Comum      | 1,5m - 2,50m      |1 Quadrado           |
+|  Grande           | 3,10m - 4,5       |2x2 - 3x3 Quadrados  |
+|  Enorme           | 4,51-7,5m         |3x3 - 6x6 Quadrados  |
+|  Imenso/Colossal  | 7,51m e maiores   |7x7 ou + Quadrados   |
+}}
+
+
+{{descriptive
+**Ex. Funções em Partes:**<br> Adicionar Guelras/Brânquias para respirar embaixo d'água ou asas para voar. <br>
+Transformar o braço em uma corda/corrente para prender alguém.<br>
+}}
+
+{{descriptive
+**Ex. Funções Completas:**<br> 
+Transformar-se em uma moto ou pequeno avião para carregar alguém em alta velocidade
+}}
+
+<div class='pageNumber auto'></div>
+
+\page
+
+{{watercolor2;top:100px,right:-200px,width:200px,background-color:#BBAD82,opacity:70%;}}
+
+:::::::::::::::::::::::
+{{classTable,frame,
+### &nbsp;&nbsp;&nbsp;Restrições Materialização
+| **Nível** | **Restrição** | **Benefício** |
+|:--------:|:--------------|:--------------|
+| <br>**Leve** |  A conjuração não pode se afastar mais de 6 metros do conjurador. | Conjuração recebe **+1 na CA** |
+| <br>**Leve** | Conjuração não causa dano direto | Concede **+2 bônus em suporte** (*cura, sensor, defesa*) |
+| **Leve** | Só pode conjurar **1 item do mesmo tipo por combate** | O item ganha **+2 rodadas de duração** |
+| <br>**Moderada** | Conjuração consome <br>**5% de aura por rodada** | Pode realizar **1 ação bônus extra** em seu turno |
+| <br>**Moderada** | Usuário sofre dano **= metade da vida da conjuração** se a Conjuração for destruída | A criatura **explode ao morrer**, causando **1d6 em 3m de área (circulo)** |
+| <br>**Moderada** | Só conjura em **local fixo ou calmo predeterminado** <br> _Ex. Em casa/carro ou fora de combate_| O conjurador ganha **vantagem no primeiro teste** que realizar |
+| <br>**Pesada** | Perde **Ação Principal enquanto a Conjuração estiver ativa** | A criatura age com **+4 em testes ofensivos** |
+| <br><br><br><br>**Pesada** |Conjuração pode ser **manipulada/usada por outros contra a vontade do usuário** <br>_Uma conjutação manipulada ou em posse de outro não pode ser desconjurada._ <br>O conjurador pode **reverter controle** com 1 teste de Sabedoria **CD 15** | Um dos dados de dano se torna máx. <br> **ou**<br> Alcance dobra <br>**ou**<br> Custo reduz em 15%<br> **ou**<br> Dura +2 rodadas|
+| **Pesada** | O hatsu depende de "compo-nentes materiais" que serão consumidos ou inutilizados ao conjurar. | A criatura tem **+2 em CA** e **+10 PV** ao ser criada |
+}}

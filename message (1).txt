@@ -1,0 +1,69 @@
+VejaAcho que essas partes das características tb já tem, mas vai que ajuda. rs
+
+##### CA de Objeto por Materiais 1/2
+{color:,text-align:center}
+|     Substância     |   CA   |     Tamanho    |Peso/Espaço|
+|:------------------:|:------:|:--------------:|:---------:|
+|Tecido, papel, plástico |   11   |até 30cm, 1m, 2m|0; 0,1; 0,5|
+|Cristal, gelo, vidro |   12   |até 30cm, 1m, 2m|0,5; 1; 2|
+|Madeira, plástico rígido,<br> carne e osso/material organico (criaturas vivas)       |<br>   13   |até 30cm, 1m, 2m|0,5; 1,5; 2,5<br>|
+|Minerais <br>(pedra, topázio)           | 14 |até 30cm, 1m, 2m|1;<br> 8; 12|
+|Líquido ou Gelatinoso   | 14 |até 30cm, 1m, 2m|1;<br> 4; 8|
+|Metais <br>(aço/ferro/prata/ouro)      | 15 |até 30cm, 1m, 2m|1;<br> 2; 4|
+
+<div class='pageNumber auto'></div>
+
+\page
+
+
+##### CA de Objeto por Materiais 2/2
+{color:,text-align:center}
+| Substância                        | CA |     Tamanho    |Peso/Espaço|
+|:---------------------------------|:--:|:--------------:|:---------:|
+|Gasosos      | - |até 30cm, 1m, 2m|0,1;<br> 0,5; 1|
+|"Energia"| Valor do Ataque <br>(contra-ataque mirado) |até 1cm, 3m, 6m <br>(tamanho e espaço iguais||
+  
+##### PV (BÁSICO!!) por Tamanho
+{color:,text-align:center}
+|             Tamanho          |Quando Frágil|Quando Resistente|
+|:-----------------------------|:-----------:|:---------------:|
+|Minúsculo/Miúdo <br>(chave, garrafa, fechadura)    |  4 (1d4+2)  | 9 (2d4+5)   |
+|Pequeno (armas marciais, instrumentos)      |  5 (1d6+2)  | 13 (2d8+5)  |
+|Médio (Humanoides, Mesa, Televisão 52')     |  6 (1d8+2)  | 17 (2d12+5) |
+|Grande (carro, janela 3m x 3m)              |  7 (1d10+2) | 20 (3d10+5) |
+|Enorme (balão, escada, barco)               |  8 (1d12+2) | 23 (6d6+5) |
+|Imenso/Colossal (avião, navios, prédios     |  12 (1d20+2)| 25 (5d8+5) |
+
+{{note,wide
+#### Tabela de Características de Invocação
+| Nome | Características |
+|:---:|:----------------|
+| **Atento** | Toda criatura dentro de 3 metros da conjuração tem sua percepção/investigação aumentada em 2. Repetindo a escolha do efeito esse aumento se torna 3, 4 e 5 no máximo (com esse efeito). |
+| **Carapaça/Armadura** | A conjuração recebe 2 de Redução de Danos. Repetindo a escolha do efeito esse aumento se torna 3, 4 e 5 no máximo (com esse efeito). |
+| **Curandeira**<br>**(Pré-Requisito:<br> Efeito de Cura)** | Sempre que a conjuração curar uma criatura, a cura é aumentada em +1 para cada dado rolado. Repetindo a escolha do efeito esse aumento se torna 2 e 3 no máximo (com esse efeito ou aumentanto com Grau de Potência). |
+| **Defensor** | Toda criatura adjacente à conjuração tem sua Classe de Armadura aumentada em 2. Repetindo a escolha do efeito esse aumento se torna 3, 4 e 5 no máximo (com esse efeito ou aumentanto com Grau de Potência). |
+| **Destruidor** | Todo ataque crítico da conjuração causa 1 dado de dano adicional (o maior). |
+| **Dimensão** | A Conjuração na verdade **PODE** se tratar de um ambiente/local/espaço independente e não necessariamente uma criatura/objeto (também possível) onde um alvo e/ou usuário podem entrar |
+|**Enxame**|3+ conjurações iguais, são agora um Enxame. Atacam de uma vez (MESMA INICIATIVA), tem seus PVs, CAs e Atributos juntos (inclusive para Redução ou destruição) |
+| **Furtivo** | A conjuração recebe um bônus de +2 em rolagens de Furtividade. Repetindo a escolha do efeito esse aumento se torna 3, 4 e 5 no máximo (com esse efeito). |
+| **Grande** | A conjuração passa a contar como uma criatura de tamanho um grau maior (Médio -> **Grande** -> Enorme -> Colossal), recebendo vantagem em TR de FOR ou CON. O grau aumenta a cada escolha|
+| **Imparável** | A conjuração ignora terreno difícil ao seu mover e não pode ter o seu movimento reduzido. |
+|<br> **Investida** | Sempre que a conjuração se mover pelo menos 4,5 metros em linha reta antes de um ataque, o alvo do ataque realiza um teste de resistência de força, sendo derrubado caso falhe, além de receber 1 dado de dano adicional. |
+| <br>**Montaria** | A conjuração pode servir como uma montaria. Montar-se na conjuração é uma ação de movimento, mas o permite se mover utilizando a ação e valor de movimento da conjuração. Uma conjuração deve ser pelo menos média em tamanho para receber essa característica. |
+| **Móvel/Veloz** | O movimento da conjuração aumenta em 3 metros. Repetindo a escolha do efeito esse aumento se torna 4,5m, 6m, 7,5m e 9m no máximo (com esse efeito). |
+| **Movimento variável**|A conjuração adquire o movimento escolhido entre voo, nado, escalada ou subterrâneo. Repetindo a escolha do efeito é possível adicionar movimentos| 
+| **Pequeno** | A conjuração passa a contar como uma criatura de tamanho um grau menor (Médio -> Pequeno -> Minúsculo/Miúdo), recebendo vantagem em testes de Furtividade. O grau diminui a cada escolha|
+| **Perito** | A conjuração recebe 2 perícias adicionais. |
+| **Perturbador** | Toda criatura hostil dentro de 3 metros da conjuração recebe um prejuízo de -2 em testes de perícia. Ao ao escolher essa habilidade, esse aumento se torna 3, 4 e 5 no máximo (com esse efeito). |
+| <br>**Reativo** | A criatura possui reações = prof do usuário. Uma vez por rodada, a reação da Conjuração pode ser utilizada independente do usuário **e para qualquer reação padrão**. Repetindo a escolha do efeito passam a ser +2 reações por escolha até o máximo de reações do Conjurador **Veja [Reações](#p24)**<br> |
+| **Robustez** | O máximo de pontos de vida conjuração aumentam em 5. Repetindo a escolha do efeito esse aumento se torna 10, 15 e 25 no máximo (com esse efeito). |
+| **Sangue Ruim/Porco Espinho** | Uma vez por rodada, quando a conjuração receber um ataque perfurante, todas as criaturas adjacentes a ela sofrem 1d6 de dano ácido ou em ataques normais recebem 1d6 de dano perfurante. |
+}}
+
+### [Vinculo sustentado](#p34)
+{{wide
+As conjurações descritas normalmente **não dependem do Nen do con-<br>jurador de maneira ativa e constante.** A aura é gasta apenas no momento <br>da ativação do Hatsu. Com esse efeito conjurações podem:<br>
+>
+a) Se manterem ativas por tempo indeterminado através de Concentra-<br>ção e gasto constante de aura do usuário (a cada 2 rodadas)<br>
+b) Compartilhar seus sentidos com o usuário ao custo de aura por<br> rodada (a cada rodada)
+}}

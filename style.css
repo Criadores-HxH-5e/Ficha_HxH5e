@@ -1,0 +1,43 @@
+ @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap');
+        .btn-hatsu-container {
+                margin-top: 10px;
+                width: 250px;
+                display: flex;
+                justify-content: center;
+                border: 1px solid #00FF9D;
+                background-color: #00FF9D;
+                border-radius: 4px;             
+            }
+            .btn-hatsu-container:hover{
+                transform: scale(1.01);
+                transition: 0.5s;
+                background-color: #01e68e;
+            }
+
+            .btn-hatsu {
+              
+                color: #000000;
+                font-family: 'Orbitron', sans-serif;
+                font-size: 14px;
+                font-weight: bold;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                padding: 12px 24px;
+                border: none;
+                border-radius: 10px;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                width: 100%;
+                max-width: 280px;
+                justify-content: center;
+            }
+
+            .btn-hatsu:hover {
+                filter: brightness(1.1);
+              
+            }
+
+           
