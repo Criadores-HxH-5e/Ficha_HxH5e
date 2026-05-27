@@ -34,19 +34,19 @@
                                     ${state.isMestre ? `<button onclick="state.view='MESTRE_PLAYERS';render()"
                                         style="display:flex;align-items:center;gap:10px;width:100%;padding:9px 12px;border:none;background:transparent;border-radius:8px;color:#a78bfa;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;cursor:pointer;font-family:'Orbitron',sans-serif;transition:background .15s"
                                         onmouseover="this.style.background='#7c3aed22'" onmouseout="this.style.background='transparent'">
-                                        âš”ï¸ Jogadores
+                                        &#x2694;&#xFE0F; Jogadores
                                     </button>` : ''}
                                     ${(state.isMestre || state.isAdmin) ? `<button onclick="state.view='BESTIARIO';render()"
                                         style="display:flex;align-items:center;gap:10px;width:100%;padding:9px 12px;border:none;background:transparent;border-radius:8px;color:#fb923c;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;cursor:pointer;font-family:'Orbitron',sans-serif;transition:background .15s"
                                         onmouseover="this.style.background='#b4530022'" onmouseout="this.style.background='transparent'">
-                                        ðŸ² Besti&#xE1;rio
+                                        &#x1F432; Besti&#xE1;rio
                                     </button>` : ''}
                                     ${state.isAdmin ? `
                                     <div style="height:1px;background:#1f2937;margin:4px 6px"></div>
                                     <button onclick="state.view='ADMIN';render()"
                                         style="display:flex;align-items:center;gap:10px;width:100%;padding:9px 12px;border:none;background:transparent;border-radius:8px;color:#f87171;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;cursor:pointer;font-family:'Orbitron',sans-serif;transition:background .15s"
                                         onmouseover="this.style.background='#dc262622'" onmouseout="this.style.background='transparent'">
-                                        ðŸ›¡ Admin
+                                        &#x1F6E1; Admin
                                     </button>` : ''}
                                 </div>
                             </div>
@@ -60,11 +60,11 @@
 
                     ${state.isAdmin ? `<div onclick="window._manualSync()" style="display:flex;align-items:center;justify-content:space-between;background:#0a0f1a;border:1px solid #1f2937;border-radius:10px;padding:8px 12px;margin-bottom:12px;cursor:pointer" title="Clique para sincronizar agora">
                         <div style="display:flex;align-items:center;gap:6px">
-                            <span style="font-size:10px">â˜ï¸</span>
+                            <span style="font-size:10px">&#x2601;&#xFE0F;</span>
                             <span style="font-size:8px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:1px">Sync Nuvem</span>
-                            <span id="sync-status-badge" style="font-size:7px;font-weight:900;padding:2px 6px;border-radius:4px;background:#4ade8022;color:#4ade80">âœ“ Ativo</span>
+                            <span id="sync-status-badge" style="font-size:7px;font-weight:900;padding:2px 6px;border-radius:4px;background:#4ade8022;color:#4ade80">&#x2714; Ativo</span>
                         </div>
-                        <span style="font-size:8px;color:#374151">â†» Sincronizar</span>
+                        <span style="font-size:8px;color:#374151">&#x21BB; Sincronizar</span>
                     </div>` : ''}
 
                     <div class="text-center mb-8">
@@ -73,8 +73,8 @@
                     </div>
                     <div class="flex-1 overflow-y-auto custom-scrollbar space-y-8 pb-20">
             `;
-            html += `<div><div class="flex items-center gap-2 mb-3"><i data-lucide="circle-dashed" class="text-gray-500 w-4 h-4"></i><h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest">Iniciantes (NÃ­vel 0)</h2></div>`;
-            if (level0.length === 0) html += `<div class="h-24 flex items-center justify-center border-2 border-dashed border-gray-800 rounded-2xl text-gray-600 text-xs bg-gray-900/20">Nenhuma ficha de nÃ­vel 0 encontrada.</div>`;
+            html += `<div><div class="flex items-center gap-2 mb-3"><i data-lucide="circle-dashed" class="text-gray-500 w-4 h-4"></i><h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest">Iniciantes (N&#xED;vel 0)</h2></div>`;
+            if (level0.length === 0) html += `<div class="h-24 flex items-center justify-center border-2 border-dashed border-gray-800 rounded-2xl text-gray-600 text-xs bg-gray-900/20">Nenhuma ficha de n&#xED;vel 0 encontrada.</div>`;
             else {
                 level0.forEach(char => {
                     const color = SYSTEM_DB.classes.find(c => c.id === char.class)?.color || '#fff';
@@ -86,13 +86,13 @@
                         ${avatar}
                         <div class="flex-1">
                             <h3 class="font-display font-bold text-white text-base">${char.name}</h3>
-                            <p class="text-[10px] text-gray-400 uppercase">${char.race} â€¢ <span style="color:${color}">${char.class}</span></p>
+                            <p class="text-[10px] text-gray-400 uppercase">${char.race} &#x2022; <span style="color:${color}">${char.class}</span></p>
                         </div>
                         <button onclick="event.stopPropagation(); deleteCharacter('${char.id}')" class="p-2 text-gray-600 hover:text-neon-red transition-colors"><i data-lucide="trash-2" size="16"></i></button>
                     </div>`;
                 });
             }
-            html += `</div><div><div class="flex items-center gap-2 mb-3"><i data-lucide="zap" class="text-neon-green w-4 h-4"></i><h2 class="text-xs font-bold text-neon-green uppercase tracking-widest">UsuÃ¡rios de Nen (NÃ­vel 1-12)</h2></div>`;
+            html += `</div><div><div class="flex items-center gap-2 mb-3"><i data-lucide="zap" class="text-neon-green w-4 h-4"></i><h2 class="text-xs font-bold text-neon-green uppercase tracking-widest">Usu&#xE1;rios de Nen (N&#xED;vel 1-12)</h2></div>`;
             if (levelHigh.length === 0) html += `<div class="h-24 flex items-center justify-center border-2 border-dashed border-gray-800 rounded-2xl text-gray-600 text-xs bg-gray-900/20">Nenhum Hunter registrado.</div>`;
             else {
                 levelHigh.forEach(char => {
@@ -105,7 +105,7 @@
                         ${avatar}
                         <div class="flex-1">
                             <h3 class="font-display font-bold text-white text-base">${char.name}</h3>
-                            <p class="text-[10px] text-gray-400 uppercase">LVL ${char.level} â€¢ <span style="color:${color}">${char.class}</span></p>
+                            <p class="text-[10px] text-gray-400 uppercase">LVL ${char.level} &#x2022; <span style="color:${color}">${char.class}</span></p>
                         </div>
                         <button onclick="event.stopPropagation(); deleteCharacter('${char.id}')" class="p-2 text-gray-600 hover:text-neon-red transition-colors"><i data-lucide="trash-2" size="16"></i></button>
                     </div>`;
