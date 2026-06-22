@@ -534,7 +534,7 @@
                             const isSugg = suggestions.includes(c);
                             return `<button onclick="event.stopPropagation();window._hSetSpecialChoice('eg3','${c}')"
                                 style="padding:4px 8px;border-radius:7px;font-size:8px;font-weight:${isSel?'900':'600'};cursor:pointer;border:1.5px solid ${isSel?color:(isSugg?color+'66':'#1f2937')};background:${isSel?color+'22':(isSugg?color+'11':'transparent')};color:${isSel?color:(isSugg?color+'cc':'#9ca3af')};white-space:nowrap">
-                                ${isSugg?'â­ ':''}${c}${lvl>1?` <span style="font-size:7px;opacity:.6">Lv${lvl}+</span>`:''}
+                                ${isSugg?'⭐':''}${c}${lvl>1?` <span style="font-size:7px;opacity:.6">Lv${lvl}+</span>`:''}
                             </button>`;
                         }).join('')}
                         </div>
@@ -861,7 +861,7 @@
                         }
                         var onclick;
                         if (isBlocked) {
-                            var alertMsg = 'âŒ Requisito não atendido\\n\\n' + rq.reason + '\\n\\nReq: ' + e.req;
+                            var alertMsg = '❌ Requisito não atendido\\n\\n' + rq.reason + '\\n\\nReq: ' + e.req;
                             onclick = 'event.stopPropagation();alert(\'' + alertMsg.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n') + '\')';
                         } else {
                             onclick = 'event.stopPropagation();window._hSetSpecialChoice(\'eg6\',\'' + e.nome.replace(/'/g,"\\'") + '\')';
@@ -1915,6 +1915,36 @@ window._hShowDanoInfo = function(idx, btn) {
     pop.style.cssText = 'position:fixed;z-index:99999;background:#0f172a;border:1px solid #1f2937;border-radius:12px;padding:14px 16px;min-width:230px;box-shadow:0 8px 32px #000c;font-size:11px;pointer-events:auto';
     pop.innerHTML = '<div style="font-weight:900;color:#e5e7eb;margin-bottom:10px;font-size:9px;letter-spacing:1.5px;text-transform:uppercase">📍 Cálculo do Dano</div>'
         + lines.map(function(l){
+            if (l.type === 'diceTable') {
+                var tbl = l.table;
+                var showUntil = Math.min(tbl.length - 1, l.tblFinal + 3);
+                var chips = '';
+                for (var i = 0; i <= showUntil; i++) {
+                    var isFinal = i === l.tblFinal;
+                    var isAfterDado = i === l.tblAfterDado && l.tblAfterDado !== l.tblStart;
+                    var isStart = i === l.tblStart;
+                    var isPath = i > l.tblStart && i < l.tblFinal && i !== l.tblAfterDado;
+                    var bg, color, border, fw, extraStyle = '';
+                    if (isFinal)         { bg='#ef4444';    color='#000';    border='#ef4444'; fw='900'; extraStyle='box-shadow:0 0 8px #ef444488;'; }
+                    else if (isAfterDado){ bg='#fbbf2418';  color='#fbbf24'; border='#fbbf24'; fw='700'; }
+                    else if (isStart)    { bg='#1f2937';    color='#9ca3af'; border='#374151'; fw='700'; }
+                    else if (isPath)     { bg='#ef444412';  color='#f87171'; border='#ef444430'; fw='600'; }
+                    else                 { bg='transparent';color='#2d3748'; border='transparent'; fw='400'; }
+                    chips += '<div style="padding:3px 6px;border-radius:4px;background:'+bg+';border:1px solid '+border+';font-family:\'Orbitron\',sans-serif;font-weight:'+fw+';font-size:8px;color:'+color+';white-space:nowrap;'+extraStyle+'">'+tbl[i]+'</div>';
+                }
+                var moreCount = tbl.length - 1 - showUntil;
+                var moreHtml = moreCount > 0 ? '<div style="font-size:8px;color:#374151;align-self:center;white-space:nowrap">+'+moreCount+' …</div>' : '';
+                return '<div style="margin-top:10px;padding-top:10px;border-top:1px solid #1f2937">'
+                    + '<div style="font-size:8px;color:#6b7280;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">📊 Progressão dos dados</div>'
+                    + '<div style="display:flex;flex-wrap:wrap;gap:3px;align-items:center">'+chips+moreHtml+'</div>'
+                    + '<div style="display:flex;gap:10px;margin-top:7px;flex-wrap:wrap">'
+                    + '<span style="font-size:8px;color:#9ca3af">■ base</span>'
+                    + (l.tblAfterDado !== l.tblStart ? '<span style="font-size:8px;color:#fbbf24">■ após dado</span>' : '')
+                    + (l.tblFinal > l.tblAfterDado ? '<span style="font-size:8px;color:#f87171">■ graus</span>' : '')
+                    + '<span style="font-size:8px;color:#ef4444">■ final</span>'
+                    + '</div>'
+                    + '</div>';
+            }
             return '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:14px;margin-bottom:5px'+(l.i?';opacity:.75':'')+'">'
                 + '<span style="color:#6b7280;white-space:nowrap">'+l.l+'</span>'
                 + '<span style="color:'+l.c+';font-weight:'+(l.b?'900':'600')+';font-family:'+(l.b?"'Orbitron',sans-serif":'inherit')+'">'+l.v+'</span>'
@@ -1923,6 +1953,36 @@ window._hShowDanoInfo = function(idx, btn) {
         + '<div onclick="document.getElementById(\''+popId+'\').remove()" style="margin-top:10px;font-size:8px;color:#4b5563;cursor:pointer;text-align:right;padding-top:6px;border-top:1px solid #1f2937">✕ fechar</div>';
     var r = btn.getBoundingClientRect();
     pop.style.top = Math.min(r.bottom + 6, window.innerHeight - 250) + 'px';
+    pop.style.left = Math.max(8, r.left - 110) + 'px';
+    document.body.appendChild(pop);
+    setTimeout(function(){
+        document.addEventListener('click', function _cl(e){
+            if (!pop.contains(e.target) && e.target !== btn){ pop.remove(); document.removeEventListener('click', _cl); }
+        });
+    }, 50);
+};
+
+window._hShowStatInfo = function(idx, type, btn) {
+    var popId = '_stat_info_popup';
+    var existing = document.getElementById(popId);
+    if (existing) { if (existing.dataset.for == idx+'_'+type) { existing.remove(); return; } existing.remove(); }
+    var lines = ((window._HATSU_STAT_INFO || {})[idx] || {})[type];
+    if (!lines || !lines.length) return;
+    var titles = { cd:'🎯 Cálculo do CD', alcance:'📐 Cálculo do Alcance', area:'🔵 Cálculo da Área', duracao:'⏱ Cálculo da Duração' };
+    var pop = document.createElement('div');
+    pop.id = popId;
+    pop.dataset.for = idx+'_'+type;
+    pop.style.cssText = 'position:fixed;z-index:99999;background:#0f172a;border:1px solid #1f2937;border-radius:12px;padding:14px 16px;min-width:220px;box-shadow:0 8px 32px #000c;font-size:11px;pointer-events:auto';
+    pop.innerHTML = '<div style="font-weight:900;color:#e5e7eb;margin-bottom:10px;font-size:9px;letter-spacing:1.5px;text-transform:uppercase">'+(titles[type]||'📍 Detalhes')+'</div>'
+        + lines.map(function(l){
+            return '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:14px;margin-bottom:5px">'
+                + '<span style="color:#6b7280;white-space:nowrap">'+l.l+'</span>'
+                + '<span style="color:'+l.c+';font-weight:'+(l.b?'900':'600')+';font-family:'+(l.b?"'Orbitron',sans-serif":'inherit')+'">'+l.v+'</span>'
+                + '</div>';
+        }).join('')
+        + '<div onclick="document.getElementById(\''+popId+'\').remove()" style="margin-top:10px;font-size:8px;color:#4b5563;cursor:pointer;text-align:right;padding-top:6px;border-top:1px solid #1f2937">✕ fechar</div>';
+    var r = btn.getBoundingClientRect();
+    pop.style.top = Math.min(r.bottom + 6, window.innerHeight - 200) + 'px';
     pop.style.left = Math.max(8, r.left - 110) + 'px';
     document.body.appendChild(pop);
     setTimeout(function(){

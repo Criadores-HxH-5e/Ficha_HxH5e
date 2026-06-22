@@ -372,7 +372,7 @@ function closeHatsuCreator() {
                 overlay.innerHTML = `
                 <div style="background:#0d1117;border:2px solid ${tc};border-radius:20px;padding:24px;width:100%;max-width:380px;box-shadow:0 0 40px ${tc}44;max-height:90vh;overflow-y:auto">
                     <div style="text-align:center;margin-bottom:16px">
-                        <div style="font-size:24px;margin-bottom:6px">â­</div>
+                        <div style="font-size:24px;margin-bottom:6px">⭐</div>
                         <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:13px;color:${tc};text-transform:uppercase;letter-spacing:2px">5 Graus do 1Âº Hatsu</div>
                         <div style="font-size:9px;color:#9ca3af;margin-top:6px;line-height:1.5">
                             Distribua <b style="color:${tc}">5 Graus de Potência</b> entre as características permitidas pela categoria <b style="color:${tc}">${hatsuClasse}</b>.
@@ -667,7 +667,7 @@ function closeHatsuCreator() {
         window._manualSync = async function() {
             if (!state.user) return;
             const badge = document.getElementById('sync-status-badge');
-            if (badge) { badge.textContent = 'âŸ³ Sincronizando...'; badge.style.background = '#fbbf2422'; badge.style.color = '#fbbf24'; }
+            if (badge) { badge.textContent = '⟳ Sincronizando...'; badge.style.background = '#fbbf2422'; badge.style.color = '#fbbf24'; }
 
             await syncFromCloud();
             loadCharacters();

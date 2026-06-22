@@ -195,7 +195,7 @@
     // 5 Graus do 1Âº Hatsu — dano
     if (idx === 0 && h.primeiroHatsuGraus && h.primeiroHatsuGraus.dano) {
         totalGraus += h.primeiroHatsuGraus.dano;
-        grauSources.push({ nome: 'â­ 1Âº Hatsu (Dano)', graus: h.primeiroHatsuGraus.dano });
+        grauSources.push({ nome: '⭐ 1Âº Hatsu (Dano)', graus: h.primeiroHatsuGraus.dano });
     }
 
     // Atributo base pelo tipo/categoria
@@ -253,7 +253,7 @@
                 </button>`;
             }).join('')}
         </div>
-        <div style="font-size:7px;color:#4b5563;margin-top:4px">â˜… sugerido para ${hatsuClasse}</div>
+        <div style="font-size:7px;color:#4b5563;margin-top:4px">★ sugerido para ${hatsuClasse}</div>
     </div>` : '';
 
     let _hatsuFinalDice = null;
@@ -301,6 +301,7 @@
             grauSources.forEach(function(s){ _danoInfo.push({ l: '+' + s.graus + ' grau' + (s.graus > 1 ? 's' : ''), v: s.nome, c: '#f87171' }); });
             if (flageloGrauPuro > 0) _danoInfo.push({ l: '+' + flageloGrauPuro + ' grau' + (flageloGrauPuro > 1 ? 's' : ''), v: 'Flagelo Puro ×' + flageloCopias, c: '#a78bfa' });
             _danoInfo.push({ l: '→ Total', v: finalDice + ' + ' + baseAttr, c: isPuroFlagelo ? '#a78bfa' : '#f87171', b: true });
+            _danoInfo.push({ type: 'diceTable', table: DAMAGE_TABLE, tblStart: isPuroFlagelo ? 4 : BASE_DAMAGE_IDX, tblAfterDado: baseIdx, tblFinal: finalIdx });
             if (!window._HATSU_DANO_INFO) window._HATSU_DANO_INFO = {};
             window._HATSU_DANO_INFO[idx] = _danoInfo;
             const baseNote = (totalDados > 0 || totalGraus > 0 || flageloGrauPuro > 0) ? `(base ${isPuroFlagelo ? '1d10' : '2d6'})` : '';
@@ -311,7 +312,7 @@
                     <div style="font-size:14px;font-weight:700;color:#6b7280">+ ${baseAttr}</div>
                     ${psiLabel}
                     ${baseNote ? `<div style="font-size:9px;color:#4b5563;font-style:italic">${baseNote}</div>` : ''}
-                    <button onclick="event.stopPropagation();window._hShowDanoInfo(${idx},this)" style="margin-left:4px;background:transparent;border:1px solid #374151;border-radius:50%;width:16px;height:16px;font-size:9px;color:#6b7280;cursor:pointer;padding:0;line-height:16px;flex-shrink:0;transition:border-color .15s,color .15s" title="Como chegamos aqui">â“˜</button>
+                    <button onclick="event.stopPropagation();window._hShowDanoInfo(${idx},this)" style="margin-left:4px;background:transparent;border:1px solid #374151;border-radius:50%;width:16px;height:16px;font-size:9px;color:#6b7280;cursor:pointer;padding:0;line-height:16px;flex-shrink:0;transition:border-color .15s,color .15s" title="Como chegamos aqui">ⓘ</button>
                 </div>
                 ${totalDados > 0 ? `<div style="font-size:8px;color:#fbbf24;margin-bottom:4px">${dadoSources.map(s=>`• ${s.nome}: +${s.n} dado (${s.tipo})`).join(', ')}</div>` : ''}`;
         }
@@ -376,8 +377,8 @@
         // Chips de fontes de grau e dado
         const sourcesHtml = (grauSources.length > 0 || dadoSources.length > 0)
             ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">
-                ${dadoSources.map(s => `<span style="font-size:7px;font-weight:900;background:#fbbf2418;color:#fbbf24;padding:2px 6px;border-radius:4px">+${s.n} dado Â· ${s.nome}</span>`).join('')}
-                ${grauSources.map(s => `<span style="font-size:7px;font-weight:900;background:#ef444418;color:#f87171;padding:2px 6px;border-radius:4px">+${s.graus} grau Â· ${s.nome}</span>`).join('')}
+                ${dadoSources.map(s => `<span style="font-size:7px;font-weight:900;background:#fbbf2418;color:#fbbf24;padding:2px 6px;border-radius:4px">+${s.n} dado · ${s.nome}</span>`).join('')}
+                ${grauSources.map(s => `<span style="font-size:7px;font-weight:900;background:#ef444418;color:#f87171;padding:2px 6px;border-radius:4px">+${s.graus} grau · ${s.nome}</span>`).join('')}
               </div>`
             : '';
 
@@ -489,7 +490,7 @@
     // 5 Graus do 1Âº Hatsu — CD
     if (idx === 0 && h.primeiroHatsuGraus && h.primeiroHatsuGraus.cd) {
         cdBonusTotal += h.primeiroHatsuGraus.cd;
-        cdBonusSources.push({ nome: 'â­ 1Âº Hatsu', bonus: h.primeiroHatsuGraus.cd });
+        cdBonusSources.push({ nome: '⭐ 1Âº Hatsu', bonus: h.primeiroHatsuGraus.cd });
     }
 
     // Determina se exibir o bloco de CD:
@@ -505,6 +506,16 @@
         const attrMod = Math.floor((attrVal - 10) / 2);
         const cdBase = 8 + halfLevel + attrMod;
         const cdFinal = cdBase + cdBonusTotal;
+
+        if (!window._HATSU_STAT_INFO) window._HATSU_STAT_INFO = {};
+        if (!window._HATSU_STAT_INFO[idx]) window._HATSU_STAT_INFO[idx] = {};
+        window._HATSU_STAT_INFO[idx].cd = [
+            { l: 'Base', v: '8', c: '#9ca3af' },
+            { l: '½ Nível ('+halfLevel+')', v: '+'+halfLevel, c: '#d1d5db' },
+            { l: 'Mod '+baseAttr+' ('+(attrMod>=0?'+':'')+attrMod+')', v: (attrMod>=0?'+':'')+attrMod, c: '#60a5fa' },
+            ...cdBonusSources.map(s => ({ l: '+'+s.bonus+' bônus', v: s.nome, c: tc })),
+            { l: '→ Total', v: 'CD '+cdFinal, c: tc, b: true }
+        ];
 
         const cdSourcesHtml = cdBonusSources.length > 0
             ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">${cdBonusSources.map(s =>
@@ -527,6 +538,7 @@
             <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:6px">
                 <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:32px;color:${tc};text-shadow:0 0 14px ${tc}66;line-height:1">CD ${cdFinal}</div>
                 <div style="font-size:11px;font-weight:700;color:#6b7280">TR de ${baseAttr}</div>
+                <button onclick="event.stopPropagation();window._hShowStatInfo(${idx},'cd',this)" style="margin-left:4px;background:transparent;border:1px solid #374151;border-radius:50%;width:16px;height:16px;font-size:9px;color:#6b7280;cursor:pointer;padding:0;line-height:16px;flex-shrink:0;transition:border-color .15s,color .15s" title="Como chegamos aqui">ⓘ</button>
             </div>
             <div style="font-size:8px;color:#4b5563;font-style:italic;margin-bottom:4px">${formulaStr}</div>
             ${manipContextNote}
@@ -545,9 +557,20 @@
     // 5 Graus do 1Âº Hatsu — alcance, área, duração
     if (idx === 0 && h.primeiroHatsuGraus) {
         const _phg = h.primeiroHatsuGraus;
-        if (_phg.alcance) alcanceBonus.push({ valor: _phg.alcance * 3, fonte: 'â­ 1Âº Hatsu (Alcance)' });
-        if (_phg.area)    areaBonus.push({ valor: _phg.area * 1.5, fonte: 'â­ 1Âº Hatsu (Área)' });
-        if (_phg.duracao) duracaoBonus.push({ valor: _phg.duracao, fonte: 'â­ 1Âº Hatsu (Duração)', unidade: 'rodada' });
+        if (_phg.alcance) alcanceBonus.push({ valor: _phg.alcance * 3, fonte: '⭐ 1º Hatsu (Alcance)' });
+        if (_phg.area)    areaBonus.push({ valor: _phg.area * 1.5, fonte: '⭐ 1º Hatsu (Área)' });
+        if (_phg.duracao) duracaoBonus.push({ valor: _phg.duracao, fonte: '⭐ 1º Hatsu (Duração)', unidade: 'rodada' });
+    }
+
+    // Bônus de Talento aplicado a alcance/área/duração
+    if (h.bonusGraus) {
+        const _bg = h.bonusGraus;
+        if (_bg.tipo === 'alcance' && _bg.valor)
+            alcanceBonus.push({ valor: _bg.valor * 3,   fonte: '💠 Bônus Talentoso (Alcance)' });
+        else if (_bg.tipo === 'area' && _bg.valor)
+            areaBonus.push({   valor: _bg.valor * 1.5,  fonte: '💠 Bônus Talentoso (Área)' });
+        else if (_bg.tipo === 'duracao' && _bg.valor)
+            duracaoBonus.push({ valor: _bg.valor, fonte: '💠 Bônus Talentoso (Duração)', unidade: 'rodada' });
     }
 
     // Efeitos Gerais
@@ -636,6 +659,28 @@
     const totalAreaM = areaBonus.reduce((s,b) => s + (typeof b.valor === 'number' ? b.valor : 0), 0);
     const totalDuracaoR = duracaoBonus.reduce((s,b) => s + (typeof b.valor === 'number' ? b.valor : 0), 0);
 
+    // Store info for alcance/área/duração popups
+    if (!window._HATSU_STAT_INFO) window._HATSU_STAT_INFO = {};
+    if (!window._HATSU_STAT_INFO[idx]) window._HATSU_STAT_INFO[idx] = {};
+    if (alcanceBonus.length > 0 || alcanceDobrado) {
+        const _alcLines = alcanceBonus.map(b => ({ l: b.fonte, v: '+'+b.valor+'m', c: '#60a5fa' }));
+        if (alcanceDobrado) _alcLines.push({ l: 'Tempo Marcado', v: 'Base ×2', c: '#60a5fa' });
+        _alcLines.push({ l: '→ Total', v: (totalAlcanceM>0?'+'+totalAlcanceM+'m':'')+(alcanceDobrado?' + Base×2':''), c: '#60a5fa', b: true });
+        window._HATSU_STAT_INFO[idx].alcance = _alcLines;
+    }
+    if (areaBonus.length > 0) {
+        const _areaLines = areaBonus.map(b => ({ l: b.fonte, v: '+'+b.valor+'m', c: '#34d399' }));
+        _areaLines.push({ l: '→ Total', v: '+'+totalAreaM+'m', c: '#34d399', b: true });
+        window._HATSU_STAT_INFO[idx].area = _areaLines;
+    }
+    if (duracaoBonus.length > 0 || duracaoDobrada) {
+        const _durLines = duracaoBonus.map(b => ({ l: b.fonte, v: b.valor !== null ? (typeof b.valor === 'number' ? '+'+b.valor+' rod.' : b.valor) : '(ver desc.)', c: '#a78bfa' }));
+        if (duracaoDobrada) _durLines.push({ l: 'Tempo Marcado', v: 'Base ×2', c: '#a78bfa' });
+        const _durTotalStr = (totalDuracaoR>0?'+'+totalDuracaoR+' rod.':'')+(duracaoDobrada?' + Base×2':'');
+        _durLines.push({ l: '→ Total', v: _durTotalStr||'(variável)', c: '#a78bfa', b: true });
+        window._HATSU_STAT_INFO[idx].duracao = _durLines;
+    }
+
     const hasRangeOrDuration = alcanceBonus.length > 0 || areaBonus.length > 0 || duracaoBonus.length > 0 || alcanceDobrado || duracaoDobrada;
     let calcRangeDurHtml = '';
     if (hasRangeOrDuration) {
@@ -645,6 +690,7 @@
                 <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px">
                     ${alcanceDobrado ? `<span style="font-size:12px;font-weight:900;color:#60a5fa">Base ×2</span>` : ''}
                     ${totalAlcanceM > 0 ? `<span style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:22px;color:#60a5fa;text-shadow:0 0 10px #60a5fa66">+${totalAlcanceM}m</span>` : ''}
+                    <button onclick="event.stopPropagation();window._hShowStatInfo(${idx},'alcance',this)" style="margin-left:4px;background:transparent;border:1px solid #374151;border-radius:50%;width:16px;height:16px;font-size:9px;color:#6b7280;cursor:pointer;padding:0;line-height:16px;flex-shrink:0" title="Detalhes">ⓘ</button>
                 </div>
                 ${alcanceBonus.map(b => `<div style="font-size:8px;color:#6b7280;margin-bottom:2px">• ${b.fonte}: +${b.valor}m</div>`).join('')}
                 ${alcanceDobrado ? `<div style="font-size:8px;color:#6b7280;margin-bottom:2px">• Tempo Marcado: dobra alcance base</div>` : ''}
@@ -655,6 +701,7 @@
                 <div style="font-size:8px;color:#374151;text-transform:uppercase;font-weight:700;letter-spacing:1px;margin-bottom:6px">🔵 Área</div>
                 <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px">
                     <span style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:22px;color:#34d399;text-shadow:0 0 10px #34d39966">+${totalAreaM}m</span>
+                    <button onclick="event.stopPropagation();window._hShowStatInfo(${idx},'area',this)" style="margin-left:4px;background:transparent;border:1px solid #374151;border-radius:50%;width:16px;height:16px;font-size:9px;color:#6b7280;cursor:pointer;padding:0;line-height:16px;flex-shrink:0" title="Detalhes">ⓘ</button>
                 </div>
                 ${areaBonus.map(b => `<div style="font-size:8px;color:#6b7280;margin-bottom:2px">• ${b.fonte}: +${b.valor}m</div>`).join('')}
             </div>` : '';
@@ -665,6 +712,7 @@
                 <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px">
                     ${duracaoDobrada ? `<span style="font-size:12px;font-weight:900;color:#a78bfa">Base ×2</span>` : ''}
                     ${totalDuracaoR > 0 ? `<span style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:22px;color:#a78bfa;text-shadow:0 0 10px #a78bfa66">+${totalDuracaoR} rod.</span>` : ''}
+                    <button onclick="event.stopPropagation();window._hShowStatInfo(${idx},'duracao',this)" style="margin-left:4px;background:transparent;border:1px solid #374151;border-radius:50%;width:16px;height:16px;font-size:9px;color:#6b7280;cursor:pointer;padding:0;line-height:16px;flex-shrink:0" title="Detalhes">ⓘ</button>
                 </div>
                 ${duracaoBonus.map(b => `<div style="font-size:8px;color:#6b7280;margin-bottom:2px">• ${b.fonte}: ${b.valor !== null ? (typeof b.valor === 'number' ? '+'+b.valor+' rodada'+(b.valor!==1?'s':'') : b.valor) : '(ver descrição)'}</div>`).join('')}
                 ${duracaoDobrada ? `<div style="font-size:8px;color:#6b7280;margin-bottom:2px">• Tempo Marcado: dobra duração base</div>` : ''}
@@ -794,7 +842,7 @@
         const _phgEntries = _phg ? Object.entries(_phg).filter(([,v]) => v > 0) : [];
         const _phgRows = _phgEntries.length > 0
             ? _phgEntries.map(([k,v]) => {
-                const info = _PH_LABELS[k] || { icon:'â­', label:k, desc:'' };
+                const info = _PH_LABELS[k] || { icon:'⭐', label:k, desc:'' };
                 return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #1f2937">
                     <span style="font-size:9px;color:#9ca3af">${info.icon} ${info.label} <span style="font-size:8px;color:#4b5563">(${info.desc})</span></span>
                     <span style="font-size:11px;font-weight:900;color:${tc}">+${v}</span>
@@ -810,7 +858,7 @@
         primeiroHatsuSection = `
         <div style="background:#0d1117;border:2px solid ${tc}33;border-radius:12px;padding:14px;margin-bottom:20px">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-                <div style="font-size:8px;font-weight:900;color:${tc};text-transform:uppercase;letter-spacing:2px">â­ 5 Graus do 1Âº Hatsu</div>
+                <div style="font-size:8px;font-weight:900;color:${tc};text-transform:uppercase;letter-spacing:2px">⭐ 5 Graus do 1Âº Hatsu</div>
                 ${_phgBtnHtml}
             </div>
             ${_phgRows}
