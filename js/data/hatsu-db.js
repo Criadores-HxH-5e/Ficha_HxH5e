@@ -86,7 +86,7 @@
     { id:'eg7',  nome:"Poder Valioso",           desc:"+1 Grau de potência na ativação (respeitando a Mecânica da Categoria)",                req:"Nível 1", pn:2 },
     { id:'eg8',  nome:"Redução de Custo",        desc:"Reduz 5% do custo do Hatsu. Com 2+ Restr. Pesadas: -10%. Com Extrema: -25%",            req:"Nível 1 — custo > 10%", pn:1 },
     { id:'eg9',  nome:"Ajuste de Forma (Área)",  desc:"Aplica área de 1,5m (cone, linha ou esfera). Máx. 3 usos. Evolui em +1,5m ou nova forma", req:"Nível 2", pn:1 },
-    { id:'eg10', nome:"Flagelo da Mente",        desc:"O Hatsu causa dano psíquico (Reduzindo a sanidade). Hatsus de dano já começam com 2d6+Atributo por padrão. Sendo escolhido como efeito secundário, cause 1d8 de dano psíquico. Verifique condições que também reduzem sanidade",  req:"Nível 2", pn:1 },
+    { id:'eg10', nome:"Flagelo da Mente",        desc:"O Hatsu causa dano psíquico (Reduzindo a sanidade). Hatsus de dano já começam com 1d10+Atributo por padrão. Sendo escolhido como efeito secundário, cause 1d8 de dano psíquico. Verifique condições que também reduzem sanidade",  req:"Nível 2", pn:1 },
     { id:'eg11', nome:"Ativação Rápida",         desc:"Usa o Hatsu como Ação Bônus em vez de Ação Principal, à escolha",                      req:"Nível 3 (ou Nível 1 via 5 Graus iniciais)", pn:1 },
     { id:'eg12', nome:"Efeito Cuidadoso",        desc:"Hatsu em área pode selecionar alvos específicos dentro dela",                           req:"Nível 3", pn:1 },
     { id:'eg13', nome:"Reação Defensiva",        desc:"Usa o Hatsu como reação para se defender ou proteger aliado",                           req:"Nível 3 — SAB 3+", pn:1 },
