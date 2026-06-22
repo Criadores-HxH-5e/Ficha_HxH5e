@@ -1,0 +1,152 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ===============================================================
+    // Shared Helper Functions
+    // ===============================================================
+    
+    function isSignedIn() { return request.auth != null; }
+    function isAdmin() { 
+      return isSignedIn() && (
+        request.auth.token.get('email', '').matches('(?i)lucas\\.avila\\.leandro@gmail\\.com') ||
+        request.auth.uid == "discord:513323323355037717" ||
+        request.auth.uid == "513323323355037717" ||
+        request.auth.uid == "discord:1262779092646758404" ||
+        request.auth.uid == "1262779092646758404" ||
+        request.auth.uid == "discord:521367784013922304" ||
+        request.auth.uid == "521367784013922304" ||
+        request.auth.uid == "discord:741703273188229150" ||
+        request.auth.uid == "741703273188229150" ||
+        request.auth.token.get('isAdmin', false) == true
+      );
+    }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isValidId(id) { 
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-:]+$'); 
+    }
+    
+    // Helper to check if the authenticated user matches a given ID (considering discord: prefix)
+    function isAuthUser(userId) {
+      return isSignedIn() && userId != null && (
+        request.auth.uid == userId || 
+        request.auth.uid == "discord:" + userId ||
+        "discord:" + request.auth.uid == userId
+      );
+    }
+
+    function isOwner(userId) { 
+      return isAuthUser(userId) || isAdmin(); 
+    }
+    
+    function isRecent(time) { 
+      return time > request.time - duration.value(5, 'm') && time < request.time + duration.value(5, 'm'); 
+    }
+
+    // ===============================================================
+    // V1 ARENA RULES (Existing)
+    // ===============================================================
+
+    match /profiles/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId) && isValidId(userId);
+    }
+
+    match /characters/{characterId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (isAuthUser(existing().ownerId) || isAuthUser(existing().discordId) || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /matches/{matchId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /investments/{investmentId} {
+      allow read: if isOwner(existing().userId) || isAdmin();
+      allow create: if isAuthUser(incoming().userId);
+      allow update: if isAdmin();
+    }
+
+    // ===============================================================
+    // V2 ARENA RULES (New Hardened System)
+    // ===============================================================
+
+    // --- V2 Users ---
+    function isValidV2User(data) {
+      let fields = ['id', 'name', 'coins_balance', 'withdrawable_balance', 'user_type', 'is_admin'];
+      return data.keys().hasAll(fields) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.name is string && data.name.size() <= 100 &&
+             data.coins_balance is number &&
+             data.withdrawable_balance is number &&
+             data.user_type in ['FIGHTER', 'INVESTOR', 'BOTH'] &&
+             data.is_admin is bool;
+    }
+
+    match /v2_users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidV2User(incoming()) && 
+                       incoming().coins_balance <= 1000 && incoming().withdrawable_balance == 0;
+      allow update: if (isOwner(userId) && 
+                       incoming().coins_balance == existing().coins_balance &&
+                       incoming().withdrawable_balance == existing().withdrawable_balance &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['name', 'user_type', 'last_activity', 'phone'])) || 
+                       isAdmin();
+    }
+
+    // --- V2 Fighters ---
+    match /v2_fighters/{fighterId} {
+      allow read, list: if true;
+      allow write: if isAdmin();
+    }
+
+    // --- V2 Quotes ---
+    match /v2_quotes/{quoteId} {
+      allow get: if isAuthUser(existing().user_id) || isAdmin();
+      allow list: if isAuthUser(resource.data.user_id) || isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // --- V2 Fights ---
+    match /v2_fights/{fightId} {
+      allow read, list: if true;
+      allow write: if isAdmin();
+    }
+
+    // --- V2 Transactions ---
+    match /v2_transactions/{txId} {
+      allow get: if isAuthUser(existing().user_id) || isAdmin();
+      allow list: if isAuthUser(resource.data.user_id) || isAdmin();
+      allow create: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    // --- V2 NPC Matches ---
+    match /v2_npc_matches/{matchId} {
+      allow read, list: if true;
+      allow write: if isAdmin();
+    }
+
+    // --- V2 Pending Transactions ---
+    match /v2_pending_transactions/{txId} {
+      allow get: if isAdmin() || isAuthUser(existing().user_id);
+      allow list: if isAdmin() || (isSignedIn() && resource.data != null && isAuthUser(resource.data.user_id));
+      allow write: if false; // Only backend via Admin SDK
+    }
+
+    // --- V2 Notifications ---
+    match /v2_notifications/{notifId} {
+      allow get: if isAuthUser(existing().user_id) || isAdmin();
+      allow list: if isAuthUser(resource.data.user_id) || isAdmin();
+      allow write: if false; // Only backend via Admin SDK
+    }
+  }
+}

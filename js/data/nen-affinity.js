@@ -1,4 +1,4 @@
-﻿        //HATSU CREATOR â€” baseado no Manual de Hatsus HxH5e RPG 2.0
+﻿        //HATSU CREATOR — baseado no Manual de Hatsus HxH5e RPG 2.0
 
 // Calculate bonus P.N granted by selected restrictions
 window.calcPNBonusFromRestr = function(hb) {
@@ -7,7 +7,7 @@ window.calcPNBonusFromRestr = function(hb) {
     const allSelected = [...(hb.rg||[]), ...(hb.rc||[])];
     const pureRestr = hb.pureRestrictions || {};
 
-    // P.N de RestriÃ§Ãµes Puras: Leve+1, Mod+2, Pes+3, Ext+4
+    // P.N de Restrições Puras: Leve+1, Mod+2, Pes+3, Ext+4
     const PURE_PN = { leve:1, moderada:2, pesada:3, extrema:4 };
     if (Object.keys(pureRestr).length > 0) {
         const allRDB = [];
@@ -23,7 +23,7 @@ window.calcPNBonusFromRestr = function(hb) {
 
         allSelected.forEach(id => {
             if (!pureRestr[id]) return;
-            // RestriÃ§Ãµes com P.N automÃ¡tico nÃ£o usam o sistema pura (sÃ£o ignoradas aqui)
+            // Restrições com P.N automático não usam o sistema pura (são ignoradas aqui)
             if (['rg_e9', 'rg_p3', 'ri_p3'].includes(id)) return;
             const r = allRDB.find(x => x.id === id);
             if (r) {
@@ -34,12 +34,12 @@ window.calcPNBonusFromRestr = function(hb) {
     }
 
     allSelected.forEach(id => {
-        // RestriÃ§Ãµes com P.N automÃ¡tico (sem toggle pura): sempre somam ao selecionar
-        if (id === 'rg_e9') bonus += 7;  // Vida por Poder: +7 automÃ¡tico
-        if (id === 'ri_p3') bonus += 3;  // 1x por Combate: +3 automÃ¡tico
-        if (id === 'rg_p3') bonus += 3;  // Dano Permanente: +3 automÃ¡tico
+        // Restrições com P.N automático (sem toggle pura): sempre somam ao selecionar
+        if (id === 'rg_e9') bonus += 7;  // Vida por Poder: +7 automático
+        if (id === 'ri_p3') bonus += 3;  // 1x por Combate: +3 automático
+        if (id === 'rg_p3') bonus += 3;  // Dano Permanente: +3 automático
 
-        // rg_v7: Limite de Uso ContÃ­nuo â€” P.N variÃ¡vel via benefÃ­cio escolhido (quando nÃ£o pura)
+        // rg_v7: Limite de Uso Contínuo — P.N variável via benefício escolhido (quando não pura)
         if (id === 'rg_v7' && !pureRestr[id]) {
             const choice = hb.beneficioChoices && hb.beneficioChoices['rg_v7'];
             if (choice) {
@@ -53,7 +53,7 @@ window.calcPNBonusFromRestr = function(hb) {
     return bonus;
 };
 
-// â”€â”€ P.N de restriÃ§Ãµes EXTREMAS puras (Ãºnico tipo que permite compra duplicada no mesmo nÃ­vel) â”€â”€
+// ── P.N de restrições EXTREMAS puras (único tipo que permite compra duplicada no mesmo nível) ──
 window.calcPNFromExtremeRestr = function(hb) {
     if (!hb) return 0;
     const pureRestr = hb.pureRestrictions || {};
@@ -62,7 +62,7 @@ window.calcPNFromExtremeRestr = function(hb) {
     let bonus = 0;
     (rg.extremas || []).forEach(r => {
         if (r.id === 'rg_e9') {
-            // Vida por Poder: P.N automÃ¡tico ao selecionar, equivale a extrema pura
+            // Vida por Poder: P.N automático ao selecionar, equivale a extrema pura
             if ((hb.rg||[]).includes(r.id)) bonus += 7;
             return;
         }
@@ -71,7 +71,7 @@ window.calcPNFromExtremeRestr = function(hb) {
     return bonus;
 };
 
-// â”€â”€ P.N gasto exclusivamente em compras duplicadas (2Âª cÃ³pia em diante do mesmo efeito) â”€â”€
+// ── P.N gasto exclusivamente em compras duplicadas (2Âª cópia em diante do mesmo efeito) ──
 window.calcDuplicatePNUsed = function(hb) {
     if (!hb) return 0;
     const allEffects = [...(hb.eg||[]), ...(hb.ec||[])];
@@ -94,7 +94,7 @@ window.calcDuplicatePNUsed = function(hb) {
     return dupPNUsed;
 };
 
-// â”€â”€ Remove duplicatas de efeitos quando o P.N extremo disponÃ­vel Ã© insuficiente â”€â”€
+// ── Remove duplicatas de efeitos quando o P.N extremo disponível é insuficiente ──
 window._hCleanDuplicatesIfNeeded = function(hb) {
     if (!hb) return;
     const extremePurePN = window.calcPNFromExtremeRestr(hb);
@@ -115,7 +115,7 @@ window._hCleanDuplicatesIfNeeded = function(hb) {
     }
 };
 
-// Calcula o custo real de aura do Hatsu com base nas restriÃ§Ãµes e efeitos selecionados
+// Calcula o custo real de aura do Hatsu com base nas restrições e efeitos selecionados
 window.calcAuraCost = function(hb) {
     if (!hb) return { pct: 50, label: '50%' };
     let custo = 50; // base 50%
@@ -148,15 +148,15 @@ window.calcAuraCost = function(hb) {
         if (peso === 'pesada') numPesadas++;
         if (peso === 'extrema') hasExtrema = true;
 
-        // rg_l2: CÃ¡lculo Pensado 2 â€” Reduz em 5%
+        // rg_l2: Cálculo Pensado 2 — Reduz em 5%
         if (id === 'rg_l2') custo -= 5;
-        // rg_m2: Ãrea Definida â€” Reduz custo em 10%
+        // rg_m2: Área Definida — Reduz custo em 10%
         if (id === 'rg_m2') custo -= 10;
-        // ri_e18 (IntensificaÃ§Ã£o): EstabilizaÃ§Ã£o de Aura â€” Diminui 15%
+        // ri_e18 (Intensificação): Estabilização de Aura — Diminui 15%
         if (id === 'ri_e18') custo = Math.max(10, custo - 15);
     });
 
-    // eg8: ReduÃ§Ã£o de Custo â€” soma todas as reduÃ§Ãµes aplicÃ¡veis
+    // eg8: Redução de Custo — soma todas as reduções aplicáveis
     const hasEg8 = (hb.eg||[]).includes('eg8') || (hb.ec||[]).includes('eg8');
     if (hasEg8) {
         let eg8Reducao = 5; // base: -5%
@@ -165,31 +165,31 @@ window.calcAuraCost = function(hb) {
         custo -= eg8Reducao;
     }
 
-    // rg_p8: Local/CondiÃ§Ã£o EspecÃ­fica â€” reduz Ã  metade (mÃ­nimo 5%)
+    // rg_p8: Local/Condição Específica — reduz à metade (mínimo 5%)
     if (allR.includes('rg_p8')) custo = Math.max(5, Math.floor(custo / 2));
 
-    // Garante mÃ­nimo de 10%
+    // Garante mínimo de 10%
     custo = Math.max(10, custo);
     return { pct: custo, label: custo + '% de Aura' };
 };
 
-// HexÃ¡gono de afinidade entre categorias (padrÃ£o HxH)
-// PosiÃ§Ãµes no hexÃ¡gono (sentido horÃ¡rio, baseado nos Ã¢ngulos de SYSTEM_DB):
-//   INTENSIFICAÃ‡ÃƒO(270Â°) â†’ TRANSMUTAÃ‡ÃƒO(330Â°) â†’ MATERIALIZAÃ‡ÃƒO(30Â°) â†’ ESPECIALIZAÃ‡ÃƒO(90Â°) â†’ MANIPULAÃ‡ÃƒO(150Â°) â†’ EMISSÃƒO(210Â°)
-// Adjacentes (1 posiÃ§Ã£o) = 80% | 2 posiÃ§Ãµes = 60% | Opostos (3 posiÃ§Ãµes) = 40%
-// EspecializaÃ§Ã£o Ã© excluÃ­da do acesso cruzado padrÃ£o â€” regra especial para ManipulaÃ§Ã£o/MaterializaÃ§Ã£o
+// Hexágono de afinidade entre categorias (padrão HxH)
+// Posições no hexágono (sentido horário, baseado nos ângulos de SYSTEM_DB):
+//   INTENSIFICAÇÃO(270Â°) → TRANSMUTAÇÃO(330Â°) → MATERIALIZAÇÃO(30Â°) → ESPECIALIZAÇÃO(90Â°) → MANIPULAÇÃO(150Â°) → EMISSÃO(210Â°)
+// Adjacentes (1 posição) = 80% | 2 posições = 60% | Opostos (3 posições) = 40%
+// Especialização é excluída do acesso cruzado padrão — regra especial para Manipulação/Materialização
 window.CATEGORY_AFFINITY = {
-    'INTENSIFICAÃ‡ÃƒO': { 'TRANSMUTAÃ‡ÃƒO':80, 'EMISSÃƒO':80, 'MATERIALIZAÃ‡ÃƒO':60, 'MANIPULAÃ‡ÃƒO':60 },
-    'TRANSMUTAÃ‡ÃƒO':   { 'INTENSIFICAÃ‡ÃƒO':80, 'MATERIALIZAÃ‡ÃƒO':80, 'EMISSÃƒO':60, 'MANIPULAÃ‡ÃƒO':40 },
-    'MATERIALIZAÃ‡ÃƒO': { 'TRANSMUTAÃ‡ÃƒO':80, 'INTENSIFICAÃ‡ÃƒO':60, 'MANIPULAÃ‡ÃƒO':60, 'EMISSÃƒO':40 },
-    'MANIPULAÃ‡ÃƒO':    { 'EMISSÃƒO':80, 'MATERIALIZAÃ‡ÃƒO':60, 'INTENSIFICAÃ‡ÃƒO':60, 'TRANSMUTAÃ‡ÃƒO':40 },
-    'EMISSÃƒO':        { 'MANIPULAÃ‡ÃƒO':80, 'INTENSIFICAÃ‡ÃƒO':80, 'TRANSMUTAÃ‡ÃƒO':60, 'MATERIALIZAÃ‡ÃƒO':40 },
-    'ESPECIALIZAÃ‡ÃƒO': { 'MATERIALIZAÃ‡ÃƒO':80, 'MANIPULAÃ‡ÃƒO':80, 'TRANSMUTAÃ‡ÃƒO':60, 'EMISSÃƒO':60, 'INTENSIFICAÃ‡ÃƒO':40 },
-    'REFORÃ‡O':        { 'TRANSMUTAÃ‡ÃƒO':80, 'EMISSÃƒO':80, 'MATERIALIZAÃ‡ÃƒO':60, 'MANIPULAÃ‡ÃƒO':60 },
+    'INTENSIFICAÇÃO': { 'TRANSMUTAÇÃO':80, 'EMISSÃO':80, 'MATERIALIZAÇÃO':60, 'MANIPULAÇÃO':60 },
+    'TRANSMUTAÇÃO':   { 'INTENSIFICAÇÃO':80, 'MATERIALIZAÇÃO':80, 'EMISSÃO':60, 'MANIPULAÇÃO':40 },
+    'MATERIALIZAÇÃO': { 'TRANSMUTAÇÃO':80, 'INTENSIFICAÇÃO':60, 'MANIPULAÇÃO':60, 'EMISSÃO':40 },
+    'MANIPULAÇÃO':    { 'EMISSÃO':80, 'MATERIALIZAÇÃO':60, 'INTENSIFICAÇÃO':60, 'TRANSMUTAÇÃO':40 },
+    'EMISSÃO':        { 'MANIPULAÇÃO':80, 'INTENSIFICAÇÃO':80, 'TRANSMUTAÇÃO':60, 'MATERIALIZAÇÃO':40 },
+    'ESPECIALIZAÇÃO': { 'MATERIALIZAÇÃO':80, 'MANIPULAÇÃO':80, 'TRANSMUTAÇÃO':60, 'EMISSÃO':60, 'INTENSIFICAÇÃO':40 },
+    'REFORÇO':        { 'TRANSMUTAÇÃO':80, 'EMISSÃO':80, 'MATERIALIZAÇÃO':60, 'MANIPULAÇÃO':60 },
 };
 
-// Dado um nÃ­vel efetivo (ajustado por restriÃ§Ãµes extremas), retorna o nÃ­vel mÃ¡ximo de efeitos acessÃ­vel por afinidade
-// Tabela: nÃ­vel efetivo â†’ {100: maxLvl, 80: maxLvl, 60: maxLvl, 40: maxLvl}
+// Dado um nível efetivo (ajustado por restrições extremas), retorna o nível máximo de efeitos acessível por afinidade
+// Tabela: nível efetivo → {100: maxLvl, 80: maxLvl, 60: maxLvl, 40: maxLvl}
 window.calcCategoryAccess = function(charLevel, extremeRestrictionCount) {
     const efectiveLevel = Math.min(12, charLevel + (extremeRestrictionCount * 2));
     const table = [
@@ -212,25 +212,25 @@ window.calcCategoryAccess = function(charLevel, extremeRestrictionCount) {
     return { pct100: row[1], pct80: row[2], pct60: row[3], pct40: row[4] };
 };
 
-// Verifica se ManipulaÃ§Ã£o/MaterializaÃ§Ã£o cumpre a regra especial para acessar EspecializaÃ§Ã£o (1%)
-// Regra: restriÃ§Ãµes >= 3 + nÂº efeitos de especializaÃ§Ã£o comprados; distribuiÃ§Ã£o obedece pirÃ¢mide de pesos
+// Verifica se Manipulação/Materialização cumpre a regra especial para acessar Especialização (1%)
+// Regra: restrições >= 3 + nÂº efeitos de especialização comprados; distribuição obedece pirâmide de pesos
 window.checkEspecializacaoAccess = function(hb) {
     if (!hb) return { ok: false, specEfeitos: 0, totalRestr: 0, needed: 3, rule: null };
 
-    // Conta efeitos de especializaÃ§Ã£o jÃ¡ selecionados
-    const espDB = window.HATSU_DB.categorias['ESPECIALIZAÃ‡ÃƒO'];
+    // Conta efeitos de especialização já selecionados
+    const espDB = window.HATSU_DB.categorias['ESPECIALIZAÇÃO'];
     const espEfeitosIds = new Set((espDB && espDB.efeitos || []).map(e => e.id));
     const specEfeitos = (hb.ec||[]).filter(id => espEfeitosIds.has(id)).length;
     const needed = 3 + specEfeitos;
 
-    // Coleta pesos de todas as restriÃ§Ãµes selecionadas
+    // Coleta pesos de todas as restrições selecionadas
     const allRDB = [];
     const rg = window.HATSU_DB.restricoes_gerais;
     ['leves','moderadas','pesadas','variaveis','extremas'].forEach(k => (rg[k]||[]).forEach(r => allRDB.push({...r, peso: k === 'variaveis' ? 'variavel' : k.replace('s','')})));
     const catDB = window.HATSU_DB.categorias[window._currentBuilderClass||''];
     if (catDB && catDB.restricoes) catDB.restricoes.forEach(r => allRDB.push(r));
 
-    const weightOrder = ['leve','moderada','pesada','extrema']; // variÃ¡vel nÃ£o conta para pirÃ¢mide
+    const weightOrder = ['leve','moderada','pesada','extrema']; // variável não conta para pirâmide
     const counts = { leve:0, moderada:0, pesada:0, extrema:0, variavel:0 };
     const allSel = [...(hb.rg||[]), ...(hb.rc||[])];
     allSel.forEach(id => {
@@ -242,26 +242,26 @@ window.checkEspecializacaoAccess = function(hb) {
     });
     const totalRestr = allSel.length;
 
-    // Regra de pirÃ¢mide: nunca pode ter mais de um peso que o peso imediatamente superior
+    // Regra de pirâmide: nunca pode ter mais de um peso que o peso imediatamente superior
     // "inicia com uma de cada peso E uma de peso menor, nunca pode ter maior quantidade do que as de peso maior"
     let pyramidOk = true;
     let pyramidMsg = '';
     // Pesada deve ser >= moderada; moderada >= leve (para os pesos definidos)
-    if (counts.leve > counts.moderada && counts.moderada > 0) { pyramidOk = false; pyramidMsg = `Leves (${counts.leve}) > Moderadas (${counts.moderada}) â€” invÃ¡lido`; }
-    if (counts.moderada > counts.pesada && counts.pesada > 0) { pyramidOk = false; pyramidMsg = `Moderadas (${counts.moderada}) > Pesadas (${counts.pesada}) â€” invÃ¡lido`; }
+    if (counts.leve > counts.moderada && counts.moderada > 0) { pyramidOk = false; pyramidMsg = `Leves (${counts.leve}) > Moderadas (${counts.moderada}) — inválido`; }
+    if (counts.moderada > counts.pesada && counts.pesada > 0) { pyramidOk = false; pyramidMsg = `Moderadas (${counts.moderada}) > Pesadas (${counts.pesada}) — inválido`; }
 
     const ok = totalRestr >= needed && pyramidOk;
     return { ok, specEfeitos, totalRestr, needed, counts, pyramidOk, pyramidMsg };
 };
 
-// Retorna o nÃ­vel mÃ¡ximo de efeitos que o personagem pode usar de uma categoria externa
+// Retorna o nível máximo de efeitos que o personagem pode usar de uma categoria externa
 window.getMaxLevelForCategory = function(myClass, targetClass, charLevel, extremeCount) {
     const access = window.calcCategoryAccess(charLevel, extremeCount);
     if (myClass === targetClass) return access.pct100;
 
-    // EspecializaÃ§Ã£o: acesso APENAS para ManipulaÃ§Ã£o/MaterializaÃ§Ã£o via regra especial
-    if (targetClass === 'ESPECIALIZAÃ‡ÃƒO') {
-        if (myClass === 'MANIPULAÃ‡ÃƒO' || myClass === 'MATERIALIZAÃ‡ÃƒO') return 'check_esp'; // sinaliza verificaÃ§Ã£o especial
+    // Especialização: acesso APENAS para Manipulação/Materialização via regra especial
+    if (targetClass === 'ESPECIALIZAÇÃO') {
+        if (myClass === 'MANIPULAÇÃO' || myClass === 'MATERIALIZAÇÃO') return 'check_esp'; // sinaliza verificação especial
         return 0; // outras categorias: zero acesso
     }
 
@@ -277,13 +277,13 @@ window.getMaxLevelForCategory = function(myClass, targetClass, charLevel, extrem
 window.calcPNSpentInDominio = function(char) {
     const d = char.nenDominio || {};
     let spent = 0;
-    // Fundamentais: Ten, Ren, Zetsu â†’ 1 ponto por nÃ­vel (0-3)
+    // Fundamentais: Ten, Ren, Zetsu → 1 ponto por nível (0-3)
     spent += (d.ten || 0);
     spent += (d.ren || 0);
     spent += (d.zetsu || 0);
-    // AvanÃ§ados: cada um custa 1 ponto extra
+    // Avançados: cada um custa 1 ponto extra
     if (d.en)  spent += 1;
-    if (d.inp) spent += 1; // IN (inp para nÃ£o conflitar com keyword)
+    if (d.inp) spent += 1; // IN (inp para não conflitar com keyword)
     if (d.gyo) spent += 1;
     if (d.shu) spent += 1;
     if (d.ken) spent += 1;
@@ -310,5 +310,5 @@ window.calcPNDisponivelParaHatsu = function(char, editingIdx) {
 };
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-//  TRANSMUTACAO_DB â€” subtipos de TransmutaÃ§Ã£o Elemental e VersÃ¡til
+//  TRANSMUTACAO_DB — subtipos de Transmutação Elemental e Versátil
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•

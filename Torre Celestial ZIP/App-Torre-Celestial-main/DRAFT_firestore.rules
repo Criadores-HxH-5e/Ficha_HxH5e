@@ -1,0 +1,125 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ===============================================================
+    // Shared Helper Functions
+    // ===============================================================
+    
+    function isSignedIn() { return request.auth != null; }
+    function isAdmin() { 
+      return isSignedIn() && (
+        request.auth.token.email == "lucas.avila.leandro@gmail.com" ||
+        request.auth.uid == "discord:513323323355037717"
+      );
+    }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isValidId(id) { 
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-:]+$'); 
+    }
+    function isOwner(userId) { 
+      return isSignedIn() && (request.auth.uid == userId || isAdmin()); 
+    }
+    function isRecent(time) { 
+      return time > request.time - duration.value(5, 'm') && time < request.time + duration.value(5, 'm'); 
+    }
+
+    // ===============================================================
+    // V1 ARENA RULES (Existing)
+    // ===============================================================
+
+    match /profiles/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId) && isValidId(userId);
+    }
+
+    match /characters/{characterId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (existing().ownerId == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /matches/{matchId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /investments/{investmentId} {
+      allow read: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+      allow update: if isAdmin();
+    }
+
+    // ===============================================================
+    // V2 ARENA RULES (New Hardened System)
+    // ===============================================================
+
+    // --- V2 Users ---
+    function isValidV2User(data) {
+      let fields = ['id', 'name', 'coins_balance', 'withdrawable_balance', 'user_type'];
+      return data.keys().hasAll(fields) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.name is string && data.name.size() <= 100 &&
+             data.coins_balance is number &&
+             data.withdrawable_balance is number &&
+             data.user_type in ['FIGHTER', 'INVESTOR', 'BOTH'];
+    }
+
+    match /v2_users/{userId} {
+      allow read: if isSignedIn(); // Users can see each other's basic types, but maybe restricted? 
+                                   // Let's restrict for privacy.
+      allow read: if isOwner(userId);
+      // User can only initialize profile or update non-balance fields via client?
+      // Actually, balance should ONLY be system-managed.
+      allow create: if isOwner(userId) && isValidV2User(incoming()) && 
+                       incoming().coins_balance == 0 && incoming().withdrawable_balance == 0;
+      allow update: if (isOwner(userId) && 
+                       incoming().coins_balance == existing().coins_balance &&
+                       incoming().withdrawable_balance == existing().withdrawable_balance &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['name', 'user_type', 'last_activity'])) || 
+                       isAdmin();
+    }
+
+    // --- V2 Fighters ---
+    function isValidV2Fighter(data) {
+      let fields = ['id', 'user_id', 'ranking', 'popularity', 'wins', 'losses', 'total_fights', 'streak', 'quote_value', 'quotes_available'];
+      return data.keys().hasAll(fields) &&
+             data.id == data.user_id && // Fighter ID is typically the User ID
+             data.ranking is number && data.ranking >= 1 &&
+             data.popularity is number && data.popularity >= 0 && data.popularity <= 100 &&
+             data.quote_value is number && data.quote_value >= 20;
+    }
+
+    match /v2_fighters/{fighterId} {
+      allow read: if true;
+      allow write: if isAdmin(); // Only system can update fighter stats/value
+    }
+
+    // --- V2 Quotes ---
+    match /v2_quotes/{quoteId} {
+      // quoteId is typically fighterId_userId
+      allow read: if isSignedIn() && (existing().user_id == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && resource.data.user_id == request.auth.uid;
+      allow write: if isAdmin(); // Purchase/Sale logic handled via API to ensure atomicity
+    }
+
+    // --- V2 Fights ---
+    match /v2_fights/{fightId} {
+      allow read: if true;
+      allow write: if isAdmin(); // System processes results
+    }
+
+    // --- V2 Transactions ---
+    match /v2_transactions/{txId} {
+      allow read: if isSignedIn() && (existing().user_id == request.auth.uid || isAdmin());
+      allow create: if isAdmin(); // Only System logs transactions
+      allow update, delete: if false; // Transactions are immutable ledger entries
+    }
+  }
+}

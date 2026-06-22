@@ -1,0 +1,40 @@
+{
+  "name": "hxh-5e-heaven's-gate-terminal",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx api/index.ts",
+    "build": "vite build",
+    "start": "tsx api/index.ts",
+    "lint": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@google/genai": "^1.50.1",
+    "@tailwindcss/vite": "^4.2.4",
+    "@types/express": "^5.0.6",
+    "axios": "^1.15.2",
+    "cookie-parser": "^1.4.7",
+    "express": "^5.2.1",
+    "@supabase/supabase-js": "^2.49.8",
+    "jsonwebtoken": "^9.0.2",
+    "lucide-react": "^1.9.0",
+    "motion": "^12.38.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "recharts": "^3.8.1",
+    "tailwindcss": "^4.2.4",
+    "tsx": "^4.21.0"
+  },
+  "devDependencies": {
+    "@types/cookie-parser": "^1.4.10",
+    "@types/jsonwebtoken": "^9.0.9",
+    "@types/node": "^25.6.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "typescript": "~6.0.3",
+    "vite": "^8.0.10"
+  }
+}

@@ -1,4 +1,28 @@
 // --- AUTH & LOGIN ---
+
+// Escreve a sessão da Torre Celestial no localStorage compartilhado.
+// Como HxH5e e Torre rodam na mesma origem, a Torre lê essa chave e pula o login.
+function writeTorreSession(user, roles) {
+    const rawAvatar = user.avatar;
+    // Google returns a full URL; Discord returns a hash
+    const avatarUrl = !rawAvatar ? null
+        : rawAvatar.startsWith('http') ? rawAvatar
+        : `https://cdn.discordapp.com/avatars/${user.id}/${rawAvatar}.png`;
+
+    const session = {
+        id:            user.id,
+        username:      user.global_name || user.username || user.name || '',
+        discriminator: user.discriminator || '0',
+        avatar:        avatarUrl,
+        roles:         roles || [],
+        email:         user.email || null,
+    };
+    localStorage.setItem('hxh_hunter_session', JSON.stringify(session));
+    if (!localStorage.getItem('hxh_tc_token')) {
+        localStorage.setItem('hxh_tc_token', 'hxh_bridge');
+    }
+}
+
 function loginDiscord() {
     const scope = 'identify guilds.members.read';
     const url = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CONFIG.clientId}&redirect_uri=${encodeURIComponent(DISCORD_CONFIG.redirectUri)}&response_type=token&scope=${encodeURIComponent(scope)}`;
@@ -7,6 +31,8 @@ function loginDiscord() {
 
 function logoutDiscord() {
     localStorage.removeItem('discord_access_token');
+    localStorage.removeItem('hxh_hunter_session');
+    localStorage.removeItem('hxh_tc_token');
     state.user = null;
     state.authorized = false;
     state.view = 'LOGIN';
@@ -62,6 +88,7 @@ function loginGoogle() {
                 };
                 state.authorized = true;
                 state.view = 'LIST';
+                writeTorreSession(state.user, ["1100984179845505044", "1100415887971991572"]);
                 loadAdminRegistry().then(registry => {
                     state.adminRegistry = registry;
                     const roles = checkUserRoles(state.user.id, registry);
@@ -87,6 +114,8 @@ function logoutGoogle() {
         google.accounts.oauth2.revoke(token, () => {});
     }
     localStorage.removeItem('google_access_token');
+    localStorage.removeItem('hxh_hunter_session');
+    localStorage.removeItem('hxh_tc_token');
     state.user = null;
     state.authorized = false;
     state.view = 'LOGIN';
@@ -131,6 +160,7 @@ async function checkDiscordAuth() {
                 };
                 state.authorized = true;
                 state.view = 'LIST';
+                writeTorreSession(state.user, ["1100984179845505044", "1100415887971991572"]);
                 loadAdminRegistry().then(registry => {
                     state.adminRegistry = registry;
                     const roles = checkUserRoles(state.user.id, registry);
@@ -176,6 +206,7 @@ async function checkDiscordAuth() {
         if (PAID_USERS.includes(user.id) || ADMIN_USERS.includes(user.id)) {
             state.authorized = true;
             state.view = 'LIST';
+            writeTorreSession(user, ["1100984179845505044", "1100415887971991572"]);
             loadAdminRegistry().then(registry => {
                 state.adminRegistry = registry;
                 const roles = checkUserRoles(user.id, registry);
@@ -198,6 +229,7 @@ async function checkDiscordAuth() {
             if (member.roles && member.roles.includes(DISCORD_CONFIG.roleId)) {
                 state.authorized = true;
                 state.view = 'LIST';
+                writeTorreSession(user, member.roles || []);
                 loadAdminRegistry().then(registry => {
                     state.adminRegistry = registry;
                     const roles = checkUserRoles(user.id, registry);

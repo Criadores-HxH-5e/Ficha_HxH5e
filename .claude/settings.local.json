@@ -49,7 +49,16 @@
       "Bash(awk -F: 'int\\($2\\) >= 7538 && int\\($2\\) <= 8500')",
       "PowerShell(Select-String -Path \"c:\\\\Users\\\\davi.pontes\\\\StudioHxH\\\\HxH5e.html\" -Pattern \"hamburger|ham-menu|☰|navMenu|toggleMenu|openMenu|showMenu\" | Select-Object -First 20 | ForEach-Object { \"$\\($_.LineNumber\\): $\\($_.Line\\)\" })",
       "PowerShell(Select-String -Path \"c:\\\\Users\\\\davi.pontes\\\\StudioHxH\\\\js\\\\core\\\\render.js\" -Pattern \"hamburger|ham|menu|☰|toggle|sidebar|drawer\" -Encoding UTF8 | ForEach-Object { \"$\\($_.LineNumber\\): $\\($_.Line.Trim\\(\\)\\)\" } | Select-Object -First 30)",
-      "PowerShell(Select-String -Path \"c:\\\\Users\\\\davi.pontes\\\\StudioHxH\\\\js\\\\views\\\\list.js\" -Pattern \"hamburguer|ham|☰|menu|toggle|sidebar|drawer\" -Encoding UTF8 | ForEach-Object { \"$\\($_.LineNumber\\): $\\($_.Line.Trim\\(\\)\\)\" } | Select-Object -First 30)"
+      "PowerShell(Select-String -Path \"c:\\\\Users\\\\davi.pontes\\\\StudioHxH\\\\js\\\\views\\\\list.js\" -Pattern \"hamburguer|ham|☰|menu|toggle|sidebar|drawer\" -Encoding UTF8 | ForEach-Object { \"$\\($_.LineNumber\\): $\\($_.Line.Trim\\(\\)\\)\" } | Select-Object -First 30)",
+      "Bash(npm run *)",
+      "Bash(npx vite *)",
+      "Bash(npm install *)",
+      "Bash(Select-Object Name)",
+      "Bash(not exist *)",
+      "Bash(dir \"C:\\\\Users\\\\davi.pontes\\\\.claude\\\\commands\")",
+      "PowerShell(& \"C:\\\\Users\\\\davi.pontes\\\\StudioHxH\\\\fix-encoding.ps1\")",
+      "PowerShell(cd c:\\\\Users\\\\davi.pontes\\\\StudioHxH; powershell -File fix-emoji2.ps1)",
+      "PowerShell(cd c:\\\\Users\\\\davi.pontes\\\\StudioHxH; powershell -File fix-symbols.ps1)"
     ]
   }
 }

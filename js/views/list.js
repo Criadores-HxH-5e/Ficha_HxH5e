@@ -26,11 +26,11 @@
                                     <span style="display:block;width:14px;height:2px;background:#9ca3af;border-radius:1px"></span>
                                 </button>
                                 <div id="nav-dropdown" onclick="event.stopPropagation()" style="display:none;position:absolute;right:0;top:calc(100% + 8px);background:#0d1117;border:1px solid #1f2937;border-radius:12px;padding:6px;min-width:175px;z-index:100;box-shadow:0 8px 32px rgba(0,0,0,.7)">
-                                    <a href="https://app-torre-celestial.vercel.app/" target="_blank" rel="noopener noreferrer"
+                                    ${state.isAdmin ? `<a href="/torre/"
                                         style="display:flex;align-items:center;gap:10px;width:100%;padding:9px 12px;border:none;background:transparent;border-radius:8px;color:#60a5fa;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;cursor:pointer;font-family:'Orbitron',sans-serif;transition:background .15s;text-decoration:none"
                                         onmouseover="this.style.background='#1e40af22'" onmouseout="this.style.background='transparent'">
-                                        &#x1F3F0; Torre Celestial
-                                    </a>
+                                        &#x1F3F0; Torre Celestial <span style="color:#6b7280;font-size:8px;margin-left:2px">(S&#xF3; para admin)</span>
+                                    </a>` : ''}
                                     ${state.isMestre ? `<button onclick="state.view='MESTRE_PLAYERS';render()"
                                         style="display:flex;align-items:center;gap:10px;width:100%;padding:9px 12px;border:none;background:transparent;border-radius:8px;color:#a78bfa;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;cursor:pointer;font-family:'Orbitron',sans-serif;transition:background .15s"
                                         onmouseover="this.style.background='#7c3aed22'" onmouseout="this.style.background='transparent'">

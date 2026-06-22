@@ -1,0 +1,217 @@
+{
+  "entities": {
+    "Character": {
+      "title": "Character",
+      "description": "An individual character profile belonging to a user including RPG stats.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "name": { "type": "string" },
+        "discordId": { "type": "string" },
+        "firebaseUid": { "type": "string" },
+        "level": { "type": "number" },
+        "hunterStars": { "type": "number" },
+        "nenType": { "type": "string" },
+        "isFloorMaster": { "type": "boolean" },
+        "auraPoints": { "type": "object" },
+        "hitPoints": { "type": "object" },
+        "attributes": { "type": "object" },
+        "jenny": { "type": "number" },
+        "trainingJenny": { "type": "number" },
+        "investmentsPlaced": { "type": "number" },
+        "totalEarnings": { "type": "number" },
+        "floor": { "type": "number" },
+        "investmentHistory": { "type": "array" },
+        "fighterStats": { "type": "object" },
+        "imageUrl": { "type": "string" },
+        "role": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerId", "name", "floor", "nenType", "jenny", "totalEarnings", "createdAt"]
+    },
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Global settings for a specific user.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "activeCharacterId": { "type": "string", "description": "The ID of the character currently in use." },
+        "discordId": { "type": "string" },
+        "roles": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["userId"]
+    },
+    "Investment": {
+      "title": "Investment",
+      "description": "A record of an investment made by a user on a match.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "matchId": { "type": "string" },
+        "fighterId": { "type": "string" },
+        "fighterName": { "type": "string" },
+        "amount": { "type": "number" },
+        "odds": { "type": "number" },
+        "result": { "type": "string", "enum": ["PENDING", "WIN", "LOSS"] },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "matchId", "fighterId", "fighterName", "amount", "odds", "result", "timestamp"]
+    },
+    "Match": {
+      "title": "Match",
+      "description": "A live battle between two fighters.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "floor": { "type": "number" },
+        "status": { "type": "string", "enum": ["OPEN", "LOCKED", "FINISHED"] },
+        "fighterA": { "type": "object" },
+        "fighterB": { "type": "object" },
+        "winnerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "floor", "status", "fighterA", "fighterB", "createdAt"]
+    },
+    "V2User": {
+      "title": "Arena V2 User",
+      "description": "Extended user profile for the Arena V2 simulation system.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "coins_balance": { "type": "number" },
+        "withdrawable_balance": { "type": "number" },
+        "user_type": { "type": "string", "enum": ["FIGHTER", "INVESTOR", "BOTH"] },
+        "last_activity": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "coins_balance", "withdrawable_balance", "user_type"]
+    },
+    "V2Fighter": {
+      "title": "Arena V2 Fighter",
+      "description": "Fighter stats and market value for Arena V2.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "user_id": { "type": "string" },
+        "ranking": { "type": "number" },
+        "popularity": { "type": "number" },
+        "wins": { "type": "number" },
+        "losses": { "type": "number" },
+        "total_fights": { "type": "number" },
+        "streak": { "type": "number" },
+        "floor": { "type": "number" },
+        "level": { "type": "number" },
+        "is_npc": { "type": "boolean" },
+        "quote_value": { "type": "number" },
+        "quotes_available": { "type": "number" },
+        "volume_buy_24h": { "type": "number" },
+        "volume_sell_24h": { "type": "number" },
+        "last_bonus_cycle_fight_count": { "type": "number" }
+      },
+      "required": ["id", "user_id", "ranking", "popularity", "wins", "losses", "total_fights", "streak", "quote_value", "quotes_available"]
+    },
+    "V2Quote": {
+      "title": "Arena V2 Quote",
+      "description": "User ownership of fighter shares.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "fighterId_userId" },
+        "fighter_id": { "type": "string" },
+        "user_id": { "type": "string" },
+        "amount": { "type": "number" },
+        "avg_price": { "type": "number" }
+      },
+      "required": ["id", "fighter_id", "user_id", "amount", "avg_price"]
+    },
+    "V2Fight": {
+      "title": "Arena V2 Fight",
+      "description": "Recorded fight between real players in V2.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "fighter_a_id": { "type": "string" },
+        "fighter_b_id": { "type": "string" },
+        "winner_id": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "impact_ranking": { "type": "number" },
+        "impact_popularity": { "type": "number" }
+      },
+      "required": ["id", "fighter_a_id", "fighter_b_id", "winner_id", "timestamp"]
+    },
+    "V2Transaction": {
+      "title": "Arena V2 Transaction",
+      "description": "Financial ledger for coins and quotes.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "user_id": { "type": "string" },
+        "type": { "type": "string", "enum": ["BUY_COIN", "BUY_QUOTE", "SELL_QUOTE", "WITHDRAW", "FIGHTER_BONUS"] },
+        "amount": { "type": "number" },
+        "fee": { "type": "number" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "metadata": { "type": "object" }
+      },
+      "required": ["id", "user_id", "type", "amount", "fee", "timestamp"]
+    },
+    "V2NPCMatch": {
+      "title": "Arena V2 NPC Match",
+      "description": "Scheduled combat between two NPCs.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "fighter_a_id": { "type": "string" },
+        "fighter_b_id": { "type": "string" },
+        "floor_range": { "type": "string" },
+        "status": { "type": "string", "enum": ["SCHEDULED", "FINISHED"] },
+        "win_probability_a": { "type": "number" },
+        "winner_id": { "type": "string" },
+        "scheduled_for": { "type": "string", "format": "date-time" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "fighter_a_id", "fighter_b_id", "status", "scheduled_for", "created_at"]
+    }
+  },
+  "firestore": {
+    "/profiles/{userId}": {
+      "schema": "UserProfile",
+      "description": "User global data and settings."
+    },
+    "/characters/{characterId}": {
+      "schema": "Character",
+      "description": "Collection of all characters created by users."
+    },
+    "/investments/{investmentId}": {
+      "schema": "Investment",
+      "description": "Collection of investments made by users."
+    },
+    "/matches/{matchId}": {
+      "schema": "Match",
+      "description": "Current live match data."
+    },
+    "/v2_users/{userId}": {
+      "schema": "V2User",
+      "description": "V2 Specific User Profile."
+    },
+    "/v2_fighters/{fighterId}": {
+      "schema": "V2Fighter",
+      "description": "Fighters in the V2 Arena."
+    },
+    "/v2_quotes/{quoteId}": {
+      "schema": "V2Quote",
+      "description": "Portfolio of quotes owned by users."
+    },
+    "/v2_fights/{fightId}": {
+      "schema": "V2Fight",
+      "description": "Log of V2 Arena fights."
+    },
+    "/v2_transactions/{txId}": {
+      "schema": "V2Transaction",
+      "description": "V2 Economic Ledger."
+    },
+    "/v2_npc_matches/{matchId}": {
+      "schema": "V2NPCMatch",
+      "description": "Scheduled NPC matches."
+    }
+  }
+}

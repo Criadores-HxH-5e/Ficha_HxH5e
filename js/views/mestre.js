@@ -2,14 +2,14 @@
             if (!state.isMestre) { state.view = 'LIST'; render(); return; }
             const players = state.assignedPlayers || [];
             const rows = players.length === 0
-                ? '<div style="text-align:center;color:#4b5563;font-style:italic;padding:32px 0;border:2px dashed #1f2937;border-radius:12px;font-size:11px">Nenhum jogador atribuÃ­do ainda.</div>'
+                ? '<div style="text-align:center;color:#4b5563;font-style:italic;padding:32px 0;border:2px dashed #1f2937;border-radius:12px;font-size:11px">Nenhum jogador atribuído ainda.</div>'
                 : players.map(u => {
                     const avatar = u.avatar ? `<img src="https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png" style="width:40px;height:40px;border-radius:50%;border:1px solid #374151">` : `<div style="width:40px;height:40px;border-radius:50%;background:#1f2937;display:flex;align-items:center;justify-content:center;color:#6b7280">?</div>`;
                     return `<div onclick="viewUserChars(${JSON.stringify(u).replace(/"/g,'&quot;')})" style="background:#111827;border:1px solid #1f2937;border-radius:12px;padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:border-color .15s" onmouseover="this.style.borderColor='#7c3aed'" onmouseout="this.style.borderColor='#1f2937'">
                         ${avatar}
                         <div>
                             <div style="font-weight:900;color:#fff;font-size:13px">${u.username || u.id}</div>
-                            <div style="font-size:9px;color:#6b7280;margin-top:2px">Ver fichas â†’</div>
+                            <div style="font-size:9px;color:#6b7280;margin-top:2px">Ver fichas →</div>
                         </div>
                     </div>`;
                 }).join('');
@@ -29,7 +29,7 @@
         }
 
         // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-        //  RENDER PLAYER CHARS â€” fichas de outro usuÃ¡rio
+        //  RENDER PLAYER CHARS — fichas de outro usuário
         // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         function renderPlayerChars(container) {
             const user = state.viewingUser;
@@ -47,13 +47,13 @@
                     ${avatar}
                     <div style="flex:1">
                         <div style="font-weight:900;color:#fff;font-size:13px">${char.name}</div>
-                        <div style="font-size:9px;color:#9ca3af;text-transform:uppercase">${char.race || ''} â€¢ <span style="color:${color}">${char.class || ''}</span> ${char.level > 0 ? `â€¢ Lv ${char.level}` : ''}</div>
+                        <div style="font-size:9px;color:#9ca3af;text-transform:uppercase">${char.race || ''} • <span style="color:${color}">${char.class || ''}</span> ${char.level > 0 ? `• Lv ${char.level}` : ''}</div>
                     </div>
                 </div>`;
             };
 
             const rows0 = level0.length === 0
-                ? '<div style="text-align:center;color:#4b5563;font-style:italic;padding:20px;border:2px dashed #1f2937;border-radius:12px;font-size:11px">Nenhuma ficha nÃ­vel 0.</div>'
+                ? '<div style="text-align:center;color:#4b5563;font-style:italic;padding:20px;border:2px dashed #1f2937;border-radius:12px;font-size:11px">Nenhuma ficha nível 0.</div>'
                 : level0.map(c => makeCard(c, state.isAdmin)).join('');
             const rowsH = levelHigh.length === 0
                 ? '<div style="text-align:center;color:#4b5563;font-style:italic;padding:20px;border:2px dashed #1f2937;border-radius:12px;font-size:11px">Nenhum Hunter.</div>'
@@ -74,7 +74,7 @@
                     </div>
                     <div style="flex:1;overflow-y:auto;padding:16px">
                         ${chars.length === 0 ? '<div style="text-align:center;color:#4b5563;font-style:italic;padding:40px;border:2px dashed #1f2937;border-radius:12px">Carregando fichas...</div>' : ''}
-                        ${chars.length > 0 ? `<div style="font-size:9px;color:#4b5563;font-weight:900;text-transform:uppercase;margin-bottom:8px">NÃ­vel 0</div>${rows0}<div style="font-size:9px;color:#4ade80;font-weight:900;text-transform:uppercase;margin:16px 0 8px">UsuÃ¡rios de Nen</div>${rowsH}` : ''}
+                        ${chars.length > 0 ? `<div style="font-size:9px;color:#4b5563;font-weight:900;text-transform:uppercase;margin-bottom:8px">Nível 0</div>${rows0}<div style="font-size:9px;color:#4ade80;font-weight:900;text-transform:uppercase;margin:16px 0 8px">Usuários de Nen</div>${rowsH}` : ''}
                     </div>
                 </div>`;
 
