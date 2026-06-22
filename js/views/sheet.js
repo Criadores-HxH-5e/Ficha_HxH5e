@@ -1,4 +1,68 @@
-﻿        function renderSheet(container) {
+﻿        window._openVitalInputModal = function(key, cur, max) {
+            document.getElementById('vital-input-overlay')?.remove();
+            const isDmg = key === 'pv';
+            const color = key === 'pv' ? '#ef4444' : '#ffffff';
+            const label = key.toUpperCase();
+            const html = `<div id="vital-input-overlay" style="position:fixed;inset:0;background:#000000cc;display:flex;align-items:center;justify-content:center;z-index:9999;padding:24px;font-family:Rajdhani,sans-serif" onclick="if(event.target===this)document.getElementById('vital-input-overlay').remove()">
+                <div style="background:#0d1117;border:2px solid ${color};border-radius:16px;padding:22px;width:100%;max-width:290px;box-shadow:0 0 40px ${color}44" onclick="event.stopPropagation()">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+                        <div>
+                            <div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:11px;color:${color};text-transform:uppercase;letter-spacing:2px;margin-bottom:4px">${label}</div>
+                            <div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:26px;color:#fff;line-height:1">${cur}<span style="font-size:13px;color:#6b7280;font-weight:400"> /${max}</span></div>
+                        </div>
+                        <button onclick="document.getElementById('vital-input-overlay').remove()" style="background:none;border:none;color:#6b7280;cursor:pointer;font-size:22px;line-height:1;padding:0">×</button>
+                    </div>
+                    <input id="vital-input-val" type="number" min="0" placeholder="Quantidade..." autofocus
+                        style="width:100%;box-sizing:border-box;background:#111827;border:2px solid #374151;border-radius:8px;padding:11px 12px;color:#fff;font-size:22px;font-family:Orbitron,sans-serif;font-weight:900;outline:none;margin-bottom:10px;text-align:center;letter-spacing:1px"
+                        oninput="this.style.borderColor=this.value?'${color}':'#374151'"
+                        onkeydown="if(event.key==='Enter'){const v=parseInt(this.value);if(!isNaN(v)&&v>0)window._applyVitalDelta('${key}',-v)}"
+                    >
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+                        <button onclick="const v=parseInt(document.getElementById('vital-input-val').value);if(!isNaN(v)&&v>0)window._applyVitalDelta('${key}',-v)"
+                            style="padding:12px;border-radius:10px;background:#ef444420;border:1px solid #ef4444;color:#ef4444;font-family:Orbitron,sans-serif;font-weight:900;font-size:11px;text-transform:uppercase;cursor:pointer;letter-spacing:1px">
+                            − Dano
+                        </button>
+                        <button onclick="const v=parseInt(document.getElementById('vital-input-val').value);if(!isNaN(v)&&v>0)window._applyVitalDelta('${key}',v)"
+                            style="padding:12px;border-radius:10px;background:#22c55e20;border:1px solid #22c55e;color:#22c55e;font-family:Orbitron,sans-serif;font-weight:900;font-size:11px;text-transform:uppercase;cursor:pointer;letter-spacing:1px">
+                            + Cura
+                        </button>
+                    </div>
+                    <button onclick="const v=parseInt(document.getElementById('vital-input-val').value);if(!isNaN(v))window._setVitalExact('${key}',v)"
+                        style="width:100%;padding:10px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:9px;text-transform:uppercase;cursor:pointer;letter-spacing:1px;box-sizing:border-box">
+                        = Definir Valor Exato
+                    </button>
+                </div>
+            </div>`;
+            document.body.insertAdjacentHTML('beforeend', html);
+            setTimeout(() => document.getElementById('vital-input-val')?.focus(), 80);
+        };
+
+        window._applyVitalDelta = function(key, delta) {
+            updateVital(key, delta);
+            document.getElementById('vital-input-overlay')?.remove();
+        };
+
+        window._setVitalExact = function(key, val) {
+            const char = state.currentChar;
+            if (!char) return;
+            const v = char.vitals;
+            if (key === 'pv') v.hp = Math.min(v.hpMax || v.hp, Math.max(0, val));
+            else if (key === 'rea') { const rMax = 7 + getMod(char.attributes.SAB.value) + (((char.combatInclinations || {}).analitica || 0) >= 1 ? 2 : 0); v.rea = Math.min(rMax, Math.max(0, val)); }
+            saveCharacter(char);
+            render(true);
+            document.getElementById('vital-input-overlay')?.remove();
+        };
+
+        function getCIPointsForLevel(level) {
+            let pts = 0;
+            if (level >= 2)  pts += 2;
+            if (level >= 4)  pts += 3;
+            if (level >= 7)  pts += 2;
+            if (level >= 11) pts += 3;
+            return pts;
+        }
+
+        function renderSheet(container) {
             const char = state.currentChar;
             const clsData = SYSTEM_DB.classes.find(c => c.id === char.class);
             const themeColor = clsData ? clsData.color : '#00ff9d';
@@ -10,7 +74,7 @@
                     <span class="text-[9px] font-bold ${colorClass} uppercase tracking-wider mb-0.5">${label}</span>
                     <div class="flex items-center justify-between w-full max-w-[80%] gap-1">
                          ${showBtns ? `<button onclick="${label === 'SAN' ? 'window._showSanDamageModal()' : `updateVital('${label.toLowerCase()}', ${-step})`}" class="text-gray-500 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors"><i data-lucide="minus" size="10"></i></button>` : '<div class="w-4"></div>'}
-                        <span class="font-display font-bold text-lg text-white tracking-wider">${showMax && max != null ? `${val}<span class="text-gray-400 text-xs font-normal">/${max}</span>` : val}</span>
+                        <span class="font-display font-bold text-lg text-white tracking-wider${showMax && max != null ? ' cursor-pointer select-none active:opacity-60' : ''}" ${showMax && max != null ? `onclick="window._openVitalInputModal('${label.toLowerCase()}',${val},${max})"` : ''}>${showMax && max != null ? `${val}<span class="text-gray-400 text-xs font-normal">/${max}</span>` : val}</span>
                          ${showBtns ? `<button onclick="updateVital('${label.toLowerCase()}', ${step})" class="text-gray-500 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors"><i data-lucide="plus" size="10"></i></button>` : '<div class="w-4"></div>'}
                     </div>
                     <div class="w-8 h-0.5 rounded-full mt-0.5 ${borderClass} opacity-80"></div>
@@ -37,7 +101,9 @@
                 const rdmVal = calcRDM(char);
                 const sanPct = Math.round((char.vitals.san / char.vitals.sanMax) * 100);
                 const sanColor = sanPct >= 90 ? 'text-green-400' : sanPct >= 75 ? 'text-yellow-400' : sanPct >= 50 ? 'text-orange-400' : 'text-purple-400';
-                const vitalsGridHtml = `<div class="grid grid-cols-3 gap-y-2 gap-x-2 px-2 py-2 border-b border-gray-800 bg-[#0b0c10] mb-4">${renderNeonVital('SAN', char.vitals.san, char.vitals.sanMax, sanColor, 'bg-white')}${renderNeonVital('REA', char.vitals.rea || (7 + getMod(char.attributes.SAB.value)), null, 'text-white', 'bg-white text-white', true)}${renderNeonVital('AURA', char.vitals.aura, char.vitals.auraMax, `text-[${themeColor}]`, `bg-[${themeColor}] text-[${themeColor}]`, true, 5)}${renderNeonVital('CA', char.vitals.ca, null, 'text-white', 'bg-white text-white', false)}<div class="flex flex-col items-center justify-center cursor-pointer group" onclick="handleArmorClick()"><span class="text-[9px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">ARMADURA</span><div class="w-10 h-10 rounded-full border border-gray-700 flex items-center justify-center bg-gray-900 group-hover:border-[${themeColor}] group-hover:shadow-[0_0_10px_rgba(var(--theme-rgb),0.3)] transition-all"><i data-lucide="shield" size="20" class="text-gray-400 group-hover:text-[${themeColor}] transition-colors"></i></div><div class="w-8 h-0.5 rounded-full mt-1.5 bg-gray-800 opacity-80"></div></div>${renderNeonVital('PV', char.vitals.hp, char.vitals.hpMax, 'text-neon-red', 'bg-neon-red text-neon-red', true, 1, true)}</div>${rdmVal > 0 ? `<div class="flex items-center justify-center gap-2 text-[9px] text-blue-400 font-bold pb-2 border-b border-gray-800 mb-2"><span> 🛡️ RDM (Resist. Mental)</span><span class="font-display text-sm">−${rdmVal}</span></div>` : ''}`;
+                const reaMax = 7 + getMod(char.attributes.SAB.value) + (((char.combatInclinations || {}).analitica || 0) >= 1 ? 2 : 0);
+                const reaCur = char.vitals.rea !== undefined ? char.vitals.rea : reaMax;
+                const vitalsGridHtml = `<div class="grid grid-cols-3 gap-y-2 gap-x-2 px-2 py-2 border-b border-gray-800 bg-[#0b0c10] mb-4">${renderNeonVital('SAN', char.vitals.san, char.vitals.sanMax, sanColor, 'bg-white')}${renderNeonVital('REA', reaCur, reaMax, 'text-white', 'bg-white text-white', true, 1, true)}${renderNeonVital('AURA', char.vitals.aura, char.vitals.auraMax, `text-[${themeColor}]`, `bg-[${themeColor}] text-[${themeColor}]`, true, 5)}${renderNeonVital('CA', char.vitals.ca, null, 'text-white', 'bg-white text-white', false)}<div class="flex flex-col items-center justify-center cursor-pointer group" onclick="handleArmorClick()"><span class="text-[9px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">ARMADURA</span><div class="w-10 h-10 rounded-full border border-gray-700 flex items-center justify-center bg-gray-900 group-hover:border-[${themeColor}] group-hover:shadow-[0_0_10px_rgba(var(--theme-rgb),0.3)] transition-all"><i data-lucide="shield" size="20" class="text-gray-400 group-hover:text-[${themeColor}] transition-colors"></i></div><div class="w-8 h-0.5 rounded-full mt-1.5 bg-gray-800 opacity-80"></div></div>${renderNeonVital('PV', char.vitals.hp, char.vitals.hpMax, 'text-neon-red', 'bg-neon-red text-neon-red', true, 1, true)}</div>${rdmVal > 0 ? `<div class="flex items-center justify-center gap-2 text-[9px] text-blue-400 font-bold pb-2 border-b border-gray-800 mb-2"><span> 🛡️ RDM (Resist. Mental)</span><span class="font-display text-sm">−${rdmVal}</span></div>` : ''}`;
                 const rollModesHtml = ''; // removido — modo é escolhido por rolagem via modal
                 const attributesHtml = `<div class="grid grid-cols-2 gap-3 p-4 pt-0">${Object.entries(char.attributes).map(([key, attr]) => { const mod = getMod(attr.value); const fullName = ATTR_FULL_NAMES[key]; const icons = ATTR_ICONS_MAP[key] || ["star","star"]; const saveSkillName = `TR de ${key}`; const isTrained = char.skills.includes(saveSkillName); const isExpert = (char.expertise || []).includes(saveSkillName); const pb = getProficiencyBonus(char.level); let saveBonus = mod; if(isExpert) saveBonus += pb * 2; else if(isTrained) saveBonus += pb; const saveBonusStr = saveBonus >= 0 ? `+${saveBonus}` : `${saveBonus}`; return `<div class="bg-gray-900 border border-gray-800 rounded-3xl p-3 relative overflow-hidden transition-all duration-300 hover:border-[${themeColor}] hover:shadow-[0_0_20px_rgba(var(--theme-rgb),0.1)] h-full flex flex-col justify-between group" onclick="handleAttributeClick('${key}')"><div class="relative w-full flex justify-center items-center mb-1 min-h-[30px]"><div class="flex items-center gap-2 text-[${themeColor}] bg-black/40 px-3 py-1 rounded-full border border-white/5 backdrop-blur-sm z-10 shadow-[0_0_15px_${themeColor}40]"><i data-lucide="${icons[0]}" size="10" class="drop-shadow-[0_0_8px_${themeColor}]"></i><span class="text-[9px] font-black text-white uppercase tracking-[0.15em] drop-shadow-[0_0_5px_rgba(0,0,0,0.8)]">${fullName}</span><i data-lucide="${icons[1]}" size="10" class="drop-shadow-[0_0_8px_${themeColor}]"></i></div></div><div class="flex items-center justify-center my-0 relative flex-1"><button onclick="event.stopPropagation(); updateSheetAttr('${key}', -1)" class="absolute left-0 text-gray-600 hover:text-white p-1"><i data-lucide="minus" size="14"></i></button><span class="text-4xl font-display font-bold text-white tracking-tighter drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">${attr.value}</span><button onclick="event.stopPropagation(); updateSheetAttr('${key}', 1)" class="absolute right-0 text-gray-600 hover:text-white p-1"><i data-lucide="plus" size="14"></i></button></div><div class="flex justify-center mt-1 mb-1"><div class="px-4 py-0.5 rounded-full border border-[${themeColor}]/30 bg-[${themeColor}]/5 text-[${themeColor}] text-xs font-bold shadow-[0_0_10px_rgba(var(--theme-rgb),0.2)]">${mod >= 0 ? '+'+mod : mod}</div></div><div onclick="event.stopPropagation(); handleShieldClick('${key}')" class="absolute right-2 bottom-2 cursor-pointer z-20 hover:scale-110 transition-transform flex items-center justify-center" title="TR de ${fullName}: ${saveBonusStr}"><i data-lucide="shield" size="18" class="${isTrained ? (isExpert ? 'text-neon-yellow fill-neon-yellow/10 drop-shadow-[0_0_5px_rgba(255,230,0,0.8)]' : `text-[${themeColor}] fill-[${themeColor}]/10 drop-shadow-[0_0_5px_${themeColor}]`) : 'text-gray-800 fill-gray-900'} transition-colors"></i><span class="absolute text-[7px] font-bold ${isTrained ? 'text-white' : 'text-gray-500'}" style="padding-top: 1px;">${saveBonusStr}</span></div></div>`; }).join('')}${state.openAttrPopup ? (() => { const key = state.openAttrPopup; const attr = char.attributes[key]; const mod = getMod(attr.value); const skillsList = SKILL_MAP[key] || []; return `<div class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" onclick="toggleAttrPopup(null)"><div class="bg-gray-900 border-2 border-[${themeColor}] rounded-2xl p-6 w-[85%] max-w-[320px] shadow-[0_0_50px_rgba(0,0,0,0.8)] relative transform scale-100 animate-in zoom-in-95 duration-200" onclick="event.stopPropagation()"><button onclick="toggleAttrPopup(null)" class="absolute top-4 right-4 text-gray-500 hover:text-white"><i data-lucide="x" size="20"></i></button><div class="text-center mb-6"><h2 class="text-2xl font-display font-black text-white uppercase tracking-widest drop-shadow-[0_0_10px_${themeColor}]">${ATTR_FULL_NAMES[key]}</h2><div class="flex justify-center items-center gap-4 mt-2"><div class="text-4xl font-display font-bold text-[${themeColor}]">${attr.value}</div><div class="bg-gray-800 px-4 py-1 rounded-full text-sm font-bold text-white border border-gray-700">Mod ${mod >= 0 ? '+'+mod : mod}</div></div></div><div class="space-y-3 mb-6"><h4 class="text-[10px] font-bold text-gray-500 uppercase border-b border-gray-800 pb-2 text-center">Perícias Associadas</h4><div class="flex flex-col gap-2 max-h-[200px] overflow-y-auto custom-scrollbar">${skillsList.length > 0 ? skillsList.map(s => { const isTrained = char.skills.includes(s); const isExpert = (char.expertise || []).includes(s); const pb = getProficiencyBonus(char.level); let totalBonus = mod; if (isExpert) totalBonus += (pb * 2); else if (isTrained) totalBonus += pb; let iconName = 'circle'; let iconColorClass = 'text-gray-600'; if (isExpert) { iconName = 'badge-check'; iconColorClass = 'text-neon-yellow fill-neon-yellow/20'; } else if (isTrained) { iconName = 'check-circle-2'; iconColorClass = `text-[${themeColor}]`; } return `<div class="flex items-center justify-between p-3 rounded-xl border transition-all group ${isTrained ? `bg-[${themeColor}]/10 border-[${themeColor}]/30` : 'bg-gray-950 border-gray-800 hover:border-gray-600'}"><div class="flex items-center gap-3 cursor-pointer" onclick="handleSkillStatus('${s}')"><i data-lucide="${iconName}" size="20" class="${iconColorClass} hover:scale-110 transition-transform"></i><span class="text-xs font-bold uppercase tracking-wide ${isTrained ? 'text-white' : 'text-gray-400'}">${s}</span></div><button class="flex items-center gap-2 px-2 py-1 rounded-lg border ${isExpert ? 'border-neon-yellow/40 bg-neon-yellow/10' : (isTrained ? `border-[${themeColor}]/40 bg-[${themeColor}]/10` : 'border-gray-700 bg-gray-900')} hover:brightness-125 transition-all cursor-pointer" onclick="toggleAttrPopup(null); openRollModeModal('skill', '${s}', '${key}')"><span class="text-xs font-mono font-bold ${isExpert ? 'text-neon-yellow' : (isTrained ? `text-[${themeColor}]` : 'text-gray-400')}">${totalBonus >= 0 ? '+'+totalBonus : totalBonus}</span><i data-lucide="dices" size="14" class="${isExpert ? 'text-neon-yellow' : (isTrained ? `text-[${themeColor}]` : 'text-gray-400')} transition-colors"></i></button></div>` }).join('') : '<span class="text-xs text-gray-600 italic block text-center py-2">Nenhuma perícia associada.</span>'}</div></div><button onclick="toggleAttrPopup(null); openRollModeModal('dice', '${key}', ${mod})" class="w-full py-3 bg-[${themeColor}] text-black font-black font-display tracking-widest rounded-xl hover:brightness-110 transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_${themeColor}40]"><i data-lucide="dices" size="18"></i> ROLAR ATRIBUTO PURO</button></div></div>${state.skillSelectionModal ? `<div class="fixed inset-0 z-[110] flex items-center justify-center bg-black/90 animate-in fade-in duration-200" onclick="closeSkillModal()"><div class="bg-gray-900 border border-gray-700 rounded-xl p-6 w-[85%] max-w-[300px] shadow-2xl relative" onclick="event.stopPropagation()"><h3 class="text-lg font-display font-bold text-white mb-1">${state.skillSelectionModal}</h3><p class="text-xs text-gray-400 mb-4 uppercase tracking-widest">Selecione o nível de treinamento</p><div class="space-y-2"><button onclick="setSkillLevel('${state.skillSelectionModal}', 'remove')" class="w-full p-3 rounded-lg border border-red-900/50 bg-red-500/10 text-red-500 font-bold text-xs uppercase hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="x" size="16"></i> Remover Proficiência</button><button onclick="setSkillLevel('${state.skillSelectionModal}', 'trained')" class="w-full p-3 rounded-lg border border-gray-700 bg-gray-800 text-gray-300 font-bold text-xs uppercase hover:bg-gray-700 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="check-circle-2" size="16"></i> Normal (1x Bônus)</button><button onclick="setSkillLevel('${state.skillSelectionModal}', 'expert')" class="w-full p-3 rounded-lg border border-neon-yellow/30 bg-neon-yellow/10 text-neon-yellow font-bold text-xs uppercase hover:bg-neon-yellow hover:text-black transition-colors flex items-center gap-2"><i data-lucide="badge-check" size="16"></i> Especialização (2x Bônus)</button></div><button onclick="closeSkillModal()" class="mt-4 w-full py-2 text-xs text-gray-500 hover:text-white uppercase font-bold tracking-widest">Cancelar</button></div></div>` : ''}`; })() : ''}</div>`;
                 tabContent = `${infoGridHtml}${vitalsGridHtml}${(() => {
@@ -442,8 +508,41 @@
                     const detail = parts.length > 1 ? parts[1].trim() : '';
                     const tData = raceData.caracteristicas.find(c => c.nome === baseTraitName); 
                     return `<div class="bg-gray-900 border border-gray-800 p-3 rounded-xl border-l-2 border-l-[${themeColor}]"><h4 class="font-bold text-white text-xs mb-1">${tName}</h4><p class="text-[10px] text-gray-400 leading-relaxed">${tData ? (tData.efeito || tData.mecanica) : 'Descrição não encontrada.'}</p></div>`; }).join(''); } } else { const fixedFeatures = [...(raceData.caracteristicas || [])]; if (fixedFeatures.length > 0) { traitsHtml += fixedFeatures.map(f => `<div class="bg-gray-900 border border-gray-800 p-3 rounded-xl border-l-2 border-l-[${themeColor}]"><h4 class="font-bold text-white text-xs mb-1">${f.nome}</h4><p class="text-[10px] text-gray-400 leading-relaxed">${f.efeito || f.mecanica || ''}</p></div>`).join(''); } } traitsHtml += `</div>`; let bgHtml = ''; if (bgData && char.backgroundFeature) { const feature = bgData.caracteristicas.find(f => f.nome === char.backgroundFeature); bgHtml = `<div class="flex items-center gap-3 mb-2 border-t border-gray-800 pt-4"><div class="bg-gray-800 p-2 rounded text-[${themeColor}]"><i data-lucide="book-open" size="20"></i></div><div><h3 class="font-bold text-white uppercase tracking-wider text-sm">${char.background}</h3><p class="text-[10px] text-gray-500 uppercase tracking-widest">Antecedente</p></div></div><div class="space-y-2 mb-6"><div class="bg-gray-900 border border-gray-800 p-3 rounded-xl border-l-4 border-l-[${themeColor}]"><h4 class="font-bold text-[${themeColor}] text-xs mb-1">${feature.nome}</h4><p class="text-[10px] text-gray-400 leading-relaxed">${feature.efeito}</p></div></div>`; }
+                let generalIncHtml = '';
+                const posIncs = (char.inclinations && char.inclinations.positive) || [];
+                const negIncs = (char.inclinations && char.inclinations.negative) || [];
+                if (posIncs.length > 0 || negIncs.length > 0) {
+                    function _ciLookup(nome, tipo) {
+                        const list = tipo === 'pos' ? (SYSTEM_DB.inclinacoes && SYSTEM_DB.inclinacoes.positivas) : (SYSTEM_DB.inclinacoes && SYSTEM_DB.inclinacoes.negativas);
+                        if (!list) return '';
+                        const direct = list.find(i => i.nome === nome);
+                        if (direct) return direct.desc || '';
+                        const parts = nome.split(':');
+                        if (parts.length >= 2) { const parent = list.find(i => i.nome === parts[0].trim() && i.hasOptions); if (parent) { const opt = parent.options && parent.options.find(o => o.label === parts[1].trim()); if (opt) return opt.desc || parent.desc || ''; } }
+                        return '';
+                    }
+                    const posHtml = posIncs.length > 0 ? `<div class="mb-2"><p class="text-[9px] font-black text-neon-green uppercase tracking-widest mb-1 flex items-center gap-1"><i data-lucide="thumbs-up" size="10"></i> Positivas</p><div class="space-y-1">${posIncs.map(inc => { const desc = _ciLookup(inc.nome, 'pos'); return `<div class="bg-gray-900 border border-gray-800 rounded-xl p-3" style="border-left:3px solid #00ff9d"><div class="flex justify-between items-start mb-0.5"><span class="text-xs font-bold text-neon-green">${inc.nome}</span><span class="text-[9px] bg-neon-green/10 text-neon-green border border-neon-green/20 px-1.5 rounded">${inc.custo} pts</span></div>${desc ? `<p class="text-[10px] text-gray-400 leading-relaxed mt-1">${desc}</p>` : ''}</div>`; }).join('')}</div></div>` : '';
+                    const negHtml = negIncs.length > 0 ? `<div><p class="text-[9px] font-black text-neon-red uppercase tracking-widest mb-1 flex items-center gap-1"><i data-lucide="thumbs-down" size="10"></i> Negativas</p><div class="space-y-1">${negIncs.map(inc => { const desc = _ciLookup(inc.nome, 'neg'); return `<div class="bg-gray-900 border border-gray-800 rounded-xl p-3" style="border-left:3px solid #ff0055"><div class="flex justify-between items-start mb-0.5"><span class="text-xs font-bold text-neon-red">${inc.nome}</span><span class="text-[9px] bg-neon-red/10 text-neon-red border border-neon-red/20 px-1.5 rounded">+${inc.valor} pts</span></div>${desc ? `<p class="text-[10px] text-gray-400 leading-relaxed mt-1">${desc}</p>` : ''}</div>`; }).join('')}</div></div>` : '';
+                    generalIncHtml = `<div class="mt-2 border-t border-gray-800 pt-4"><div class="flex items-center justify-between mb-3"><div class="flex items-center gap-3"><div class="bg-gray-800 p-2 rounded text-[${themeColor}]"><i data-lucide="scale" size="20"></i></div><div><h3 class="font-bold text-white uppercase tracking-wider text-sm">Inclinações Gerais</h3><p class="text-[10px] text-gray-500 uppercase tracking-widest">Positivas e Negativas</p></div></div><button onclick="window._openGeneralIncModal()" class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[${themeColor}]/10 border border-[${themeColor}]/30 text-[${themeColor}] text-[10px] font-bold uppercase tracking-widest hover:bg-[${themeColor}]/20 transition-colors"><i data-lucide="edit-3" size="12"></i> Editar</button></div>${posHtml}${negHtml}</div>`;
+                }
                 const otherTrainings = char.skills.filter(s => SYSTEM_DB.otherSkills.includes(s)); let otherSkillsHtml = ''; if (otherTrainings.length > 0) { const isOpen = state.sheetOtherSkillsOpen; otherSkillsHtml = `<div class="mt-2 border-t border-gray-800 pt-4"><div onclick="toggleSheetAccordion()" class="flex items-center justify-between cursor-pointer group"><div class="flex items-center gap-3 mb-2"><div class="bg-gray-800 p-2 rounded text-[${themeColor}]"><i data-lucide="hammer" size="20"></i></div><div><h3 class="font-bold text-white uppercase tracking-wider text-sm">Outros Treinamentos</h3><p class="text-[10px] text-gray-500 uppercase tracking-widest">Equipamentos, Linguagens e Ferramentas</p></div></div><div class="transition-transform duration-300 ${isOpen ? 'rotate-180 text-white' : 'text-gray-600 group-hover:text-gray-400'}"><i data-lucide="chevron-down" size="20"></i></div></div><div class="accordion-content ${isOpen ? 'open' : ''}"><div class="flex flex-wrap gap-2 pt-2">${otherTrainings.map(s => `<div class="bg-gray-900 border border-gray-800 p-3 rounded-xl inline-flex items-center gap-2 w-auto pr-4"><i data-lucide="check-circle" size="14" style="color: ${themeColor}" class="shrink-0"></i><span class="text-xs font-bold whitespace-nowrap" style="color: ${themeColor}">${s}</span></div>`).join('')}</div></div></div>`; }
-                tabContent = `<div class="p-4 space-y-2">${traitsHtml}${bgHtml}${otherSkillsHtml}</div>`;
+                let combatIncHtml = '';
+                if (char.level >= 2 && window.COMBAT_INCLINATIONS_DB) {
+                    const ciTotalPts = getCIPointsForLevel(char.level);
+                    const ciInvested = char.combatInclinations || {};
+                    const ciSpent = Object.values(ciInvested).reduce((a, b) => a + b, 0);
+                    const ciAvail = ciTotalPts - ciSpent;
+                    const ciEntries = Object.entries(ciInvested).filter(([, v]) => v > 0);
+                    let ciListHtml = ciEntries.length === 0
+                        ? `<p class="text-[10px] text-gray-600 italic text-center py-2">Nenhuma inclinação investida. Clique em Editar para distribuir seus pontos.</p>`
+                        : ciEntries.map(([id, pts]) => {
+                            const inc = window.COMBAT_INCLINATIONS_DB.find(i => i.id === id);
+                            if (!inc) return '';
+                            return inc.tiers.slice(0, pts).map((desc, ti) => `<div class="bg-gray-900 border border-gray-800 rounded-xl p-3" style="border-left:3px solid #f97316"><div class="flex items-center gap-2 mb-1"><span class="text-xs font-bold text-orange-400">${inc.nome}</span><span class="text-[9px] bg-orange-500/10 text-orange-400 border border-orange-500/20 px-1.5 rounded">Tier ${ti + 1}</span></div><p class="text-[10px] text-gray-400 leading-relaxed">${desc}</p></div>`).join('');
+                          }).join('');
+                    combatIncHtml = `<div class="mt-2 border-t border-gray-800 pt-4"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-3"><div class="bg-gray-800 p-2 rounded text-orange-400"><i data-lucide="swords" size="20"></i></div><div><h3 class="font-bold text-white uppercase tracking-wider text-sm">Inclinações de Combate</h3><p class="text-[10px] text-gray-500 uppercase tracking-widest">${ciSpent}/${ciTotalPts} pontos usados</p></div></div><button onclick="window._openCombatIncModal()" class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/30 text-orange-400 text-[10px] font-bold uppercase tracking-widest hover:bg-orange-500/20 transition-colors"><i data-lucide="edit-3" size="12"></i> Editar</button></div>${ciAvail > 0 ? `<div class="flex items-center gap-2 text-[10px] text-orange-400 font-bold mb-2 bg-orange-500/10 border border-orange-500/20 rounded-lg px-3 py-2 animate-pulse"><i data-lucide="alert-circle" size="12"></i> ${ciAvail} ponto(s) disponível(is) para investir!</div>` : ''}<div class="space-y-2">${ciListHtml}</div></div>`;
+                }
+                tabContent = `<div class="p-4 space-y-2">${traitsHtml}${bgHtml}${generalIncHtml}${otherSkillsHtml}${combatIncHtml}</div>`;
             } else if (state.activeTab === 'INV') {
                 const isShop = state.invMode === 'SHOP';
                 const headerHtml = `<div class="flex items-center justify-between px-4 pt-4 pb-2 sticky top-0 bg-gray-950 z-20 border-b border-gray-800/50"><div class="flex bg-gray-900 rounded-lg p-1 border border-gray-800"><button onclick="toggleInvMode('BAG')" class="px-4 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${!isShop ? `bg-[${themeColor}] text-black shadow-[0_0_10px_${themeColor}]` : 'text-gray-500 hover:text-white'}">Mochila</button><button onclick="toggleInvMode('SHOP')" class="px-4 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${isShop ? `bg-[${themeColor}] text-black shadow-[0_0_10px_${themeColor}]` : 'text-gray-500 hover:text-white'}">Loja</button></div><div class="flex items-center gap-2 bg-gray-900 border border-gray-800 rounded-lg px-3 py-1.5"><span class="text-[${themeColor}] font-bold text-xs">$</span><input type="number" value="${char.money}" onchange="updateMoney(this.value)" class="w-16 bg-transparent text-white font-mono text-sm text-right outline-none"></div></div>`;
@@ -942,7 +1041,7 @@
 
             if (type === 'pv') v.hp = Math.min(v.hpMax || v.hp, v.hp + delta);
             if (type === 'aura') v.aura += delta;
-            if (type === 'rea') { if (v.rea === undefined) v.rea = 7 + getMod(char.attributes.SAB.value); v.rea += delta; }
+            if (type === 'rea') { const rMax = 7 + getMod(char.attributes.SAB.value) + (((char.combatInclinations || {}).analitica || 0) >= 1 ? 2 : 0); if (v.rea === undefined) v.rea = rMax; v.rea = Math.min(rMax, Math.max(0, v.rea + delta)); }
             if (type === 'san') {
                 if (!v.sanMax) v.sanMax = 100;
                 const prevSan = v.san;
@@ -1159,16 +1258,214 @@
                 const gain = overlay._hitGain || mediaTotal;
                 char.vitals.hpMax = (char.vitals.hpMax || 0) + gain;
                 char.vitals.hp   = (char.vitals.hp   || 0) + gain;
-                // Sanidade: recalcula RDM e recupera essa quantidade (cap sanMax=100)
                 if (!char.vitals.sanMax) char.vitals.sanMax = 100;
                 const newRdm = calcRDM(char);
-                const sanRecovery = newRdm; // recupera o RDM do novo nível
+                const sanRecovery = newRdm;
                 char.vitals.san = Math.min(char.vitals.sanMax, (char.vitals.san || 100) + sanRecovery);
                 saveCharacter(char);
                 document.getElementById('levelup-modal-overlay')?.remove();
                 render(true);
-                window._showXpToast('Nível ' + newLevel + '! +' + gain + ' PV' + (sanRecovery > 0 ? ' | +' + sanRecovery + ' Sanidade' : ''));
+                const ciGainPerLevel = {2:2, 4:3, 7:2, 11:3};
+                const ciGained = ciGainPerLevel[newLevel] || 0;
+                window._showXpToast('Nível ' + newLevel + '! +' + gain + ' PV' + (sanRecovery > 0 ? ' | +' + sanRecovery + ' Sanidade' : '') + (ciGained > 0 ? ' | +' + ciGained + ' pts Inclinação Combate!' : ''));
+                if (ciGained > 0) {
+                    setTimeout(() => {
+                        if (confirm('Você ganhou ' + ciGained + ' ponto(s) de Inclinação de Combate! Deseja distribuir agora?')) {
+                            state.activeTab = 'TRACOS';
+                            render(true);
+                            setTimeout(() => window._openCombatIncModal(), 300);
+                        }
+                    }, 1200);
+                }
             };
+        };
+
+        window._openGeneralIncModal = function() {
+            const char = state.currentChar;
+            if (!char) return;
+            if (!SYSTEM_DB.inclinacoes) { alert('Banco de inclinações não carregado.'); return; }
+            const tc = getComputedStyle(document.documentElement).getPropertyValue('--theme-color-hex').trim() || '#00ff9d';
+            const draft = {
+                positive: JSON.parse(JSON.stringify((char.inclinations && char.inclinations.positive) || [])),
+                negative: JSON.parse(JSON.stringify((char.inclinations && char.inclinations.negative) || []))
+            };
+
+            function giPosCost() { return draft.positive.reduce((a, i) => a + i.custo, 0); }
+            function giNegVal()  { return draft.negative.reduce((a, i) => a + i.valor, 0); }
+            function giFree()    { const s = [...draft.positive].sort((a,b) => b.custo - a.custo); return s.length > 0 ? s[0].custo : 0; }
+            function giPaid()    { return Math.max(0, giPosCost() - giFree()); }
+            function giBalance() { return giNegVal() - giPaid(); }
+            function giIsOk()    { return giBalance() >= 0; }
+
+            function giToggle(type, nome, val) {
+                const arr = type === 'pos' ? draft.positive : draft.negative;
+                const key = type === 'pos' ? 'custo' : 'valor';
+                const idx = arr.findIndex(i => i.nome === nome);
+                if (idx > -1) arr.splice(idx, 1); else arr.push({ nome, [key]: val });
+                document.getElementById('gi-modal-overlay')?.remove();
+                document.body.insertAdjacentHTML('beforeend', buildGiHtml());
+            }
+            window._giToggle = giToggle;
+
+            function buildGiHtml() {
+                const posCost = giPosCost(), negVal = giNegVal(), balance = giBalance(), isOk = giIsOk();
+
+                function renderPosInc(inc) {
+                    if (inc.hasOptions) {
+                        const hasChild = draft.positive.some(i => i.nome.startsWith(inc.nome + ':'));
+                        return `<div style="background:#111827;border:1px solid ${hasChild ? '#00ff9d44' : '#1f2937'};border-radius:12px;padding:12px;margin-bottom:8px">
+                            <div style="font-size:11px;font-weight:700;color:${hasChild ? '#00ff9d' : '#fff'};margin-bottom:4px">${inc.nome}${hasChild ? ' <span style="font-size:9px;background:#00ff9d15;color:#00ff9d;border:1px solid #00ff9d30;padding:1px 6px;border-radius:4px">Selecionado</span>' : ''}</div>
+                            <div style="font-size:10px;color:#6b7280;margin-bottom:8px">${inc.desc || ''}</div>
+                            <div style="padding-left:8px;border-left:2px solid #1f2937">
+                                ${inc.options.map(opt => { const fullName = inc.nome + ': ' + opt.label; const sel = draft.positive.some(i => i.nome === fullName); return `<div onclick="window._giToggle('pos','${fullName.replace(/'/g,"\\'")}',${opt.custo})" style="display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:8px;cursor:pointer;background:${sel ? '#00ff9d15' : 'transparent'};margin-bottom:4px"><div><div style="font-size:11px;font-weight:700;color:${sel ? '#00ff9d' : '#d1d5db'}">${opt.label}</div>${opt.desc ? `<div style="font-size:9px;color:#6b7280">${opt.desc}</div>` : ''}</div><div style="display:flex;align-items:center;gap:6px"><span style="font-size:9px;color:#6b7280">${opt.custo} pts</span>${sel ? '<span style="color:#00ff9d;font-size:12px">✓</span>' : ''}</div></div>`; }).join('')}
+                            </div>
+                        </div>`;
+                    }
+                    const sel = draft.positive.some(i => i.nome === inc.nome);
+                    return `<div onclick="window._giToggle('pos','${inc.nome.replace(/'/g,"\\'")}',${inc.custo})" style="background:#111827;border:1px solid ${sel ? '#00ff9d88' : '#1f2937'};border-radius:12px;padding:12px;cursor:pointer;margin-bottom:8px;display:flex;justify-content:space-between;align-items:flex-start">
+                        <div style="flex:1;padding-right:8px"><div style="font-size:11px;font-weight:700;color:${sel ? '#00ff9d' : '#fff'};margin-bottom:2px">${inc.nome}</div><div style="font-size:10px;color:#6b7280">${inc.desc || ''}</div></div>
+                        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0"><span style="font-size:9px;background:#00000080;border:1px solid #374151;padding:2px 6px;border-radius:4px;color:#9ca3af">${inc.custo} pts</span>${sel ? '<span style="color:#00ff9d;font-size:14px">✓</span>' : ''}</div>
+                    </div>`;
+                }
+
+                function renderNegInc(inc) {
+                    if (inc.hasOptions) {
+                        const hasChild = draft.negative.some(i => i.nome.startsWith(inc.nome + ':'));
+                        return `<div style="background:#111827;border:1px solid ${hasChild ? '#ff005544' : '#1f2937'};border-radius:12px;padding:12px;margin-bottom:8px">
+                            <div style="font-size:11px;font-weight:700;color:${hasChild ? '#ff4d6d' : '#fff'};margin-bottom:4px">${inc.nome}${hasChild ? ' <span style="font-size:9px;background:#ff005515;color:#ff4d6d;border:1px solid #ff005530;padding:1px 6px;border-radius:4px">Selecionado</span>' : ''}</div>
+                            <div style="font-size:10px;color:#6b7280;margin-bottom:8px">${inc.desc || ''}</div>
+                            <div style="padding-left:8px;border-left:2px solid #1f2937">
+                                ${inc.options.map(opt => { const fullName = inc.nome + ': ' + opt.label; const sel = draft.negative.some(i => i.nome === fullName); return `<div onclick="window._giToggle('neg','${fullName.replace(/'/g,"\\'")}',${opt.valor})" style="display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:8px;cursor:pointer;background:${sel ? '#ff005515' : 'transparent'};margin-bottom:4px"><div><div style="font-size:11px;font-weight:700;color:${sel ? '#ff4d6d' : '#d1d5db'}">${opt.label}</div>${opt.desc ? `<div style="font-size:9px;color:#6b7280">${opt.desc}</div>` : ''}</div><div style="display:flex;align-items:center;gap:6px"><span style="font-size:9px;color:#6b7280">+${opt.valor} pts</span>${sel ? '<span style="color:#ff4d6d;font-size:12px">✓</span>' : ''}</div></div>`; }).join('')}
+                            </div>
+                        </div>`;
+                    }
+                    const sel = draft.negative.some(i => i.nome === inc.nome);
+                    return `<div onclick="window._giToggle('neg','${inc.nome.replace(/'/g,"\\'")}',${inc.valor})" style="background:#111827;border:1px solid ${sel ? '#ff005588' : '#1f2937'};border-radius:12px;padding:12px;cursor:pointer;margin-bottom:8px;display:flex;justify-content:space-between;align-items:flex-start">
+                        <div style="flex:1;padding-right:8px"><div style="font-size:11px;font-weight:700;color:${sel ? '#ff4d6d' : '#fff'};margin-bottom:2px">${inc.nome}</div><div style="font-size:10px;color:#6b7280">${inc.desc || ''}</div></div>
+                        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0"><span style="font-size:9px;background:#00000080;border:1px solid #374151;padding:2px 6px;border-radius:4px;color:#9ca3af">+${inc.valor} pts</span>${sel ? '<span style="color:#ff4d6d;font-size:14px">✓</span>' : ''}</div>
+                    </div>`;
+                }
+
+                return `<div id="gi-modal-overlay" style="position:fixed;inset:0;background:#000000ee;display:flex;align-items:flex-start;justify-content:center;z-index:9999;padding:16px;font-family:Rajdhani,sans-serif;overflow-y:auto">
+                    <div style="background:#0d1117;border:2px solid ${tc};border-radius:20px;padding:20px;width:100%;max-width:420px;box-shadow:0 0 60px ${tc}44;margin:auto">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+                            <div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:13px;color:${tc};text-transform:uppercase;letter-spacing:2px">Inclinações Gerais</div>
+                            <button onclick="document.getElementById('gi-modal-overlay').remove()" style="background:none;border:none;color:#6b7280;cursor:pointer;font-size:20px;line-height:1">×</button>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;background:#0a0f1a;border:1px solid #1f2937;border-radius:10px;padding:10px;margin-bottom:14px">
+                            <div style="text-align:center;border-right:1px solid #1f2937"><div style="font-size:9px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:1px">Custo Pos.</div><div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:18px;color:#fff">${posCost}<span style="font-size:9px;color:#6b7280"> pts</span></div></div>
+                            <div style="text-align:center;border-right:1px solid #1f2937"><div style="font-size:9px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:1px">Compensação</div><div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:18px;color:${isOk ? '#00ff9d' : '#ef4444'}">${isOk ? '✓ OK' : balance}</div></div>
+                            <div style="text-align:center"><div style="font-size:9px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:1px">Pts Neg.</div><div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:18px;color:#ef4444">${negVal}<span style="font-size:9px;color:#6b7280"> /10</span></div></div>
+                        </div>
+                        <div style="max-height:55vh;overflow-y:auto;padding-right:4px">
+                            <div style="font-size:9px;font-weight:900;color:#00ff9d;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;display:flex;align-items:center;gap:6px">👍 Gerais Positivas <span style="font-size:8px;background:#00ff9d15;border:1px solid #00ff9d30;padding:2px 6px;border-radius:4px;font-weight:700">1ª Grátis (Maior Valor)</span></div>
+                            ${SYSTEM_DB.inclinacoes.positivas.map(renderPosInc).join('')}
+                            <div style="font-size:9px;font-weight:900;color:#ff4d6d;text-transform:uppercase;letter-spacing:2px;margin:12px 0 8px;display:flex;align-items:center;gap:6px">👎 Gerais Negativas</div>
+                            ${SYSTEM_DB.inclinacoes.negativas.map(renderNegInc).join('')}
+                        </div>
+                        <div style="display:flex;gap:8px;margin-top:14px">
+                            <button onclick="document.getElementById('gi-modal-overlay').remove()" style="flex:1;padding:11px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer;letter-spacing:1px">Cancelar</button>
+                            <button onclick="window._giSave()" style="flex:2;padding:11px;border-radius:10px;background:${tc};border:none;color:#000;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer;letter-spacing:1px;box-shadow:0 0 20px ${tc}55">✓ Salvar</button>
+                        </div>
+                    </div>
+                </div>`;
+            }
+
+            window._giSave = function() {
+                const negVal = giNegVal();
+                if (negVal > 10) { alert('O máximo de compensação negativa é 10 pontos.'); return; }
+                if (!giIsOk()) { alert('Suas inclinações não estão balanceadas! Adicione negativas ou remova positivas extras.'); return; }
+                if (!char.inclinations) char.inclinations = {};
+                char.inclinations.positive = JSON.parse(JSON.stringify(draft.positive));
+                char.inclinations.negative = JSON.parse(JSON.stringify(draft.negative));
+                saveCharacter(char);
+                document.getElementById('gi-modal-overlay')?.remove();
+                render(true);
+                window._showXpToast && window._showXpToast('Inclinações Gerais salvas!');
+            };
+
+            document.getElementById('gi-modal-overlay')?.remove();
+            document.body.insertAdjacentHTML('beforeend', buildGiHtml());
+        };
+
+        window._openCombatIncModal = function() {
+            const char = state.currentChar;
+            if (!char || char.level < 2) { alert('Inclinações de Combate só estão disponíveis a partir do Nível 2.'); return; }
+            if (!window.COMBAT_INCLINATIONS_DB) { alert('Banco de Inclinações de Combate não carregado.'); return; }
+            const tc = getComputedStyle(document.documentElement).getPropertyValue('--theme-color-hex').trim() || '#f97316';
+            const draft = JSON.parse(JSON.stringify(char.combatInclinations || {}));
+            const totalPts = getCIPointsForLevel(char.level);
+
+            function getSpent() { return Object.values(draft).reduce((a, b) => a + b, 0); }
+
+            function buildModalHtml() {
+                const spent = getSpent();
+                const avail = totalPts - spent;
+                const incsHtml = window.COMBAT_INCLINATIONS_DB.map(inc => {
+                    const cur = draft[inc.id] || 0;
+                    const tiersHtml = inc.tiers.map((desc, ti) => {
+                        const tierNum = ti + 1;
+                        const active = cur >= tierNum;
+                        const canActivate = !active && avail > 0 && cur === ti;
+                        const canDeactivate = active && cur === tierNum;
+                        return `<div class="flex gap-2 items-start p-2 rounded-lg ${active ? 'bg-orange-500/10 border border-orange-500/20' : 'bg-gray-900/50 border border-gray-800/50'} mb-1">
+                            <button onclick="window._ciSetTier('${inc.id}',${active ? tierNum - 1 : tierNum})" style="min-width:28px;height:28px;border-radius:6px;border:1px solid ${active ? '#f97316' : '#374151'};background:${active ? '#f9731620' : '#111827'};color:${active ? '#f97316' : '#6b7280'};font-weight:900;font-size:11px;cursor:${(active && canDeactivate) || canActivate ? 'pointer' : 'default'};opacity:${(active && canDeactivate) || canActivate || active ? '1' : '0.35'}" ${(!canActivate && !active) ? 'disabled' : ''}>${active ? '✓' : tierNum}</button>
+                            <div class="flex-1"><span class="text-[9px] font-bold ${active ? 'text-orange-400' : 'text-gray-500'} uppercase tracking-widest block mb-0.5">Tier ${tierNum} — 1 ponto</span><p class="text-[10px] ${active ? 'text-gray-300' : 'text-gray-600'} leading-relaxed">${desc}</p></div>
+                        </div>`;
+                    }).join('');
+                    return `<div class="bg-gray-900 border ${cur > 0 ? 'border-orange-500/30' : 'border-gray-800'} rounded-xl p-3 mb-2">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="text-xs font-bold ${cur > 0 ? 'text-orange-400' : 'text-white'}">${inc.nome}</span>
+                            ${inc.req ? `<span class="text-[9px] bg-gray-800 text-gray-500 px-1.5 rounded border border-gray-700">${inc.req}</span>` : ''}
+                            ${cur > 0 ? `<span class="text-[9px] bg-orange-500/10 text-orange-400 border border-orange-500/20 px-1.5 rounded ml-auto">${cur} ponto(s)</span>` : ''}
+                        </div>
+                        ${tiersHtml}
+                    </div>`;
+                }).join('');
+
+                return `<div id="ci-modal-overlay" style="position:fixed;inset:0;background:#000000ee;display:flex;align-items:flex-start;justify-content:center;z-index:9999;padding:16px;font-family:Rajdhani,sans-serif;overflow-y:auto">
+                    <div style="background:#0d1117;border:2px solid #f97316;border-radius:20px;padding:20px;width:100%;max-width:420px;box-shadow:0 0 60px #f9741644;margin:auto">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                            <div>
+                                <div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:13px;color:#f97316;text-transform:uppercase;letter-spacing:2px">Inclinações de Combate</div>
+                                <div style="font-size:10px;color:#6b7280;margin-top:2px">Disponível a partir do Nível 2</div>
+                            </div>
+                            <button onclick="document.getElementById('ci-modal-overlay').remove()" style="background:none;border:none;color:#6b7280;cursor:pointer;font-size:20px;line-height:1">×</button>
+                        </div>
+                        <div id="ci-points-bar" style="background:#0a0f1a;border:1px solid #f9731640;border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">
+                            <span style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:1px">Pontos</span>
+                            <span style="font-family:Orbitron,sans-serif;font-weight:900;font-size:16px;color:${getSpent() <= totalPts ? '#f97316' : '#ef4444'}">${getSpent()} <span style="color:#6b7280;font-size:11px">/ ${totalPts}</span></span>
+                        </div>
+                        ${avail > 0 ? `<div style="background:#f9731615;border:1px solid #f9731630;border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:10px;font-weight:700;color:#f97316">⚡ ${avail} ponto(s) disponível(is) para investir</div>` : ''}
+                        <div style="max-height:55vh;overflow-y:auto;padding-right:4px">${incsHtml}</div>
+                        <div style="display:flex;gap:8px;margin-top:14px">
+                            <button onclick="document.getElementById('ci-modal-overlay').remove()" style="flex:1;padding:11px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer;letter-spacing:1px">Cancelar</button>
+                            <button onclick="window._ciSave()" style="flex:2;padding:11px;border-radius:10px;background:#f97316;border:none;color:#000;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer;letter-spacing:1px;box-shadow:0 0 20px #f9731655">✓ Salvar</button>
+                        </div>
+                    </div>
+                </div>`;
+            }
+
+            window._ciSetTier = function(id, tierNum) {
+                if (tierNum < 0) return;
+                const cur = draft[id] || 0;
+                if (tierNum > cur && (totalPts - getSpent()) <= 0) return;
+                if (tierNum > 3) return;
+                draft[id] = tierNum;
+                document.getElementById('ci-modal-overlay')?.remove();
+                document.body.insertAdjacentHTML('beforeend', buildModalHtml());
+            };
+
+            window._ciSave = function() {
+                char.combatInclinations = JSON.parse(JSON.stringify(draft));
+                saveCharacter(char);
+                document.getElementById('ci-modal-overlay')?.remove();
+                render(true);
+                window._showXpToast && window._showXpToast('Inclinações de Combate salvas!');
+            };
+
+            document.getElementById('ci-modal-overlay')?.remove();
+            document.body.insertAdjacentHTML('beforeend', buildModalHtml());
         };
 
         function changeLevel(delta) {
