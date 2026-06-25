@@ -105,7 +105,9 @@
                 const reaCur = char.vitals.rea !== undefined ? char.vitals.rea : reaMax;
                 const vitalsGridHtml = `<div class="grid grid-cols-3 gap-y-2 gap-x-2 px-2 py-2 border-b border-gray-800 bg-[#0b0c10] mb-4">${renderNeonVital('SAN', char.vitals.san, char.vitals.sanMax, sanColor, 'bg-white')}${renderNeonVital('REA', reaCur, reaMax, 'text-white', 'bg-white text-white', true, 1, true)}${renderNeonVital('AURA', char.vitals.aura, char.vitals.auraMax, `text-[${themeColor}]`, `bg-[${themeColor}] text-[${themeColor}]`, true, 5)}${renderNeonVital('CA', char.vitals.ca, null, 'text-white', 'bg-white text-white', false)}<div class="flex flex-col items-center justify-center cursor-pointer group" onclick="handleArmorClick()"><span class="text-[9px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">ARMADURA</span><div class="w-10 h-10 rounded-full border border-gray-700 flex items-center justify-center bg-gray-900 group-hover:border-[${themeColor}] group-hover:shadow-[0_0_10px_rgba(var(--theme-rgb),0.3)] transition-all"><i data-lucide="shield" size="20" class="text-gray-400 group-hover:text-[${themeColor}] transition-colors"></i></div><div class="w-8 h-0.5 rounded-full mt-1.5 bg-gray-800 opacity-80"></div></div>${renderNeonVital('PV', char.vitals.hp, char.vitals.hpMax, 'text-neon-red', 'bg-neon-red text-neon-red', true, 1, true)}</div>${rdmVal > 0 ? `<div class="flex items-center justify-center gap-2 text-[9px] text-blue-400 font-bold pb-2 border-b border-gray-800 mb-2"><span> 🛡️ RDM (Resist. Mental)</span><span class="font-display text-sm">−${rdmVal}</span></div>` : ''}`;
                 const rollModesHtml = ''; // removido — modo é escolhido por rolagem via modal
-                const attributesHtml = `<div class="grid grid-cols-2 gap-3 p-4 pt-0">${Object.entries(char.attributes).map(([key, attr]) => { const mod = getMod(attr.value); const fullName = ATTR_FULL_NAMES[key]; const icons = ATTR_ICONS_MAP[key] || ["star","star"]; const saveSkillName = `TR de ${key}`; const isTrained = char.skills.includes(saveSkillName); const isExpert = (char.expertise || []).includes(saveSkillName); const pb = getProficiencyBonus(char.level); let saveBonus = mod; if(isExpert) saveBonus += pb * 2; else if(isTrained) saveBonus += pb; const saveBonusStr = saveBonus >= 0 ? `+${saveBonus}` : `${saveBonus}`; return `<div class="bg-gray-900 border border-gray-800 rounded-3xl p-3 relative overflow-hidden transition-all duration-300 hover:border-[${themeColor}] hover:shadow-[0_0_20px_rgba(var(--theme-rgb),0.1)] h-full flex flex-col justify-between group" onclick="handleAttributeClick('${key}')"><div class="relative w-full flex justify-center items-center mb-1 min-h-[30px]"><div class="flex items-center gap-2 text-[${themeColor}] bg-black/40 px-3 py-1 rounded-full border border-white/5 backdrop-blur-sm z-10 shadow-[0_0_15px_${themeColor}40]"><i data-lucide="${icons[0]}" size="10" class="drop-shadow-[0_0_8px_${themeColor}]"></i><span class="text-[9px] font-black text-white uppercase tracking-[0.15em] drop-shadow-[0_0_5px_rgba(0,0,0,0.8)]">${fullName}</span><i data-lucide="${icons[1]}" size="10" class="drop-shadow-[0_0_8px_${themeColor}]"></i></div></div><div class="flex items-center justify-center my-0 relative flex-1"><button onclick="event.stopPropagation(); updateSheetAttr('${key}', -1)" class="absolute left-0 text-gray-600 hover:text-white p-1"><i data-lucide="minus" size="14"></i></button><span class="text-4xl font-display font-bold text-white tracking-tighter drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">${attr.value}</span><button onclick="event.stopPropagation(); updateSheetAttr('${key}', 1)" class="absolute right-0 text-gray-600 hover:text-white p-1"><i data-lucide="plus" size="14"></i></button></div><div class="flex justify-center mt-1 mb-1"><div class="px-4 py-0.5 rounded-full border border-[${themeColor}]/30 bg-[${themeColor}]/5 text-[${themeColor}] text-xs font-bold shadow-[0_0_10px_rgba(var(--theme-rgb),0.2)]">${mod >= 0 ? '+'+mod : mod}</div></div><div onclick="event.stopPropagation(); handleShieldClick('${key}')" class="absolute right-2 bottom-2 cursor-pointer z-20 hover:scale-110 transition-transform flex items-center justify-center" title="TR de ${fullName}: ${saveBonusStr}"><i data-lucide="shield" size="18" class="${isTrained ? (isExpert ? 'text-neon-yellow fill-neon-yellow/10 drop-shadow-[0_0_5px_rgba(255,230,0,0.8)]' : `text-[${themeColor}] fill-[${themeColor}]/10 drop-shadow-[0_0_5px_${themeColor}]`) : 'text-gray-800 fill-gray-900'} transition-colors"></i><span class="absolute text-[7px] font-bold ${isTrained ? 'text-white' : 'text-gray-500'}" style="padding-top: 1px;">${saveBonusStr}</span></div></div>`; }).join('')}${state.openAttrPopup ? (() => { const key = state.openAttrPopup; const attr = char.attributes[key]; const mod = getMod(attr.value); const skillsList = SKILL_MAP[key] || []; return `<div class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" onclick="toggleAttrPopup(null)"><div class="bg-gray-900 border-2 border-[${themeColor}] rounded-2xl p-6 w-[85%] max-w-[320px] shadow-[0_0_50px_rgba(0,0,0,0.8)] relative transform scale-100 animate-in zoom-in-95 duration-200" onclick="event.stopPropagation()"><button onclick="toggleAttrPopup(null)" class="absolute top-4 right-4 text-gray-500 hover:text-white"><i data-lucide="x" size="20"></i></button><div class="text-center mb-6"><h2 class="text-2xl font-display font-black text-white uppercase tracking-widest drop-shadow-[0_0_10px_${themeColor}]">${ATTR_FULL_NAMES[key]}</h2><div class="flex justify-center items-center gap-4 mt-2"><div class="text-4xl font-display font-bold text-[${themeColor}]">${attr.value}</div><div class="bg-gray-800 px-4 py-1 rounded-full text-sm font-bold text-white border border-gray-700">Mod ${mod >= 0 ? '+'+mod : mod}</div></div></div><div class="space-y-3 mb-6"><h4 class="text-[10px] font-bold text-gray-500 uppercase border-b border-gray-800 pb-2 text-center">Perícias Associadas</h4><div class="flex flex-col gap-2 max-h-[200px] overflow-y-auto custom-scrollbar">${skillsList.length > 0 ? skillsList.map(s => { const isTrained = char.skills.includes(s); const isExpert = (char.expertise || []).includes(s); const pb = getProficiencyBonus(char.level); let totalBonus = mod; if (isExpert) totalBonus += (pb * 2); else if (isTrained) totalBonus += pb; let iconName = 'circle'; let iconColorClass = 'text-gray-600'; if (isExpert) { iconName = 'badge-check'; iconColorClass = 'text-neon-yellow fill-neon-yellow/20'; } else if (isTrained) { iconName = 'check-circle-2'; iconColorClass = `text-[${themeColor}]`; } return `<div class="flex items-center justify-between p-3 rounded-xl border transition-all group ${isTrained ? `bg-[${themeColor}]/10 border-[${themeColor}]/30` : 'bg-gray-950 border-gray-800 hover:border-gray-600'}"><div class="flex items-center gap-3 cursor-pointer" onclick="handleSkillStatus('${s}')"><i data-lucide="${iconName}" size="20" class="${iconColorClass} hover:scale-110 transition-transform"></i><span class="text-xs font-bold uppercase tracking-wide ${isTrained ? 'text-white' : 'text-gray-400'}">${s}</span></div><button class="flex items-center gap-2 px-2 py-1 rounded-lg border ${isExpert ? 'border-neon-yellow/40 bg-neon-yellow/10' : (isTrained ? `border-[${themeColor}]/40 bg-[${themeColor}]/10` : 'border-gray-700 bg-gray-900')} hover:brightness-125 transition-all cursor-pointer" onclick="toggleAttrPopup(null); openRollModeModal('skill', '${s}', '${key}')"><span class="text-xs font-mono font-bold ${isExpert ? 'text-neon-yellow' : (isTrained ? `text-[${themeColor}]` : 'text-gray-400')}">${totalBonus >= 0 ? '+'+totalBonus : totalBonus}</span><i data-lucide="dices" size="14" class="${isExpert ? 'text-neon-yellow' : (isTrained ? `text-[${themeColor}]` : 'text-gray-400')} transition-colors"></i></button></div>` }).join('') : '<span class="text-xs text-gray-600 italic block text-center py-2">Nenhuma perícia associada.</span>'}</div></div><button onclick="toggleAttrPopup(null); openRollModeModal('dice', '${key}', ${mod})" class="w-full py-3 bg-[${themeColor}] text-black font-black font-display tracking-widest rounded-xl hover:brightness-110 transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_${themeColor}40]"><i data-lucide="dices" size="18"></i> ROLAR ATRIBUTO PURO</button></div></div>${state.skillSelectionModal ? `<div class="fixed inset-0 z-[110] flex items-center justify-center bg-black/90 animate-in fade-in duration-200" onclick="closeSkillModal()"><div class="bg-gray-900 border border-gray-700 rounded-xl p-6 w-[85%] max-w-[300px] shadow-2xl relative" onclick="event.stopPropagation()"><h3 class="text-lg font-display font-bold text-white mb-1">${state.skillSelectionModal}</h3><p class="text-xs text-gray-400 mb-4 uppercase tracking-widest">Selecione o nível de treinamento</p><div class="space-y-2"><button onclick="setSkillLevel('${state.skillSelectionModal}', 'remove')" class="w-full p-3 rounded-lg border border-red-900/50 bg-red-500/10 text-red-500 font-bold text-xs uppercase hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="x" size="16"></i> Remover Proficiência</button><button onclick="setSkillLevel('${state.skillSelectionModal}', 'trained')" class="w-full p-3 rounded-lg border border-gray-700 bg-gray-800 text-gray-300 font-bold text-xs uppercase hover:bg-gray-700 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="check-circle-2" size="16"></i> Normal (1x Bônus)</button><button onclick="setSkillLevel('${state.skillSelectionModal}', 'expert')" class="w-full p-3 rounded-lg border border-neon-yellow/30 bg-neon-yellow/10 text-neon-yellow font-bold text-xs uppercase hover:bg-neon-yellow hover:text-black transition-colors flex items-center gap-2"><i data-lucide="badge-check" size="16"></i> Especialização (2x Bônus)</button></div><button onclick="closeSkillModal()" class="mt-4 w-full py-2 text-xs text-gray-500 hover:text-white uppercase font-bold tracking-widest">Cancelar</button></div></div>` : ''}`; })() : ''}</div>`;
+                const _attrPts = (char.pendingAttrPoints !== undefined && char.pendingAttrPoints !== null) ? char.pendingAttrPoints : null;
+                const _attrBanner = _attrPts !== null ? `<div class="mx-4 mb-3 px-4 py-3 rounded-xl border flex items-center justify-between ${_attrPts > 0 ? 'border-yellow-500/40 bg-yellow-500/10' : 'border-gray-700 bg-gray-900/50'}"><div class="flex items-center gap-2"><span class="text-xs font-black uppercase tracking-widest ${_attrPts > 0 ? 'text-yellow-400' : 'text-gray-600'}">✦ Pontos de Atributo</span>${_attrPts > 0 ? `<span class="text-[9px] text-yellow-400/60 font-bold">para distribuir</span>` : ''}</div><span class="font-display font-black text-2xl ${_attrPts > 0 ? 'text-yellow-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.5)]' : 'text-gray-700'}">${_attrPts}</span></div>` : '';
+                const attributesHtml = `${_attrBanner}<div class="grid grid-cols-2 gap-3 p-4 pt-0">${Object.entries(char.attributes).map(([key, attr]) => { const mod = getMod(attr.value); const fullName = ATTR_FULL_NAMES[key]; const icons = ATTR_ICONS_MAP[key] || ["star","star"]; const saveSkillName = `TR de ${key}`; const isTrained = char.skills.includes(saveSkillName); const isExpert = (char.expertise || []).includes(saveSkillName); const pb = getProficiencyBonus(char.level); let saveBonus = mod; if(isExpert) saveBonus += pb * 2; else if(isTrained) saveBonus += pb; const saveBonusStr = saveBonus >= 0 ? `+${saveBonus}` : `${saveBonus}`; return `<div class="bg-gray-900 border border-gray-800 rounded-3xl p-3 relative overflow-hidden transition-all duration-300 hover:border-[${themeColor}] hover:shadow-[0_0_20px_rgba(var(--theme-rgb),0.1)] h-full flex flex-col justify-between group" onclick="handleAttributeClick('${key}')"><div class="relative w-full flex justify-center items-center mb-1 min-h-[30px]"><div class="flex items-center gap-2 text-[${themeColor}] bg-black/40 px-3 py-1 rounded-full border border-white/5 backdrop-blur-sm z-10 shadow-[0_0_15px_${themeColor}40]"><i data-lucide="${icons[0]}" size="10" class="drop-shadow-[0_0_8px_${themeColor}]"></i><span class="text-[9px] font-black text-white uppercase tracking-[0.15em] drop-shadow-[0_0_5px_rgba(0,0,0,0.8)]">${fullName}</span><i data-lucide="${icons[1]}" size="10" class="drop-shadow-[0_0_8px_${themeColor}]"></i></div></div><div class="flex items-center justify-center my-0 relative flex-1"><button onclick="event.stopPropagation(); updateSheetAttr('${key}', -1)" class="absolute left-0 text-gray-600 hover:text-white p-1"><i data-lucide="minus" size="14"></i></button><span class="text-4xl font-display font-bold text-white tracking-tighter drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">${attr.value}</span><button onclick="event.stopPropagation(); updateSheetAttr('${key}', 1)" class="absolute right-0 text-gray-600 hover:text-white p-1"><i data-lucide="plus" size="14"></i></button></div><div class="flex justify-center mt-1 mb-1"><div class="px-4 py-0.5 rounded-full border border-[${themeColor}]/30 bg-[${themeColor}]/5 text-[${themeColor}] text-xs font-bold shadow-[0_0_10px_rgba(var(--theme-rgb),0.2)]">${mod >= 0 ? '+'+mod : mod}</div></div><div onclick="event.stopPropagation(); handleShieldClick('${key}')" class="absolute right-2 bottom-2 cursor-pointer z-20 hover:scale-110 transition-transform flex items-center justify-center" title="TR de ${fullName}: ${saveBonusStr}"><i data-lucide="shield" size="18" class="${isTrained ? (isExpert ? 'text-neon-yellow fill-neon-yellow/10 drop-shadow-[0_0_5px_rgba(255,230,0,0.8)]' : `text-[${themeColor}] fill-[${themeColor}]/10 drop-shadow-[0_0_5px_${themeColor}]`) : 'text-gray-800 fill-gray-900'} transition-colors"></i><span class="absolute text-[7px] font-bold ${isTrained ? 'text-white' : 'text-gray-500'}" style="padding-top: 1px;">${saveBonusStr}</span></div></div>`; }).join('')}${state.openAttrPopup ? (() => { const key = state.openAttrPopup; const attr = char.attributes[key]; const mod = getMod(attr.value); const skillsList = SKILL_MAP[key] || []; return `<div class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" onclick="toggleAttrPopup(null)"><div class="bg-gray-900 border-2 border-[${themeColor}] rounded-2xl p-6 w-[85%] max-w-[320px] shadow-[0_0_50px_rgba(0,0,0,0.8)] relative transform scale-100 animate-in zoom-in-95 duration-200" onclick="event.stopPropagation()"><button onclick="toggleAttrPopup(null)" class="absolute top-4 right-4 text-gray-500 hover:text-white"><i data-lucide="x" size="20"></i></button><div class="text-center mb-6"><h2 class="text-2xl font-display font-black text-white uppercase tracking-widest drop-shadow-[0_0_10px_${themeColor}]">${ATTR_FULL_NAMES[key]}</h2><div class="flex justify-center items-center gap-4 mt-2"><div class="text-4xl font-display font-bold text-[${themeColor}]">${attr.value}</div><div class="bg-gray-800 px-4 py-1 rounded-full text-sm font-bold text-white border border-gray-700">Mod ${mod >= 0 ? '+'+mod : mod}</div></div></div><div class="space-y-3 mb-6"><h4 class="text-[10px] font-bold text-gray-500 uppercase border-b border-gray-800 pb-2 text-center">Perícias Associadas</h4><div class="flex flex-col gap-2 max-h-[200px] overflow-y-auto custom-scrollbar">${skillsList.length > 0 ? skillsList.map(s => { const isTrained = char.skills.includes(s); const isExpert = (char.expertise || []).includes(s); const pb = getProficiencyBonus(char.level); let totalBonus = mod; if (isExpert) totalBonus += (pb * 2); else if (isTrained) totalBonus += pb; let iconName = 'circle'; let iconColorClass = 'text-gray-600'; if (isExpert) { iconName = 'badge-check'; iconColorClass = 'text-neon-yellow fill-neon-yellow/20'; } else if (isTrained) { iconName = 'check-circle-2'; iconColorClass = `text-[${themeColor}]`; } return `<div class="flex items-center justify-between p-3 rounded-xl border transition-all group ${isTrained ? `bg-[${themeColor}]/10 border-[${themeColor}]/30` : 'bg-gray-950 border-gray-800 hover:border-gray-600'}"><div class="flex items-center gap-3 cursor-pointer" onclick="handleSkillStatus('${s}')"><i data-lucide="${iconName}" size="20" class="${iconColorClass} hover:scale-110 transition-transform"></i><span class="text-xs font-bold uppercase tracking-wide ${isTrained ? 'text-white' : 'text-gray-400'}">${s}</span></div><button class="flex items-center gap-2 px-2 py-1 rounded-lg border ${isExpert ? 'border-neon-yellow/40 bg-neon-yellow/10' : (isTrained ? `border-[${themeColor}]/40 bg-[${themeColor}]/10` : 'border-gray-700 bg-gray-900')} hover:brightness-125 transition-all cursor-pointer" onclick="toggleAttrPopup(null); openRollModeModal('skill', '${s}', '${key}')"><span class="text-xs font-mono font-bold ${isExpert ? 'text-neon-yellow' : (isTrained ? `text-[${themeColor}]` : 'text-gray-400')}">${totalBonus >= 0 ? '+'+totalBonus : totalBonus}</span><i data-lucide="dices" size="14" class="${isExpert ? 'text-neon-yellow' : (isTrained ? `text-[${themeColor}]` : 'text-gray-400')} transition-colors"></i></button></div>` }).join('') : '<span class="text-xs text-gray-600 italic block text-center py-2">Nenhuma perícia associada.</span>'}</div></div><button onclick="toggleAttrPopup(null); openRollModeModal('dice', '${key}', ${mod})" class="w-full py-3 bg-[${themeColor}] text-black font-black font-display tracking-widest rounded-xl hover:brightness-110 transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_${themeColor}40]"><i data-lucide="dices" size="18"></i> ROLAR ATRIBUTO PURO</button></div></div>${state.skillSelectionModal ? `<div class="fixed inset-0 z-[110] flex items-center justify-center bg-black/90 animate-in fade-in duration-200" onclick="closeSkillModal()"><div class="bg-gray-900 border border-gray-700 rounded-xl p-6 w-[85%] max-w-[300px] shadow-2xl relative" onclick="event.stopPropagation()"><h3 class="text-lg font-display font-bold text-white mb-1">${state.skillSelectionModal}</h3><p class="text-xs text-gray-400 mb-4 uppercase tracking-widest">Selecione o nível de treinamento</p><div class="space-y-2"><button onclick="setSkillLevel('${state.skillSelectionModal}', 'remove')" class="w-full p-3 rounded-lg border border-red-900/50 bg-red-500/10 text-red-500 font-bold text-xs uppercase hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="x" size="16"></i> Remover Proficiência</button><button onclick="setSkillLevel('${state.skillSelectionModal}', 'trained')" class="w-full p-3 rounded-lg border border-gray-700 bg-gray-800 text-gray-300 font-bold text-xs uppercase hover:bg-gray-700 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="check-circle-2" size="16"></i> Normal (1x Bônus)</button><button onclick="setSkillLevel('${state.skillSelectionModal}', 'expert')" class="w-full p-3 rounded-lg border border-neon-yellow/30 bg-neon-yellow/10 text-neon-yellow font-bold text-xs uppercase hover:bg-neon-yellow hover:text-black transition-colors flex items-center gap-2"><i data-lucide="badge-check" size="16"></i> Especialização (2x Bônus)</button></div><button onclick="closeSkillModal()" class="mt-4 w-full py-2 text-xs text-gray-500 hover:text-white uppercase font-bold tracking-widest">Cancelar</button></div></div>` : ''}`; })() : ''}</div>`;
                 tabContent = `${infoGridHtml}${vitalsGridHtml}${(() => {
                     // Active Nen principles quick-use buttons
                     const d = char.nenDominio || {};
@@ -1020,7 +1022,22 @@
             const newChar = { id: generateId(), name: state.tempChar.name, class: state.tempChar.class, race: state.tempChar.race, background: state.tempChar.background, backgroundFeature: state.tempChar.backgroundFeature, inclinations: state.tempChar.inclinations, level: 0, xp: 0, xp_next: 50, money: 0, alignment: 'Neutro', playerName: '', attributes: {}, skills: [...state.tempChar.skills, ...state.tempChar.otherSkills], expertise: [], raceTraits: mergedTraits, vitals: { hp: hpInitial, hpMax: hpInitial, aura: 100, auraMax: 100, san: 100, sanMax: 100, rdm: 0, ca: 10 + modCon, rea: 7 + modSab, desl: 9 }, inventory: initialInv, history: [], imageUrl: null, bio: { personality: '', history: '', organizations: '', enemies: '', allies: '' }, fagogenese: state.tempChar.fagogenese || null, afinidade: state.tempChar.afinidade || null, genialidade: state.tempChar.genialidade || null, genialidadeRoll: state.tempChar.genialidadeRoll || null }; Object.entries(finalAttrs).forEach(([k,v]) => { const hasSave = state.tempChar.skills.includes(`TR de ${k}`); newChar.attributes[k] = { value: v || 10, save: hasSave }; }); saveCharacter(newChar); state.currentChar = newChar; state.view = 'SHEET'; state.activeTab = 'FICHA'; render(); }
         function setTab(tab) { state.activeTab = tab; if(tab === 'DADOS') state.unreadRolls = false; render(true); }
         function setRollMode(mode) { state.rollMode = mode; render(true); }
-        function updateSheetAttr(key, delta) { state.currentChar.attributes[key].value += delta; saveCharacter(state.currentChar); render(true); }
+        function updateSheetAttr(key, delta) {
+            const char = state.currentChar;
+            if (delta > 0) {
+                const pending = char.pendingAttrPoints;
+                if (pending !== undefined && pending !== null) {
+                    if (pending <= 0) {
+                        window._showXpToast('⚠️ Sem pontos de atributo para distribuir!');
+                        return;
+                    }
+                    char.pendingAttrPoints = pending - 1;
+                }
+            }
+            char.attributes[key].value += delta;
+            saveCharacter(char);
+            render(true);
+        }
         function toggleAttrPopup(key) { if (state.openAttrPopup === key) state.openAttrPopup = null; else state.openAttrPopup = key; render(true); }
         function handleAttributeClick(key) { if (state.clickTimer) { clearTimeout(state.clickTimer); state.clickTimer = null; const attr = state.currentChar.attributes[key]; openRollModeModal('dice', key, getMod(attr.value)); } else { state.clickTimer = setTimeout(() => { state.clickTimer = null; toggleAttrPopup(key); }, 250); } }
         function handleShieldClick(key) { if (state.clickTimer) { clearTimeout(state.clickTimer); state.clickTimer = null; const skillName = `TR de ${key}`; openRollModeModal('skill', skillName, key); } else { state.clickTimer = setTimeout(() => { state.clickTimer = null; handleSkillStatus(`TR de ${key}`); }, 250); } }
@@ -1120,37 +1137,32 @@
             document.getElementById('xp-modal-overlay')?.remove();
             const char = state.currentChar;
 
-            // Talento para Proficiência de NEN: multiplicadores de XP
             const genTier = char.genialidade;
             const xpMultiplier = genTier === 'Ultimate' ? 2 : (genTier === 'Gênio' ? 1.5 : 1);
             const finalGained = xpMultiplier > 1 ? Math.floor(gained * xpMultiplier) : gained;
 
             let xp = (char.xp || 0) + finalGained;
-            const xpTable = SYSTEM_DB.xpTable; // [50,150,350,500,800,1000,1500,2500,3200,4000,5000,6500]
-
-            // Verifica se passou de nível (pode passar mais de um)
-            let newLevel = char.level;
+            const xpTable = SYSTEM_DB.xpTable;
+            let curLevel = char.level;
             let nextXp = char.xp_next || xpTable[0];
+            const levelsToProcess = [];
 
-            while (xp >= nextXp && newLevel < 12) {
+            while (xp >= nextXp && curLevel < 12) {
                 xp -= nextXp;
-                newLevel++;
-                nextXp = xpTable[Math.min(newLevel, xpTable.length - 1)] || 9999;
+                curLevel++;
+                levelsToProcess.push(curLevel);
+                nextXp = xpTable[Math.min(curLevel, xpTable.length - 1)] || 9999;
             }
 
             char.xp = xp;
             char.xp_next = nextXp;
+            saveCharacter(char);
+            render(true);
 
-            if (newLevel > char.level) {
-                const levelsGained = newLevel - char.level;
-                char.level = newLevel;
-                saveCharacter(char);
-                render(true);
-                window.openLevelUpModal(levelsGained, xpMultiplier > 1, finalGained);
+            if (levelsToProcess.length > 0) {
+                window._processLevelQueue(levelsToProcess, 0, xpMultiplier > 1, finalGained);
             } else {
-                saveCharacter(char);
-                render(true);
-                if (xpMultiplier > 1) window._showXpToast(`+${finalGained} XP ${xpMultiplier === 2 ? ' 👑 (×2 Ultimate)' : ' ✨ (×1.5 Gênio)'}`);
+                if (xpMultiplier > 1) window._showXpToast(`+${finalGained} XP ${xpMultiplier === 2 ? '👑 (×2 Ultimate)' : '✨ (×1.5 Gênio)'}`);
                 else window._showXpToast(`+${finalGained} XP`);
             }
         };
@@ -1163,72 +1175,129 @@
             setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 500); }, 2000);
         };
 
-        // ── Modal de Level Up com dado de vida ────────────────────────────────
-        window.openLevelUpModal = function(levelsGained = 1, isGenius = false, xpGained = 0) {
+        // ── Tabela de recompensas por nível ──────────────────────────────────
+        const LEVEL_REWARDS = {
+            1:  { titulo: 'Batismo & Despertar',          attr: 1, auraP: 5,  pn: 6, pi: 0, prof: 0, extras: ['Criação de Hatsu(s) e Domínio de Nen'] },
+            2:  { titulo: 'Inclinações & Proficiências',  attr: 0, auraP: 0,  pn: 2, pi: 2, prof: 0, extras: ['Inclinações de Combate/Gerais', 'Proficiência em Armas e Equipamentos'] },
+            3:  { titulo: 'Eficiência de Aura 1',         attr: 2, auraP: 5,  pn: 2, pi: 0, prof: 0, extras: ['Eficiência de Aura 1'] },
+            4:  { titulo: 'Foco de Caça & Renome',        attr: 0, auraP: 0,  pn: 2, pi: 3, prof: 0, extras: ['Foco de Caça', 'Renome', 'Inclinações de Combate/Gerais'] },
+            5:  { titulo: '+1 Proficiência',               attr: 0, auraP: 0,  pn: 2, pi: 0, prof: 1, extras: ['+1 Ponto de Proficiência'] },
+            6:  { titulo: 'Evolução de Atributos',         attr: 2, auraP: 10, pn: 3, pi: 0, prof: 0, extras: ['Aumento de Atributo ou Aura'] },
+            7:  { titulo: 'Inclinações de Combate',        attr: 0, auraP: 0,  pn: 3, pi: 2, prof: 0, extras: ['Inclinações de Combate ou Gerais'] },
+            8:  { titulo: 'Eficiência de Aura 2',          attr: 0, auraP: 0,  pn: 3, pi: 0, prof: 0, extras: ['Eficiência de Aura 2'] },
+            9:  { titulo: 'Redistribuição de Atributos',   attr: 0, auraP: 0,  pn: 3, pi: 0, prof: 0, extras: ['Redistribuição de Atributos'] },
+            10: { titulo: 'Nen Post-Mortem',               attr: 0, auraP: 0,  pn: 3, pi: 0, prof: 0, extras: ['Nen Post-Mortem (Pós-Morte)', 'Eficiência de Aura 3'] },
+            11: { titulo: 'Inclinações de Combate',        attr: 0, auraP: 0,  pn: 3, pi: 3, prof: 0, extras: ['Inclinação de Combate ou Gerais'] },
+            12: { titulo: 'Evolução Final',                attr: 3, auraP: 15, pn: 3, pi: 0, prof: 0, extras: ['Evolução Final'] },
+        };
+
+        window._processLevelQueue = function(queue, idx, isGenius, xpGained) {
+            if (idx >= queue.length) { render(true); return; }
+            window.openLevelUpModal(queue[idx], queue.length, idx + 1, isGenius, xpGained, function() {
+                window._processLevelQueue(queue, idx + 1, isGenius, xpGained);
+            });
+        };
+
+        window._showContinueLevelBtn = function(nextLevel, tc, onContinue) {
+            document.getElementById('lv-continue-float')?.remove();
+            const btn = document.createElement('div');
+            btn.id = 'lv-continue-float';
+            btn.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);z-index:9998;white-space:nowrap';
+            btn.innerHTML = `<button onclick="document.getElementById('lv-continue-float')?.remove();window._lvContinueNow()" style="background:#7c3aed;border:2px solid #a78bfa;border-radius:99px;padding:12px 28px;color:#fff;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;letter-spacing:1px;cursor:pointer;box-shadow:0 0 30px #7c3aed88">✨ Continuar → Nível ${nextLevel}</button>`;
+            document.body.appendChild(btn);
+            window._lvContinueNow = onContinue;
+        };
+
+        // ── Modal de Level Up individual (um nível por vez) ──────────────────
+        window.openLevelUpModal = function(targetLevel, totalLevels, levelNum, isGenius, xpGained, onDone) {
             const char = state.currentChar;
-            const newLevel = char.level;
+            const rewards = LEVEL_REWARDS[targetLevel] || { titulo: 'Subida de Nível', pn: 0, pi: 0, attr: 0, auraP: 0, prof: 0, extras: [] };
+            // CON lido na hora do modal — se jogador alocou CON em nível anterior, já vale aqui
             const hitDiceData = HIT_DICE[char.class] || { dado: 'd8', faces: 8, media: 5 };
             const conMod = getMod(char.attributes?.CON?.value || 10);
             const hasGiantBody = (char.inclinations?.positive || []).some(i => i.nome === 'Corpo de Gigante');
             const giantBonus = hasGiantBody ? 3 : 0;
-            const mediaTotal = hitDiceData.media + conMod + giantBonus;
+            const mediaTotal = Math.max(1, hitDiceData.media + conMod + giantBonus);
             const tc = getComputedStyle(document.documentElement).getPropertyValue('--theme-color-hex').trim() || '#00ff9d';
+            const hasMore = levelNum < totalLevels;
+
+            // ── Build recompensas HTML ──
+            let rewardsRows = '';
+            (rewards.extras || []).forEach(e => {
+                rewardsRows += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px"><div style="width:5px;height:5px;border-radius:50%;background:${tc};flex-shrink:0"></div><span style="font-size:11px;color:#d1d5db;font-weight:600">${e}</span></div>`;
+            });
+            if (rewards.attr)  rewardsRows += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px"><div style="width:5px;height:5px;border-radius:50%;background:#f59e0b;flex-shrink:0"></div><span style="font-size:11px;color:#fbbf24;font-weight:700">+${rewards.attr} ponto(s) de Atributo <span style="color:#6b7280">ou</span> +${rewards.auraP}% de Aura máxima</span></div>`;
+            if (rewards.pi)    rewardsRows += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px"><div style="width:5px;height:5px;border-radius:50%;background:#3b82f6;flex-shrink:0"></div><span style="font-size:11px;color:#60a5fa;font-weight:700">+${rewards.pi} ponto(s) de Inclinação de Combate</span></div>`;
+            if (rewards.pn)    rewardsRows += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px"><div style="width:5px;height:5px;border-radius:50%;background:#8b5cf6;flex-shrink:0"></div><span style="font-size:11px;color:#a78bfa;font-weight:700">+${rewards.pn} Ponto(s) de Nen (P.N)</span></div>`;
+            if (rewards.prof)  rewardsRows += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px"><div style="width:5px;height:5px;border-radius:50%;background:#10b981;flex-shrink:0"></div><span style="font-size:11px;color:#34d399;font-weight:700">+1 Ponto de Proficiência</span></div>`;
+
+            const attrWarning = rewards.attr && hasMore
+                ? `<div style="background:#92400e22;border:1px solid #f59e0b44;border-radius:8px;padding:8px 10px;margin-bottom:12px;font-size:9px;color:#fbbf24;font-weight:700;text-align:left">⚠️ Se for alocar ponto em CON, faça isso ANTES de confirmar o próximo nível para que o dado de vida já use o novo valor.</div>`
+                : '';
+
+            const rdmVal = calcRDM(char);
 
             const overlay = document.createElement('div');
             overlay.id = 'levelup-modal-overlay';
-            overlay.style.cssText = 'position:fixed;inset:0;background:#000000ee;display:flex;align-items:center;justify-content:center;z-index:9999;padding:24px;font-family:Rajdhani,sans-serif';
+            overlay.style.cssText = 'position:fixed;inset:0;background:#000000ee;display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;font-family:Rajdhani,sans-serif;overflow-y:auto';
             overlay.innerHTML = `
-                <div style="background:#0d1117;border:2px solid ${tc};border-radius:20px;padding:24px;width:100%;max-width:370px;box-shadow:0 0 60px ${tc}44;text-align:center">
-                    <!-- Cabeçalho -->
-                    <div style="font-size:28px;margin-bottom:4px">🏆</div>
-                    <div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:16px;color:${tc};text-transform:uppercase;letter-spacing:3px;text-shadow:0 0 12px ${tc}88">Nível ${newLevel}!</div>
-                    <div style="font-size:10px;color:#6b7280;margin-top:4px;margin-bottom:16px">${levelsGained > 1 ? `+${levelsGained} níveis ganhos de uma vez!` : 'Você subiu de nível!'}</div>
-                    ${isGenius ? `<div style="font-size:9px;color:#fbbf24;background:#fbbf2411;border:1px solid #fbbf2433;border-radius:8px;padding:6px 12px;margin-bottom:14px">✨ Gênio: +${xpGained} XP (1.5×)</div>` : ''}
+                <div style="background:#0d1117;border:2px solid ${tc};border-radius:20px;padding:20px;width:100%;max-width:370px;box-shadow:0 0 60px ${tc}44;text-align:center;margin:auto">
+                    ${totalLevels > 1 ? `<div style="font-size:9px;color:#6b7280;font-family:Orbitron,sans-serif;letter-spacing:2px;margin-bottom:6px">${levelNum} / ${totalLevels}</div>` : ''}
+                    <div style="font-size:24px;margin-bottom:2px">🏆</div>
+                    <div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:15px;color:${tc};text-transform:uppercase;letter-spacing:3px;text-shadow:0 0 12px ${tc}88">Nível ${targetLevel}!</div>
+                    <div style="font-size:11px;color:#9ca3af;margin-top:3px;margin-bottom:12px;font-weight:600">${rewards.titulo}</div>
+                    ${isGenius && levelNum === 1 ? `<div style="font-size:9px;color:#fbbf24;background:#fbbf2411;border:1px solid #fbbf2433;border-radius:8px;padding:5px 10px;margin-bottom:10px">✨ Gênio: +${xpGained} XP</div>` : ''}
+
+                    <!-- Recompensas -->
+                    <div style="background:#0a0f1a;border:1px solid #1f2937;border-radius:12px;padding:12px;margin-bottom:12px;text-align:left">
+                        <div style="font-size:9px;font-weight:900;color:#6b7280;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px">🎁 Ganhos deste nível</div>
+                        ${rewardsRows || '<span style="font-size:10px;color:#4b5563">Nenhum ganho especial</span>'}
+                    </div>
+
+                    ${attrWarning}
+
                     <!-- Dado de vida -->
-                    <div style="background:#0a0f1a;border:1px solid #1f2937;border-radius:14px;padding:16px;margin-bottom:16px">
-                        <div style="font-size:9px;font-weight:900;color:#6b7280;text-transform:uppercase;letter-spacing:2px;margin-bottom:10px">🎲 Dado de Vida — ${hitDiceData.dado} (${char.class})</div>
-                        <div id="lv-dice-result" style="font-family:Orbitron,sans-serif;font-size:40px;font-weight:900;color:#fff;margin-bottom:4px;min-height:52px;line-height:1">—</div>
-                        <div id="lv-dice-breakdown" style="font-size:9px;color:#6b7280;min-height:16px"></div>
-                        <div style="display:flex;gap:8px;margin-top:12px">
+                    <div style="background:#0a0f1a;border:1px solid #1f2937;border-radius:12px;padding:14px;margin-bottom:12px">
+                        <div style="font-size:9px;font-weight:900;color:#6b7280;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px">🎲 Vida — ${hitDiceData.dado} ${conMod >= 0 ? '+' : ''}${conMod} CON${giantBonus ? ' +' + giantBonus + ' Gig.' : ''}</div>
+                        <div id="lv-dice-result" style="font-family:Orbitron,sans-serif;font-size:38px;font-weight:900;color:#fff;margin-bottom:3px;min-height:48px;line-height:1">—</div>
+                        <div id="lv-dice-breakdown" style="font-size:9px;color:#6b7280;min-height:14px"></div>
+                        <div style="display:flex;gap:8px;margin-top:10px">
                             <button id="lv-roll-btn" onclick="window._lvRoll()"
-                                style="flex:1;padding:11px;border-radius:10px;background:#7c3aed;border:none;color:#fff;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer;letter-spacing:1px;transition:all .2s">
+                                style="flex:1;padding:10px;border-radius:10px;background:#7c3aed;border:none;color:#fff;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer;letter-spacing:1px">
                                 🎲 Rolar ${hitDiceData.dado}
                             </button>
                             <button id="lv-media-btn" onclick="window._lvPickMedia()"
-                                style="flex:1;padding:11px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#d1d5db;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer;letter-spacing:1px;transition:all .2s">
+                                style="flex:1;padding:10px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#d1d5db;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer;letter-spacing:1px">
                                 📊 Média (${mediaTotal})
                             </button>
                         </div>
                     </div>
-                    <!-- Sanidade recovery preview -->
-                    ${calcRDM(char) > 0 ? `<div style="background:#0a0f1a;border:1px solid #1f293788;border-radius:10px;padding:10px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">
+
+                    ${rdmVal > 0 ? `<div style="background:#0a0f1a;border:1px solid #1f293788;border-radius:10px;padding:9px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
                         <span style="font-size:9px;color:#9ca3af;font-weight:700">🔮 Recuperação de Sanidade</span>
-                        <span style="font-family:Orbitron,sans-serif;font-weight:900;font-size:14px;color:#c084fc">+${calcRDM(char)}</span>
+                        <span style="font-family:Orbitron,sans-serif;font-weight:900;font-size:13px;color:#c084fc">+${rdmVal}</span>
                     </div>` : ''}
-                    <!-- Botão confirmar (desabilitado até rolar/escolher) -->
+
                     <button id="lv-confirm-btn" disabled onclick="window._lvConfirm()"
-                        style="width:100%;padding:13px;border-radius:10px;background:#374151;border:none;color:#6b7280;font-family:Orbitron,sans-serif;font-weight:900;font-size:11px;text-transform:uppercase;cursor:not-allowed;letter-spacing:1px;transition:all .2s">
-                        Confirmar Nível ${newLevel}
+                        style="width:100%;padding:12px;border-radius:10px;background:#374151;border:none;color:#6b7280;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:not-allowed;letter-spacing:1px">
+                        ${hasMore ? `Confirmar Nível ${targetLevel} →` : `Confirmar Nível ${targetLevel}`}
                     </button>
                 </div>`;
             document.body.appendChild(overlay);
 
-            // State interno do modal
             overlay._hitGain = null;
             overlay._faces = hitDiceData.faces;
-            overlay._rolled = null;
 
             window._lvRoll = function() {
                 const roll = Math.floor(Math.random() * overlay._faces) + 1;
-                overlay._rolled = roll;
-                const total = roll + conMod + giantBonus;
+                const total = Math.max(1, roll + conMod + giantBonus);
                 overlay._hitGain = total;
                 document.getElementById('lv-dice-result').textContent = total;
                 document.getElementById('lv-dice-result').style.color = tc;
                 document.getElementById('lv-dice-result').style.textShadow = `0 0 20px ${tc}`;
-                let breakdown = `[${roll}] + ${conMod >= 0?'+':''}${conMod} CON`;
-                if (giantBonus) breakdown += ` + ${giantBonus} Gigante`;
-                document.getElementById('lv-dice-breakdown').textContent = breakdown;
+                let bd = `[${roll}] + ${conMod >= 0?'+':''}${conMod} CON`;
+                if (giantBonus) bd += ` + ${giantBonus} Gigante`;
+                document.getElementById('lv-dice-breakdown').textContent = bd;
                 window._lvEnableConfirm();
             };
             window._lvPickMedia = function() {
@@ -1236,9 +1305,9 @@
                 document.getElementById('lv-dice-result').textContent = mediaTotal;
                 document.getElementById('lv-dice-result').style.color = '#60a5fa';
                 document.getElementById('lv-dice-result').style.textShadow = '0 0 10px #60a5fa88';
-                let breakdown = `${hitDiceData.media} (média) + ${conMod >= 0?'+':''}${conMod} CON`;
-                if (giantBonus) breakdown += ` + ${giantBonus} Gigante`;
-                document.getElementById('lv-dice-breakdown').textContent = breakdown;
+                let bd = `${hitDiceData.media} (média) + ${conMod >= 0?'+':''}${conMod} CON`;
+                if (giantBonus) bd += ` + ${giantBonus} Gigante`;
+                document.getElementById('lv-dice-breakdown').textContent = bd;
                 window._lvEnableConfirm();
             };
             window._lvEnableConfirm = function() {
@@ -1248,7 +1317,6 @@
                 btn.style.color = '#000';
                 btn.style.cursor = 'pointer';
                 btn.style.boxShadow = `0 0 20px ${tc}55`;
-                // Desabilita os botões de rolar/média
                 const rollBtn = document.getElementById('lv-roll-btn');
                 const mediaBtn = document.getElementById('lv-media-btn');
                 if (rollBtn)  { rollBtn.disabled  = true; rollBtn.style.opacity  = '0.35'; rollBtn.style.cursor  = 'not-allowed'; }
@@ -1256,26 +1324,49 @@
             };
             window._lvConfirm = function() {
                 const gain = overlay._hitGain || mediaTotal;
+                // Aplica exatamente este nível (um por vez)
+                char.level = targetLevel;
+                if (rewards.attr) char.pendingAttrPoints = (char.pendingAttrPoints || 0) + rewards.attr;
                 char.vitals.hpMax = (char.vitals.hpMax || 0) + gain;
                 char.vitals.hp   = (char.vitals.hp   || 0) + gain;
                 if (!char.vitals.sanMax) char.vitals.sanMax = 100;
                 const newRdm = calcRDM(char);
-                const sanRecovery = newRdm;
-                char.vitals.san = Math.min(char.vitals.sanMax, (char.vitals.san || 100) + sanRecovery);
+                char.vitals.san = Math.min(char.vitals.sanMax, (char.vitals.san || 100) + newRdm);
                 saveCharacter(char);
                 document.getElementById('levelup-modal-overlay')?.remove();
                 render(true);
-                const ciGainPerLevel = {2:2, 4:3, 7:2, 11:3};
-                const ciGained = ciGainPerLevel[newLevel] || 0;
-                window._showXpToast('Nível ' + newLevel + '! +' + gain + ' PV' + (sanRecovery > 0 ? ' | +' + sanRecovery + ' Sanidade' : '') + (ciGained > 0 ? ' | +' + ciGained + ' pts Inclinação Combate!' : ''));
+
+                let toast = `Nível ${targetLevel}! +${gain} PV`;
+                if (newRdm > 0) toast += ` | +${newRdm} SAN`;
+                if (rewards.pn) toast += ` | +${rewards.pn} P.N`;
+                window._showXpToast(toast);
+
+                const ciGained = rewards.pi || 0;
+
+                function continueToNext() {
+                    if (onDone) onDone();
+                }
+
                 if (ciGained > 0) {
+                    // Perguntar sobre inclinações antes de continuar
                     setTimeout(() => {
-                        if (confirm('Você ganhou ' + ciGained + ' ponto(s) de Inclinação de Combate! Deseja distribuir agora?')) {
+                        if (confirm(`Você ganhou ${ciGained} ponto(s) de Inclinação de Combate! Deseja distribuir agora?`)) {
                             state.activeTab = 'TRACOS';
                             render(true);
                             setTimeout(() => window._openCombatIncModal(), 300);
                         }
-                    }, 1200);
+                        // Se tem mais níveis e ganhou atributo, mostrar botão de pausa
+                        if (hasMore && rewards.attr) {
+                            window._showContinueLevelBtn(targetLevel + 1, tc, continueToNext);
+                        } else {
+                            setTimeout(continueToNext, 500);
+                        }
+                    }, 800);
+                } else if (hasMore && rewards.attr) {
+                    // Pausa para alocar atributo antes do próximo dado de vida
+                    window._showContinueLevelBtn(targetLevel + 1, tc, continueToNext);
+                } else {
+                    setTimeout(continueToNext, hasMore ? 500 : 0);
                 }
             };
         };
