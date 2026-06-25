@@ -58,7 +58,8 @@
       "Bash(dir \"C:\\\\Users\\\\davi.pontes\\\\.claude\\\\commands\")",
       "PowerShell(& \"C:\\\\Users\\\\davi.pontes\\\\StudioHxH\\\\fix-encoding.ps1\")",
       "PowerShell(cd c:\\\\Users\\\\davi.pontes\\\\StudioHxH; powershell -File fix-emoji2.ps1)",
-      "PowerShell(cd c:\\\\Users\\\\davi.pontes\\\\StudioHxH; powershell -File fix-symbols.ps1)"
+      "PowerShell(cd c:\\\\Users\\\\davi.pontes\\\\StudioHxH; powershell -File fix-symbols.ps1)",
+      "PowerShell($dist = Get-ChildItem -Path \"C:\\\\Users\\\\davi.pontes\\\\StudioHxH\\\\Torre Celestial ZIP\\\\App-Torre-Celestial-main\\\\dist\" -Recurse -File | Measure-Object -Property Length -Sum; $torre = Get-ChildItem -Path \"C:\\\\Users\\\\davi.pontes\\\\StudioHxH\\\\torre\" -Recurse -File | Measure-Object -Property Length -Sum; Write-Host \"dist/ size: $\\($dist.Sum\\) bytes\"; Write-Host \"torre/ size: $\\($torre.Sum\\) bytes\")"
     ]
   }
 }
