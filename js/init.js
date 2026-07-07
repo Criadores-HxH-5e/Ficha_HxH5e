@@ -25,6 +25,7 @@ function openHatsuEdit(idx) {
         pureRestrictions: {...(h.pureRestrictions||{})},
         restrTab: 'gerais',
         specialChoices: {...(h.specialChoices||{})},
+        juramentoImutavelNivelBase: h.juramentoImutavelNivelBase != null ? h.juramentoImutavelNivelBase : undefined,
         editingIdx: idx
     };
     state.view = 'HATSU_CREATOR';
@@ -319,7 +320,7 @@ function closeHatsuCreator() {
 
             const GRAUS_POR_CAT = {
                 'INTENSIFICAÇÃO': ['acerto', 'atributos', 'dano', 'custo'],
-                'TRANSMUTAÇÃO':   ['dano', 'custo'],
+                'TRANSMUTAÇÃO':   ['area', 'dano', 'custo'],
                 'MATERIALIZAÇÃO': ['alcance', 'area', 'duracao', 'custo'],
                 'CONJURAÇÃO':     ['alcance', 'area', 'duracao', 'custo'],
                 'ESPECIALIZAÇÃO': ['alcance', 'area', 'dano', 'duracao', 'cd', 'custo'],

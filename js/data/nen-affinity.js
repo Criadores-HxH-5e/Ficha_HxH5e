@@ -212,6 +212,18 @@ window.calcCategoryAccess = function(charLevel, extremeRestrictionCount) {
     return { pct100: row[1], pct80: row[2], pct60: row[3], pct40: row[4] };
 };
 
+// rev. Manual 2.0 — Limite de Grau de Potência por nível (soma de Graus/Passo por característica,
+// dentro ou fora do Hatsu). Diferente de calcCategoryAccess (acesso a efeitos de OUTRA categoria).
+window.calcMaxGrauPorNivel = function(charLevel) {
+    const lvl = parseInt(charLevel) || 1;
+    if (lvl >= 11) return Infinity;
+    if (lvl >= 9)  return 15;
+    if (lvl >= 7)  return 12;
+    if (lvl >= 5)  return 7;
+    if (lvl >= 3)  return 5;
+    return 3;
+};
+
 // Verifica se Manipulação/Materialização cumpre a regra especial para acessar Especialização (1%)
 // Regra: restrições >= 3 + nÂº efeitos de especialização comprados; distribuição obedece pirâmide de pesos
 window.checkEspecializacaoAccess = function(hb) {

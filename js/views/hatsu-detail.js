@@ -1,4 +1,326 @@
-﻿function renderHatsuDetail(container) {
+﻿// ── Tabela de Dano e mapas de Grau/Passo (rev. Manual 2.0) ──────────────────
+// Hoisted para o escopo do módulo (window.*) para serem reaproveitados fora de renderHatsuDetail,
+// por ex. em window.calcGrausPotenciaPorCaracteristica (usado no criador para o limite de grau por nível).
+
+// rev. Manual 2.0 — Tabela de grau/passo de dados de dano por % de aura
+window.DAMAGE_TABLE = [
+    '1d4','1d6','1d8','1d10','1d12',
+    '2d6',  // ← índice 5 (base)
+    '2d8','2d10','2d12','3d10','4d8','3d12',
+    '4d10','4d12','5d10','7d8','6d10','8d8',
+    '7d10','6d12','8d10','7d12','9d10','8d12',
+    '10d10','9d12','11d10','10d12','13d10','11d12',
+    '14d10','12d12','15d10','13d12','16d10','14d12',
+    '17d10','15d12','19d10','16d12','20d10','17d12',
+    '18d12','19d12','20d12','13d20','14d20','15d20',
+    '16d20','18d20','20d20'
+];
+window.BASE_DAMAGE_IDX = 5; // 2d6
+window.DAMAGE_OVERFLOW_STEP = 5; // ao passar do fim da tabela (20d20), cada grau extra vira +5 de dano fixo (REN)
+
+// Graus de dano concedidos por restrições/efeitos específicos
+window.DANO_GRAU_MAP = {
+    // Restrições gerais
+    'rg_l1':  1,  // Cálculo Pensado Básico 1 → +1 Grau/Passo
+    'rg_l7':  1,  // "Diálogo" → +1 Grau/Passo Dano
+    'rg_l11': 1,  // Limitação de Alvos → +1 Grau/Passo (rev. Manual 2.0: era +1 dado)
+    'rg_l16': 1,  // Tempo de Carregamento → +1 Grau/Passo (rev. Manual 2.0: era +1 dado)
+    'rg_m1':  2,  // Alvo Único em Combate → +2 Grau/Passo Dano
+    'rg_m13': 2,  // Zetsu Protetivo → +2 Grau/Passo (inclui dano)
+    'rg_p9':  3,  // Perda de Membros → +3 grau de potência
+    'rg_v2':  1,  // Canalizar com Concentração → +X (mín 1) — só se a escolha for Dano/Cura (ver DURACAO_GRAU_MAP p/ a outra opção)
+    // "Adicione N Graus de Potência em qualquer característica" — RAW é livre-escolha; o sistema
+    // simplifica atribuindo a Dano/Cura para não deixar a restrição de fora do limite por nível
+    // (mesma simplificação já usada para eg7/rg_p9, que também são "qualquer característica").
+    'rg_p1':  3,  // Alto Risco...
+    'rg_p3':  3,  // Dano Permanente
+    'rg_p5':  3,  // Efeitos Aleatórios (só se a escolha NÃO for "Margem de Crítico")
+    // Restrições de categoria
+    'ri_l1':  1,  // PV < 75% → +1 grau/passo dano
+    'rt_m1':  2,  // Dor Reflexiva Elemental → +2 Graus
+    'ri_m1':  2,  // Aumento por Rodada (Reforço) → +2 Graus de Potência no Hatsu (simplificado como Dano)
+    'ri_m3':  1,  // Inutilizável c/ +50% Aura (Reforço) → +1 Grau de Potência no Hatsu (simplificado como Dano)
+    'rt_l1':  1,  // Preparação Obrigatória (Transmutação) → +1 Grau de Potência no Hatsu (simplificado como Dano)
+    're_l2':  2,  // Nome Verdadeiro do Alvo (Especialização) → +2 Graus de Potência no Hatsu (simplificado como Dano)
+    're_l3':  1,  // Terreno Específico (Especialização) → +1 Grau de Potência no Hatsu (simplificado como Dano)
+    're_p2':  2,  // Uso Único por Sessão (Especialização) → +2 Graus de Potência no Hatsu (simplificado como Dano)
+    'em_m2':  1,  // Distância Reduzida ao Mover (Emissão) → +1 Grau de Potência (simplificado como Dano)
+    // Efeitos gerais com dano
+    'eg7':    1,  // Poder Valioso → +1 Grau de potência
+    'eg10':   0,  // Flagelo da Mente → dano psíquico fixo 1d8 (tratado à parte)
+    'eg15':   1,  // Dano/Cura Focal → +1 grau/passo
+    // Efeitos de Intensificação (graus de dano)
+    'ri_e1':  1,'ri_e2': 1,'ri_e3': 2,'ri_e4': 2,'ri_e6': 1,'ri_e8': 2,'ri_e10': 2,
+    'ri_e12': 3,'ri_e16': 2,'ri_e20': 3,'ri_e22': 3,'ri_e24': 4,'ri_e26': 4,'ri_e30': 5,
+};
+
+// +1 DADO: aumenta a QUANTIDADE de dados (ex: 2d6 → 3d6), aplicado ANTES dos graus
+// "o maior" = usa o maior dado atual; "o menor" = usa 1 dado do mesmo tipo
+window.DANO_DADO_MAP = {
+    'rt_m3':  { n: 1, tipo: 'maior' }, // Condição no Usuário (Transmutação)
+};
+
+// Efeitos que CONCEDEM dano próprio (tornam o hatsu "com dano" independente do tipo)
+// Estrutura: id → { dado, desc }
+window.DANO_PROPRIO_MAP = {
+    'eg10':   { dado: '1d8',      tipo: 'Psíquico',   desc: 'Flagelo da Mente' },
+    'eg17':   { dado: '(contínuo)',tipo: 'Contínuo',   desc: 'Dor pra Disgrama!' },
+    'ri_e11': { dado: '+ 1d8',    tipo: 'Extra',      desc: 'Golpe Reforçado' },
+    'ri_e20': { dado: '+ 1d6',    tipo: 'Extra',      desc: 'Fúria Potencializada' },
+    'rm_e1':  { dado: '2d6',      tipo: 'Arma/Objeto', desc: 'Forjar Objeto/Arma Conjurada' },
+    'rc_e1':  { dado: '1d6',      tipo: 'Criatura',   desc: 'Invocar Criatura' },
+    'rc_e9':  { dado: '1d8',      tipo: 'Corporal',   desc: 'Metamorfose Corporal' },
+    'em_e1':  { dado: '1d8',      tipo: 'Projétil',   desc: 'Projétil de Aura' },
+    'em_e3':  { dado: '2d6',      tipo: 'Potente',    desc: 'Disparo Potente' },
+    'em_e6':  { dado: '3d6',      tipo: 'Linha',      desc: 'Canhão de Aura' },
+    'em_e9':  { dado: '4d6',      tipo: 'Área',       desc: 'Bomba de Aura' },
+    'rt_e16': { dado: '+5 dano',  tipo: 'Ferida',     desc: 'Ferida Interna' },
+};
+
+// ── Graus/Passo em outras características (Alcance, Área, Duração, Acerto, CD) ──
+// Conversão canônica de 1 grau por característica (mesma tabela usada nos "5 Graus do 1º Hatsu",
+// GRAU_INFO em js/init.js): Acerto=+1, Dano=+1 passo, Duração=+1 rodada, CD=+1, Alcance=+3m, Área=+1,5m.
+// Bônus numéricos diretos (sem a palavra "Grau/Passo" no texto) são convertidos por essa tabela —
+// não contados como "1 por compra" independente da magnitude.
+window.ALCANCE_GRAU_MAP = {
+    'rg_l9':  1, // Efeitos Neg. Exaustão 1 (escolha: Alcance ou Área)
+    'rg_l10': 1, // Interação Sensorial Simples (escolha: Alcance ou Área): +3m = 1 grau
+    'rt_l2':  1, // Sem Movimento no Turno (Transmutação): +3m = 1 grau
+    'em_l1':  2, // Linha Reta Apenas (Emissão): +6m = 2 graus
+    'em_e2':  2, // Distância Segura: +6m = 6m ÷ 3m/grau = 2 graus
+    'em_e14': 1, // Expansão de Domínio, opção Alcance: +3m = 1 grau
+    'em_e20': 6, // Disparo Potente: +18m = 18m ÷ 3m/grau = 6 graus
+};
+window.AREA_GRAU_MAP    = {
+    'rg_l9':  1,
+    'rg_l10': 1, // Interação Sensorial Simples (escolha: Alcance ou Área): +1,5m = 1 grau
+    'rt_m2':  1, // Sem Aliados a 3m (Transmutação): +1,5m = 1 grau
+    'em_e2':  2, // Distância Segura: +3m = 3m ÷ 1,5m/grau = 2 graus
+    'em_e14': 4, // Expansão de Domínio, opção Área: +6m = 4 graus
+    'em_e20': 12, // Disparo Potente: +18m = 18m ÷ 1,5m/grau = 12 graus
+};
+window.DURACAO_GRAU_MAP = {
+    'rg_m13': 2, // Zetsu Protetivo (escolha: Rodadas/Duração, Acerto ou Dano)
+    'rg_v2':  1, // Canalizar com Concentração (escolha: Duração em vez de Dano/Cura)
+};
+window.ACERTO_GRAU_MAP  = {
+    'rg_l12': 1, // Limitação de Movimento 1
+    'rg_m11': 2, // Limite Emocional
+    'rg_m13': 2, // Zetsu Protetivo (escolha: Acerto)
+    'ri_l3':  1, // Sem Defesas (Reforço)
+};
+window.CD_GRAU_MAP = {
+    'rma_m3': 2, // Imune por 5 Rodadas (Manipulação): +2 Grau/Passo na CD do TR
+    'rma_p1': 5, // +10% Aura por Rodada (Manipulação): +5 Grau/Passo na CD do TR
+};
+
+// Características de Grau de Potência afetadas por categoria (mesma lista de "Peculiaridades da
+// Categoria" usada em GRAUS_POR_CAT/js/init.js, restrita às 6 chaves rastreadas aqui).
+window.CATEGORIA_CARACTERISTICAS_GRAU = {
+    'INTENSIFICAÇÃO': ['acerto', 'dano'],
+    'TRANSMUTAÇÃO':   ['area', 'dano'],
+    'MATERIALIZAÇÃO': ['alcance', 'area', 'duracao'],
+    'CONJURAÇÃO':     ['alcance', 'area', 'duracao'],
+    'ESPECIALIZAÇÃO': ['alcance', 'area', 'dano', 'duracao', 'cd'],
+    'MANIPULAÇÃO':    ['alcance', 'area', 'duracao', 'cd'],
+    'EMISSÃO':        ['acerto', 'alcance', 'area'],
+};
+
+// Nível em que o bônus do Juramento Imutável (rg_e5) passa a valer: 3 níveis após a restrição
+// ter sido adquirida (h.juramentoImutavelNivelBase, gravado quando o jogador seleciona rg_e5).
+window.calcJuramentoImutavelNivelAtivo = function(h) {
+    if (!h || h.juramentoImutavelNivelBase == null) return null;
+    return h.juramentoImutavelNivelBase + 3;
+};
+
+// Soma os Graus de Potência já comprometidos por característica de um Hatsu — usado para
+// comparar contra window.calcMaxGrauPorNivel(nível) no criador (limite de Grau de Potência por nível).
+// charLevel: nível ATUAL do personagem (necessário para resolver o Juramento Imutável, que só ativa
+// 3 níveis após ser adquirido). Se omitido, usa h.nivel (nível salvo do Hatsu) como aproximação.
+window.calcGrausPotenciaPorCaracteristica = function(h, charLevel) {
+    const totals = { dano: 0, alcance: 0, area: 0, duracao: 0, acerto: 0, cd: 0 };
+    if (!h) return totals;
+    const allIds = [...(h.restricoes||[]), ...(h.efeitos||[])];
+    const bc = h.beneficioChoices || {};
+    const sc = h.specialChoices || {};
+    const pr = h.pureRestrictions || {};
+    const choiceIncludes = (id, palavra) => (bc[id]||'').toLowerCase().includes(palavra);
+    const nivelAtual = charLevel != null ? parseInt(charLevel) : (h.nivel || 1);
+
+    allIds.forEach(id => {
+        // Restrição marcada como "Pura" converte o benefício em P.N — não aplica o Grau/Passo real,
+        // então não deve contar para o limite de Grau de Potência.
+        if (pr[id]) return;
+        // Dano: mesma lógica de escolha usada em renderHatsuDetail (rg_l16/rg_m13 só contam se escolhido "dano")
+        const g = window.DANO_GRAU_MAP[id];
+        if (g) {
+            if (id === 'rg_l16' && !choiceIncludes(id, 'dano')) { /* não conta */ }
+            else if (id === 'rg_m13' && !choiceIncludes(id, 'dano')) { /* não conta */ }
+            else if (id === 'rg_v2' && !choiceIncludes(id, 'dano') && !choiceIncludes(id, 'cura')) { /* escolheu Duração — ver DURACAO_GRAU_MAP */ }
+            else if (id === 'rg_p5' && (!bc[id] || choiceIncludes(id, 'margem') || choiceIncludes(id, 'crítico'))) { /* escolheu Margem de Crítico, ou ainda não escolheu */ }
+            else totals.dano += g;
+        }
+        // Alcance / Área: rg_l9 e rg_l10 usam specialChoices (picker dedicado 'Alcance'/'Área' em
+        // hatsu-creator.js — ALCANCE_AREA_IDS), NÃO beneficioChoices (correção: antes lia de bc[id],
+        // que nunca é preenchido para esses dois, então o grau nunca era contado).
+        if (id === 'rg_l9' || id === 'rg_l10') {
+            const escolhaAA = sc[id] || '';
+            if (escolhaAA === 'Área') totals.area += window.AREA_GRAU_MAP[id] || 0;
+            else if (escolhaAA === 'Alcance') totals.alcance += window.ALCANCE_GRAU_MAP[id] || 0;
+        }
+        // Alcance / Área: restrições/efeitos com valor fixo e sem ambiguidade de escolha
+        if (!['rg_l9','rg_l10','eg1','em_e2','em_e14'].includes(id)) {
+            if (window.ALCANCE_GRAU_MAP[id]) totals.alcance += window.ALCANCE_GRAU_MAP[id];
+            if (window.AREA_GRAU_MAP[id]) totals.area += window.AREA_GRAU_MAP[id];
+        }
+        // Duração: rg_v2 (escolha: Duração em vez de Dano/Cura)
+        if (id === 'rg_v2' && (choiceIncludes(id, 'duração') || choiceIncludes(id, 'rodada'))) {
+            totals.duracao += window.DURACAO_GRAU_MAP[id] || 0;
+        }
+        // Duração / Acerto: rg_m13 é uma escolha entre Rodadas, Acerto ou Dano (dano já tratado acima)
+        if (id === 'rg_m13') {
+            if (choiceIncludes(id, 'rodada')) totals.duracao += window.DURACAO_GRAU_MAP[id] || 0;
+            else if (choiceIncludes(id, 'acerto')) totals.acerto += window.ACERTO_GRAU_MAP[id] || 0;
+        } else if (window.ACERTO_GRAU_MAP[id]) {
+            totals.acerto += window.ACERTO_GRAU_MAP[id];
+        }
+        // Condicionais de acerto (rg_l1 / rg_l13 escolhem entre acerto e outra característica)
+        if ((id === 'rg_l1' || id === 'rg_l13') && choiceIncludes(id, 'acerto')) totals.acerto += 1;
+        // CD do TR (sem ambiguidade de escolha)
+        if (window.CD_GRAU_MAP[id]) totals.cd += window.CD_GRAU_MAP[id];
+
+        // Efeitos gerais escaláveis (repetíveis via restrição extrema pura) — cada cópia soma 1 grau
+        // na característica correspondente, mesmo sem o texto falar literalmente em "Grau/Passo".
+        if (id === 'eg1') { // Aumento de Alcance — escolha Alcance ou Área
+            const escolha = sc['eg1'] || '';
+            if (escolha === 'Área') totals.area += 1;
+            else if (escolha === 'Alcance') totals.alcance += 1;
+        }
+        if (id === 'eg2') totals.duracao += 1; // Aumento de Duração
+        if (id === 'eg9') totals.area += 1;    // Ajuste de Forma (Área)
+        // Efeitos de categoria com bônus fixo de Alcance/Área (mesma lógica de escolha do eg1)
+        if (id === 'em_e2' || id === 'em_e14') { // Distância Segura / Expansão de Domínio
+            const escolha = sc[id] || '';
+            if (escolha === 'Área') totals.area += window.AREA_GRAU_MAP[id] || 0;
+            else if (escolha === 'Alcance') totals.alcance += window.ALCANCE_GRAU_MAP[id] || 0;
+        }
+        // em_e20 (Disparo Potente) e outros itens sem escolha caem no bloco genérico acima
+    });
+
+    // Juramento Imutável (rg_e5): +4 em TODAS as características da categoria, mas só a partir de
+    // 3 níveis após a restrição ter sido adquirida (h.juramentoImutavelNivelBase).
+    if (allIds.includes('rg_e5') && !pr['rg_e5']) {
+        const nivelAtivo = window.calcJuramentoImutavelNivelAtivo(h);
+        if (nivelAtivo != null && nivelAtual >= nivelAtivo) {
+            const caracts = window.CATEGORIA_CARACTERISTICAS_GRAU[h.classe] || Object.keys(totals);
+            caracts.forEach(k => { if (totals[k] !== undefined) totals[k] += 4; });
+        }
+    }
+
+    // 5 Graus do 1º Hatsu — soma direta por característica
+    const ph = h.primeiroHatsuGraus || {};
+    totals.dano    += ph.dano    || 0;
+    totals.alcance += ph.alcance || 0;
+    totals.area    += ph.area    || 0;
+    totals.duracao += ph.duracao || 0;
+    totals.acerto  += ph.acerto  || 0;
+    totals.cd      += ph.cd      || 0;
+
+    // Bônus de Talento (Talentoso/Ultimate) aplicado a este Hatsu
+    if (h.bonusGraus && totals[h.bonusGraus.tipo] !== undefined) {
+        totals[h.bonusGraus.tipo] += h.bonusGraus.valor || 0;
+    }
+    return totals;
+};
+
+// Chame após um level-up (com o nível ANTERIOR à mudança) para avisar o jogador quando algum Hatsu
+// com Juramento Imutável (rg_e5) acabou de cruzar o limiar de 3 níveis e ganhou +4 em tudo.
+window._checkJuramentoImutavelLevelUp = function(char, previousLevel) {
+    if (!char || !char.hatsus) return;
+    const newLevel = parseInt(char.level) || 0;
+    char.hatsus.forEach(h => {
+        if (!(h.restricoes||[]).includes('rg_e5')) return;
+        const nivelAtivo = window.calcJuramentoImutavelNivelAtivo(h);
+        if (nivelAtivo == null) return;
+        // Só notifica no exato level-up que cruza o limiar (evita repetir em níveis seguintes)
+        if (previousLevel < nivelAtivo && newLevel >= nivelAtivo) {
+            const caracts = window.CATEGORIA_CARACTERISTICAS_GRAU[h.classe] || [];
+            const LABELS = { dano:'Dano/Cura', alcance:'Alcance', area:'Área', duracao:'Duração', acerto:'Acerto', cd:'CD do TR' };
+            const lista = caracts.map(k => LABELS[k]).filter(Boolean).join(', ') || 'todas as características';
+            if (window._showXpToast) {
+                // Pequeno atraso para não sobrepor o toast principal de "Nível X!" do level-up
+                setTimeout(() => window._showXpToast('🎖️ Juramento Imutável ativo em "' + h.nome + '"! +4 Graus de Potência em: ' + lista), 2600);
+            }
+        }
+    });
+};
+
+// Custo final de aura de um Hatsu (base calculada pelas restrições/efeitos, reduzido pelos
+// Graus dos "5 Graus do 1º Hatsu" aplicados em Redução de Custo). Única fonte de verdade — usada
+// tanto na exibição (renderHatsuDetail) quanto no desconto real ao rolar (rollHatsuDamage).
+window.calcHatsuAuraCostFinal = function(h, idx) {
+    if (!window.calcAuraCost) return { pct: 50, reduced: false, phgCusto: 0 };
+    const fakeHb = {
+        rg: (h.restricoes||[]).filter(id => id.startsWith('rg_')),
+        rc: (h.restricoes||[]).filter(id => !id.startsWith('rg_')),
+        eg: (h.efeitos||[]).filter(id => id.startsWith('eg')),
+        ec: (h.efeitos||[]).filter(id => !id.startsWith('eg')),
+    };
+    const cc = window.calcAuraCost(fakeHb);
+    const phgCusto = (idx === 0 && h.primeiroHatsuGraus && h.primeiroHatsuGraus.custo) ? h.primeiroHatsuGraus.custo : 0;
+    const pct = Math.max(10, cc.pct - phgCusto * 5);
+    return { pct, reduced: pct < 50, phgCusto };
+};
+
+// rev. Manual 2.0 — REN só pode adicionar seu grau de dano se ainda houver espaço dentro do limite
+// de Grau de Potência do nível do personagem (mesma regra de qualquer outra fonte de grau).
+window.calcRenGrauDisponivel = function(h, char) {
+    if (!h || !char || !char.nenDominio || !(char.nenDominio.ren > 0)) return false;
+    if (!window.calcGrausPotenciaPorCaracteristica || !window.calcMaxGrauPorNivel) return false;
+    const grauMax = window.calcMaxGrauPorNivel(char.level);
+    if (grauMax === Infinity) return true;
+    const totals = window.calcGrausPotenciaPorCaracteristica(h, char.level);
+    return totals.dano < grauMax;
+};
+
+// REN nível 3 permite 1 uso gratuito (sem custo de aura) por dia — rastreado por data (pt-BR).
+window.isRenFreeUsoDisponivel = function(char) {
+    if (!char || !char.nenDominio || (char.nenDominio.ren||0) < 3) return false;
+    const hoje = new Date().toLocaleDateString('pt-BR');
+    return char.renFreeUsedDate !== hoje;
+};
+window.marcarRenFreeUsoConsumido = function(char) {
+    char.renFreeUsedDate = new Date().toLocaleDateString('pt-BR');
+};
+
+// Calculadora ao vivo para restrições de Grau Variável (X) — rg_v1/rg_v6/rg_v10. O jogador informa
+// X e a característica no momento do uso; isso não é salvo no personagem, é só conferência.
+window._hCalcGrauVariavel = function(idx, restrId) {
+    const char = state.currentChar;
+    const h = (char.hatsus||[])[idx];
+    if (!h) return;
+    const xInput = document.getElementById('gv-' + restrId + '-x');
+    const carSelect = document.getElementById('gv-' + restrId + '-car');
+    const resEl = document.getElementById('gv-' + restrId + '-res');
+    if (!xInput || !carSelect || !resEl) return;
+    const x = Math.max(0, parseInt(xInput.value) || 0);
+    const caract = carSelect.value;
+    const LABELS = { dano:'Dano/Cura', alcance:'Alcance', area:'Área', duracao:'Duração', acerto:'Acerto', cd:'CD do TR' };
+    const grauMax = window.calcMaxGrauPorNivel ? window.calcMaxGrauPorNivel(char.level) : Infinity;
+    if (grauMax === Infinity) {
+        resEl.innerHTML = '<span style="color:#4ade80;font-weight:700">✓ Nível 11+ — sem limite de Grau de Potência</span>';
+        return;
+    }
+    const totals = window.calcGrausPotenciaPorCaracteristica ? window.calcGrausPotenciaPorCaracteristica(h, char.level) : {};
+    const base = totals[caract] || 0;
+    const total = base + x;
+    const over = total > grauMax;
+    resEl.innerHTML = (base > 0 ? base + ' (já no Hatsu) + ' : '') + x + ' (X) em ' + (LABELS[caract]||caract) + ' = '
+        + '<b style="color:' + (over ? '#f87171' : '#4ade80') + '">' + total + '</b> / ' + grauMax + ' '
+        + (over ? '<span style="color:#f87171;font-weight:700">⚠ Excede o limite em ' + (total - grauMax) + '</span>' : '<span style="color:#4ade80;font-weight:700">✓ Dentro do limite</span>');
+};
+
+function renderHatsuDetail(container) {
     const char  = state.currentChar;
     const idx   = state.hatsuDetailIdx || 0;
     const h     = (char.hatsus || [])[idx];
@@ -54,65 +376,9 @@
     });
 
     // ── Cálculo de Dano Final ──────────────────────────────────────────────────
-    const DAMAGE_TABLE = [
-        '1d4','1d6','1d8','2d4','1d10','1d12',
-        '2d6',  // ← índice 6 (base)
-        '3d4','2d8','4d4','3d6','2d10','5d4','2d12',
-        '3d8','4d6','6d4','7d4','3d10','5d6','4d8',
-        '3d12','8d4','6d6','9d4','4d10','10d4','4d12',
-        '5d8','7d6','6d8','8d6','5d10','9d6','7d8',
-        '5d12','6d10','10d6','8d8','7d10','6d12','9d8',
-        '8d10','10d8','7d12','9d10','8d12','10d10','9d12',
-        '10d12'
-    ];
-    const BASE_DAMAGE_IDX = 6; // 2d6
-
-    // Graus de dano concedidos por restrições/efeitos específicos
-    const DANO_GRAU_MAP = {
-        // Restrições gerais
-        'rg_l1':  1,  // Cálculo Pensado 1 → +1 Grau/Passo
-        'rg_l7':  1,  // "Diálogo" → +1 Grau/Passo Dano
-        'rg_m1':  2,  // Alvo Único em Combate → +2 Grau/Passo Dano
-        'rg_m13': 2,  // Zetsu Protetivo → +2 Grau/Passo (inclui dano)
-        'rg_p9':  3,  // Perda de Membros → +3 grau de potência
-        'rg_v2':  1,  // Canalizar com Concentração → +X (mín 1)
-        // Restrições de categoria
-        'ri_l1':  1,  // PV < 75% → +1 grau/passo dano
-        'rt_m1':  2,  // Dor Reflexiva Elemental → +2 Graus
-        // Efeitos gerais com dano
-        'eg7':    1,  // Poder Valioso → +1 Grau de potência
-        'eg10':   0,  // Flagelo da Mente → dano psíquico fixo 1d8 (tratado à parte)
-        'eg15':   1,  // Dano/Cura Focal → +1 grau/passo
-        // Efeitos de Intensificação (graus de dano)
-        'ri_e1':  1,'ri_e2': 1,'ri_e3': 2,'ri_e4': 2,'ri_e6': 1,'ri_e8': 2,'ri_e10': 2,
-        'ri_e12': 3,'ri_e16': 2,'ri_e20': 3,'ri_e22': 3,'ri_e24': 4,'ri_e26': 4,'ri_e30': 5,
-    };
-
-    // +1 DADO: aumenta a QUANTIDADE de dados (ex: 2d6 → 3d6), aplicado ANTES dos graus
-    // "o maior" = usa o maior dado atual; "o menor" = usa 1 dado do mesmo tipo
-    const DANO_DADO_MAP = {
-        'rg_l16': { n: 1, tipo: 'maior' }, // Tempo de Carregamento
-        'rg_l11': { n: 1, tipo: 'menor' }, // Limitação de Alvos
-        'rt_m3':  { n: 1, tipo: 'maior' }, // Condição no Usuário (Transmutação)
-    };
-
-    // Efeitos que CONCEDEM dano próprio (tornam o hatsu "com dano" independente do tipo)
-    // Estrutura: id → { dado, desc }
-    const DANO_PROPRIO_MAP = {
-        'eg10':   { dado: '1d8',      tipo: 'Psíquico',   desc: 'Flagelo da Mente' },
-        'eg17':   { dado: '(contínuo)',tipo: 'Contínuo',   desc: 'Dor pra Disgrama!' },
-        'ri_e11': { dado: '+ 1d8',    tipo: 'Extra',      desc: 'Golpe Reforçado' },
-        'ri_e13': { dado: '+ 1d(maior)',tipo:'Bloquear',   desc: 'Onda Surda' },
-        'ri_e20': { dado: '+ 1d6',    tipo: 'Extra',      desc: 'Fúria Potencializada' },
-        'rm_e1':  { dado: '2d6',      tipo: 'Arma/Objeto', desc: 'Forjar Objeto/Arma Conjurada' },
-        'rc_e1':  { dado: '1d6',      tipo: 'Criatura',   desc: 'Invocar Criatura' },
-        'rc_e9':  { dado: '1d8',      tipo: 'Corporal',   desc: 'Metamorfose Corporal' },
-        'em_e1':  { dado: '1d8',      tipo: 'Projétil',   desc: 'Projétil de Aura' },
-        'em_e3':  { dado: '2d6',      tipo: 'Potente',    desc: 'Disparo Potente' },
-        'em_e6':  { dado: '3d6',      tipo: 'Linha',      desc: 'Canhão de Aura' },
-        'em_e9':  { dado: '4d6',      tipo: 'Área',       desc: 'Bomba de Aura' },
-        'rt_e16': { dado: '+5 dano',  tipo: 'Ferida',     desc: 'Ferida Interna' },
-    };
+    // DAMAGE_TABLE, BASE_DAMAGE_IDX, DAMAGE_OVERFLOW_STEP, DANO_GRAU_MAP, DANO_DADO_MAP e
+    // DANO_PROPRIO_MAP agora vivem em window.* (topo do arquivo) para serem reaproveitados
+    // fora desta função — ver window.calcGrausPotenciaPorCaracteristica.
 
     // Tipos e categorias que têm dano base (2d6 + attr)
     // h.tipo pode ser combinado ex: "hostil+instantaneo" — split para checar cada parte
@@ -159,14 +425,29 @@
     let totalGraus = 0;
     const grauSources = [];
     [...restricoesSel, ...efeitosSel].forEach(item => {
+        // Restrição marcada como "Pura" converte o benefício em P.N — não aplica o Grau/Passo real
+        if (h.pureRestrictions && h.pureRestrictions[item.id]) return;
         let g = DANO_GRAU_MAP[item.id];
         if (!g || g <= 0) return;
-        // rg_l16 agora é DADO, não grau — tratado abaixo
-        if (item.id === 'rg_l16') return;
+        // rg_l16: Tempo de Carregamento — só aplica grau de Dano se escolheu "dano/cura" (alternativa é Concentração)
+        if (item.id === 'rg_l16') {
+            const bc = (h.beneficioChoices||{})['rg_l16'] || '';
+            if (!bc.toLowerCase().includes('dano')) return;
+        }
         // rg_m13: Zetsu Protetivo — só aplica grau de Dano se escolheu "Dano"
         if (item.id === 'rg_m13') {
             const bc = (h.beneficioChoices||{})['rg_m13'] || '';
             if (!bc.toLowerCase().includes('dano')) return;
+        }
+        // rg_v2: Canalizar com Concentração — só aplica grau de Dano se NÃO escolheu Duração
+        if (item.id === 'rg_v2') {
+            const bc = (h.beneficioChoices||{})['rg_v2'] || '';
+            if (!bc.toLowerCase().includes('dano') && !bc.toLowerCase().includes('cura')) return;
+        }
+        // rg_p5: Efeitos Aleatórios — só aplica grau de Dano se escolheu "Graus de Potência" (não Margem de Crítico)
+        if (item.id === 'rg_p5') {
+            const bc = (h.beneficioChoices||{})['rg_p5'] || '';
+            if (!bc || bc.toLowerCase().includes('margem') || bc.toLowerCase().includes('crítico')) return;
         }
         totalGraus += g;
         grauSources.push({ nome: item.nome, graus: g });
@@ -178,11 +459,6 @@
     [...restricoesSel, ...efeitosSel].forEach(item => {
         const d = DANO_DADO_MAP[item.id];
         if (!d) return;
-        // rg_l16: só conta se beneficioChoice foi "dano"
-        if (item.id === 'rg_l16') {
-            const bc = (h.beneficioChoices||{})['rg_l16'] || '';
-            if (!bc.toLowerCase().includes('dano')) return;
-        }
         totalDados += d.n;
         dadoSources.push({ nome: item.nome, n: d.n, tipo: d.tipo });
     });
@@ -268,7 +544,7 @@
         let baseDmgSection = '';
         if (isHostil || catDmg || isPuroFlagelo) {
             // Step 1: apply +dado (ex: 2d6 → 3d6)
-            let baseIdx = isPuroFlagelo ? 4 : BASE_DAMAGE_IDX; // Puro: 1d10 | padrão: 2d6
+            let baseIdx = isPuroFlagelo ? 3 : BASE_DAMAGE_IDX; // Puro: 1d10 | padrão: 2d6
             let afterDadoNote = '';
             if (totalDados > 0) {
                 // Parse current base dice: "2d6" → n=2, d=6
@@ -287,8 +563,13 @@
             // Se Flagelo Puro: graus extras de cópias somam ao dano base também
             const flageloGrauPuro = isPuroFlagelo ? (flageloCopias - 1) : 0;
             // Step 2: apply graus on top
-            const finalIdx = Math.min(baseIdx + totalGraus + flageloGrauPuro, DAMAGE_TABLE.length - 1);
-            const finalDice = afterDadoNote && (totalGraus + flageloGrauPuro) === 0 ? afterDadoNote : DAMAGE_TABLE[Math.max(0, finalIdx)];
+            const rawIdx = baseIdx + totalGraus + flageloGrauPuro;
+            const finalIdx = Math.max(0, Math.min(rawIdx, DAMAGE_TABLE.length - 1));
+            // rev. Manual 2.0: ao ultrapassar o fim da tabela (20d20), cada grau excedente vira +5 de dano fixo
+            const overflowSteps = Math.max(0, rawIdx - (DAMAGE_TABLE.length - 1));
+            const overflowBonus = overflowSteps * DAMAGE_OVERFLOW_STEP;
+            let finalDice = afterDadoNote && (totalGraus + flageloGrauPuro) === 0 ? afterDadoNote : DAMAGE_TABLE[finalIdx];
+            if (overflowBonus > 0) finalDice = finalDice + '+' + overflowBonus;
             _hatsuFinalDice = finalDice;
             // Build info breakdown for popup
             const _infoBase = isPuroFlagelo ? '1d10' : '2d6';
@@ -300,8 +581,9 @@
             }
             grauSources.forEach(function(s){ _danoInfo.push({ l: '+' + s.graus + ' grau' + (s.graus > 1 ? 's' : ''), v: s.nome, c: '#f87171' }); });
             if (flageloGrauPuro > 0) _danoInfo.push({ l: '+' + flageloGrauPuro + ' grau' + (flageloGrauPuro > 1 ? 's' : ''), v: 'Flagelo Puro ×' + flageloCopias, c: '#a78bfa' });
+            if (overflowBonus > 0) _danoInfo.push({ l: '+' + overflowBonus + ' dano fixo', v: 'Excedente da tabela (fim em 20d20)', c: '#fbbf24' });
             _danoInfo.push({ l: '→ Total', v: finalDice + ' + ' + baseAttr, c: isPuroFlagelo ? '#a78bfa' : '#f87171', b: true });
-            _danoInfo.push({ type: 'diceTable', table: DAMAGE_TABLE, tblStart: isPuroFlagelo ? 4 : BASE_DAMAGE_IDX, tblAfterDado: baseIdx, tblFinal: finalIdx });
+            _danoInfo.push({ type: 'diceTable', table: DAMAGE_TABLE, tblStart: isPuroFlagelo ? 3 : BASE_DAMAGE_IDX, tblAfterDado: baseIdx, tblFinal: finalIdx });
             if (!window._HATSU_DANO_INFO) window._HATSU_DANO_INFO = {};
             window._HATSU_DANO_INFO[idx] = _danoInfo;
             const baseNote = (totalDados > 0 || totalGraus > 0 || flageloGrauPuro > 0) ? `(base ${isPuroFlagelo ? '1d10' : '2d6'})` : '';
@@ -342,9 +624,17 @@
                 </div>`;
             });
         }
+        // Golpe Reforçado / Fúria Potencializada: escalam pela COMPRA REPETIDA do efeito (não por REN) — renderiza 1x por id, já consolidado
+        const REPETIVEIS_POR_COPIA = ['ri_e11', 'ri_e20'];
+        const idsJaRenderizados = new Set();
         efeitosComDanoProprio.forEach(e => {
             const d = DANO_PROPRIO_MAP[e.id];
             if (!d) return;
+            const isRepetivel = REPETIVEIS_POR_COPIA.includes(e.id);
+            if (isRepetivel) {
+                if (idsJaRenderizados.has(e.id)) return; // já consolidado na 1ª ocorrência
+                idsJaRenderizados.add(e.id);
+            }
             // HB (p.11): Hatsu Hostil inicia em 2d6 "independente de arma ou efeito de dano escolhido (se for menor)".
             // Efeitos cujo dado próprio é â‰¤ 2d6 são absorvidos pelo dano base e não aparecem separados.
             if ((isHostil || catDmg) && !d.dado.startsWith('+')) {
@@ -366,13 +656,37 @@
                     displayDado = DAMAGE_TABLE[scaledIdx];
                 }
             }
+            // Cópias repetidas do mesmo efeito somam dados (ex: 2x Golpe Reforçado = 2d8, não 1d8 duas vezes)
+            let copiasLabel = '';
+            if (isRepetivel) {
+                const copias = (h.efeitos||[]).filter(id => id === e.id).length;
+                if (copias > 1) {
+                    const m = displayDado.match(/(\d+)d(\d+)/);
+                    if (m) {
+                        displayDado = displayDado.replace(/\d+d\d+/, (parseInt(m[1]) * copias) + 'd' + m[2]);
+                        copiasLabel = ` ×${copias}`;
+                    }
+                }
+            }
             extraDmgSection += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
                 <span style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:16px;color:${ec}">${displayDado}</span>
                 <span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:${ec}22;color:${ec}">${d.tipo}</span>
-                <span style="font-size:9px;color:#4b5563">${d.desc}${!isHostil && !catDmg && totalGraus > 0 ? ` (+${totalGraus} grau)` : ''}</span>
+                <span style="font-size:9px;color:#4b5563">${d.desc}${copiasLabel}${!isHostil && !catDmg && totalGraus > 0 ? ` (+${totalGraus} grau)` : ''}</span>
                 <span style="font-size:9px;color:#6b7280">+ ${baseAttr}</span>
             </div>`;
         });
+
+        // Onda Surda (ri_e13): não concede dado/grau extra — ignora RD/bloqueio em parte dos dados já rolados
+        const temOndaSurda = efeitosSel.some(e => e.id === 'ri_e13');
+        if (temOndaSurda && _hatsuFinalDice) {
+            const diceMatch = String(_hatsuFinalDice).match(/^(\d+)d\d+/);
+            const totalDiceCount = diceMatch ? parseInt(diceMatch[1]) : 1;
+            const metadeDados = Math.max(1, Math.floor(totalDiceCount / 2));
+            extraDmgSection += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+                <span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:#fb923c22;color:#fb923c">Onda Surda</span>
+                <span style="font-size:9px;color:#4b5563">até ${metadeDados} dado${metadeDados>1?'s':''} ignora(m) RD/bloqueio (rolado após o cálculo de defesa)</span>
+            </div>`;
+        }
 
         // Chips de fontes de grau e dado
         const sourcesHtml = (grauSources.length > 0 || dadoSources.length > 0)
@@ -745,7 +1059,18 @@
             const purePn = PURE_PN[r.peso] || 0;
             let specialDetail = '';
             if (r.id === 'rg_p8' && sc.rg_p8) specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:#4ade80;padding:4px 8px;background:#4ade8018;border-radius:6px">📍 ${sc.rg_p8}</div>`;
-            if (r.id === 'rg_e5' && sc.rg_e5) specialDetail = `<div style="margin-top:6px;font-size:9px;color:#fb923c;padding:6px 10px;background:#fb923c11;border-radius:6px;border:1px solid #fb923c33;font-style:italic">"${sc.rg_e5}"</div>`;
+            if (r.id === 'rg_m8' && sc.rg_m8) specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:#fbbf24;padding:4px 8px;background:#fbbf2418;border-radius:6px">🩸 Condição Média: ${sc.rg_m8}</div>`;
+            if (r.id === 'rg_e5') {
+                const _nivelAtivo = window.calcJuramentoImutavelNivelAtivo ? window.calcJuramentoImutavelNivelAtivo(h) : null;
+                const _nivelAtualJ = parseInt(char.level) || 1;
+                let _statusJuramento = '';
+                if (_nivelAtivo != null) {
+                    _statusJuramento = _nivelAtualJ >= _nivelAtivo
+                        ? `<div style="margin-top:6px;font-size:9px;font-weight:700;color:#4ade80;padding:4px 8px;background:#4ade8018;border-radius:6px">✓ Bônus de +4 Graus de Potência ATIVO em todas as características</div>`
+                        : `<div style="margin-top:6px;font-size:9px;font-weight:700;color:#fbbf24;padding:4px 8px;background:#fbbf2418;border-radius:6px">⏳ Bônus de +4 Graus de Potência ativa no nível ${_nivelAtivo} (faltam ${_nivelAtivo - _nivelAtualJ} nível${(_nivelAtivo - _nivelAtualJ) !== 1 ? 'is' : ''})</div>`;
+                }
+                specialDetail = (sc.rg_e5 ? `<div style="margin-top:6px;font-size:9px;color:#fb923c;padding:6px 10px;background:#fb923c11;border-radius:6px;border:1px solid #fb923c33;font-style:italic">"${sc.rg_e5}"</div>` : '') + _statusJuramento;
+            }
             if ((r.id === 'rg_l9' || r.id === 'rg_l10') && sc[r.id]) specialDetail = `<div style="margin-top:6px;font-size:8px;font-weight:700;color:#60a5fa;padding:2px 7px;background:#60a5fa18;border-radius:5px">${sc[r.id] === 'Área' ? '🔵 Área' : '📐 Alcance'}</div>`;
             if (r.id === 'rg_v10' && sc.rg_v10 && typeof sc.rg_v10 === 'object' && sc.rg_v10.rodadas) {
                 specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:#c084fc;padding:4px 8px;background:#c084fc18;border-radius:6px">⚡ +${sc.rg_v10.rodadas} grau(s) em ${sc.rg_v10.tipo||'?'} — ${sc.rg_v10.rodadas} rod. de Zetsu por falha</div>`;
@@ -865,6 +1190,42 @@
         </div>`;
     }
 
+    // ── Seção Grau Variável (X) — restrições cujo valor só é decidido no momento do uso ──────────
+    const VARIAVEL_X_RESTR = {
+        'rg_v1':  { nome: 'Canalizar Rodadas em Zetsu' },
+        'rg_v6':  { nome: 'Exposição Desnecessária' },
+        'rg_v10': { nome: 'Zetsu por Falha', caracteristicasFixas: ['alcance', 'area'] },
+    };
+    const CARACT_LABELS_VARX = { dano:'🔥 Dano/Cura', alcance:'📏 Alcance', area:'🔵 Área', duracao:'⏱️ Duração', acerto:'⚔️ Acerto', cd:'🎯 CD do TR' };
+    let grauVariavelSection = '';
+    const _varXPresentes = Object.keys(VARIAVEL_X_RESTR).filter(id => (h.restricoes||[]).includes(id));
+    if (_varXPresentes.length > 0) {
+        const _caractsPermitidas = (window.CATEGORIA_CARACTERISTICAS_GRAU && window.CATEGORIA_CARACTERISTICAS_GRAU[h.classe||char.class]) || Object.keys(CARACT_LABELS_VARX);
+        const _varXRows = _varXPresentes.map(rid => {
+            const info = VARIAVEL_X_RESTR[rid];
+            const opts = info.caracteristicasFixas || _caractsPermitidas;
+            const optsHtml = opts.map(k => `<option value="${k}">${CARACT_LABELS_VARX[k]||k}</option>`).join('');
+            return `<div style="background:#0a0f1a;border:1px solid #1f2937;border-radius:10px;padding:10px;margin-bottom:8px">
+                <div style="font-size:9px;font-weight:700;color:#e5e7eb;margin-bottom:6px">🎲 ${info.nome}</div>
+                <div style="display:flex;gap:6px;margin-bottom:6px">
+                    <input id="gv-${rid}-x" type="number" min="0" placeholder="X" oninput="window._hCalcGrauVariavel(${idx},'${rid}')"
+                        style="width:64px;background:#060d1a;border:1.5px solid #374151;border-radius:8px;padding:6px;color:#fff;font-family:'Orbitron',sans-serif;font-weight:900;text-align:center;outline:none">
+                    <select id="gv-${rid}-car" onchange="window._hCalcGrauVariavel(${idx},'${rid}')"
+                        style="flex:1;background:#060d1a;border:1.5px solid #374151;border-radius:8px;padding:6px;color:#d1d5db;font-size:10px;outline:none">
+                        ${optsHtml}
+                    </select>
+                </div>
+                <div id="gv-${rid}-res" style="font-size:9px;color:#6b7280">Informe X e a característica para calcular.</div>
+            </div>`;
+        }).join('');
+        grauVariavelSection = `
+        <div style="background:#0d1117;border:2px solid #c084fc33;border-radius:12px;padding:14px;margin-bottom:20px">
+            <div style="font-size:8px;font-weight:900;color:#c084fc;text-transform:uppercase;letter-spacing:2px;margin-bottom:4px">🎲 Grau Variável (X) — calculadora de uso</div>
+            <div style="font-size:8px;color:#6b7280;margin-bottom:10px;line-height:1.5">Estas restrições têm um valor de X decidido só no momento do uso. Ao rolar este Hatsu, informe X e onde está aplicando para conferir se respeita o limite de Grau de Potência do seu nível — o cálculo abaixo não é salvo, é só para conferência na hora.</div>
+            ${_varXRows}
+        </div>`;
+    }
+
     container.innerHTML = `
     <div style="display:flex;flex-direction:column;height:100%;background:#030712;color:#d1d5db;font-family:'Rajdhani',sans-serif">
         <!-- HEADER -->
@@ -922,7 +1283,7 @@
                     </div>
                     <div>
                         <div style="font-size:8px;color:#374151;text-transform:uppercase;font-weight:700;margin-bottom:2px">Custo Base</div>
-                        <div style="font-size:10px;font-weight:600">${(() => { if (!window.calcAuraCost) return '<span style="color:#d1d5db">50% de Aura</span>'; const fakeHb = { rg: (h.restricoes||[]).filter(id=>id.startsWith('rg_')), rc: (h.restricoes||[]).filter(id=>!id.startsWith('rg_')), eg: (h.efeitos||[]).filter(id=>id.startsWith('eg')), ec: (h.efeitos||[]).filter(id=>!id.startsWith('eg')) }; const cc = window.calcAuraCost(fakeHb); const phgCusto = (idx===0 && h.primeiroHatsuGraus && h.primeiroHatsuGraus.custo) ? h.primeiroHatsuGraus.custo : 0; const finalPct = Math.max(10, cc.pct - phgCusto * 5); const reduced = finalPct < 50; const color = reduced ? '#4ade80' : '#d1d5db'; const extra = phgCusto > 0 ? ` <span style="font-size:8px;color:#4b5563">(−${phgCusto*5}% 1Âº Hatsu)</span>` : ''; return '<span style="color:'+color+'">' + finalPct + '% de Aura' + (reduced?' ✓':'') + '</span>' + extra; })()}</div>
+                        <div style="font-size:10px;font-weight:600">${(() => { const _ac = window.calcHatsuAuraCostFinal(h, idx); const color = _ac.reduced ? '#4ade80' : '#d1d5db'; const extra = _ac.phgCusto > 0 ? ` <span style="font-size:8px;color:#4b5563">(−${_ac.phgCusto*5}% 1Âº Hatsu)</span>` : ''; return '<span style="color:'+color+'">' + _ac.pct + '% de Aura' + (_ac.reduced?' ✓':'') + '</span>' + extra; })()}</div>
                     </div>
                     <div>
                         <div style="font-size:8px;color:#374151;text-transform:uppercase;font-weight:700;margin-bottom:2px">Alcance</div>
@@ -947,6 +1308,7 @@
             </div>
 
             ${primeiroHatsuSection}
+            ${grauVariavelSection}
 
             <!-- Restrições -->
             <div style="margin-bottom:20px">
@@ -984,6 +1346,7 @@
             </div>
         </div>
         ${renderRollModeModalHtml()}
+        ${renderRenPromptModalHtml()}
     </div>`;
 
     if (window.lucide) lucide.createIcons();

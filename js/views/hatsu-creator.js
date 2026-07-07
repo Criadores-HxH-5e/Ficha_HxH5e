@@ -58,6 +58,24 @@
         extrema: { bs:'#f97316', bun:'#7c2d1255', bg:'#f9731618', badge:'#fb923c55', bt:'#fb923c' },
     };
 
+    // rev. Manual 2.0 — painel de Grau de Potência usado/máximo por característica (limite por nível)
+    function buildGrauPanelHtml() {
+        var grauMaxNivel = window.calcMaxGrauPorNivel ? window.calcMaxGrauPorNivel(char.level) : Infinity;
+        if (grauMaxNivel === Infinity || !window.calcGrausPotenciaPorCaracteristica) return '';
+        var grauShim = { restricoes: [].concat(hb.rg, hb.rc), efeitos: [].concat(hb.eg, hb.ec), beneficioChoices: hb.beneficioChoices || {}, specialChoices: hb.specialChoices || {}, pureRestrictions: hb.pureRestrictions || {}, classe: char.class, juramentoImutavelNivelBase: hb.juramentoImutavelNivelBase };
+        var grauTotals = window.calcGrausPotenciaPorCaracteristica(grauShim, char.level);
+        var GRAU_LABELS = { dano:'🔥 Dano/Cura', alcance:'📏 Alcance', area:'🔵 Área', duracao:'⏱️ Duração', acerto:'⚔️ Acerto', cd:'🎯 CD do TR' };
+        var grauChips = Object.keys(GRAU_LABELS).filter(function(k){ return grauTotals[k] > 0; }).map(function(k) {
+            var over = grauTotals[k] > grauMaxNivel;
+            return '<span style="font-size:8px;font-weight:900;padding:2px 7px;border-radius:10px;background:' + (over ? '#ef444422' : '#1f2937') + ';color:' + (over ? '#f87171' : '#9ca3af') + '">' + GRAU_LABELS[k] + ': ' + grauTotals[k] + '/' + grauMaxNivel + '</span>';
+        }).join('');
+        if (!grauChips) return '';
+        return '<div style="background:#0f1117;border:1px solid #1f2937;border-radius:10px;padding:8px;margin-bottom:10px">'
+            + '<div style="font-size:7px;color:#4b5563;text-transform:uppercase;font-weight:700;letter-spacing:1px;margin-bottom:5px">⭐ Grau de Potência por Característica (nível ' + char.level + ')</div>'
+            + '<div style="display:flex;flex-wrap:wrap;gap:4px">' + grauChips + '</div>'
+            + '</div>';
+    }
+
     function renderR(items, arr, tipo) {
         const PURE_PN = { leve:1, moderada:2, pesada:3, extrema:4 };
         return items.map(function(item) {
@@ -66,6 +84,7 @@
             var p  = palR[pw] || palR.leve;
             var hb = state.hatsuBuilder;
             var isPure = !!(hb && hb.pureRestrictions && hb.pureRestrictions[item.id]);
+            var loreOpen = !!(hb && hb.openLore && hb.openLore[item.id]);
             var hasAlt = !!(item.bnf && /\s[Oo][Uu]\s/.test(item.bnf));
             var choiceKey = (hb && hb.beneficioChoices) ? hb.beneficioChoices[item.id] : undefined;
             var needsChoice = sel && !isPure && hasAlt && choiceKey === null && !['rg_l9','rg_l10'].includes(item.id);
@@ -214,6 +233,22 @@
                     + (jurVal ? '<div style="font-size:8px;color:#fb923c;margin-top:4px;font-style:italic">"' + jurVal + '"</div>' : '<div style="font-size:8px;color:#f87171;margin-top:4px">⚠ O juramento deve ser escrito para ativar o bônus</div>')
                     + '</div>';
             }
+            // Special: rg_m8 Explicar o Hatsu — escolhe a Condição Média aplicada
+            if (sel && item.id === 'rg_m8') {
+                var m8Val = (hb && hb.specialChoices && hb.specialChoices['rg_m8']) || '';
+                var MEDIA_CONDITIONS = ['Agarrado','Imobilizado','Atordoado','Sangramento Leve (2d4)','Fragilizado','Desorientado'];
+                specialInputHtml += '<div style="margin-top:8px" onclick="event.stopPropagation()">'
+                    + '<div style="font-size:8px;font-weight:700;color:' + p.bs + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">🩸 Escolha a Condição Média Aplicada:</div>'
+                    + '<div style="display:flex;flex-wrap:wrap;gap:4px">'
+                    + MEDIA_CONDITIONS.map(function(c) {
+                        var active = m8Val === c;
+                        return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\'rg_m8\',\'' + c + '\')" '
+                            + 'style="padding:4px 8px;border-radius:7px;font-size:8px;font-weight:' + (active?'900':'600') + ';cursor:pointer;border:1.5px solid ' + (active ? p.bs : '#1f2937') + ';background:' + (active ? p.bs + '22' : 'transparent') + ';color:' + (active ? p.bs : '#9ca3af') + ';white-space:nowrap">' + c + '</button>';
+                    }).join('')
+                    + '</div>'
+                    + (m8Val ? '<div style="font-size:8px;color:' + p.bs + ';margin-top:5px">✓ Condição: ' + m8Val + '</div>' : '<div style="font-size:8px;color:#f87171;margin-top:4px">⚠ Escolha a condição aplicada</div>')
+                    + '</div>';
+            }
             // Special: re_p1 Inconsciente Após Uso — choose exactly 2 effects (general + category)
             if (sel && item.id === 're_p1') {
                 var re1Chosen = (hb && hb.specialChoices && Array.isArray(hb.specialChoices['re_p1'])) ? hb.specialChoices['re_p1'] : [];
@@ -309,6 +344,16 @@
                 + (isPure ? '' : choiceHtml)
                 + pureToggleHtml
                 + specialInputHtml
+                + (item.lore
+                    ? '<div style="margin-top:6px" onclick="event.stopPropagation()">'
+                        + '<button onclick="event.stopPropagation();window._hToggleLore(\'' + item.id + '\')" style="background:transparent;border:none;padding:0;font-size:7px;font-weight:900;color:#4b5563;cursor:pointer;text-transform:uppercase;letter-spacing:1px">'
+                        + (loreOpen ? '▾ ' : '▸ ') + '📖 Dicionário'
+                        + '</button>'
+                        + (loreOpen
+                            ? '<div style="margin-top:4px;padding:8px;background:#0a0f1a;border:1px solid ' + p.bs + '33;border-radius:8px;font-size:8px;color:#9ca3af;line-height:1.5">' + item.lore + '</div>'
+                            : '')
+                        + '</div>'
+                    : '')
                 + '</div>';
         }).join('');
     }
@@ -622,13 +667,16 @@
                         + '</div>';
                 }
 
-                // em_e2: Distância Segura — ask alcance (+6m) or área (+3m)
+                // em_e2: Distância Segura (+6m Alcance ou +3m Área) / em_e14: Expansão de Domínio (+3m Alcance ou +6m Área)
                 if (item.id === 'em_e2' || item.id === 'em_e14') {
                     const scKey = item.id;
                     const chosen = specialChoices[scKey] || '';
                     const opts = item.id === 'em_e2'
-                        ? [['Alcance','📐','+6m'],['Área','🔵','+3m']]
-                        : [['Alcance','📐','+6m (linha/cone/etc.)'],['Área','🔵','+3m (à distância)']];
+                        ? [['Alcance','📐','+6m · 2 Grau/Passo'],['Área','🔵','+3m · 2 Grau/Passo']]
+                        : [['Alcance','📐','+3m à distância · 1 Grau/Passo'],['Área','🔵','+6m em forma · 4 Grau/Passo']];
+                    const confirmLabel = item.id === 'em_e2'
+                        ? { Alcance: '+6m · 2 Grau/Passo', 'Área': '+3m · 2 Grau/Passo' }
+                        : { Alcance: '+3m à distância · 1 Grau/Passo', 'Área': '+6m em forma · 4 Grau/Passo' };
                     specialHtml = '<div style="margin-top:8px;background:#0a0f1a;border:1px solid '+ color +'33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
                         + '<div style="font-size:8px;font-weight:900;color:'+ color +';text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">📐 Aplicar bônus em:</div>'
                         + '<div style="display:flex;gap:6px">'
@@ -639,7 +687,7 @@
                                 + op[1]+' '+op[0]+' <span style="font-size:7px;opacity:.7">('+op[2]+')</span></button>';
                         }).join('')
                         + '</div>'
-                        + (chosen ? '<div style="font-size:8px;color:'+ color +';margin-top:5px">✓ '+chosen+': '+(chosen==='Alcance'?'+6m':'+3m')+'</div>'
+                        + (chosen ? '<div style="font-size:8px;color:'+ color +';margin-top:5px">✓ '+chosen+': '+(confirmLabel[chosen]||'')+'</div>'
                                    : '<div style="font-size:8px;color:#f87171;margin-top:4px">⚠ Escolha onde aplicar</div>')
                         + '</div>';
                 }
@@ -726,13 +774,13 @@
                         { nome:'Carapaça/Armadura',    icon:'🛡️',  desc:'Redução de Danos 2 (escalável até 5)' },
                         { nome:'Curandeira',           icon:'💚',  desc:'Cura +1 por dado rolado. Req: Efeito de Cura' },
                         { nome:'Defensor',             icon:'💎',  desc:'CA +2 para criaturas adjacentes (escalável até 5)' },
-                        { nome:'Destruidor',           icon:'💥',  desc:'Ataque crítico causa 1 dado de dano adicional' },
+                        { nome:'Destruidor',           icon:'💥',  desc:'Ataque crítico causa +1 grau/passo de dano' },
                         { nome:'Dimensão',             icon:'🌀',  desc:'Conjuração pode ser um ambiente/espaço independente onde se pode entrar' },
                         { nome:'Enxame',               icon:'🐝',  desc:'3+ conjurações iguais formam um Enxame (mesma iniciativa, PVs/CAs/Atributos somados)' },
                         { nome:'Furtivo',              icon:'🌑',  desc:'Bônus +2 em Furtividade (escalável até 5)' },
                         { nome:'Grande',               icon:'⬆️',   desc:'Tamanho +1 grau (Médio→Grande→Enorme→Colossal). Vantagem em TR de FOR/CON' },
                         { nome:'Imparável',            icon:'🏃',  desc:'Ignora terreno difícil e não pode ter movimento reduzido' },
-                        { nome:'Investida',            icon:'⚡',  desc:'Após mover 4,5m in linha reta: TR de FOR ou derruba + 1 dado de dano extra' },
+                        { nome:'Investida',            icon:'⚡',  desc:'Após mover 4,5m em linha reta: TR de FOR ou derruba + 1 grau/passo de dano' },
                         { nome:'Montaria',             icon:'🐴',  desc:'Pode servir como montaria (deve ser pelo menos Médio)' },
                         { nome:'Móvel/Veloz',          icon:'💨',  desc:'Movimento +3m (escalável: 4,5m, 6m, 7,5m, 9m)' },
                         { nome:'Movimento Variável',   icon:'🌊',  desc:'Adquire voo, nado, escalada ou movimento subterrâneo (escalável)' },
@@ -1259,6 +1307,9 @@
         var totalRG = hb.rg.length;
         var totalRC = hb.rc.length;
 
+        // rev. Manual 2.0 — indicador de Grau de Potência usado por característica (limite por nível)
+        var grauPanelHtml = buildGrauPanelHtml();
+
         // Tabs
         var tabGeraisStyle = isGerais
             ? 'background:#1f2937;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.4)'
@@ -1333,7 +1384,7 @@
 
         content = '<div style="text-align:center;margin-bottom:10px">'
             + '<div style="font-family:\'Orbitron\',sans-serif;font-weight:900;font-size:13px;color:#fff;text-transform:uppercase;letter-spacing:2px">Restrições</div>'
-            + '</div>' + tabsHtml + searchBarHtml + bodyHtml;
+            + '</div>' + grauPanelHtml + tabsHtml + searchBarHtml + bodyHtml;
     }
 
     // ETAPA 3 — EFEITOS GERAIS
@@ -1344,6 +1395,7 @@
             <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:13px;color:#fff;text-transform:uppercase;letter-spacing:2px">Efeitos Gerais</div>
             <div style="font-size:9px;color:#6b7280;margin-top:3px">Disponíveis para qualquer categoria</div>
         </div>
+        ${buildGrauPanelHtml()}
         <div style="background:#0a0f1a;border:1px solid #1f2937;border-radius:10px;padding:9px;margin-bottom:10px">
             <div style="display:flex;align-items:flex-start;gap:7px">
                 <span style="font-size:12px;flex-shrink:0">📍</span>
@@ -1545,6 +1597,7 @@
                 <div style="font-size:9px;color:#4b5563">${catDB.attr_sec}</div>
             </div>
         </div>
+        ${buildGrauPanelHtml()}
         ${accessInfoHtml}
         ${buildFilterBar(true, tc)}
         <!-- Efeitos da categoria principal -->
@@ -1768,6 +1821,7 @@ window._hNext = function() {
             beneficioChoices: {...(hb.beneficioChoices||{})},
             pureRestrictions: {...(hb.pureRestrictions||{})},
             specialChoices: {...(hb.specialChoices||{})},
+            juramentoImutavelNivelBase: hb.juramentoImutavelNivelBase != null ? hb.juramentoImutavelNivelBase : null,
             efeitos: [...hb.eg, ...hb.ec],
             // Only count base P.N consumed (bonus from pure restrictions is local to this hatsu)
             pnUsados: Math.max(0, pnUsed - window.calcPNBonusFromRestr(hb)),
@@ -1875,7 +1929,13 @@ window._hAddDuplicateE = function(id, tipo, pn) {
             if (_charCls2 !== 'ESPECIALIZAÇÃO' && _charCls2 !== 'MANIPULAÇÃO' && _charCls2 !== 'MATERIALIZAÇÃO') return;
         }
     }
+    const _beforeDup = window._hSnapshotGrauTotals(hb);
     arr.push(id);
+    // rev. Manual 2.0: reverte a cópia extra se ela ultrapassar o limite de Grau de Potência do nível
+    if (!window._hCheckGrauLimiteENotify(hb, _beforeDup)) {
+        const revertIdx = arr.lastIndexOf(id);
+        if (revertIdx > -1) arr.splice(revertIdx, 1);
+    }
     renderHatsuInPlace();
 };
 
@@ -1893,7 +1953,14 @@ window._hSetFilterText = function(val) {
 window._hSetSpecialChoice = function(id, val) {
     const hb = state.hatsuBuilder; if (!hb) return;
     if (!hb.specialChoices) hb.specialChoices = {};
+    const previous = hb.specialChoices[id];
+    const _beforeSC = window._hSnapshotGrauTotals(hb);
     hb.specialChoices[id] = val;
+    // rev. Manual 2.0: reverte a escolha se ela ultrapassar o limite de Grau de Potência do nível
+    // (afeta principalmente eg1/eg9, que aplicam bônus em Alcance/Área)
+    if (!window._hCheckGrauLimiteENotify(hb, _beforeSC)) {
+        hb.specialChoices[id] = previous;
+    }
     renderHatsuInPlace();
 };
 window._hSetSpecialText = function(id, val) {
@@ -1992,11 +2059,27 @@ window._hShowStatInfo = function(idx, type, btn) {
     }, 50);
 };
 
+window._hToggleLore = function(id) {
+    const hb = state.hatsuBuilder; if (!hb) return;
+    if (!hb.openLore) hb.openLore = {};
+    if (hb.openLore[id]) delete hb.openLore[id];
+    else hb.openLore[id] = true;
+    renderHatsuInPlace();
+};
+
 window._hTogglePure = function(id) {
     const hb = state.hatsuBuilder; if (!hb) return;
     if (!hb.pureRestrictions) hb.pureRestrictions = {};
     if (hb.pureRestrictions[id]) {
+        // Deixando de ser Pura = passa a valer o benefício mecânico real. Só permite se isso não
+        // ultrapassar o limite de Grau de Potência do nível (rev. Manual 2.0).
+        const _before = window._hSnapshotGrauTotals(hb);
         delete hb.pureRestrictions[id];
+        if (!window._hCheckGrauLimiteENotify(hb, _before)) {
+            hb.pureRestrictions[id] = true; // reverte — mantém como Pura
+            renderHatsuInPlace();
+            return;
+        }
         // Se era restrição extrema, limpa duplicatas que excedam o P.N extremo restante
         window._hCleanDuplicatesIfNeeded && window._hCleanDuplicatesIfNeeded(hb);
     } else {
@@ -2005,6 +2088,61 @@ window._hTogglePure = function(id) {
         if (hb.beneficioChoices) delete hb.beneficioChoices[id];
     }
     renderHatsuInPlace();
+};
+
+// rev. Manual 2.0 — snapshot dos totais de Grau de Potência por característica (chame ANTES de
+// mutar hb, para poder comparar depois e só bloquear quando a ação atual causar o estouro).
+window._hSnapshotGrauTotals = function(hb) {
+    if (!window.calcGrausPotenciaPorCaracteristica) return {};
+    const char = state.currentChar; if (!char) return {};
+    const shim = { restricoes: [...(hb.rg||[]), ...(hb.rc||[])], efeitos: [...(hb.eg||[]), ...(hb.ec||[])], beneficioChoices: hb.beneficioChoices || {}, specialChoices: hb.specialChoices || {}, pureRestrictions: hb.pureRestrictions || {}, classe: char.class, juramentoImutavelNivelBase: hb.juramentoImutavelNivelBase };
+    return window.calcGrausPotenciaPorCaracteristica(shim, char.level);
+};
+
+// rev. Manual 2.0 — Limite de Grau de Potência por nível. Verifica o total já resolvido (via
+// beneficioChoices) por característica contra window.calcMaxGrauPorNivel(nível). Só bloqueia (e
+// avisa o usuário) quando a característica ultrapassa o limite E a ação atual piorou esse total —
+// um excedente pré-existente (deixado de propósito, ex: restrição não-pura) não trava outras ações.
+window._hCheckGrauLimiteENotify = function(hb, beforeTotals) {
+    if (!window.calcGrausPotenciaPorCaracteristica || !window.calcMaxGrauPorNivel) return true;
+    const char = state.currentChar; if (!char) return true;
+    const grauMax = window.calcMaxGrauPorNivel(char.level);
+    if (grauMax === Infinity) return true; // nível 11-12: ilimitado
+    const totals = window._hSnapshotGrauTotals(hb);
+    const LABELS = { dano:'🔥 Dano/Cura', alcance:'📏 Alcance', area:'🔵 Área', duracao:'⏱️ Duração', acerto:'⚔️ Acerto', cd:'🎯 CD do TR' };
+    for (const k in totals) {
+        const before = beforeTotals ? (beforeTotals[k] || 0) : 0;
+        if (totals[k] <= before) continue; // não piorou nesta ação — não é essa ação que estourou
+        if (totals[k] > grauMax) {
+            window._hShowGrauLimiteToast(LABELS[k], totals[k], grauMax, char.level || 1);
+            return false;
+        }
+    }
+    return true;
+};
+
+// Toast estilizado (substitui o alert() nativo) para o aviso de limite de Grau de Potência excedido
+window._hShowGrauLimiteToast = function(label, atual, max, nivel) {
+    const existing = document.getElementById('grau-limite-toast');
+    if (existing) existing.remove();
+    const toast = document.createElement('div');
+    toast.id = 'grau-limite-toast';
+    toast.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#0d1117;border:2px solid #f87171;border-radius:14px;padding:14px 18px;z-index:99999;font-family:Rajdhani,sans-serif;max-width:340px;width:calc(100% - 32px);box-shadow:0 8px 32px #000c,0 0 24px #f8717144;animation:fadeIn .2s;cursor:pointer';
+    toast.innerHTML = '<div style="display:flex;align-items:flex-start;gap:10px">'
+        + '<span style="font-size:20px;flex-shrink:0;line-height:1">⚠️</span>'
+        + '<div style="min-width:0">'
+        + '<div style="font-family:\'Orbitron\',sans-serif;font-weight:900;font-size:11px;color:#f87171;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Limite de Grau de Potência</div>'
+        + '<div style="font-size:12px;color:#e5e7eb;font-weight:700;margin-bottom:4px">' + label + ': <span style="color:#f87171">' + atual + '/' + max + '</span> <span style="color:#6b7280;font-weight:400">(nível ' + nivel + ')</span></div>'
+        + '<div style="font-size:10px;color:#9ca3af;line-height:1.4">Essa característica não pode ultrapassar o limite de Grau de Potência do nível do personagem. A seleção foi desfeita.</div>'
+        + '</div>'
+        + '</div>';
+    toast.onclick = function() { toast.style.opacity = '0'; toast.style.transition = 'opacity .2s'; setTimeout(() => toast.remove(), 200); };
+    document.body.appendChild(toast);
+    setTimeout(() => {
+        if (!document.getElementById('grau-limite-toast')) return;
+        toast.style.opacity = '0'; toast.style.transition = 'opacity .4s';
+        setTimeout(() => toast.remove(), 400);
+    }, 5000);
 };
 
 window._hToggleR = function(id, tipo) {
@@ -2020,6 +2158,8 @@ window._hToggleR = function(id, tipo) {
             delete hb.pureRestrictions[id];
             window._hCleanDuplicatesIfNeeded && window._hCleanDuplicatesIfNeeded(hb);
         }
+        // Juramento Imutável: ao desmarcar, esquece o nível em que foi adquirida
+        if (id === 'rg_e5') delete hb.juramentoImutavelNivelBase;
     } else {
         // Guarda final: restrições de ESPECIALIZAÇÃO só para ESPECIALIZAÇÃO, MANIPULAÇÃO e MATERIALIZAÇÃO
         if (tipo === 'rc') {
@@ -2031,6 +2171,10 @@ window._hToggleR = function(id, tipo) {
             }
         }
         arr.push(id);
+        // Juramento Imutável: grava o nível em que foi adquirida (o bônus só ativa 3 níveis depois)
+        if (id === 'rg_e5' && hb.juramentoImutavelNivelBase == null) {
+            hb.juramentoImutavelNivelBase = (state.currentChar && state.currentChar.level) || 1;
+        }
         // Verifica se tem benefício alternativo (bnf com " OU ")
         const allRDB = [];
         const rg = window.HATSU_DB.restricoes_gerais;
@@ -2043,6 +2187,9 @@ window._hToggleR = function(id, tipo) {
             // Has alternatives — will show inline choice, mark as needs-choice
             if (hb.beneficioChoices[id] === undefined) hb.beneficioChoices[id] = null; // null = not yet chosen
         }
+        // rev. Manual 2.0: NÃO bloqueia a seleção aqui — o jogador ainda pode marcar como "Pura"
+        // (converte o benefício em P.N e não conta para o limite de grau). O bloqueio real acontece
+        // em _hTogglePure, quando ele efetivamente opta por usar o benefício mecânico (não-pura).
     }
     renderHatsuInPlace();
 };
@@ -2050,7 +2197,13 @@ window._hToggleR = function(id, tipo) {
 window._hSetBeneficioChoice = function(id, choice) {
     const hb = state.hatsuBuilder; if (!hb) return;
     if (!hb.beneficioChoices) hb.beneficioChoices = {};
+    const previous = hb.beneficioChoices[id];
+    const _beforeBC = window._hSnapshotGrauTotals(hb);
     hb.beneficioChoices[id] = choice;
+    // rev. Manual 2.0: reverte a escolha se ela ultrapassar o limite de Grau de Potência do nível
+    if (!window._hCheckGrauLimiteENotify(hb, _beforeBC)) {
+        hb.beneficioChoices[id] = previous;
+    }
     renderHatsuInPlace();
 };
 window._hSetBeneficioChoiceIdx = function(id, idx) {
@@ -2169,7 +2322,13 @@ window._hToggleE = function(id, tipo, pn) {
                 if (_charCls !== 'ESPECIALIZAÇÃO' && _charCls !== 'MANIPULAÇÃO' && _charCls !== 'MATERIALIZAÇÃO') return;
             }
         }
+        const _beforeE = window._hSnapshotGrauTotals(hb);
         arr.push(id);
+        // rev. Manual 2.0: reverte a seleção se já ultrapassar o limite de Grau de Potência do nível
+        if (!window._hCheckGrauLimiteENotify(hb, _beforeE)) {
+            const revertIdx = arr.indexOf(id);
+            if (revertIdx > -1) arr.splice(revertIdx, 1);
+        }
     }
     renderHatsuInPlace();
 };

@@ -59,7 +59,15 @@
       "PowerShell(& \"C:\\\\Users\\\\davi.pontes\\\\StudioHxH\\\\fix-encoding.ps1\")",
       "PowerShell(cd c:\\\\Users\\\\davi.pontes\\\\StudioHxH; powershell -File fix-emoji2.ps1)",
       "PowerShell(cd c:\\\\Users\\\\davi.pontes\\\\StudioHxH; powershell -File fix-symbols.ps1)",
-      "PowerShell($dist = Get-ChildItem -Path \"C:\\\\Users\\\\davi.pontes\\\\StudioHxH\\\\Torre Celestial ZIP\\\\App-Torre-Celestial-main\\\\dist\" -Recurse -File | Measure-Object -Property Length -Sum; $torre = Get-ChildItem -Path \"C:\\\\Users\\\\davi.pontes\\\\StudioHxH\\\\torre\" -Recurse -File | Measure-Object -Property Length -Sum; Write-Host \"dist/ size: $\\($dist.Sum\\) bytes\"; Write-Host \"torre/ size: $\\($torre.Sum\\) bytes\")"
+      "PowerShell($dist = Get-ChildItem -Path \"C:\\\\Users\\\\davi.pontes\\\\StudioHxH\\\\Torre Celestial ZIP\\\\App-Torre-Celestial-main\\\\dist\" -Recurse -File | Measure-Object -Property Length -Sum; $torre = Get-ChildItem -Path \"C:\\\\Users\\\\davi.pontes\\\\StudioHxH\\\\torre\" -Recurse -File | Measure-Object -Property Length -Sum; Write-Host \"dist/ size: $\\($dist.Sum\\) bytes\"; Write-Host \"torre/ size: $\\($torre.Sum\\) bytes\")",
+      "Bash(xargs wc -l)",
+      "Bash(node -c js/data/hatsu-db.js)",
+      "Bash(node -c js/views/hatsu-creator.js)",
+      "Bash(node -c js/views/hatsu-detail.js)",
+      "Bash(node -c js/init.js)",
+      "Bash(node -c js/data/nen-affinity.js)",
+      "Bash(node -e ' *)",
+      "Bash(node -c js/views/sheet.js)"
     ]
   }
 }

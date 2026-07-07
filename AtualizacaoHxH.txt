@@ -1,0 +1,601 @@
+Principais Mudanças:
+_______________________________________________________________________
+1. Graus de Potência Iniciais por categoria:
+_______________________________________________________________________
+### Graus de Potencia - Iniciais
+&nbsp;Ao criar seu **primeiro Hatsu** seu personagem deve utilizar os P.N disponíveis e ainda recebe +5 graus de potência entre as características que ele pode investir com a mecânica "+X Grau de Potência" descrita em **"Peculiariades da Categoria"**.
+
+
+##### REFORÇO
+{{descriptive,
+Adicione 5 graus em seu Hatsu utilizando em **qualquer uma** das características abaixo:
+
+● Acerto ● Atributos (e perícias) ● Dano/Cura <br>● Redução de Custo
+}}
+
+##### TRANSMUTAÇÃO
+{{descriptive
+Adicione 5 graus em seu Hatsu utilizando em **qualquer uma** das características abaixo:
+
+● Area ● Dano ● Redução de Custo
+}}
+
+##### Materialização
+{{descriptive
+Adicione 5 graus em seu Hatsu utilizando em **qualquer uma** das características abaixo:
+
+● Alcance/Área ● Duração ● Redução de Custo
+}}
+
+##### ESPECIALIZAÇÃO
+{{descriptive
+Adicione 5 graus em seu Hatsu utilizando em **qualquer uma** das características abaixo:
+
+● Alcance/Área ●  Dano ● Duração ● CD do TR<br>● Redução de Custo
+}}
+
+##### MANIPULAÇÃO
+{{descriptive
+Adicione 5 graus em seu Hatsu utilizando em **qualquer uma** das características abaixo:
+
+● Alcance/Área ● Número de Alvos <br>● Tempo de Duração  ● CD do TR ● Redução de Custo
+}}
+
+##### EMISSÃO
+{{descriptive
+Adicione 5 graus em seu Hatsu utilizando em **qualquer uma** das características abaixo:
+
+● Acerto ● Alcance/Área ● Redução de Custo
+}}
+_______________________________________________________________________
+2. Toda a mecânica de limitação de Grau de Potência de acordo com a tabela
+_______________________________________________________________________
+
+{{wide
+### Graus de Potência - Mecânica Ajustada
+{color:,text-align:center}
+:
+
+}}
+
+{{descriptive,wide
+#### Poder com evolução
+ O total de Graus de Potência (Efeitos + Restrições + Ren + Graus de Potência iniciais) **DENTRO OU FORA DO HATSU** é limitado pelo nível do personagem conforme a tabela abaixo para cada característica:
+
+
+##### Nível do Personagem	e Graus de Potência Máximos por característica
+
+| Nível | Grau/Passo Aplicável | 
+|:------------------|:-----:|
+| 1 - 2 |+3 graus|
+| 3 - 4 |+5 graus|
+| 5 - 6 |+7 graus|
+| 7 - 8 |+12 graus|
+| 9 - 10  |+15 graus|
+| 11 - 12 | Ilimitado|
+
+#### Características Mecânicas de Hatsus:
+
+* **Tempo de Ativação:**
+* **Custo de Aura:**
+* **Duração:**
+* **Alcance:**
+* **Area:**
+* **Bônus de Acerto ou TR:**
+* **Dano/Cura:**
+}}
+
+
+#### Empilhamento (Stacking)
+{{wide
+##### Restrições Extremas
+Benefícios que multiplicam ou maximizam dados de dano não são cumulativos entre si. Caso duas fontes de multiplicação ou maximização estejam presentes, aplica-se o uso de Restrição Pura no lugar do benefício de uma.
+
+##### Efeitos que concedem dados
+Efeitos como **Golpe Reforçado** ou **Fúria Potencializada** não são aumentados por REN e sim pela compra do efeito repetidas vezes.
+
+##### Grau de Potência em Dano
+
+Efeitos repetidos ou Restrições que concedem Graus de Potência podem aumentar o dano padrão do Hatsu (comprado por **Dano/Cura Focal**) ou os dados vindos de outros efeitos, como citados acima, sendo um grau de potência gasto por dado.
+
+_______________________________________________________________________
+3. Mudanças em texto ou peso de restrições (Coloquei o dicionário junto)
+_______________________________________________________________________
+
+{{classTable,frame,decoration
+### Leves
+{color:,text-align:center}
+| Nome | Descrição |Benefícios|
+|:----:|:---------:|:------:|
+|<br>Cálculo Pensado <br>Básico  1|<br>Gasta +10% de aura|+1(-1) em Jogadas de Acerto <br>**ou**<br> +1 Grau/Passo de Dano/Cura |
+|Cálculo Pensado<br>Básico  2|Reduz 2 Grau/Passos de dano|Reduz em 5% o custo de aura do Hatsu|
+|Cálculo Pensado<br>Básico  3|-1 Grau de Potencia |+1(-1) em Teste de Concentração|
+|<br>Condição Levemente Hostil<br>|Só pode ativar o Hatsu ou manter caso alguém inicie um conflito direto ou indireto com o alvo (contra aliados) |+1 em Acerto ou dano Contra o Alvo <br>**ou**<Br> -1 em Acerto ou dano do Alvo|
+|<br><br> Conhecimento do Alvo | Saber nome ou histórico (contado pelo alvo) <br>**ou**<br> Ter interação prévia com o alvo <br>(mínimo 1min.)|<br><br><br>+1(-1) na CD do TR|
+|<br>Calibragem|Impõe um Teste ou TR próprio **para ativar** o Hatsu.|<br>+1(-1) em Testes e TRs Realizados|
+|Dano Antes de Usar | Deve sofrer 15% de dano em Vida ou Sanidade para ativar|1(-1) em Testes de Concentração <br>(TR de CON)|
+|<br> "Diálogo" | A ativação **E** duração do Hatsu depende de uma Arma Específica em posse constante.|<br>+1 Grau/Passo de Dano **com esta arma** no Hatsu|
+|<br> Efeitos Negativos Pré-Ativação1 | <br><br>Receber condições leves/fracas|Após ter falhado no TR, a condição funciona uma rodada **sem o alvo realizar testes para se libertar** ao fim de seu turno, |
+| Efeitos Negativos Exaustão 1 | Receber 1 nível de exaustão **após, durante ou antes da ativação**|+1(-1) Grau/Passo <br>no Alcance <br>**ou**<br>+1(-1) Grau/Passo <br>na Área|
+}}
+
+\column
+
+{{classTable,frame,decoration
+### Leves
+{color:,text-align:center}
+| Nome | Descrição |Benefícios|
+|:----:|:---------:|:------:|
+| <br>Golpe/Toque | O Hatsu depende de acertar/receber um golpe físico **(ou toque hostil/indesejado)** de seu alvo para ativar|<br>+1(-1) na CD do TR|
+|<br> **Interação Sensorial Simples*** | Ver, ouvir, tocar o alvo - forma não hostil <br>**ou**<br> Falar, ser visto, ouvido, tocado pelo alvo|Aplica 3m <br>no Alcance<br>**ou**<br>Aplica 1,5m <br>na Area|
+|<br><br><br> Limitação de Alvos | Limitar alvos entre <br>3–5 com Hatsus contínuos <br>**ou**<br> Limitar alvos entre <br>3–5 com Hatsus de Alcance ou Área superior a 6m|<br><br>+1 Grau/passo de dano/cura <br>**ou**<br> Aplica +1 condição|
+| Limitação de Movimento 1 | Cumprir ação livre e não se mover no turno|+1(-1) Jogadas de Acerto|
+|<br> Limitação de Movimento 2 | Consome movimento + Teste de Aptidão (perícia)|+1(-1) em Jogadas de Acerto <br>**ou**<br>+1(-1) na CD do TR|
+| Objeto Canalizador| Só ativa **ou** se mantém com objeto específico em posse |Objeto recebe +2 CA <br>**ou**<br>Objeto recebe  +5 PV|
+| <br><br>Posição Corporal | Manter pose específica <br>(ex: mãos juntas) para ativar ou durante o uso|<br>+1(-1) em Testes de Resistência para manter o efeito|
+| <br><br>Tempo de Carregamento |<br> Ativa 1 rodada após declaração de ativação|+1 Grau/passo de dano/cura <br>**ou**<br> +1 em Testes de Concentração<br>(TR de CON)|
+}}
+
+{{descriptive
+**Interação Sensorial Simples:** Essa restrição deve ser considerada no máximo, como nos últimos 30 segundos (5 rodadas) antes da ativação do Hatsu 
+}}
+
+<div class='pageNumber auto'></div>
+\page
+{{wide
+## Dicionário de Restrições - Leves
+{color:,text-align:center}
+}}
+
+* **Cálculo Pensado Básico 1**	A restrição provoca um gasto de aura maior do que o padrão em cada ativação.
+  
+* **Cálculo Pensado Básico 2**	A restrição limita o impacto de dano/cura do Hatsu em troca de custar menos aura. Por consequência só é aplicável em Hatsus que causem dano ou curem.
+
+* **Cálculo Pensado Básico 3**	A restrição reduz qualquer característica (uma) do Hatsu em um grau de potência demonstrando o foco do usuário no que deseja como benefício
+
+* **Calibragem**	"A restrição obriga o personagem a provar suas próprias capacidades, sejam físicas ou mentais ao superar um desafio/teste próprio antes de ativar o Hatsu.<br>
+O valor mínimo do teste sempre será do calculo padrão de TR, mas é possível combinar com restrições variadas e impor faixas de fracasso ou sucesso utilizando essa restrição para alcançar outros benefícios nas restrições variadas."
+
+* **Condição Levemente Hostil**	A restrição limita o usuário a tomar uma atitude mais defensiva ou reativa em suas interações. Não iniciando qualquer conflito e limitando o uso a ativações apenas a outros iniciarem os conflitos.
+
+* **Conhecimento do Alvo**	A restrição obriga o usuário a ter uma interação mínima e significante com o alvo. Não apenas vendo ou ouvindo. Interessante para personagens construídos com foco em infiltração, espionagem, disfarce e comunicação.
+
+* **Dano Antes de Usar**	A restrição limita o usuário ativar o Hatsu apenas após sofrer algum tipo de dano. Revelando um personagem mais confiante de suas capacidades de resistencia física e talvez ganhando tempo enquanto analisa seu alvo.
+
+* **Diálogo**	A restrição obriga o personagem a possuir uma arma específica para ativar e manter o Hatsu, ocasionando em um risco constante contra ação de desarmar ou até ataques mirados contra o objeto.
+
+* **Efeitos Negativos Exaustão 1**	A restrição obriga o personagem a sofrer a exaustão, mas permite que o usuário escolha essa limitação como algo prévio ou como consequência de seus esforços durante ou após o Hatsu.
+
+* **Efeitos Negativos Pré-Ativação 1**	A restrição limita o usuário ativar o Hatsu apenas após sofrer algum tipo de condição leve/fraca. Revelando um personagem mais confiante de lutar em desvantagem ou que se expõe sem muito medo logo no início de seus conflitos.
+
+\column
+
+* **Golpe/Toque**	A restrição limita o usuário ativar o Hatsu apenas após ter atingido ou tocado de forma hostil/indesejada um alvo. Isso quer dizer que o próprio toque pode funcionar como um ataque, mas não "carrega" o poder do Hatsu ainda. O Hatsu é ativado depois que esse golpe/toque funcionar. A maioria dos manipuladores coercitivos agem com essa restrição ao "marcarem" seus alvos.
+
+* **Interação Sensorial Simples**	A restrição limita o usuário ativar ou manter o Hatsu apenas se/enquanto uma das interações sensoriais forem cumpridas ou mantidas (à escolha do usuário)
+
+* **Limitação de Alvos**	A restrição reduz as capacidades do Hatsu em quantidades de alvos (seja por um Hatsu de longa duração ou Alcance/Área) para ser mais efetivo sobre um grupo específico/menor de pessoas
+
+* **Limitação de Movimento 1**	A restrição limita o usuário ativar o Hatsu apenas após cumprir uma ação livre (como soltar um objeto, falar, piscar ou qualquer ação menos significante) e não se mover no TURNO.
+
+* **Limitação de Movimento 2**	"A restrição limita o usuário ativar o Hatsu apenas após se mover (deslocamento) e ainda um teste de perícia (qualquer teste imposto pelo usuário). <br>
+O valor mínimo do teste sempre será do calculo padrão de TR."
+Objeto Canalizador	"A restrição obriga o personagem a possuir um objeto específico para ativar ou manter o Hatsu, ocasionando em um risco constante contra ação de desarmar ou até ataques mirados contra o objeto.
+
+No caso de escolher objeto para manter a duração e não para ativação, normalmente se trata de um objeto conjurado."
+
+* **Posição Corporal**	"A restrição limita o usuário a ativar o Hatsu apenas após assumir uma pose específica ou durante o uso/duração do Hatsu.
+
+Hatsus semelhantes aos sinais de mãos de ninjas ou então magias de telecinese em obras de fantasia."
+
+* **Tempo de Carregamento**	A restrição obriga o personagem a se expor declarando a ativação do Hatsu, mas apenas podendo utilizá-lo ou receber seus benefícios após uma rodada.
+
+<div class='pageNumber auto'></div>
+
+\page
+
+
+{{classTable,frame,decoration
+### Moderadas
+{color:,text-align:center}
+| Nome | Descrição |Benefício|
+|:----:|:---------:|:---------:|
+| <br>Alvo Único em combate | Só pode usar o Hatsu em um único alvo escolhido (até vencê-lo) ou acabar o combate|+2(-2) Grau/Passo de Dano/Cura|
+|<br><br><br><br> Área Definida |<br><br><br> Hatsu só funciona em 1/3 ou menos da área ou alcance total|Reduz custo de ativação em 10% <br>**ou**<br> Anula manutenção (Munições e/ou Efeito Vinculo Sustentado|
+|<br><br>Chuck Norris|O personagem não pode utilizar armas de fogo ou comuns **dentro ou fora do Hatsu**|Dano em Golpes Desarmados recebe a propriedade de **Mortal x4**|
+|<br><br> Conhecimento Profundo | Entender de forma competente ou completa o funcionamento e funções de um objeto, criatura ou mecanismo que será utilizado no próprio Hatsu **_(Pode requerer um Teste)_**|<br>Habilita Materialização com Alterações Físicas de **Funções**|
+|<br><br> Conhecimento Profundo do Alvo |<br>Entender/Descobrir o funcionamento do Hatsu do alvo (restrições e descrição narrativa **geral** de funcionamento)|Ignora Resistências Física (naturais ou com aura) <br>**ou** <br>+2 na CD do TR|
+|<br><br> Efeitos Negativos Pré-Ativação2 | <br>Estar amedrontado, imóvel, ou qualquer outra condição média, fisica ou mentalmente prejudicial.<br>**_(Enquanto consciente)_**|Pode refazer 2 rolagens de ataque ou Pode refazer 2 rolagens de defesa _Enquanto Hatsu estiver ativo_|
+}}
+\column
+{{classTable,frame,decoration
+### Moderadas
+{color:,text-align:center}
+| Nome | Descrição |Benefício|
+|:----:|:---------:|:---------:|
+| Efeitos Negativos Exaustão 2 | Receber 2 níveis de exaustão **durante ou antes da ativação**|Pode escolher 1 Efeito novo (fixo) de até 2 níveis acima|
+|<BR>Explicar o Hatsu <BR>**(Dura 1 turno pelo menos)**|Requer explicar o funcionamento do Hatsu e seus efeitos (descrição narrativa **geral** de funcionamento) e restrições (nomes e pesos) antes da ativação.|Após atingir um alvo ou o alvo falhar em um TR, Aplica Condição Média coerente com o efeito do Hatsu|
+| Princípio Elementar | O Hatsu depende de um Princípio de nen para funcionamento| O princípio dura por +2 Rodadas|
+|<br> Limite Emocional | Só ativa com emoção intensa (falhando em um TR individual de SAB contra raiva, medo, etc. imposto por outro alvo)|<br> +2(-2) em Jogadas de Acerto|
+Produto Frágil|O personagem é vulnerável a 3 tipos de dano (mesmo fora do Hatsu)|Torna o usuário e alvos do Hatsu resistentes a um tipo de dano|
+| Tempo Marcado| Só pode ser ativado após 4 rodadas em combate ou iniciativa marcada |Dobra o alcance <br>**ou**<br> Duração do Hatsu |
+|<br>Zetsu protetivo|<br>O(s) alvo(s) utilizar(em) Zetsu interrompe ou anula o efeito do Hatsu|+2 Grau/Passo em **uma das alternativas:**<br>Rodadas, Acerto ou Dano|
+}}
+
+<div class='pageNumber auto'></div>
+
+\page
+
+{{wide
+## Dicionário de Restrições - Moderadas
+{color:,text-align:center}
+}}
+
+* **Alvo Único em combate**	A restrição limita o usuário a utilizar o Hatsu contra apenas uma pessoa mesmo que existam diversos em combate. Além de impossibilitar o Hatsu de ser de suporte (""buffs"") de qualquer tipo (porque o alvo deve ser um inimigo em combate), essa restrição ainda abre dois desdobramentos importantes. 
+
+1. Caso qualquer outra pessoa além do alvo definido se envolver em combate o Hatsu é desfeito (permitindo que o usuário lute com todos os alvos) com seus outros recursos além do Hatsu.<br> **ou**<br> 
+2. O usuário precisa sustentar o combate com diversos alvos mesmo que apenas um possa ser afetado por seu Hatsu.
+
+* **Área Definida**	A restrição limita o usuário a reduzir seu alcance máximo para 1/3 com o objetivo de ter maior controle da aura (reduzindo o custo de ativação) ou anulando custo de manutenções (como os efeitos citados)
+
+{{note
+Possuir 9m de alcance ou efeito resulta em utilizar o Hatsu em apenas 3m. Para funcionar em 6m deve ter comprado 18m e assim por diante.
+}}
+
+* **Chuck Norris**	A restrição obriga o usuário a limitar seu modo de combate a golpes desarmados ou utilizar armas incomuns e improvisadas (fora das tabelas de armas e equipamentos), como Iô-Iô e vara de pescar, por exemplo.
+* **Conhecimento Profundo**	A restrição obriga o usuário a provar seu conhecimento sobre o que se deseja "reproduzir".  Por segurança, recomenda-se descrever narrativamente o personagem inves-tindo no estudo/pesquisa sobre o que se irá materializar para possuir vantagem ou a simples permissão de reproduzir no Hatsu
+* **Conhecimento Profundo do Alvo**	Entende-se por "Entender/Descobrir" como Compreender mais da metade das restrições e efeitos (explicando para o jogador ou mestre de maneira similar a descrição do hatsu do alvo).
+* **Efeitos Negativos Pré-Ativação 2**	A restrição limita o usuário a ativar o Hatsu apenas após sofrer algum tipo de condição média. Revelando a forte força de vontade de se expor a uma situação bem desfavorável para então ativar seu Hatsu.
+\column
+* **Efeitos Negativos Exaustão 2**	A restrição obriga o personagem a sofrer Exaustão, mas permite que o usuário escolha essa limitação como algo prévio ou como consequência de seus esforços durante ou após o Hatsu.
+
+* **Explicar o Hatsu** (Dura 1 turno pelo menos)<br>
+
+{{note
+Restrição detalhada em sua descrição inicial
+}}
+
+* **Princípio Elementar**	A restrição obriga o usuário a utilizar um princípio de nen (TEN ou REN) durante o uso do Hatsu. O que continua a consomir aura no decorrer  da duração.
+
+{{note
+É possível utilizar a restrição de maneira repetida ao selecionar diferentes princípios como requisitos.
+}}
+ 
+* **Limite Emocional**	A restrição limita o usuário a tomar uma atitude APENAS quando não consegue mais controlar, demonstrando um Hatsu muito mais instintivo e com um poder mais natural e espontâneo do que premeditado. Perceba que não basta ser provocado. **É necessário falhar em controlar a raiva, medo e etc.**
+<br> 
+
+* **Produto Frágil**	A restrição impõe ao usuário uma penalidade considerável de vulnerabilidade (condição extrema) em troca resistencia (condição forte) a si e aliados.
+* **Tempo Marcado**	A restrição obriga o personagem a se expor em combate (não necessáriamente declarando a ativação do Hatsu), mas apenas podendo utilizá-lo ou receber seus benefícios após as quatro rodadas iniciais.
+* **Zetsu protetivo**	A restrição limita o potencial do Hatsu a uma simples técnica que qualquer usuário pode cumprir, mas em troca disso recebe maior capacidade de acerto, dano ou duração enquanto não descobrirem para se protegerem.
+
+<div class='pageNumber auto'></div>
+
+\page
+
+
+{{classTable,frame
+### Pesadas
+{color:,text-align:center}
+| Nome | Descrição | Benefício|
+|:----:|:---------:|:---------:|
+|<br> Alto Risco... |Ter perdido 50% (não auto-imposto) do PV para ativar o Hatsu |Adicione 3 Graus de Potência em qualquer característica da Categoria no Hatsu  |
+|<br><br><br><br>**Boneca Russa***|<br>O Hatsu depende de outro Hatsu para sua ativação<br>**ou**<br>O Hatsu é requerido para ativação de outro Hatsu|O Hatsu dependente ou dependido recebe +3 rodadas de duração<br><br>Caso a ativação do Hatsu dependente não ocorra na duração do inicial, 30% de aura é consumida ao fim da duração|
+| Dano Permanente| Perder 1d10 de vida/sanidade **_permanentemente_*** |Adicione 3 Graus de Potência em qualquer característica da Categoria no Hatsu|
+| <br>Efeitos Aleatórios | Efeitos são "comprados" e pré-definidos para ativarem separadamente, mas não escolhidos na ativação (ativação aleatória)|Margem de Crítico reduz em 1 (mín. 18) <br>**ou**<br> Adicione 3 Graus de Potência em qualquer característica da Categoria no Hatsu|
+| Limite de Eficiência de Aura | Não aplica eficiência de aura em princípios e Técnicas de Nen |Hatsu ignora efeitos defensivos de nen com RD ou CA |
+}}
+
+\column
+
+{{classTable,frame
+### Pesadas
+{color:,text-align:center}
+| Nome | Descrição | Benefício|
+|:----:|:---------:|:---------:|
+| Limite de Princípios de Nen | Não pode usar os princípios e técnicas de Nen na Maestria ou modo Superior |+3 ou -3 na CD de TRs Impostos <br>**ou**<br> Enfrentados |
+| Limite de Uso Definitivo | Só pode ser usado 1x por combate|+2 Rodadas <br>**ou**<br> -15% de aura|
+| Local / Condição Específica | Hatsu só funciona em local ou condição específica não descrita em outras restrições |Aura usada é reduzida pela metade (mínimo 5%) |
+| **Perda de Membros***<br>[Veja Aqui a Mecânica](#p65) | Perder/inutilizar membro(s) do usuário **(efeitos mecânicos)** |<br>+3 grau de potência na ativação|
+| <br><br>Proibição Permanente |<br> Após duração, não pode usá-lo novamente no combate/dia |Rolar um crítico durante o uso permite utilizá-lo sem custo **de aura.** (cumprindo demais restrições normalmente) |
+|<br><br> Segredo Mortal |<br> Se descoberto, visto ou percebido, o Hatsu se torna inutilizável contra o alvo| Enquanto secreto, Jogadas de acerto e  Concentração funcionam com vantagem|
+| Técnica Elementar | O Hatsu depende de uma Técnica de nen para funcionamento| A técnica custa metade da aura|
+}}
+
+<div class='pageNumber auto'></div>
+
+\page
+
+{{wide
+## Dicionário de Restrições - Pesadas
+{color:,text-align:center}
+}}
+
+* **Alto Risco...**	A restrição limita o usuário a sofrer diretamente em combate por tempo ou quantidade considerável em um conflito para ser permitido utilizar o Hatsu.
+  
+* **Boneca Russa**	A restrição obriga o usuário a utilizar outro Hatsu causando um desgaste maior de Aura e Tempo em Combate além da necessidade de cumprir restrições do outro Hatsu (caso possua).
+
+* **Dano Permanente**	A restrição impõe uma perda progressiva nos pontos de vida do usuário, representando uma deterioração gradual de seu corpo/mente a cada uso do Hatsu ou uma perda do tempo/expectativa de vida.
+
+* **Efeitos Aleatórios**	A restrição obriga o usuário a "perder o controle" do que seu Hatsu irá fazer. Normalmente utilizado por conjuradores, mas pode ser utilizada para aplicar forçadamente diferentes "modos de Hatsu" sem comprar "Efeito Alternativo"
+
+* **Limite de Eficiência de Aura**	A restrição limita o usuário a perder o grande benefício de Eficiência de Aura em qualquer circunstância.
+
+* **Limite de Princípios de Nen**	A restrição impossibilita do usuário fazer uso dos princípios e técnicas de nen na maestria. Isso limita o usuário a utilizar princípios e técnicas de nen apenas ao gastar 2 P.N com seus respectivos benefícios e, por consequência, ter técnicas bloqueadas.
+
+* **Limite de Uso Definitivo**	A restrição limita o usuário a utilizar seu Hatsu apenas 1x por combate independente da quantidade de inimigos enfrentados.
+
+\column
+
+* **Local / Condição Específica**	"Se trata de uma restrição mais abstrata e aberta que busca englobar e permitir a criatividade do usuário para circunstâncias mais específicas que não se retratam nas demais restrições. 
+
+{{descriptive
+**EXEMPLOS**
+:
+Ex1.: Franky estabeleceu a restrição de que se mata um alvo deve comê-lo.
+:
+Ex2.: Yokotani apenas pode utilizar seu Hatsu dentro do esconderijo dos Heil Li onde Morena está presente
+:
+Ex3.: A duração máxima da mudança corporal de Bonolenov **se limita pelo tempo que passou com o alvo.**"
+Perda de Membros	A restrição limita o usuário a não possuir um membro para utilizar o Hatsu (Franklin [dedos] e Shoot [braço]) ou Inutilizar determinado membro assim que utiliza o Hatsu, representando a uma determinação extrema (Shoot [olho])
+}}
+* **Proibição Permanente**	"A restrição impõe uma limitação superior à restrição ""Alvo Único em combate"", onde caso o alvo seja vencido, é possível utilizar outra vez no mesmo combate.<BR>
+Nesta restrição o Hatsu em sí se limita a um uso por combate ou até mesmo por dia."
+
+* **Segredo Mortal**	A restrição limita o usuário a ter um Hatsu furtivo ou instantaneamente decisivo normalmente em um uso. Caso seja descoberto, visto ou percebido o alvo se torna imune contra o Hatsu do usuário.
+Técnica Elementar	A restrição obriga o usuário a utilizar uma das técnicas conhecidas de nen (EN, IN, GYO, SHU, KO, ou RYU) ) para ativação do Hatsu. O que continua a consomir aura no decorrer  da duração.
+
+<div class='pageNumber auto'></div>
+
+\page
+
+{{classTable,frame,decoration
+### Restrições Variáveis
+{color:,text-align:center}
+| Nome | Descrição |Benefícios|
+|:----:|:---------:|:------:|
+|<br><br>Cálculo Pensado <br>Variável 1|<br><br><br>Gasta +x% de aura|+1(-1) em Jogadas de Acerto para cada 10% gasto<br>**ou**<br> +1 Grau/Passo de Dano/Cura para cada 10% gasto|
+|<br>Cálculo Pensado<br>Variável 2|<br>Reduz x Grau/Passos de dano/cura|Reduz em 5% o custo de aura do Hatsu para cada 2 Graus/Passos reduzidos|
+|Cálculo Pensado<br>Variável 3|<br>-x Grau de Potencia |+1(-1) em Teste de Concentração para cada Grau de Potência removido|
+| Canalizar rodadas em Zetsu  |Ficar X rodadas em Zetsu (em combate) antes de ativar|+x Grau de Potência (característica variável por uso)|
+| <br><br>Canalizar com Concentração   |<br> Canalizar por x rodadas sem ser interrompido (em combate) |Adiciona +x Rodadas na Duração após ativação <br>**ou**<br> +x(-x) Grau/Passo de Dano/Cura|
+|<br>Confirmação de duas etapas|<br>Impõe um Teste ou TR próprio **a cada rodada** pela duração do Hatsu.|<br>Aumenta a duração do Hatsu (ou de uma condição) em 1 rodada por sucesso|
+|<br><br>Contrato Simples|Estabelecer um acordo verbal ou escrito que liga os participantes a cumprirem o acordo ao custo de **ficarem em Zetsu como penalidade** ao descumprirem|O tempo em zetsu dependerá da definição do acordo. Essa restrição **não pode ser forçada a outros _diretamente_**|
+|<br><br> Dano Momentâneo Variável |	Perder 1d10 de **vida/sanidade máxima** temporariamente <br><br>a) para ativar <br>**ou**<br>b) por rodadas|Causa o valor correspondente em dano: <br>a) Em um Ataque (incluso TR)<br><br>b) A cada ataque|
+|<br><br> Efeito Rebote |<br> Usuário **sofre até 3** efeitos ou condições do Hatsu |Por até 3 rodadas, alvos rolam com desvantagem para superar seus TRs impostos.|
+}}
+
+\column
+
+{{classTable,frame,decoration
+### Restrições Variáveis
+{color:,text-align:center}
+| Nome | Descrição |Benefícios|
+|:----:|:---------:|:------:|
+|<br><br>Exposição Desnecessária|Os alvos recebem +x (máx. = nível/2) em **2 características contra o usuário (escolha do alvo) entre:** Acerto, CA, Reação (rolagens) e TR |<br>O usuário adiciona +x Grau de Potência no Hatsu <br>(máx. = nível/2)|
+|<br><br>Limite de Uso Contínuo |O Hatsu só pode ser **usado X vezes** (até 4) pela duração do efeito, ou você **deve repetir uma restrição a cada X** rodadas.|<br>X=1 -> 4 P.N <br> X=2 -> 3 P.N <br> X=3 -> 2 P.N <br> X=4 -> 1 P.N|
+|<br><br><br><br><br><br><br><br>Sorte ou Revés|Ao **receber uma falha crítica** role 1d4.<br><br>**1)** O hatsu é desativado<br><br>**2)** +25% da aura é gasto (podendo gerar desmaio ou desativação do Hatsu)<br><br> **3)** Recebe dano próprio e crítico<br><br> **4)** Reduz 30 da Sanidade<br>|Ao receber um sucesso crítico role 1d4:<br><br> **1)** Permite mais um uso/alvo na rodada;<br><br> **2)** Recupera 25% da aura;<br><br> **3)** Utiliza um Princípio de NEN desbloqueado à escolha por 2 rodadas;<br><br> **4)** Reduz a sanidade <br>do alvo em 5|
+|<br><br>Troca Perigosa <br>Reações (Recurso)|<br>O Hatsu consome suas reações como Recurso para sua ativação além de consumir aura. |Custo de aura reduzido <br>ou aumentado em 5% <br>por reação <br>**ou**<br> +1 Alvo por 2 reações (mesma rolagem)|
+| <br><br>Zetsu Penalizante | Após duração, fica em Zetsu por horas correspodente à duração (em rodadas) **ou** Até o fim de uma batalha **contra mais de um alvo**|<br> Reduz em x os resultados de TR dos alvos (Limíte de Grau de Potência do Nível).|
+|<br><br><br><br>Zetsu por falha|Impõe Zetsu **no usuário caso o Hatsu não seja concluído com sucesso**.<br> (O objetivo precisa ser definido ao ativar, como acertar, superar um teste ou durar até o fim da duração)|Quantidade de Grau/Passo em Alcance ou Área adicionados = Quantidade de Rodadas em Zetsu obrigado a realizar após a falha|
+}}
+
+{{descriptive,wide
+**NOTA 1: Exposição Desnecessária*** Essa restrição apenas faz sentido para Hatsus hostis onde o alvo direto recebe os benefícios escolhidos pelo próprio (alvo) contra o usuário.
+}}
+
+<div class='pageNumber auto'></div>
+
+
+\page
+{{wide
+## Dicionário de Restrições - Variadas
+{color:,text-align:center}
+}}
+
+* **Cálculo Pensado Variável 1**	A restrição provoca um gasto de aura maior do que o padrão em cada ativação.
+* **Cálculo Pensado Variável 2**	A restrição limita o impacto de dano/cura do Hatsu em troca de custar menos aura. Por consequência só é aplicável em Hatsus que causem dano ou curem.
+* **Cálculo Pensado Variável 3**	A restrição reduz qualquer característica (uma) do Hatsu em um grau de potência demonstrando o foco do usuário no que deseja como benefício.
+* **Canalizar rodadas em Zetsu**	A restrição obriga o usuário a se expor ao risco em combate com Zetsu para gerar graus de potência quando conseguir ativar seu Hatsu.<br>
+Se o usuário estiver furtivo, as rodadas apenas são contadas/consideradas se antes ele já tiver sido exposto ou à partir de uma ação que ele poderia se descoberto e os alvos falharam.
+* **Canalizar com Concentração**	A restrição obriga o usuário a canalizar sua aura para gerar poder. O alvo pode se mover, mas não pode realizar ações de combate além de se manter concentrado.<br>
+Essa circunstância normalmente exige um aliado para protegê-lo ou a garantia de não ser atingido por um motivo qualquer para ser mais efetivo e funcional"
+* **Confirmação de duas etapas**	A restrição obriga o personagem a provar suas próprias capacidades, sejam físicas ou mentais ao superar um desafio ou teste próprio durante cada rodada pela duração do Hatsu. Se trata de uma evolução em peso da restrição Calibragem.
+O valor mínimo do teste sempre será do calculo padrão de TR, mas é possível combinar com restrições variadas e impor faixas de fracasso ou sucesso utilizando essa restrição para alcançar outros benefícios nas restrições variadas.
+* **Contrato Simples**	Se trata NORMALMENTE de uma restrição de garantia de aliados. Mais comum em Hatsus de suporte que concedem poder aos outros. O contrato mais comum é o de garantia que o poder não será usado contra o próprio usuário, mas as variações podem ser diversas, como por exemplo criar um simples impasse e garantir um combinado de não agressão entre as partes envolvidas. <br>
+Os termos do contrato podem ser diversos (não apenas um combinado) e devem ser cumpridos pelo tempo ou objetivo estabelecidos no acordo.
+
+
+\column
+
+* **Dano Momentâneo Variável**	A restrição obriga o usuário a perder de forma recuperável seus PVs ou Sanidade em troca de mais poder bruto.
+* **Efeito Rebote**	A restrição impõe (automatica-mente) sobre o usuário parte das condições (escolha fixa) que o Hatsu impõe sobre outros ao falharem em testes.
+* **Exposição Desnecessária**	A restrição aplica uma exposição de aura ou intenção do usuário tão evidente ao alvo que o alvo é capaz de correspon-der se preparando para lidar melhor durante o ataque/combate
+* **Limite de Uso Contínuo**	A restrição limita o uso do Hatsu a uma quantidade de 4 vezes ou rodadas (máx.) mesmo que o custo em aura ou a duração permita utilizar mais vezes ou por mais tempo. 
+* **Sorte ou Revés**	A restrição obriga o usuário a depender completamente da sorte. É um dos casos onde a restrição não é cumprida por todo o tempo e sim dentro do Hatsu e de forma pontual. 
+* **Troca Perigosa Reações (Recurso)**	A restrição obriga o usuário a gastar suas reações (não o tempo de ativação e sim o recurso), como se demonstrasse uma drenagem da estamina do personagem. O benefíciovaria de acordo com a quantidade de Reações "drenadas" (escolha do personagem a cada uso)
+* **Zetsu por falha**	A restrição impõe Zetsu sobre o próprio usuário caso o objetivo do Hatsu falhe. O objetivo depende diretamente da construção do Hatsu e deve ser declarado. Seja causar dano, manipular, destruir, convencer, aplicar uma condição e etc.
+* **Zetsu Penalizante**	A restrição impõe Zetsu sobre o próprio usuário após utilizar o Hatsu. Seja ainda durante o combate ou após. (Escolha fixa do usuário na construção)
+
+<div class='pageNumber auto'></div>
+
+\page
+{{wide
+# Risco e Recompensa
+{color:,text-align:center}
+:
+Escolher uma restrição extrema permite um uso diferente em seu Hatsu.
+{color:,text-align:center}
+:
+{{descriptive
+ Acesse efeitos **Dois Níveis acima do seu nível.**
+{color:,text-align:center}
+ P.N recebidos por restrições extremas... (quando PURAS)<br> **PODEM SER ADICIONADOS REPETIDAS VEZES <br>EM UM MESMO EFEITO EM UM MESMO NÍVEL**
+{color:,text-align:center}
+}}
+}}
+
+
+{{classTable,frame,decoration
+### Extremas
+{color:,text-align:center}
+| Nome | Descrição | Benefício|
+|:----:|:---------:|:-----------:|
+| **Condição Alheia ou Simbiótica*** <br>(Genthru ouTsubone)| O Hatsu só pode ser ativado, desativado ou mantido utilizando aura de um aliado, podendo superar o custo de 100% |+4 Rodadas por membro da condição <br>**ou**<br> -10% de custo por membro|
+|<br><br> Condição Hostil| O Hatsu só pode ser ativado se um aliado morrer ou sofrer dano pré-letal como (desmembramento, 10% de vida, sangramento extremo ou inconsciência) .| <br>Os dados de dano são maximizados (não rolados) e a área de efeito é dobrada|
+| <br><br>Condição Única de Ativação | <br><br>O Hatsu só pode ser usado **uma única vez em toda a vida** do usuário. | Permite ao Hatsu uma Reencarnação ou Ressuscitação (não considerado Nen-Post-Morten). Após isso, se perde o Hatsu.|
+| <br><br><br>Dano Permanente Constante|<br><br><br> Perder 5 de vida/sanidade (por ativação) **_permanentemente_**  |+5 em Testes de Concentração <BR>(TR de CON) <br>**ou**<br> +5 Rodadas <br>**ou**<br> A cada Acerto ou TR imposto com sucesso, recupera toda a aura gasta **no hatsu** |
+}}
+
+\column
+{{classTable,frame,decoration
+### Extremas
+{color:,text-align:center}
+| Nome | Descrição | Benefício|
+|:----:|:---------:|:-----------:|
+|<br><br><br> **Juramento Imutável*** |O usuário precisa fazer um voto **limitador e mecanicamente e/ou narrativamente relevante**, público, inviolável e absoluto sobre seu foco de caça/objetivo. A quebra do voto causa morte instantânea.|<br> +4 Graus de potência em todas as características possíveis de sua categoria|
+|<br>Kamikaze|O usuário deve rolar Acertos com Desvantagem **e** TRs provocados são rolados com vantagem pelo(s) alvo(s)|Ignore pré-requisitos de efeitos (exceto requisitos de níveis)|
+|<br> Sacrifício de Nen | O usuário perde permanentemente todos os princípios e Técnicas de Nen (exceto Hatsus).|O efeito do Hatsu ignora qualquer regra de resistência ou imunidade |
+| <br>Vida ou Morte | <br>Só ativa enquanto o usuário estiver com menos de 10% PV ou Sanidade.|Dobra o resultado de todos os dados de dano (dano contato como crítico) |
+|<br> Vida por Poder | O usuário regride 1 nível ao usar o Hatsu. Os P.N não são perdidos, mas os efeitos do nível superior são bloqueados ao regredir|Selecione 4 Efeitos da Categoria e 3 Efeitos Gerais|
+}}
+
+<img 
+  src='' 
+style='position:absolute;left:1px;top:580px;width:100%;mix-blend-mode:darken;opacity:100%'/>
+
+
+{{descriptive,wide
+**NOTA 1: Condição Alheia ou Simbiótica*** O custo do Hatsu é dividido entre todos os membros. É possível rebalancear o custo entre todos os membros e **o custo mínimo (independente do custo do Hatsu) é de 5% para cada participante.** <BR>
+**NOTA 2: Condição Alheia ou Simbiótica*** A restrição funciona para desativar quando o Hatsu tem a característica de Maldição (tempo de duração indeterminado ou permanente)<BR>
+**NOTA 3: Juramento Imutável:*** O benefício dessa restrição apenas é recebido **após 3 níveis cumprindo** a restrição.<BR>
+}}
+
+<div class='pageNumber auto'></div>
+
+\page
+
+{{wide
+## Dicionário de Restrições - Extremas
+{color:,text-align:center}
+}}
+
+* **Condição Alheia ou Simbiótica**	A restrição impõe a necessidade de outros aliados para ativar, desativar ou manter um Hatsu. Isso implica na necessidade de todos os envolvidos estarem vivos e em condições de compartilharem suas auras, caso contrario o Hatsu é impedido. Não há obrigatoriedade do aliado ser uma pessoa fixa e específica.<br>
+
+{{note
+É possível utilizar a restrição **"Contrato Simples""** para talvez combinar uma cláusula de inclusão ou liberação de pessoas da restrição **Condição Alheia ou Simbiótica.**
+}}
+* **Condição Hostil**
+
+{{note
+Restrição detalhada em sua descrição inicial
+}}
+* **Condição Única de Ativação**
+
+{{note
+Restrição detalhada em sua descrição inicial
+}}
+
+* **Dano Permanente Constante**	A restrição obriga o usuário a reduzir permanentemente seus recurso de PV ou Sanidade. A perda pode ser escolhida entre PV ou Sanidade.
+:
+* **Juramento Imutável** Essa limitação precisa estar naturalmente restringindo o usuário como uma limitação constante, não como algo eventual que vá restringí-lo em determinado momento.
+
+{{descriptive
+Exemplo: Kurapika está limitado a usar o modo **Chain Jail** apenas contra a Trupe Fantasma. Isso quer dizer que os P.Ns gastos para construção desse modo de Hatsu são inúteis enquanto ele não encontra esse grupo. Diferente de um Hatsu de modos que pode ser escolhido quando não há uma restrição desse tipo"
+}}
+\column
+* **Kamikaze**	A restrição impõe ao usuário a limitação constante de Acertos e TRs serem utilizados com prejuízos mecânicos.  <br>
+Seu benefício significa que um Efeito que dependa de outro não irá depender.
+
+###### **Exemplo 1: Limitação por Nível**<br>
+{color:,text-align:center}
+
+{{descriptive
+Independente dos exemplos a seguir (2 e 3) um personagem nunca poderá **se beneficiar dessa restrição** para selecionar um efeito acima de seu nível (fora o padrão de dois níveis das restrições extremas). Sendo assim **um personagem nivel 1** mesmo com uma restrição extrema _não poderia pegar_ o efeito **Experiência Comprovada** porque apesar de não ter Efeitos dependentes, possui limitação de nível do personagem. E isso não é ignorado.
+
+{{note
+**NOTA** Restrições Extremas permitem naturalmente que o personagem selecione com seus P.Ns efeitos 2 níveis acima dos seus.
+}}
+}}
+
+###### **Exemplo 2: Limitação por Efeitos**<br>
+{color:,text-align:center}
+
+{{descriptive
+O efeito **Marcar Vontade** que depende de **C.S.C (Controle Simples de Criaturas)**, _poderia ser pego_ mesmo sem C.S.C com o **personagem Nível 1 em Manipulação.**
+}}
+
+###### **Exemplo 3: Limitação por Atributos**<br>
+{color:,text-align:center}
+
+
+{{descriptive
+Ex2: O efeito **Concentração Total** que depende de **Sabedoria 3 ou maior**, _poderia ser pego_ mesmo sem o atributo nesse valor com o **personagem Nível 4 em Reforço.**
+}}
+
+* **Sacrifício de Nen**	A restrição limita o usuário a não poder desbloquear  qualquer princípio ou técnica de nen ou perder o que foi desbloqueado
+
+* **Vida ou Morte**	A restrição limita o usuário a demonstrar sua coragem ou loucura em limites extremos podendo ativar o Hatsu apenas com seus restantes 10% de Pontos de Vida ou Sanidade (já exposto a surtos de loucura)
+:
+* **Vida por Poder**
+
+{{note
+Restrição detalhada em sua descrição inicial
+}}
+_______________________________________________________________________
+4. Mudanças em texto de efeitos que antes davam dados de dano:
+_______________________________________________________________________
+**CORREÇÃO DE EFEITOS**
+
+REFORÇO:  Onda Surda
+
+**De**
+Aplica uma onda de choque que ignora parte da defesa. O alvo sofre +1 dado de dano
+(o maior) mesmo se bloquear com sucesso    
+**Para**
+Seus golpes e ataques ignoram parte da defesa física (bloqueio armado/desarmado) ou defesa com aura. Role **um dos dados** de dano apenas após o calculo de RD ou bloqueio (máximo de dados = metade dos dados disponíveis)
+
+Nível 4
+
+CONJURAÇÃO:
+Característica de Invocação (Destruidor)
+
+**De**
+Todo ataque crítico da conjuração causa 1 dado de dano adicional (o maior).
+**Para**
+Todo ataque crítico da conjuração causa +1 grau/passo de dano
+
+Característica de Invocação (Investida)
+
+**De**
+Sempre que a conjuração se mover pelo menos 4,5 metros em linha reta antes de um ataque, o alvo do ataque realiza um teste de resistência de força, sendo derrubado caso falhe, além de receber 1 dado de dano adicional.
+**Para**
+Sempre que a conjuração se mover pelo menos 4,5 metros em linha reta antes de um ataque, o alvo do ataque realiza um teste de resistência de força, sendo derrubado caso falhe, além de receber +1 grau/passo de dano.
+_______________________________________________________________________
+5. Mudança na tabela de dano.
+_______________________________________________________________________
+
+##### Aplicando Prejuízos
+
+Um Hatsu pode ser baseado em prejudicar (diminuir) os Graus de Potência do inimigo. A mecânica funciona da mesma forma, mas no lugar de aumentar, os valores são subtraídos
+}}
+{{wide
+##### Tabela de grau/passo de dados de dano por % de aura
+{color:,text-align:center}
+| | | | | |  |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| 1d4 | 1d6 | 1d8 | 1d10 | 1d12 | **2d6** |
+| 2d8 | 2d10 | 2d12 | 3d10 | 4d8 | 3d12 |
+| 4d10 | 4d12 | 5d10 | 7d8 | 6d10 | 8d8 |
+| 7d10 | 6d12 | 8d10 | 7d12 | 9d10 | 8d12 |
+| 10d10 | 9d12 | 11d10 | 10d12 | 13d10 | 11d12 |
+| 14d10 | 12d12 | 15d10 | 13d12 | 16d10 | 14d12 |
+| 17d10 | 15d12 | 19d10 | 16d12 | 20d10 | 17d12 |
+| 18d12 | 19d12 | 20d12 | 13d20 | 14d20 | 15d20 |
+| 16d20 | 18d20 | 20d20 | 20d20+5|20d20+10 |20d20+15... |
+
+
+{{note
+*Ao fim da Tabela qualquer novo gasto de REN converte-se em +5 de dano fixo em vez de avançar na tabela.*
+{color:,text-align:center}
+}}
+}}
