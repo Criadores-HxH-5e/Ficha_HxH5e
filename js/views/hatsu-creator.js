@@ -66,8 +66,9 @@
         var grauTotals = window.calcGrausPotenciaPorCaracteristica(grauShim, char.level);
         var GRAU_LABELS = { dano:'🔥 Dano/Cura', alcance:'📏 Alcance', area:'🔵 Área', duracao:'⏱️ Duração', acerto:'⚔️ Acerto', cd:'🎯 CD do TR' };
         var grauChips = Object.keys(GRAU_LABELS).filter(function(k){ return grauTotals[k] > 0; }).map(function(k) {
-            var over = grauTotals[k] > grauMaxNivel;
-            return '<span style="font-size:8px;font-weight:900;padding:2px 7px;border-radius:10px;background:' + (over ? '#ef444422' : '#1f2937') + ';color:' + (over ? '#f87171' : '#9ca3af') + '">' + GRAU_LABELS[k] + ': ' + grauTotals[k] + '/' + grauMaxNivel + '</span>';
+            var grauMaxCar = window.calcMaxGrauPorCaracteristica ? window.calcMaxGrauPorCaracteristica(char.level, char.class, k) : grauMaxNivel;
+            var over = grauTotals[k] > grauMaxCar;
+            return '<span style="font-size:8px;font-weight:900;padding:2px 7px;border-radius:10px;background:' + (over ? '#ef444422' : '#1f2937') + ';color:' + (over ? '#f87171' : '#9ca3af') + '">' + GRAU_LABELS[k] + ': ' + grauTotals[k] + '/' + grauMaxCar + '</span>';
         }).join('');
         if (!grauChips) return '';
         return '<div style="background:#0f1117;border:1px solid #1f2937;border-radius:10px;padding:8px;margin-bottom:10px">'
@@ -2106,13 +2107,14 @@ window._hSnapshotGrauTotals = function(hb) {
 window._hCheckGrauLimiteENotify = function(hb, beforeTotals) {
     if (!window.calcGrausPotenciaPorCaracteristica || !window.calcMaxGrauPorNivel) return true;
     const char = state.currentChar; if (!char) return true;
-    const grauMax = window.calcMaxGrauPorNivel(char.level);
-    if (grauMax === Infinity) return true; // nível 11-12: ilimitado
+    const grauMaxBase = window.calcMaxGrauPorNivel(char.level);
+    if (grauMaxBase === Infinity) return true; // nível 11-12: ilimitado
     const totals = window._hSnapshotGrauTotals(hb);
     const LABELS = { dano:'🔥 Dano/Cura', alcance:'📏 Alcance', area:'🔵 Área', duracao:'⏱️ Duração', acerto:'⚔️ Acerto', cd:'🎯 CD do TR' };
     for (const k in totals) {
         const before = beforeTotals ? (beforeTotals[k] || 0) : 0;
         if (totals[k] <= before) continue; // não piorou nesta ação — não é essa ação que estourou
+        const grauMax = window.calcMaxGrauPorCaracteristica ? window.calcMaxGrauPorCaracteristica(char.level, char.class, k) : grauMaxBase;
         if (totals[k] > grauMax) {
             window._hShowGrauLimiteToast(LABELS[k], totals[k], grauMax, char.level || 1);
             return false;

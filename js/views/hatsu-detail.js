@@ -126,6 +126,16 @@ window.CATEGORIA_CARACTERISTICAS_GRAU = {
     'EMISSÃO':        ['acerto', 'alcance', 'area'],
 };
 
+// Peculiaridades da Categoria: TODAS as características da lista acima (não só uma) já nascem com
+// piso de +5 no Grau de Potência, mesmo quando calcMaxGrauPorNivel ainda travaria em +3 (nível 1-2).
+// Fora dessas características (ou fora da categoria), vale o limite normal por nível.
+window.calcMaxGrauPorCaracteristica = function(charLevel, classe, caracteristica) {
+    const base = window.calcMaxGrauPorNivel(charLevel);
+    if (base === Infinity) return base;
+    const peculiares = window.CATEGORIA_CARACTERISTICAS_GRAU[classe] || [];
+    return peculiares.includes(caracteristica) ? Math.max(base, 5) : base;
+};
+
 // Nível em que o bônus do Juramento Imutável (rg_e5) passa a valer: 3 níveis após a restrição
 // ter sido adquirida (h.juramentoImutavelNivelBase, gravado quando o jogador seleciona rg_e5).
 window.calcJuramentoImutavelNivelAtivo = function(h) {
@@ -277,7 +287,7 @@ window.calcHatsuAuraCostFinal = function(h, idx) {
 window.calcRenGrauDisponivel = function(h, char) {
     if (!h || !char || !char.nenDominio || !(char.nenDominio.ren > 0)) return false;
     if (!window.calcGrausPotenciaPorCaracteristica || !window.calcMaxGrauPorNivel) return false;
-    const grauMax = window.calcMaxGrauPorNivel(char.level);
+    const grauMax = window.calcMaxGrauPorCaracteristica ? window.calcMaxGrauPorCaracteristica(char.level, h.classe, 'dano') : window.calcMaxGrauPorNivel(char.level);
     if (grauMax === Infinity) return true;
     const totals = window.calcGrausPotenciaPorCaracteristica(h, char.level);
     return totals.dano < grauMax;
@@ -306,7 +316,7 @@ window._hCalcGrauVariavel = function(idx, restrId) {
     const x = Math.max(0, parseInt(xInput.value) || 0);
     const caract = carSelect.value;
     const LABELS = { dano:'Dano/Cura', alcance:'Alcance', area:'Área', duracao:'Duração', acerto:'Acerto', cd:'CD do TR' };
-    const grauMax = window.calcMaxGrauPorNivel ? window.calcMaxGrauPorNivel(char.level) : Infinity;
+    const grauMax = window.calcMaxGrauPorCaracteristica ? window.calcMaxGrauPorCaracteristica(char.level, h.classe, caract) : (window.calcMaxGrauPorNivel ? window.calcMaxGrauPorNivel(char.level) : Infinity);
     if (grauMax === Infinity) {
         resEl.innerHTML = '<span style="color:#4ade80;font-weight:700">✓ Nível 11+ — sem limite de Grau de Potência</span>';
         return;

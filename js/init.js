@@ -192,13 +192,27 @@ function closeHatsuCreator() {
             overlay.id = 'talent-bonus-overlay';
             overlay.style.cssText = 'position:fixed;inset:0;background:#000000dd;display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;font-family:Rajdhani,sans-serif';
 
+            // rev. Manual 2.0 — os +2 Graus do Talentoso somam ao que o Hatsu já tem na mesma
+            // característica (restrições/efeitos + 5 Graus do 1º Hatsu). Não pode estourar o teto
+            // combinado (calcMaxGrauPorCaracteristica: +5 nas peculiaridades da categoria).
+            const classeParaCapTalento = (hatsuData && hatsuData.classe) || char.class || '';
+            function _capInfoTalento(id) {
+                if (!window.calcGrausPotenciaPorCaracteristica || !window.calcMaxGrauPorCaracteristica || !hatsuData) {
+                    return { blocked: false, atual: 0, cap: Infinity };
+                }
+                const baseTotals = window.calcGrausPotenciaPorCaracteristica(hatsuData, char.level);
+                const atual = (baseTotals[id] || 0) + 2;
+                const cap = window.calcMaxGrauPorCaracteristica(char.level, classeParaCapTalento, id);
+                return { blocked: cap !== Infinity && atual > cap, atual, cap };
+            }
+
             // Graus options for Talentoso
             const grauOpts = isTalentoso ? [
-                { id:'dano',    label:'+2 Graus de Dano', desc:'Aumenta o dado base de dano do hatsu em 2 passos' },
-                { id:'alcance', label:'+2 Graus de Alcance', desc:'+3m de alcance por grau' },
-                { id:'area',    label:'+2 Graus de Área', desc:'+1,5m de área por grau' },
-                { id:'duracao', label:'+2 Graus de Duração', desc:'+1 rodada por grau' },
-                { id:'livre',   label:'Guardar como Graus Livres', desc:'Use quando quiser, em qualquer Hatsu futuro' },
+                Object.assign({ id:'dano',    label:'+2 Graus de Dano', desc:'Aumenta o dado base de dano do hatsu em 2 passos' }, _capInfoTalento('dano')),
+                Object.assign({ id:'alcance', label:'+2 Graus de Alcance', desc:'+3m de alcance por grau' }, _capInfoTalento('alcance')),
+                Object.assign({ id:'area',    label:'+2 Graus de Área', desc:'+1,5m de área por grau' }, _capInfoTalento('area')),
+                Object.assign({ id:'duracao', label:'+2 Graus de Duração', desc:'+1 rodada por grau' }, _capInfoTalento('duracao')),
+                { id:'livre',   label:'Guardar como Graus Livres', desc:'Use quando quiser, em qualquer Hatsu futuro', blocked:false },
             ] : [];
 
             // Ultimate bonus options
@@ -226,11 +240,12 @@ function closeHatsuCreator() {
                     ${opts.length > 0 ? `
                     <div id="talent-opts-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
                         ${opts.map((o,i) => `
-                        <div onclick="window._selectTalentOpt('${o.id}',${i})"
+                        <div ${o.blocked ? '' : `onclick="window._selectTalentOpt('${o.id}',${i})"`}
                             id="talent-opt-${i}"
-                            style="padding:12px 14px;border-radius:12px;border:2px solid #1f2937;background:#0a0f1a;cursor:pointer;transition:all .15s">
+                            style="padding:12px 14px;border-radius:12px;border:2px solid #1f2937;background:#0a0f1a;cursor:${o.blocked?'not-allowed':'pointer'};transition:all .15s;opacity:${o.blocked?'0.45':'1'}">
                             <div style="font-size:11px;font-weight:700;color:#e5e7eb">${o.label}</div>
                             <div style="font-size:9px;color:#9ca3af;margin-top:3px">${o.desc}</div>
+                            ${o.blocked ? `<div style="font-size:8px;color:#f87171;margin-top:4px;font-weight:700">⚠ Excede o limite de Grau de Potência (${o.atual}/${o.cap})</div>` : ''}
                         </div>`).join('')}
                     </div>
                     <button id="talent-confirm-btn" disabled onclick="window._confirmTalentBonus()"
@@ -298,10 +313,25 @@ function closeHatsuCreator() {
                 char.talentBonus.grausLivres = (char.talentBonus.grausLivres || 0) + 2;
                 char.talentBonus.applied = 'graus_livres';
             } else {
-                // Apply to this hatsu's damage table directly
+                // Apply to this hatsu's damage table directly — revalida o teto de Grau de Potência
+                // (mesma regra do modal dos 5 Graus do 1º Hatsu) antes de gravar, por segurança.
+                const hIdx = char.hatsus.findIndex(h => h.id === hatsuData.id);
+                const targetH = hIdx >= 0 ? char.hatsus[hIdx] : hatsuData;
+                if (window.calcGrausPotenciaPorCaracteristica && window.calcMaxGrauPorCaracteristica) {
+                    const classe = targetH.classe || char.class;
+                    const baseTotals = window.calcGrausPotenciaPorCaracteristica(Object.assign({}, targetH, { bonusGraus: null }), char.level);
+                    const atual = (baseTotals[opt] || 0) + 2;
+                    const cap = window.calcMaxGrauPorCaracteristica(char.level, classe, opt);
+                    if (cap !== Infinity && atual > cap) {
+                        if (window._hShowGrauLimiteToast) {
+                            const LABELS = { dano:'🔥 Dano/Cura', alcance:'📏 Alcance', area:'🔵 Área', duracao:'⏱️ Duração', acerto:'⚔️ Acerto', cd:'🎯 CD do TR' };
+                            window._hShowGrauLimiteToast(LABELS[opt] || opt, atual, cap, char.level || 1);
+                        }
+                        return;
+                    }
+                }
                 char.talentBonus.applied = opt;
                 char.talentBonus.grausHatsu = { tipo: opt, valor: 2, hatsuId: hatsuData.id };
-                const hIdx = char.hatsus.findIndex(h => h.id === hatsuData.id);
                 if (hIdx >= 0) char.hatsus[hIdx].bonusGraus = { tipo: opt, valor: 2 };
             }
 
@@ -344,6 +374,18 @@ function closeHatsuCreator() {
             const alloc = {};
             available.forEach(k => alloc[k] = existing[k] || 0);
 
+            // rev. Manual 2.0 — os pontos deste modal SOMAM ao Grau de Potência que restrições/efeitos
+            // já deram à mesma característica (ex: Distância Segura, Interação Sensorial Simples).
+            // O teto por característica (calcMaxGrauPorCaracteristica: +5 nas peculiaridades da
+            // categoria, mesmo em nível 1-2) é sobre o TOTAL combinado, não sobre este pool isolado.
+            const TRACKED_KEYS = ['dano', 'alcance', 'area', 'duracao', 'acerto', 'cd'];
+            const baseShim = Object.assign({}, h, { primeiroHatsuGraus: null });
+            const baseTotals = window.calcGrausPotenciaPorCaracteristica ? window.calcGrausPotenciaPorCaracteristica(baseShim, char.level) : {};
+            const grauMaxByKey = {};
+            TRACKED_KEYS.forEach(k => {
+                grauMaxByKey[k] = window.calcMaxGrauPorCaracteristica ? window.calcMaxGrauPorCaracteristica(char.level, hatsuClasse, k) : Infinity;
+            });
+
             const overlay = document.createElement('div');
             overlay.id = 'primeiro-hatsu-overlay';
             overlay.style.cssText = 'position:fixed;inset:0;background:#000000dd;display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;font-family:Rajdhani,sans-serif';
@@ -355,11 +397,19 @@ function closeHatsuCreator() {
                 const rowsHtml = available.map(k => {
                     const info = GRAU_INFO[k] || { label: k, desc: '' };
                     const val = alloc[k] || 0;
-                    const canAdd = remaining > 0;
+                    const isTracked = TRACKED_KEYS.includes(k);
+                    const base = isTracked ? (baseTotals[k] || 0) : 0;
+                    const capK = isTracked ? grauMaxByKey[k] : Infinity;
+                    const roomLeft = capK === Infinity ? Infinity : capK - base - val;
+                    const canAdd = remaining > 0 && (roomLeft === Infinity || roomLeft > 0);
+                    const capNote = (isTracked && capK !== Infinity && base > 0)
+                        ? `<div style="font-size:7px;color:${roomLeft<=0?'#f87171':'#6b7280'};margin-top:2px">Já possui +${base} nesta característica (máx. total: ${capK})</div>`
+                        : '';
                     return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#0a0f1a;border-radius:10px;border:1px solid ${val>0?tc+'44':'#1f2937'}">
                         <div>
                             <div style="font-size:11px;font-weight:700;color:${val>0?tc:'#d1d5db'}">${info.label}</div>
                             <div style="font-size:8px;color:#6b7280">${info.desc}</div>
+                            ${capNote}
                         </div>
                         <div style="display:flex;align-items:center;gap:8px">
                             <button onclick="window._phGrauDecr('${k}')"
@@ -394,6 +444,17 @@ function closeHatsuCreator() {
             window._phGrauIncr = function(k) {
                 const total = Object.values(alloc).reduce((s,v) => s+v, 0);
                 if (total >= TOTAL) return;
+                if (TRACKED_KEYS.includes(k)) {
+                    const capK = grauMaxByKey[k];
+                    const base = baseTotals[k] || 0;
+                    if (capK !== Infinity && base + (alloc[k]||0) + 1 > capK) {
+                        if (window._hShowGrauLimiteToast) {
+                            const LABELS = { dano:'🔥 Dano/Cura', alcance:'📏 Alcance', area:'🔵 Área', duracao:'⏱️ Duração', acerto:'⚔️ Acerto', cd:'🎯 CD do TR' };
+                            window._hShowGrauLimiteToast(LABELS[k] || k, base + (alloc[k]||0) + 1, capK, char.level || 1);
+                        }
+                        return;
+                    }
+                }
                 alloc[k] = (alloc[k]||0) + 1;
                 rebuild();
             };
