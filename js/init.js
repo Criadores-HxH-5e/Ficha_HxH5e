@@ -25,6 +25,7 @@ function openHatsuEdit(idx) {
         pureRestrictions: {...(h.pureRestrictions||{})},
         restrTab: 'gerais',
         specialChoices: {...(h.specialChoices||{})},
+        efeitoNiveis: JSON.parse(JSON.stringify(h.efeitoNiveis||{})),
         juramentoImutavelNivelBase: h.juramentoImutavelNivelBase != null ? h.juramentoImutavelNivelBase : undefined,
         editingIdx: idx
     };
@@ -35,7 +36,7 @@ function openHatsuEdit(idx) {
 //Criação de Nen
 function openHatsuCreator() {
     state.view = 'HATSU_CREATOR';
-    state.hatsuBuilder = { step:0, nome:'', descricao:'', tipoA:'', tipoB:'', rg:[], rc:[], eg:[], ec:[], openAccordions:['leves','moderadas','pesadas','variaveis','extremas'], restrTab:'gerais', beneficioChoices:{} };
+    state.hatsuBuilder = { step:0, nome:'', descricao:'', tipoA:'', tipoB:'', rg:[], rc:[], eg:[], ec:[], openAccordions:['leves','moderadas','pesadas','variaveis','extremas'], restrTab:'gerais', beneficioChoices:{}, efeitoNiveis:{} };
     render();
 }
 

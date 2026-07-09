@@ -1090,20 +1090,14 @@
         function setRollMode(mode) { state.rollMode = mode; render(true); }
         function updateSheetAttr(key, delta) {
             const char = state.currentChar;
-            if (state.isAdmin) {
-                char.attributes[key].value += delta;
-                saveCharacter(char);
-                render(true);
-                return;
-            }
             const pending = char.pendingAttrPoints;
             if (delta > 0) {
                 if (pending !== undefined && pending !== null) {
-                    if (pending <= 0) {
+                    if (pending <= 0 && !state.isAdmin) {
                         window._showXpToast('⚠️ Sem pontos de atributo para distribuir!');
                         return;
                     }
-                    char.pendingAttrPoints = pending - 1;
+                    char.pendingAttrPoints = Math.max(0, pending - 1);
                 }
             } else if (delta < 0 && pending !== undefined && pending !== null) {
                 char.pendingAttrPoints = pending + 1;
@@ -1291,7 +1285,7 @@
             const conMod = getMod(char.attributes?.CON?.value || 10);
             const hasGiantBody = (char.inclinations?.positive || []).some(i => i.nome === 'Corpo de Gigante');
             const giantBonus = hasGiantBody ? 3 : 0;
-            const mediaTotal = Math.max(1, hitDiceData.media + conMod + giantBonus);
+            const mediaTotal = Math.max(1, hitDiceData.media + 1 + giantBonus);
             const tc = getComputedStyle(document.documentElement).getPropertyValue('--theme-color-hex').trim() || '#00ff9d';
             const hasMore = levelNum < totalLevels;
             const isAttrChoice = rewards.attr > 0 && rewards.auraP > 0;
@@ -1333,7 +1327,7 @@
 
                     <!-- Dado de vida -->
                     <div style="background:#0a0f1a;border:1px solid #1f2937;border-radius:12px;padding:14px;margin-bottom:12px">
-                        <div style="font-size:9px;font-weight:900;color:#6b7280;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px">🎲 Vida — ${hitDiceData.dado} ${conMod >= 0 ? '+' : ''}${conMod} CON${giantBonus ? ' +' + giantBonus + ' Gig.' : ''}</div>
+                        <div style="font-size:9px;font-weight:900;color:#6b7280;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px">🎲 Vida — ${hitDiceData.dado}${giantBonus ? ' + ' + giantBonus + ' Gig.' : ''}</div>
                         <div id="lv-dice-result" style="font-family:Orbitron,sans-serif;font-size:38px;font-weight:900;color:#fff;margin-bottom:3px;min-height:48px;line-height:1">—</div>
                         <div id="lv-dice-breakdown" style="font-size:9px;color:#6b7280;min-height:14px"></div>
                         <div style="display:flex;gap:8px;margin-top:10px">
@@ -1382,7 +1376,7 @@
                 document.getElementById('lv-dice-result').textContent = mediaTotal;
                 document.getElementById('lv-dice-result').style.color = '#60a5fa';
                 document.getElementById('lv-dice-result').style.textShadow = '0 0 10px #60a5fa88';
-                let bd = `${hitDiceData.media} (média) + ${conMod >= 0?'+':''}${conMod} CON`;
+                let bd = `${hitDiceData.media} (média) + 1`;
                 if (giantBonus) bd += ` + ${giantBonus} Gigante`;
                 document.getElementById('lv-dice-breakdown').textContent = bd;
                 window._lvEnableConfirm();

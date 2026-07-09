@@ -6,7 +6,7 @@
 
     // Inicializa o builder
     if (!state.hatsuBuilder) {
-        state.hatsuBuilder = { step:0, nome:'', descricao:'', tipoA:'', tipoB:'', rg:[], rc:[], eg:[], ec:[], openAccordions:['leves','moderadas','pesadas','variaveis','extremas'], restrTab:'gerais', beneficioChoices:{}, pureRestrictions:{}, filterText:'', filterStatus:'todos', filterRestrPeso:'todos', specialChoices:{} };
+        state.hatsuBuilder = { step:0, nome:'', descricao:'', tipoA:'', tipoB:'', rg:[], rc:[], eg:[], ec:[], openAccordions:['leves','moderadas','pesadas','variaveis','extremas'], restrTab:'gerais', beneficioChoices:{}, pureRestrictions:{}, filterText:'', filterStatus:'todos', filterRestrPeso:'todos', specialChoices:{}, efeitoNiveis:{} };
     }
     const hb = state.hatsuBuilder;
 
@@ -528,11 +528,20 @@
                 clickAction = `window._hToggleE('${item.id}','${tipo}',${item.pn})`;
             }
 
-            // Count duplicates for this effect
-            const dupCount = hasPureExtreme ? (hb.ec||[]).concat(hb.eg||[]).filter(id => id === item.id).length : 0;
-            const showDupControls = hasPureExtreme && sel && dupCount > 0;
-            // Botão + só ativo se há P.N extremo suficiente para mais uma cópia
-            const canAddDup = hasPureExtreme && extremePNLeft >= item.pn && afford;
+            // Contagem TOTAL de cópias deste efeito (soma de compras via P.N normal por nível + extrema pura)
+            const totalCopies = arr.filter(x => x === item.id).length;
+            const repetivelNiveisArr = (hb.efeitoNiveis && hb.efeitoNiveis[item.id]) || [];
+            const repetivelTracked = item.repetivel ? repetivelNiveisArr.length : 0;
+            const repetivelNesteNivel = item.repetivel && repetivelNiveisArr.some(lv => lv === charLevel);
+            const showRepetivelBadge = item.repetivel && sel && totalCopies > 0;
+
+            // Duplicatas via Restrição Extrema Pura: para efeitos repetíveis, só as cópias ALÉM das já
+            // rastreadas por nível contam como "extra extrema" (senão a mesma cópia seria contada 2x)
+            const extremeExtra = item.repetivel ? Math.max(0, totalCopies - repetivelTracked) : totalCopies;
+            const dupCount = hasPureExtreme ? extremeExtra : 0;
+            const showDupControls = hasPureExtreme && sel && dupCount > 0 && !item.repetivel;
+            // Botão + só ativo se há P.N extremo suficiente para mais uma cópia e não estourou o teto de usos
+            const canAddDup = hasPureExtreme && extremePNLeft >= item.pn && afford && (!item.maxUsos || totalCopies < item.maxUsos);
 
             const lockBadge = blocked
                 ? levelCapBlocked
@@ -542,7 +551,9 @@
                     ? `<span style="font-size:7px;font-weight:900;padding:1px 5px;border-radius:4px;background:#f9731622;color:#fb923c">⚡ KAMIKAZE</span>`
                     : showDupControls
                         ? `<span style="font-size:7px;font-weight:900;padding:1px 5px;border-radius:4px;background:#fbbf2422;color:#fbbf24">×${dupCount} PURA</span>`
-                        : '';
+                        : showRepetivelBadge
+                            ? `<span style="font-size:7px;font-weight:900;padding:1px 5px;border-radius:4px;background:#22c55e22;color:#4ade80">✦ Selecionado ${totalCopies}x${item.maxUsos ? `/${item.maxUsos}` : ''}</span>`
+                            : '';
 
             // Special UI blocks for specific effects
             let specialHtml = '';
@@ -1160,15 +1171,44 @@
                     <span style="font-size:8px;color:#6b7280">(${dupCount} × ${item.pn} P.N = ${dupCount * item.pn} P.N${canAddDup?'':' — sem P.N ⚡'})</span>
                 </div>` : '';
 
-            // Main card onclick: normal toggle unless showing dup controls (then clicking card does nothing extra)
+            // Controles de cópia para efeitos repetíveis (evoluem a cada nível, ex: Aumento de Duração).
+            // Linha "Nível atual": compra/desfaz usando o P.N normal do nível corrente (1 por nível).
+            // Linha "Extra ⚡": só aparece com Restrição Extrema Pura ativa — compra cópias adicionais
+            // além do limite de 1-por-nível, usando o P.N da extrema. As duas linhas somam no mesmo total.
+            const canAddRepetivel = showRepetivelBadge && !repetivelNesteNivel && (!item.maxUsos || totalCopies < item.maxUsos) && pnLeft >= item.pn;
+            const canRemoveRepetivel = showRepetivelBadge && repetivelNesteNivel;
+            const repetivelControlsHtml = showRepetivelBadge ? `
+                <div style="margin-top:6px" onclick="event.stopPropagation()">
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <span style="font-size:8px;color:#4ade80;font-weight:700">Nível atual:</span>
+                        <button onclick="${canRemoveRepetivel ? `window._hRemoveRepetivelE('${item.id}','${tipo}')` : 'void(0)'}"
+                            style="width:22px;height:22px;border-radius:6px;background:${canRemoveRepetivel?'#1f2937':'#1f293755'};border:1px solid ${canRemoveRepetivel?'#374151':'#1f2937'};color:${canRemoveRepetivel?'#f87171':'#4b5563'};font-size:14px;font-weight:900;cursor:${canRemoveRepetivel?'pointer':'not-allowed'};display:flex;align-items:center;justify-content:center;line-height:1">−</button>
+                        <span style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:14px;color:#4ade80;min-width:16px;text-align:center">${repetivelTracked}</span>
+                        <button onclick="${canAddRepetivel ? `window._hAddRepetivelE('${item.id}','${tipo}',${item.pn})` : 'void(0)'}"
+                            style="width:22px;height:22px;border-radius:6px;background:${canAddRepetivel?'#22c55e22':'#1f293755'};border:1px solid ${canAddRepetivel?'#22c55e55':'#374151'};color:${canAddRepetivel?'#4ade80':'#4b5563'};font-size:14px;font-weight:900;cursor:${canAddRepetivel?'pointer':'not-allowed'};display:flex;align-items:center;justify-content:center;line-height:1">+</button>
+                        <span style="font-size:8px;color:#6b7280">${repetivelNesteNivel ? 'já evoluído neste nível' : (canAddRepetivel ? `evoluir custa ${item.pn} P.N` : (item.maxUsos && totalCopies >= item.maxUsos ? 'máximo de usos atingido' : 'sem P.N para evoluir'))}</span>
+                    </div>
+                    ${hasPureExtreme ? `<div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+                        <span style="font-size:8px;color:#fbbf24;font-weight:700">Extra ⚡:</span>
+                        <button onclick="${dupCount > 0 ? `window._hRemoveDuplicateE('${item.id}','${tipo}')` : 'void(0)'}"
+                            style="width:22px;height:22px;border-radius:6px;background:${dupCount>0?'#1f2937':'#1f293755'};border:1px solid ${dupCount>0?'#374151':'#1f2937'};color:${dupCount>0?'#f87171':'#4b5563'};font-size:14px;font-weight:900;cursor:${dupCount>0?'pointer':'not-allowed'};display:flex;align-items:center;justify-content:center;line-height:1">−</button>
+                        <span style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:14px;color:#fbbf24;min-width:16px;text-align:center">${dupCount}</span>
+                        <button onclick="${canAddDup ? `window._hAddDuplicateE('${item.id}','${tipo}',${item.pn})` : 'void(0)'}"
+                            style="width:22px;height:22px;border-radius:6px;background:${canAddDup?'#fbbf2422':'#1f293755'};border:1px solid ${canAddDup?'#fbbf2455':'#374151'};color:${canAddDup?'#fbbf24':'#4b5563'};font-size:14px;font-weight:900;cursor:${canAddDup?'pointer':'not-allowed'};display:flex;align-items:center;justify-content:center;line-height:1">+</button>
+                        <span style="font-size:8px;color:#6b7280">${canAddDup ? `${extremePNLeft} P.N extremo disp.` : 'sem P.N extremo'}</span>
+                    </div>` : ''}
+                    <div style="font-size:8px;color:#6b7280;margin-top:4px">Total: ${totalCopies}${item.maxUsos ? `/${item.maxUsos}` : ''}</div>
+                </div>` : '';
+
+            // Main card onclick: normal toggle unless showing dup/repetível controls (então o clique no card não faz nada)
             const mainClick = blocked
                 ? clickAction
-                : showDupControls
+                : (showDupControls || showRepetivelBadge)
                     ? 'void(0)'
                     : clickAction;
 
             return `<div onclick="${mainClick}"
-                style="padding:8px 10px;border-radius:10px;border:2px solid ${sel ? color : blocked ? (levelCapBlocked ? '#3b82f633' : '#ef444433') : '#1f2937'};background:${sel ? color+'18' : blocked ? '#0f1117' : '#0f1117'};cursor:${blocked ? 'pointer' : showDupControls ? 'default' : afford ? 'pointer' : 'not-allowed'};opacity:${blocked ? '0.45' : afford ? '1' : '0.3'};margin-bottom:8px;transition:all .15s">
+                style="padding:8px 10px;border-radius:10px;border:2px solid ${sel ? color : blocked ? (levelCapBlocked ? '#3b82f633' : '#ef444433') : '#1f2937'};background:${sel ? color+'18' : blocked ? '#0f1117' : '#0f1117'};cursor:${blocked ? 'pointer' : (showDupControls || showRepetivelBadge) ? 'default' : afford ? 'pointer' : 'not-allowed'};opacity:${blocked ? '0.45' : afford ? '1' : '0.3'};margin-bottom:8px;transition:all .15s">
                 <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:3px">
                     <span style="font-size:9px;font-weight:900;text-transform:uppercase;color:${sel ? color : blocked ? '#6b7280' : '#d1d5db'}">${item.nome}</span>
                     <span style="font-size:7px;font-weight:900;padding:1px 5px;border-radius:4px;background:${costColor}22;color:${costColor}">${item.pn} P.N</span>
@@ -1178,6 +1218,7 @@
                 <div style="font-size:8px;color:#6b7280;line-height:1.4">${item.desc}</div>
                 <div style="font-size:7px;color:${blocked ? (levelCapBlocked ? '#60a5fa77' : '#ef444499') : '#374151'};font-style:italic;margin-top:3px">Req: ${item.req}${blocked && !levelCapBlocked ? ` — <span style="color:#f87171;font-weight:700">${blockReason}</span>` : ''}</div>
                 ${dupControlsHtml}
+                ${repetivelControlsHtml}
                 ${specialHtml}
             </div>`;
         }).join('');
@@ -1824,6 +1865,7 @@ window._hNext = function() {
             specialChoices: {...(hb.specialChoices||{})},
             juramentoImutavelNivelBase: hb.juramentoImutavelNivelBase != null ? hb.juramentoImutavelNivelBase : null,
             efeitos: [...hb.eg, ...hb.ec],
+            efeitoNiveis: {...(hb.efeitoNiveis||{})},
             // Only count base P.N consumed (bonus from pure restrictions is local to this hatsu)
             pnUsados: Math.max(0, pnUsed - window.calcPNBonusFromRestr(hb)),
             nivel: char.level,
@@ -1897,6 +1939,14 @@ window._hToggleAccordion = function(key) {
 window._hRemoveDuplicateE = function(id, tipo) {
     const hb = state.hatsuBuilder; if (!hb) return;
     const arr = tipo === 'eg' ? hb.eg : hb.ec;
+    const item = _hFindEfeitoDB(id);
+    // Efeitos repetíveis: nunca remove cópias já rastreadas em hb.efeitoNiveis (compradas com
+    // P.N normal por nível) — só cópias "extra" além dessas (compradas via extrema pura).
+    if (item && item.repetivel) {
+        const tracked = ((hb.efeitoNiveis||{})[id] || []).length;
+        const total = arr.filter(x => x === id).length;
+        if (total <= tracked) return; // não há cópia extra pra remover
+    }
     // Remove last occurrence of id
     const lastIdx = arr.lastIndexOf(id);
     if (lastIdx === -1) return;
@@ -1910,6 +1960,11 @@ window._hAddDuplicateE = function(id, tipo, pn) {
     const _extremePN = window.calcPNFromExtremeRestr ? window.calcPNFromExtremeRestr(hb) : 0;
     const _dupUsed = window.calcDuplicatePNUsed ? window.calcDuplicatePNUsed(hb) : 0;
     if (_extremePN <= 0 || _extremePN - _dupUsed < pn) return;
+    const _itemForCap = _hFindEfeitoDB(id);
+    if (_itemForCap && _itemForCap.maxUsos) {
+        const _arrForCap = tipo === 'eg' ? hb.eg : hb.ec;
+        if (_arrForCap.filter(x => x === id).length >= _itemForCap.maxUsos) return;
+    }
     let used = 0;
     hb.eg.forEach(eid => { const e = window.HATSU_DB.efeitos_gerais.find(x=>x.id===eid); if(e) used+=e.pn; });
     hb.ec.forEach(eid => {
@@ -2243,95 +2298,161 @@ window._hToggleReP1Effect = function(effId) {
     hb.specialChoices['re_p1'] = current;
     renderHatsuInPlace();
 };
+// Busca um efeito (geral ou de qualquer categoria) pelo id
+function _hFindEfeitoDB(id) {
+    const allEDB = [];
+    (window.HATSU_DB.efeitos_gerais||[]).forEach(e => allEDB.push(e));
+    // Inclui efeitos de TODAS as categorias (para suporte cross-category)
+    Object.values(window.HATSU_DB.categorias||{}).forEach(cat => {
+        if (cat && cat.efeitos) cat.efeitos.forEach(e => { if (!allEDB.find(x=>x.id===e.id)) allEDB.push(e); });
+    });
+    return allEDB.find(e => e.id === id);
+}
+
+// Tenta comprar uma cópia do efeito `id` (valida req/PN/guardas) e a adiciona ao array.
+// Se `isRepetivel`, também registra em hb.efeitoNiveis o nível em que a cópia foi comprada.
+// Retorna true se a compra foi efetivada.
+function _hTryComprarEfeito(hb, item, id, tipo, pn, isRepetivel) {
+    const arr = tipo === 'eg' ? hb.eg : hb.ec;
+    const char = state.currentChar;
+    // Verifica requisito de nível/atributo
+    if (item && item.req) {
+        const kamikazeActive = (hb.rg||[]).includes('rg_e6');
+        const req = item.req;
+        const charLevel = parseInt(char.level) || 0;
+        const getMod = v => Math.floor(((v||10) - 10) / 2);
+        const attrMod = k => getMod(char.attributes && char.attributes[k] ? char.attributes[k].value : 10);
+
+        // "Acesso a Reforço" bypass — skip level check entirely
+        let bypassedByReforco = false;
+        if (/acesso\s+a\s+refor[çc]o/i.test(req)) {
+            const REFORCO_CLASSES = ['REFORÇO','INTENSIFICAÇÃO'];
+            bypassedByReforco = REFORCO_CLASSES.includes(char.class) ||
+                (window.CATEGORY_AFFINITY && window.CATEGORY_AFFINITY[char.class] &&
+                 (window.CATEGORY_AFFINITY[char.class]['REFORÇO'] || window.CATEGORY_AFFINITY[char.class]['INTENSIFICAÇÃO']));
+        }
+
+        // Nível sempre verificado (mesmo com Kamikaze)
+        if (!bypassedByReforco) {
+            const lvlMatch = req.match(/N[ií]vel\s+(\d+)/i);
+            if (lvlMatch && charLevel < parseInt(lvlMatch[1])) return false;
+        }
+
+        // Kamikaze ignora atributos e pré-requisitos de efeitos, mas não o nível (já verificado acima)
+        if (!kamikazeActive) {
+            // "ATTR ou ATTR X+"
+            const orAttrPat = /\b(FOR|DES|CON|INT|SAB|PRE)\s+ou\s+(FOR|DES|CON|INT|SAB|PRE)\s+(\d+)\+/gi;
+            let om; const handledByOr = new Set();
+            while ((om = orAttrPat.exec(req)) !== null) {
+                const a1 = om[1].toUpperCase(), a2 = om[2].toUpperCase(), min = parseInt(om[3]);
+                handledByOr.add(a1); handledByOr.add(a2);
+                if (attrMod(a1) < min && attrMod(a2) < min) return false;
+            }
+            // single "ATTR X+"
+            const singlePat = /\b(FOR|DES|CON|INT|SAB|PRE)\s+(\d+)\+/gi;
+            let sm;
+            while ((sm = singlePat.exec(req)) !== null) {
+                const attr = sm[1].toUpperCase(), min = parseInt(sm[2]);
+                if (handledByOr.has(attr)) continue;
+                const orCtx = new RegExp(`(${attr})\\s+ou\\s+\\w+\\s+${min}\\+|\\w+\\s+ou\\s+(${attr})\\s+${min}\\+`, 'i');
+                if (orCtx.test(req)) continue;
+                if (attrMod(attr) < min) return false;
+            }
+        }
+    }
+    // Verifica P.N — busca em efeitos gerais + todas as categorias
+    let used = 0;
+    hb.eg.forEach(eid => { const e = window.HATSU_DB.efeitos_gerais.find(x=>x.id===eid); if(e) used+=e.pn; });
+    hb.ec.forEach(eid => {
+        // Procura o efeito em todas as categorias
+        for (const cat of Object.values(window.HATSU_DB.categorias||{})) {
+            if (!cat || !cat.efeitos) continue;
+            const e = cat.efeitos.find(x=>x.id===eid);
+            if (e) { used += e.pn; break; }
+        }
+    });
+    const _pnSpentOth = window.calcPNSpentInOtherHatsus(state.currentChar, hb.editingIdx); const _pnDom = window.calcPNSpentInDominio ? window.calcPNSpentInDominio(state.currentChar) : 0; const _pnBaseAvail = Math.max(0, window.calcularPHBase(state.currentChar.level) - _pnSpentOth - _pnDom); const _pnBonus = window.calcPNBonusFromRestr(hb); const _pnBaseUsed = Math.max(0, used - _pnBonus); if (_pnBaseUsed + pn > _pnBaseAvail && used + pn > _pnBaseAvail + _pnBonus) return false;
+    // Guarda final: efeitos de ESPECIALIZAÇÃO só para ESPECIALIZAÇÃO, MANIPULAÇÃO e MATERIALIZAÇÃO
+    if (tipo === 'ec') {
+        const _espCatDB = window.HATSU_DB && window.HATSU_DB.categorias['ESPECIALIZAÇÃO'];
+        const _espEfIds = new Set((_espCatDB && _espCatDB.efeitos || []).map(e => e.id));
+        if (_espEfIds.has(id)) {
+            const _charCls = state.currentChar && state.currentChar.class;
+            if (_charCls !== 'ESPECIALIZAÇÃO' && _charCls !== 'MANIPULAÇÃO' && _charCls !== 'MATERIALIZAÇÃO') return false;
+        }
+    }
+    const charLevelNow = parseInt(char.level) || 0;
+    const _beforeE = window._hSnapshotGrauTotals(hb);
+    arr.push(id);
+    if (isRepetivel) {
+        hb.efeitoNiveis = hb.efeitoNiveis || {};
+        hb.efeitoNiveis[id] = (hb.efeitoNiveis[id] || []).concat([charLevelNow]);
+    }
+    // rev. Manual 2.0: reverte a seleção se já ultrapassar o limite de Grau de Potência do nível
+    if (!window._hCheckGrauLimiteENotify(hb, _beforeE)) {
+        const revertIdx = arr.lastIndexOf(id);
+        if (revertIdx > -1) arr.splice(revertIdx, 1);
+        if (isRepetivel) hb.efeitoNiveis[id].pop();
+        return false;
+    }
+    return true;
+}
+
 window._hToggleE = function(id, tipo, pn) {
     const hb = state.hatsuBuilder; if (!hb) return;
     const arr = tipo === 'eg' ? hb.eg : hb.ec;
+    const item = _hFindEfeitoDB(id);
+    const isRepetivel = !!(item && item.repetivel);
+
     const idx = arr.indexOf(id);
     if (idx > -1) {
+        // Efeitos repetíveis já selecionados são geridos pelos controles de cópias (+/−), não pelo clique no card
+        if (isRepetivel) return;
         arr.splice(idx, 1);
     } else {
-        // Verifica requisito de nível/atributo
-        const char = state.currentChar;
-        const allEDB = [];
-        (window.HATSU_DB.efeitos_gerais||[]).forEach(e => allEDB.push(e));
-        // Inclui efeitos de TODAS as categorias (para suporte cross-category)
-        Object.values(window.HATSU_DB.categorias||{}).forEach(cat => {
-            if (cat && cat.efeitos) cat.efeitos.forEach(e => { if (!allEDB.find(x=>x.id===e.id)) allEDB.push(e); });
-        });
-        const item = allEDB.find(e => e.id === id);
-        if (item && item.req) {
-            const kamikazeActive = (hb.rg||[]).includes('rg_e6');
-            const req = item.req;
-            const charLevel = parseInt(char.level) || 0;
-            const getMod = v => Math.floor(((v||10) - 10) / 2);
-            const attrMod = k => getMod(char.attributes && char.attributes[k] ? char.attributes[k].value : 10);
+        _hTryComprarEfeito(hb, item, id, tipo, pn, isRepetivel);
+    }
+    renderHatsuInPlace();
+};
 
-            // "Acesso a Reforço" bypass — skip level check entirely
-            let bypassedByReforco = false;
-            if (/acesso\s+a\s+refor[çc]o/i.test(req)) {
-                const REFORCO_CLASSES = ['REFORÇO','INTENSIFICAÇÃO'];
-                bypassedByReforco = REFORCO_CLASSES.includes(char.class) ||
-                    (window.CATEGORY_AFFINITY && window.CATEGORY_AFFINITY[char.class] &&
-                     (window.CATEGORY_AFFINITY[char.class]['REFORÇO'] || window.CATEGORY_AFFINITY[char.class]['INTENSIFICAÇÃO']));
-            }
+// Compra uma nova cópia de um efeito repetível (evolução no nível atual)
+window._hAddRepetivelE = function(id, tipo, pn) {
+    const hb = state.hatsuBuilder; if (!hb) return;
+    const arr = tipo === 'eg' ? hb.eg : hb.ec;
+    const item = _hFindEfeitoDB(id);
+    if (!item || !item.repetivel) return;
+    const char = state.currentChar;
+    const charLevelNow = parseInt(char.level) || 0;
+    hb.efeitoNiveis = hb.efeitoNiveis || {};
+    const niveisComprados = hb.efeitoNiveis[id] || [];
 
-            // Nível sempre verificado (mesmo com Kamikaze)
-            if (!bypassedByReforco) {
-                const lvlMatch = req.match(/N[ií]vel\s+(\d+)/i);
-                if (lvlMatch && charLevel < parseInt(lvlMatch[1])) return;
-            }
-
-            // Kamikaze ignora atributos e pré-requisitos de efeitos, mas não o nível (já verificado acima)
-            if (!kamikazeActive) {
-                // "ATTR ou ATTR X+"
-                const orAttrPat = /\b(FOR|DES|CON|INT|SAB|PRE)\s+ou\s+(FOR|DES|CON|INT|SAB|PRE)\s+(\d+)\+/gi;
-                let om; const handledByOr = new Set();
-                while ((om = orAttrPat.exec(req)) !== null) {
-                    const a1 = om[1].toUpperCase(), a2 = om[2].toUpperCase(), min = parseInt(om[3]);
-                    handledByOr.add(a1); handledByOr.add(a2);
-                    if (attrMod(a1) < min && attrMod(a2) < min) return;
-                }
-                // single "ATTR X+"
-                const singlePat = /\b(FOR|DES|CON|INT|SAB|PRE)\s+(\d+)\+/gi;
-                let sm;
-                while ((sm = singlePat.exec(req)) !== null) {
-                    const attr = sm[1].toUpperCase(), min = parseInt(sm[2]);
-                    if (handledByOr.has(attr)) continue;
-                    const orCtx = new RegExp(`(${attr})\\s+ou\\s+\\w+\\s+${min}\\+|\\w+\\s+ou\\s+(${attr})\\s+${min}\\+`, 'i');
-                    if (orCtx.test(req)) continue;
-                    if (attrMod(attr) < min) return;
-                }
-            }
-        }
-        // Verifica P.N — busca em efeitos gerais + todas as categorias
-        let used = 0;
-        hb.eg.forEach(eid => { const e = window.HATSU_DB.efeitos_gerais.find(x=>x.id===eid); if(e) used+=e.pn; });
-        hb.ec.forEach(eid => {
-            // Procura o efeito em todas as categorias
-            for (const cat of Object.values(window.HATSU_DB.categorias||{})) {
-                if (!cat || !cat.efeitos) continue;
-                const e = cat.efeitos.find(x=>x.id===eid);
-                if (e) { used += e.pn; break; }
-            }
-        });
-        const _pnSpentOth = window.calcPNSpentInOtherHatsus(state.currentChar, hb.editingIdx); const _pnDom = window.calcPNSpentInDominio ? window.calcPNSpentInDominio(state.currentChar) : 0; const _pnBaseAvail = Math.max(0, window.calcularPHBase(state.currentChar.level) - _pnSpentOth - _pnDom); const _pnBonus = window.calcPNBonusFromRestr(hb); const _pnBaseUsed = Math.max(0, used - _pnBonus); if (_pnBaseUsed + pn > _pnBaseAvail && used + pn > _pnBaseAvail + _pnBonus) return;
-        // Guarda final: efeitos de ESPECIALIZAÇÃO só para ESPECIALIZAÇÃO, MANIPULAÇÃO e MATERIALIZAÇÃO
-        if (tipo === 'ec') {
-            const _espCatDB = window.HATSU_DB && window.HATSU_DB.categorias['ESPECIALIZAÇÃO'];
-            const _espEfIds = new Set((_espCatDB && _espCatDB.efeitos || []).map(e => e.id));
-            if (_espEfIds.has(id)) {
-                const _charCls = state.currentChar && state.currentChar.class;
-                if (_charCls !== 'ESPECIALIZAÇÃO' && _charCls !== 'MANIPULAÇÃO' && _charCls !== 'MATERIALIZAÇÃO') return;
-            }
-        }
-        const _beforeE = window._hSnapshotGrauTotals(hb);
-        arr.push(id);
-        // rev. Manual 2.0: reverte a seleção se já ultrapassar o limite de Grau de Potência do nível
-        if (!window._hCheckGrauLimiteENotify(hb, _beforeE)) {
-            const revertIdx = arr.indexOf(id);
-            if (revertIdx > -1) arr.splice(revertIdx, 1);
+    // Só pode comprar mais uma cópia por nível
+    if (niveisComprados.some(lv => lv === charLevelNow)) return;
+    // Respeita o teto de usos do efeito, se houver
+    if (item.maxUsos) {
+        const totalAtual = arr.filter(x => x === id).length;
+        if (totalAtual >= item.maxUsos) {
+            if (window._showXpToast) window._showXpToast(`⚠️ ${item.nome}: máximo de ${item.maxUsos} usos atingido`);
+            return;
         }
     }
+    _hTryComprarEfeito(hb, item, id, tipo, pn, true);
+    renderHatsuInPlace();
+};
+
+// Desfaz a cópia de um efeito repetível comprada NESTE nível (não mexe em cópias de níveis anteriores)
+window._hRemoveRepetivelE = function(id, tipo) {
+    const hb = state.hatsuBuilder; if (!hb) return;
+    const arr = tipo === 'eg' ? hb.eg : hb.ec;
+    const char = state.currentChar;
+    const charLevelNow = parseInt(char.level) || 0;
+    hb.efeitoNiveis = hb.efeitoNiveis || {};
+    const niveisComprados = hb.efeitoNiveis[id] || [];
+    const lastIdx = niveisComprados.lastIndexOf(charLevelNow);
+    if (lastIdx === -1) return; // nada comprado neste nível para desfazer
+    niveisComprados.splice(lastIdx, 1);
+    const removeIdx = arr.lastIndexOf(id);
+    if (removeIdx > -1) arr.splice(removeIdx, 1);
     renderHatsuInPlace();
 };
 

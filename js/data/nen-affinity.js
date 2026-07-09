@@ -71,44 +71,65 @@ window.calcPNFromExtremeRestr = function(hb) {
     return bonus;
 };
 
-// ── P.N gasto exclusivamente em compras duplicadas (2Âª cópia em diante do mesmo efeito) ──
+// ── P.N gasto exclusivamente em compras duplicadas (2ª cópia em diante do mesmo efeito) ──
+// Efeitos "repetíveis" (evoluem por nível — ex: Aumento de Duração) têm cada cópia comprada
+// com P.N normal já rastreada em hb.efeitoNiveis[id]; essas cópias NÃO contam como duplicata
+// extrema. Só cópias além das rastreadas (compradas via botões de Restrição Extrema Pura) contam.
 window.calcDuplicatePNUsed = function(hb) {
     if (!hb) return 0;
     const allEffects = [...(hb.eg||[]), ...(hb.ec||[])];
-    const seenIds = new Set();
-    let dupPNUsed = 0;
     const allEDB = [...((window.HATSU_DB && window.HATSU_DB.efeitos_gerais)||[])];
     if (window.HATSU_DB && window.HATSU_DB.categorias) {
         Object.values(window.HATSU_DB.categorias).forEach(cat => {
             if (cat && cat.efeitos) cat.efeitos.forEach(e => { if (!allEDB.find(x=>x.id===e.id)) allEDB.push(e); });
         });
     }
-    allEffects.forEach(eid => {
-        if (seenIds.has(eid)) {
-            const effect = allEDB.find(x => x.id === eid);
-            if (effect) dupPNUsed += (effect.pn || 0);
-        } else {
-            seenIds.add(eid);
-        }
+    const efeitoNiveis = hb.efeitoNiveis || {};
+    const counts = {};
+    allEffects.forEach(eid => { counts[eid] = (counts[eid] || 0) + 1; });
+    let dupPNUsed = 0;
+    Object.keys(counts).forEach(eid => {
+        const total = counts[eid];
+        const effect = allEDB.find(x => x.id === eid);
+        if (!effect) return;
+        const trackedNormal = effect.repetivel ? Math.min(total, (efeitoNiveis[eid] || []).length) : Math.min(total, 1);
+        const extra = Math.max(0, total - trackedNormal);
+        dupPNUsed += extra * (effect.pn || 0);
     });
     return dupPNUsed;
 };
 
 // ── Remove duplicatas de efeitos quando o P.N extremo disponível é insuficiente ──
+// Nunca remove cópias de efeitos repetíveis já rastreadas em hb.efeitoNiveis (compradas com
+// P.N normal por nível) — só remove cópias "extra" além dessas (compradas via extrema pura).
 window._hCleanDuplicatesIfNeeded = function(hb) {
     if (!hb) return;
     const extremePurePN = window.calcPNFromExtremeRestr(hb);
+    const allEDB = [...((window.HATSU_DB && window.HATSU_DB.efeitos_gerais)||[])];
+    if (window.HATSU_DB && window.HATSU_DB.categorias) {
+        Object.values(window.HATSU_DB.categorias).forEach(cat => {
+            if (cat && cat.efeitos) cat.efeitos.forEach(e => { if (!allEDB.find(x=>x.id===e.id)) allEDB.push(e); });
+        });
+    }
+    function trackedCount(id) {
+        const effect = allEDB.find(x => x.id === id);
+        if (effect && effect.repetivel) return ((hb.efeitoNiveis||{})[id] || []).length;
+        return 1; // efeitos não-repetíveis: só a 1ª cópia é protegida (comportamento original)
+    }
+    function totalCount(id) {
+        return (hb.eg||[]).filter(x => x === id).length + (hb.ec||[]).filter(x => x === id).length;
+    }
     let safety = 50;
     while (safety-- > 0 && window.calcDuplicatePNUsed(hb) > extremePurePN) {
         let removed = false;
         for (let i = (hb.eg||[]).length - 1; i >= 0; i--) {
             const id = hb.eg[i];
-            if ((hb.eg||[]).indexOf(id) !== i) { hb.eg.splice(i, 1); removed = true; break; }
+            if (totalCount(id) > trackedCount(id)) { hb.eg.splice(i, 1); removed = true; break; }
         }
         if (!removed) {
             for (let i = (hb.ec||[]).length - 1; i >= 0; i--) {
                 const id = hb.ec[i];
-                if ((hb.ec||[]).indexOf(id) !== i) { hb.ec.splice(i, 1); removed = true; break; }
+                if (totalCount(id) > trackedCount(id)) { hb.ec.splice(i, 1); removed = true; break; }
             }
         }
         if (!removed) break;
