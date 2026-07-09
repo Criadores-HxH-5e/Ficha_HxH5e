@@ -530,16 +530,17 @@
 
             // Contagem TOTAL de cópias deste efeito (soma de compras via P.N normal por nível + extrema pura)
             const totalCopies = arr.filter(x => x === item.id).length;
+            const itemRepetivel = window.isEfeitoRepetivel(item);
             const repetivelNiveisArr = (hb.efeitoNiveis && hb.efeitoNiveis[item.id]) || [];
-            const repetivelTracked = item.repetivel ? repetivelNiveisArr.length : 0;
-            const repetivelNesteNivel = item.repetivel && repetivelNiveisArr.some(lv => lv === charLevel);
-            const showRepetivelBadge = item.repetivel && sel && totalCopies > 0;
+            const repetivelTracked = itemRepetivel ? repetivelNiveisArr.length : 0;
+            const repetivelNesteNivel = itemRepetivel && repetivelNiveisArr.some(lv => lv === charLevel);
+            const showRepetivelBadge = itemRepetivel && sel && totalCopies > 0;
 
             // Duplicatas via Restrição Extrema Pura: para efeitos repetíveis, só as cópias ALÉM das já
             // rastreadas por nível contam como "extra extrema" (senão a mesma cópia seria contada 2x)
-            const extremeExtra = item.repetivel ? Math.max(0, totalCopies - repetivelTracked) : totalCopies;
+            const extremeExtra = itemRepetivel ? Math.max(0, totalCopies - repetivelTracked) : totalCopies;
             const dupCount = hasPureExtreme ? extremeExtra : 0;
-            const showDupControls = hasPureExtreme && sel && dupCount > 0 && !item.repetivel;
+            const showDupControls = hasPureExtreme && sel && dupCount > 0 && !itemRepetivel;
             // Botão + só ativo se há P.N extremo suficiente para mais uma cópia e não estourou o teto de usos
             const canAddDup = hasPureExtreme && extremePNLeft >= item.pn && afford && (!item.maxUsos || totalCopies < item.maxUsos);
 
@@ -569,7 +570,16 @@
                         5: ['Sangramento Forte (2d10)','Exaustão Nível 2','Dano Permanente (1d4)'],
                         7: ['Morte Imediata (CD 20 CON)','Exaustão Nível 3','Coma'],
                     };
-                    const selected = specialChoices['eg3'] || [];
+                    // hb.specialChoices['eg3'] é uma lista "flat" de condições — 1 entrada por rodada
+                    // alocada, na ordem em que foi adicionada. Ex: ['Surdo','Surdo','Cego'] = Surdo
+                    // com 2 rodadas + Cego com 1 rodada. Total de entradas ≤ cópias compradas do eg3.
+                    let eg3Points = specialChoices['eg3'];
+                    if (!Array.isArray(eg3Points)) eg3Points = eg3Points ? [eg3Points] : [];
+                    const eg3Counts = {};
+                    eg3Points.forEach(c => { eg3Counts[c] = (eg3Counts[c] || 0) + 1; });
+                    const pontosUsados = eg3Points.length;
+                    const pontosRestantes = Math.max(0, totalCopies - pontosUsados);
+
                     const allAvail = [];
                     Object.entries(CONDITIONS_BY_LEVEL).forEach(([lvl, conds]) => {
                         if (charLevel >= parseInt(lvl)) conds.forEach(c => allAvail.push({c, lvl: parseInt(lvl)}));
@@ -583,19 +593,38 @@
                         'MATERIALIZAÇÃO': ['Agarrado','Imobilizado','Paralisado'],
                     };
                     const suggestions = catSuggestions[char.class] || [];
+
+                    const chosenRowsHtml = Object.keys(eg3Counts).map(c => {
+                        const rodadas = eg3Counts[c];
+                        return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
+                            <span style="flex:1;font-size:9px;font-weight:700;color:${color}">${c}</span>
+                            <span style="font-size:8px;color:#9ca3af">${rodadas} rodada${rodadas>1?'s':''}</span>
+                            <button onclick="event.stopPropagation();window._hEg3RemovePonto('${c}')"
+                                style="width:20px;height:20px;border-radius:5px;background:#1f2937;border:1px solid #374151;color:#f87171;font-size:12px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">−</button>
+                            <button onclick="event.stopPropagation();${pontosRestantes>0?`window._hEg3AddPonto('${c}')`:'void(0)'}"
+                                style="width:20px;height:20px;border-radius:5px;background:${pontosRestantes>0?color+'22':'#1f293755'};border:1px solid ${pontosRestantes>0?color+'55':'#374151'};color:${pontosRestantes>0?color:'#4b5563'};font-size:12px;font-weight:900;cursor:${pontosRestantes>0?'pointer':'not-allowed'};display:flex;align-items:center;justify-content:center;line-height:1">+</button>
+                        </div>`;
+                    }).join('');
+
+                    const addButtonsHtml = allAvail.filter(({c}) => !eg3Counts[c]).map(({c, lvl}) => {
+                        const isSugg = suggestions.includes(c);
+                        const canAdd = pontosRestantes > 0;
+                        return `<button onclick="event.stopPropagation();${canAdd?`window._hEg3AddPonto('${c}')`:'void(0)'}"
+                            style="padding:4px 8px;border-radius:7px;font-size:8px;font-weight:600;cursor:${canAdd?'pointer':'not-allowed'};opacity:${canAdd?1:0.4};border:1.5px solid ${isSugg?color+'66':'#1f2937'};background:${isSugg?color+'11':'transparent'};color:${isSugg?color+'cc':'#9ca3af'};white-space:nowrap">
+                            ${isSugg?'⭐':''}${c}${lvl>1?` <span style="font-size:7px;opacity:.6">Lv${lvl}+</span>`:''}
+                        </button>`;
+                    }).join('');
+
                     specialHtml = `<div style="margin-top:8px;background:#0a0f1a;border:1px solid ${color}33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">
-                        <div style="font-size:8px;font-weight:900;color:${color};text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">🩸¸ Escolha a Condição Aplicada</div>
-                        <div style="display:flex;flex-wrap:wrap;gap:4px">
-                        ${allAvail.map(({c, lvl}) => {
-                            const isSel = Array.isArray(selected) ? selected.includes(c) : selected === c;
-                            const isSugg = suggestions.includes(c);
-                            return `<button onclick="event.stopPropagation();window._hSetSpecialChoice('eg3','${c}')"
-                                style="padding:4px 8px;border-radius:7px;font-size:8px;font-weight:${isSel?'900':'600'};cursor:pointer;border:1.5px solid ${isSel?color:(isSugg?color+'66':'#1f2937')};background:${isSel?color+'22':(isSugg?color+'11':'transparent')};color:${isSel?color:(isSugg?color+'cc':'#9ca3af')};white-space:nowrap">
-                                ${isSugg?'⭐':''}${c}${lvl>1?` <span style="font-size:7px;opacity:.6">Lv${lvl}+</span>`:''}
-                            </button>`;
-                        }).join('')}
+                        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+                            <div style="font-size:8px;font-weight:900;color:${color};text-transform:uppercase;letter-spacing:1px">🩸 Condições Aplicadas</div>
+                            <span style="margin-left:auto;font-size:8px;font-weight:700;color:${pontosRestantes>0?'#4ade80':'#6b7280'}">${pontosUsados}/${totalCopies} rodadas usadas</span>
                         </div>
-                        ${specialChoices['eg3'] ? `<div style="margin-top:8px;font-size:9px;font-weight:700;color:${color}">✓ Condição: ${specialChoices['eg3']}</div>` : '<div style="margin-top:6px;font-size:8px;color:#f87171">⚠ Selecione uma condição</div>'}
+                        ${chosenRowsHtml || '<div style="font-size:8px;color:#f87171;margin-bottom:6px">⚠ Nenhuma condição selecionada</div>'}
+                        <div style="font-size:7px;font-weight:700;color:#4b5563;text-transform:uppercase;letter-spacing:1px;margin:8px 0 4px">
+                            ${pontosRestantes>0 ? `Nova condição (${pontosRestantes} rodada${pontosRestantes>1?'s':''} livre${pontosRestantes>1?'s':''}):` : 'Sem rodadas livres — evolua o efeito pra escolher mais'}
+                        </div>
+                        <div style="display:flex;flex-wrap:wrap;gap:4px">${addButtonsHtml}</div>
                     </div>`;
                 }
 
@@ -844,64 +873,15 @@
                                   : '<div style="font-size:8px;color:#f87171;margin-top:4px">⚠ Escolha a consequência</div>')
                         + '</div>';
                 }
-                // rt_e4: Transmutação Elemental — choose element
+                // rt_e4: Transmutação Elemental — escolhe elemento (1x) + 1 sub-efeito da progressão
+                // por cópia comprada do efeito (trava por nível, igual aos efeitos normais)
                 if (item.id === 'rt_e4') {
-                    const chosen = specialChoices['rt_e4'] || '';
-                    const opts = window.TRANSMUTACAO_DB ? window.TRANSMUTACAO_DB.elemental : [];
-                    specialHtml = '<div style="margin-top:8px;background:#0a0f1a;border:1px solid '+ color +'33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
-                        + '<div style="font-size:8px;font-weight:900;color:'+ color +';text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">⚡ Escolha o Elemento:</div>'
-                        + '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">'
-                        + opts.map(function(o){
-                            var active = chosen === o.id;
-                            return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\'rt_e4\',\''+ o.id +'\')" '
-                                + 'style="padding:5px 8px;border-radius:7px;font-size:8px;font-weight:900;cursor:pointer;border:1.5px solid '+ (active?o.cor:color+'33') +';background:'+ (active?o.cor+'22':'transparent') +';color:'+ (active?o.cor:'#9ca3af') +';transition:all .15s">'
-                                + o.icon +' '+ o.nome +'</button>';
-                        }).join('')
-                        + '</div>'
-                        + (chosen ? (function(){
-                            var sel = opts.find(function(o){return o.id===chosen;});
-                            if (!sel) return '';
-                            return '<div style="background:#060d1a;border:1px solid '+ sel.cor +'44;border-radius:8px;padding:10px">'
-                                + '<div style="font-size:9px;font-weight:900;color:'+ sel.cor +';margin-bottom:4px">'+ sel.icon +' '+ sel.nome +'</div>'
-                                + '<div style="font-size:8px;color:#9ca3af;margin-bottom:6px">'+ sel.efeito +'</div>'
-                                + '<div style="font-size:7px;font-weight:700;color:#4b5563;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Progressão:</div>'
-                                + sel.progressao.map(function(p){
-                                    return '<div style="font-size:8px;color:#6b7280;margin-bottom:3px;padding-left:6px;border-left:2px solid '+ sel.cor+'33 \'>">'
-                                        + '<span style="color:'+ sel.cor +';font-weight:700">Nv '+ p.nivel +' Â· '+ p.nome +'</span> — '+ p.desc +'</div>';
-                                }).join('')
-                                + '</div>';
-                        })() : '<div style="font-size:8px;color:#f87171">⚠ Escolha um elemento para continuar</div>')
-                        + '</div>';
+                    specialHtml = window._hBuildTransmutacaoProgressaoHtml('rt_e4', window.TRANSMUTACAO_DB ? window.TRANSMUTACAO_DB.elemental : [], color, totalCopies, charLevel, hb, '⚡ Escolha o Elemento:');
                 }
 
-                // rt_e5: Transmutação Versátil — choose property
+                // rt_e5: Transmutação Versátil — mesma lógica de rt_e4, mas sobre a lista "versatil"
                 if (item.id === 'rt_e5') {
-                    const chosen = specialChoices['rt_e5'] || '';
-                    const opts = window.TRANSMUTACAO_DB ? window.TRANSMUTACAO_DB.versatil : [];
-                    specialHtml = '<div style="margin-top:8px;background:#0a0f1a;border:1px solid '+ color +'33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
-                        + '<div style="font-size:8px;font-weight:900;color:'+ color +';text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">🔮 Escolha a Propriedade:</div>'
-                        + '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">'
-                        + opts.map(function(o){
-                            var active = chosen === o.id;
-                            return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\'rt_e5\',\''+ o.id +'\')" '
-                                + 'style="padding:5px 8px;border-radius:7px;font-size:8px;font-weight:900;cursor:pointer;border:1.5px solid '+ (active?o.cor:color+'33') +';background:'+ (active?o.cor+'22':'transparent') +';color:'+ (active?o.cor:'#9ca3af') +';transition:all .15s">'
-                                + o.icon +' '+ o.nome +'</button>';
-                        }).join('')
-                        + '</div>'
-                        + (chosen ? (function(){
-                            var sel = opts.find(function(o){return o.id===chosen;});
-                            if (!sel) return '';
-                            return '<div style="background:#060d1a;border:1px solid '+ sel.cor +'44;border-radius:8px;padding:10px">'
-                                + '<div style="font-size:9px;font-weight:900;color:'+ sel.cor +';margin-bottom:4px">'+ sel.icon +' '+ sel.nome +'</div>'
-                                + '<div style="font-size:8px;color:#9ca3af;margin-bottom:6px">'+ sel.efeito +'</div>'
-                                + '<div style="font-size:7px;font-weight:700;color:#4b5563;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Progressão:</div>'
-                                + sel.progressao.map(function(p){
-                                    return '<div style="font-size:8px;color:#6b7280;margin-bottom:3px;padding-left:6px;border-left:2px solid '+ sel.cor+'33 \'>">'
-                                        + '<span style="color:'+ sel.cor +';font-weight:700">Nv '+ p.nivel +' Â· '+ p.nome +'</span> — '+ p.desc +'</div>';
-                                }).join('')
-                                + '</div>';
-                        })() : '<div style="font-size:8px;color:#f87171">⚠ Escolha uma propriedade para continuar</div>')
-                        + '</div>';
+                    specialHtml = window._hBuildTransmutacaoProgressaoHtml('rt_e5', window.TRANSMUTACAO_DB ? window.TRANSMUTACAO_DB.versatil : [], color, totalCopies, charLevel, hb, '🔮 Escolha a Propriedade:');
                 }
                 // eg6: Poder é Intenção — pn:0, picker de efeito alvo
                 if (item.id === 'eg6') {
@@ -1942,7 +1922,7 @@ window._hRemoveDuplicateE = function(id, tipo) {
     const item = _hFindEfeitoDB(id);
     // Efeitos repetíveis: nunca remove cópias já rastreadas em hb.efeitoNiveis (compradas com
     // P.N normal por nível) — só cópias "extra" além dessas (compradas via extrema pura).
-    if (item && item.repetivel) {
+    if (window.isEfeitoRepetivel(item)) {
         const tracked = ((hb.efeitoNiveis||{})[id] || []).length;
         const total = arr.filter(x => x === id).length;
         if (total <= tracked) return; // não há cópia extra pra remover
@@ -1951,6 +1931,7 @@ window._hRemoveDuplicateE = function(id, tipo) {
     const lastIdx = arr.lastIndexOf(id);
     if (lastIdx === -1) return;
     arr.splice(lastIdx, 1);
+    _hClampSpecialArray(hb, id, tipo);
     renderHatsuInPlace();
 };
 
@@ -2024,6 +2005,140 @@ window._hSetSpecialText = function(id, val) {
     if (!hb.specialChoices) hb.specialChoices = {};
     hb.specialChoices[id] = val;
     // Don't re-render on every keystroke — just store
+};
+
+// eg3 (Condição Perigosa): cada cópia comprada do efeito é 1 "ponto" — usado pra uma condição
+// nova (1ª rodada) ou +1 rodada numa condição já escolhida. hb.specialChoices['eg3'] guarda a
+// lista flat de condições, na ordem em que os pontos foram gastos.
+window._hEg3AddPonto = function(condicao) {
+    const hb = state.hatsuBuilder; if (!hb) return;
+    if (!hb.specialChoices) hb.specialChoices = {};
+    let arr = hb.specialChoices['eg3'];
+    if (!Array.isArray(arr)) arr = arr ? [arr] : [];
+    const totalCopiasEg3 = (hb.eg||[]).filter(x => x === 'eg3').length;
+    if (arr.length >= totalCopiasEg3) return; // sem rodadas livres pra gastar
+    arr.push(condicao);
+    hb.specialChoices['eg3'] = arr;
+    renderHatsuInPlace();
+};
+window._hEg3RemovePonto = function(condicao) {
+    const hb = state.hatsuBuilder; if (!hb) return;
+    if (!hb.specialChoices) hb.specialChoices = {};
+    let arr = hb.specialChoices['eg3'];
+    if (!Array.isArray(arr)) arr = arr ? [arr] : [];
+    const idx = arr.lastIndexOf(condicao);
+    if (idx === -1) return;
+    arr.splice(idx, 1);
+    hb.specialChoices['eg3'] = arr;
+    renderHatsuInPlace();
+};
+
+// rt_e4/rt_e5: escolhe um elemento/propriedade (1x) + 1 sub-efeito da progressão daquele elemento
+// por cópia comprada do efeito. hb.specialChoices[itemId+'_elemento'] guarda a escolha do elemento;
+// hb.specialChoices[itemId] guarda a lista flat de sub-efeitos escolhidos (nomes), 1 por cópia.
+function _hBuildTransmutacaoProgressaoHtml(itemId, dbList, color, totalCopies, charLevel, hb, tituloElemento) {
+    const specialChoices = hb.specialChoices || {};
+    const elementoKey = itemId + '_elemento';
+    // Migração: versões antigas guardavam o elemento direto em specialChoices[itemId] (string)
+    if (!specialChoices[elementoKey] && typeof specialChoices[itemId] === 'string' && specialChoices[itemId]) {
+        specialChoices[elementoKey] = specialChoices[itemId];
+        specialChoices[itemId] = [];
+    }
+    const chosenElemento = specialChoices[elementoKey] || '';
+    let escolhas = specialChoices[itemId];
+    if (!Array.isArray(escolhas)) escolhas = [];
+    const pontosUsados = escolhas.length;
+    const pontosRestantes = Math.max(0, totalCopies - pontosUsados);
+
+    const elementButtons = dbList.map(o => {
+        const active = chosenElemento === o.id;
+        return `<button onclick="event.stopPropagation();window._hSetTransmutacaoElemento('${itemId}','${o.id}')"
+            style="padding:5px 8px;border-radius:7px;font-size:8px;font-weight:900;cursor:pointer;border:1.5px solid ${active?o.cor:color+'33'};background:${active?o.cor+'22':'transparent'};color:${active?o.cor:'#9ca3af'};transition:all .15s">
+            ${o.icon} ${o.nome}</button>`;
+    }).join('');
+
+    let progressaoHtml = '<div style="font-size:8px;color:#f87171">⚠ Escolha uma opção para continuar</div>';
+    const sel = dbList.find(o => o.id === chosenElemento);
+    if (sel) {
+        const escolhidos = sel.progressao.filter(p => escolhas.includes(p.nome));
+        const disponiveis = sel.progressao.filter(p => !escolhas.includes(p.nome));
+
+        const escolhidosHtml = escolhidos.map(p => `<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;padding:6px 8px;background:${sel.cor}18;border-radius:7px">
+            <div style="flex:1"><span style="font-size:8px;font-weight:900;color:${sel.cor}">Nv${p.nivel} · ${p.nome}</span>
+            <div style="font-size:7px;color:#9ca3af">${p.desc}</div></div>
+            <button onclick="event.stopPropagation();window._hRemoveTransmutacaoEscolha('${itemId}','${p.nome.replace(/'/g,"\\'")}')"
+                style="width:20px;height:20px;border-radius:5px;background:#1f2937;border:1px solid #374151;color:#f87171;font-size:12px;font-weight:900;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;line-height:1">×</button>
+        </div>`).join('');
+
+        const disponiveisHtml = disponiveis.map(p => {
+            const bloqueado = charLevel < p.nivel;
+            const canPick = !bloqueado && pontosRestantes > 0;
+            const onclick = bloqueado
+                ? `event.stopPropagation();alert('❌ Requisito não atendido\\n\\nNível ${p.nivel} (você está no Nível ${charLevel})')`
+                : (canPick ? `event.stopPropagation();window._hAddTransmutacaoEscolha('${itemId}','${p.nome.replace(/'/g,"\\'")}')` : 'event.stopPropagation()');
+            return `<div onclick="${onclick}" style="display:flex;align-items:center;gap:6px;margin-bottom:5px;padding:6px 8px;background:#0f1117;border:1px solid ${bloqueado?'#ef444433':'#1f2937'};border-radius:7px;cursor:${bloqueado?'pointer':(canPick?'pointer':'not-allowed')};opacity:${bloqueado?0.5:(canPick?1:0.4)}">
+                <div style="flex:1"><span style="font-size:8px;font-weight:900;color:${bloqueado?'#f87171':'#d1d5db'}">Nv${p.nivel} · ${p.nome}</span>
+                <div style="font-size:7px;color:#6b7280">${p.desc}</div></div>
+                ${bloqueado ? `<span style="font-size:7px;font-weight:900;padding:1px 5px;border-radius:4px;background:#ef444422;color:#f87171;flex-shrink:0">❌ REQ</span>` : ''}
+            </div>`;
+        }).join('');
+
+        progressaoHtml = `<div style="background:#060d1a;border:1px solid ${sel.cor}44;border-radius:8px;padding:10px">
+            <div style="font-size:9px;font-weight:900;color:${sel.cor};margin-bottom:4px">${sel.icon} ${sel.nome}</div>
+            <div style="font-size:8px;color:#9ca3af;margin-bottom:8px">${sel.efeito}</div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+                <div style="font-size:7px;font-weight:700;color:#4b5563;text-transform:uppercase;letter-spacing:1px">Sub-efeitos escolhidos</div>
+                <span style="margin-left:auto;font-size:8px;font-weight:700;color:${pontosRestantes>0?'#4ade80':'#6b7280'}">${pontosUsados}/${totalCopies}</span>
+            </div>
+            ${escolhidosHtml || '<div style="font-size:8px;color:#f87171;margin-bottom:6px">⚠ Nenhum sub-efeito escolhido ainda</div>'}
+            <div style="font-size:7px;font-weight:700;color:#4b5563;text-transform:uppercase;letter-spacing:1px;margin:8px 0 4px">
+                ${pontosRestantes>0 ? 'Escolha um sub-efeito disponível:' : 'Sem vagas — compre o efeito de novo em outro nível'}
+            </div>
+            ${disponiveisHtml}
+        </div>`;
+    }
+
+    return `<div style="margin-top:8px;background:#0a0f1a;border:1px solid ${color}33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">
+        <div style="font-size:8px;font-weight:900;color:${color};text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">${tituloElemento}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">${elementButtons}</div>
+        ${progressaoHtml}
+    </div>`;
+}
+window._hBuildTransmutacaoProgressaoHtml = _hBuildTransmutacaoProgressaoHtml;
+
+window._hSetTransmutacaoElemento = function(itemId, elementoId) {
+    const hb = state.hatsuBuilder; if (!hb) return;
+    if (!hb.specialChoices) hb.specialChoices = {};
+    const elementoKey = itemId + '_elemento';
+    if (hb.specialChoices[elementoKey] !== elementoId) {
+        // Trocar de elemento invalida as escolhas de sub-efeito anteriores (eram do elemento antigo)
+        hb.specialChoices[itemId] = [];
+    }
+    hb.specialChoices[elementoKey] = elementoId;
+    renderHatsuInPlace();
+};
+window._hAddTransmutacaoEscolha = function(itemId, nome) {
+    const hb = state.hatsuBuilder; if (!hb) return;
+    if (!hb.specialChoices) hb.specialChoices = {};
+    let arr = hb.specialChoices[itemId];
+    if (!Array.isArray(arr)) arr = [];
+    const tipo = itemId.startsWith('eg') ? 'eg' : 'ec';
+    const totalCopias = ((tipo === 'eg' ? hb.eg : hb.ec) || []).filter(x => x === itemId).length;
+    if (arr.length >= totalCopias || arr.includes(nome)) return;
+    arr.push(nome);
+    hb.specialChoices[itemId] = arr;
+    renderHatsuInPlace();
+};
+window._hRemoveTransmutacaoEscolha = function(itemId, nome) {
+    const hb = state.hatsuBuilder; if (!hb) return;
+    if (!hb.specialChoices) hb.specialChoices = {};
+    let arr = hb.specialChoices[itemId];
+    if (!Array.isArray(arr)) arr = [];
+    const idx = arr.indexOf(nome);
+    if (idx === -1) return;
+    arr.splice(idx, 1);
+    hb.specialChoices[itemId] = arr;
+    renderHatsuInPlace();
 };
 
 window._hShowDanoInfo = function(idx, btn) {
@@ -2402,7 +2517,7 @@ window._hToggleE = function(id, tipo, pn) {
     const hb = state.hatsuBuilder; if (!hb) return;
     const arr = tipo === 'eg' ? hb.eg : hb.ec;
     const item = _hFindEfeitoDB(id);
-    const isRepetivel = !!(item && item.repetivel);
+    const isRepetivel = window.isEfeitoRepetivel(item);
 
     const idx = arr.indexOf(id);
     if (idx > -1) {
@@ -2420,7 +2535,7 @@ window._hAddRepetivelE = function(id, tipo, pn) {
     const hb = state.hatsuBuilder; if (!hb) return;
     const arr = tipo === 'eg' ? hb.eg : hb.ec;
     const item = _hFindEfeitoDB(id);
-    if (!item || !item.repetivel) return;
+    if (!window.isEfeitoRepetivel(item)) return;
     const char = state.currentChar;
     const charLevelNow = parseInt(char.level) || 0;
     hb.efeitoNiveis = hb.efeitoNiveis || {};
@@ -2440,6 +2555,18 @@ window._hAddRepetivelE = function(id, tipo, pn) {
     renderHatsuInPlace();
 };
 
+// Corta hb.specialChoices[id] (quando é uma lista de "pontos" alocados, ex: eg3) de volta ao
+// tamanho do total de cópias do efeito, removendo do FIM (pontos mais recentemente adicionados) —
+// chamado sempre que uma cópia do efeito é removida, pra nunca deixar mais pontos alocados do que
+// cópias compradas.
+function _hClampSpecialArray(hb, id, tipo) {
+    const sc = hb.specialChoices && hb.specialChoices[id];
+    if (!Array.isArray(sc)) return;
+    const arr = tipo === 'eg' ? hb.eg : hb.ec;
+    const total = arr.filter(x => x === id).length;
+    if (sc.length > total) sc.length = total;
+}
+
 // Desfaz a cópia de um efeito repetível comprada NESTE nível (não mexe em cópias de níveis anteriores)
 window._hRemoveRepetivelE = function(id, tipo) {
     const hb = state.hatsuBuilder; if (!hb) return;
@@ -2453,6 +2580,7 @@ window._hRemoveRepetivelE = function(id, tipo) {
     niveisComprados.splice(lastIdx, 1);
     const removeIdx = arr.lastIndexOf(id);
     if (removeIdx > -1) arr.splice(removeIdx, 1);
+    _hClampSpecialArray(hb, id, tipo);
     renderHatsuInPlace();
 };
 

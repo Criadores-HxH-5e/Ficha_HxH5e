@@ -1,5 +1,11 @@
 ﻿        //HATSU CREATOR — baseado no Manual de Hatsus HxH5e RPG 2.0
 
+// Por padrão, TODO efeito é repetível (pode ser comprado de novo, uma vez por nível) — a menos
+// que seja marcado explicitamente com repetivel:false em hatsu-db.js.
+window.isEfeitoRepetivel = function(item) {
+    return !!item && item.repetivel !== false;
+};
+
 // Calculate bonus P.N granted by selected restrictions
 window.calcPNBonusFromRestr = function(hb) {
     if (!hb) return 0;
@@ -92,7 +98,7 @@ window.calcDuplicatePNUsed = function(hb) {
         const total = counts[eid];
         const effect = allEDB.find(x => x.id === eid);
         if (!effect) return;
-        const trackedNormal = effect.repetivel ? Math.min(total, (efeitoNiveis[eid] || []).length) : Math.min(total, 1);
+        const trackedNormal = window.isEfeitoRepetivel(effect) ? Math.min(total, (efeitoNiveis[eid] || []).length) : Math.min(total, 1);
         const extra = Math.max(0, total - trackedNormal);
         dupPNUsed += extra * (effect.pn || 0);
     });
@@ -113,8 +119,8 @@ window._hCleanDuplicatesIfNeeded = function(hb) {
     }
     function trackedCount(id) {
         const effect = allEDB.find(x => x.id === id);
-        if (effect && effect.repetivel) return ((hb.efeitoNiveis||{})[id] || []).length;
-        return 1; // efeitos não-repetíveis: só a 1ª cópia é protegida (comportamento original)
+        if (window.isEfeitoRepetivel(effect)) return ((hb.efeitoNiveis||{})[id] || []).length;
+        return 1; // efeitos marcados repetivel:false: só a 1ª cópia é protegida (comportamento original)
     }
     function totalCount(id) {
         return (hb.eg||[]).filter(x => x === id).length + (hb.ec||[]).filter(x => x === id).length;
