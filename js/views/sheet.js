@@ -1480,6 +1480,15 @@
                 positive: JSON.parse(JSON.stringify((char.inclinations && char.inclinations.positive) || [])),
                 negative: JSON.parse(JSON.stringify((char.inclinations && char.inclinations.negative) || []))
             };
+            let giFilterText = '';
+
+            function giMatchesFilter(inc) {
+                const ft = giFilterText.trim().toLowerCase();
+                if (!ft) return true;
+                if (inc.nome.toLowerCase().includes(ft) || (inc.desc || '').toLowerCase().includes(ft)) return true;
+                if (inc.hasOptions) return inc.options.some(o => o.label.toLowerCase().includes(ft) || (o.desc || '').toLowerCase().includes(ft));
+                return false;
+            }
 
             function giPosCost() { return draft.positive.reduce((a, i) => a + i.custo, 0); }
             function giNegVal()  { return draft.negative.reduce((a, i) => a + i.valor, 0); }
@@ -1496,6 +1505,12 @@
                 document.getElementById('gi-modal-overlay')?.remove();
                 document.body.insertAdjacentHTML('beforeend', buildGiHtml());
             }
+
+            window._giSetFilterText = function(val) {
+                giFilterText = val || '';
+                document.getElementById('gi-modal-overlay')?.remove();
+                document.body.insertAdjacentHTML('beforeend', buildGiHtml());
+            };
             window._giToggle = giToggle;
 
             function buildGiHtml() {
@@ -1548,11 +1563,31 @@
                             <div style="text-align:center;border-right:1px solid #1f2937"><div style="font-size:9px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:1px">Compensação</div><div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:18px;color:${isOk ? '#00ff9d' : '#ef4444'}">${isOk ? '✓ OK' : balance}</div></div>
                             <div style="text-align:center"><div style="font-size:9px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:1px">Pts Neg.</div><div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:18px;color:#ef4444">${negVal}<span style="font-size:9px;color:#6b7280"> /10</span></div></div>
                         </div>
+                        <div style="margin-bottom:12px">
+                            <div style="display:flex;gap:6px">
+                                <div style="position:relative;flex:1">
+                                    <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:12px;color:#4b5563">🔍</span>
+                                    <input id="gi-filter-input" type="text" value="${giFilterText.replace(/"/g,'&quot;')}" placeholder="Buscar inclinação..."
+                                        onkeydown="if(event.key==='Enter'){window._giSetFilterText(this.value);}"
+                                        style="width:100%;box-sizing:border-box;background:#0a0f1a;border:1.5px solid ${giFilterText ? tc : '#1f2937'};border-radius:9px;padding:8px 10px 8px 30px;color:#fff;font-size:11px;outline:none;transition:border-color .15s"
+                                        oninput="this.style.borderColor=this.value?'${tc}':'#1f2937'">
+                                </div>
+                                <button onclick="window._giSetFilterText(document.getElementById('gi-filter-input').value)"
+                                    style="padding:8px 14px;border-radius:9px;background:${tc};color:#000;border:none;font-size:11px;font-weight:900;cursor:pointer;flex-shrink:0;font-family:Orbitron,sans-serif">🔍</button>
+                                ${giFilterText ? `<button onclick="window._giSetFilterText('');document.getElementById('gi-filter-input').value='';"
+                                    style="padding:8px 12px;border-radius:9px;background:#1f2937;color:#9ca3af;border:none;font-size:11px;font-weight:900;cursor:pointer;flex-shrink:0">✕</button>` : ''}
+                            </div>
+                        </div>
                         <div style="max-height:55vh;overflow-y:auto;padding-right:4px">
-                            <div style="font-size:9px;font-weight:900;color:#00ff9d;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;display:flex;align-items:center;gap:6px">👍 Gerais Positivas <span style="font-size:8px;background:#00ff9d15;border:1px solid #00ff9d30;padding:2px 6px;border-radius:4px;font-weight:700">1ª Grátis (Maior Valor)</span></div>
-                            ${SYSTEM_DB.inclinacoes.positivas.map(renderPosInc).join('')}
-                            <div style="font-size:9px;font-weight:900;color:#ff4d6d;text-transform:uppercase;letter-spacing:2px;margin:12px 0 8px;display:flex;align-items:center;gap:6px">👎 Gerais Negativas</div>
-                            ${SYSTEM_DB.inclinacoes.negativas.map(renderNegInc).join('')}
+                            ${(() => {
+                                const posShown = SYSTEM_DB.inclinacoes.positivas.filter(giMatchesFilter);
+                                const negShown = SYSTEM_DB.inclinacoes.negativas.filter(giMatchesFilter);
+                                if (giFilterText && posShown.length === 0 && negShown.length === 0) {
+                                    return `<div style="text-align:center;color:#374151;font-style:italic;font-size:11px;padding:20px">Nenhuma inclinação encontrada para "${giFilterText}".</div>`;
+                                }
+                                return `${posShown.length ? `<div style="font-size:9px;font-weight:900;color:#00ff9d;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;display:flex;align-items:center;gap:6px">👍 Gerais Positivas <span style="font-size:8px;background:#00ff9d15;border:1px solid #00ff9d30;padding:2px 6px;border-radius:4px;font-weight:700">1ª Grátis (Maior Valor)</span></div>${posShown.map(renderPosInc).join('')}` : ''}
+                                ${negShown.length ? `<div style="font-size:9px;font-weight:900;color:#ff4d6d;text-transform:uppercase;letter-spacing:2px;margin:12px 0 8px;display:flex;align-items:center;gap:6px">👎 Gerais Negativas</div>${negShown.map(renderNegInc).join('')}` : ''}`;
+                            })()}
                         </div>
                         <div style="display:flex;gap:8px;margin-top:14px">
                             <button onclick="document.getElementById('gi-modal-overlay').remove()" style="flex:1;padding:11px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer;letter-spacing:1px">Cancelar</button>
@@ -1585,6 +1620,13 @@
             if (!window.COMBAT_INCLINATIONS_DB) { alert('Banco de Inclinações de Combate não carregado.'); return; }
             const tc = getComputedStyle(document.documentElement).getPropertyValue('--theme-color-hex').trim() || '#f97316';
             const draft = JSON.parse(JSON.stringify(char.combatInclinations || {}));
+            // draftChoices só guarda a escolha de atributo (tiers "escolha"); tiers "fixo" não precisam
+            // de escolha — a aplicação real na ficha é resolvida por um "ledger" no save (ver _ciSave),
+            // que também AUTOCORRIGE personagens antigos cujo bônus nunca chegou a ser aplicado.
+            const draftChoices = {};
+            Object.entries(char.combatInclinationAttrApplied || {}).forEach(([id, val]) => {
+                if (typeof val === 'string') draftChoices[id] = val;
+            });
             const totalPts = getCIPointsForLevel(char.level);
 
             function getSpent() { return Object.values(draft).reduce((a, b) => a + b, 0); }
@@ -1599,9 +1641,25 @@
                         const active = cur >= tierNum;
                         const canActivate = !active && avail > 0 && cur === ti;
                         const canDeactivate = active && cur === tierNum;
+                        // Tier com bônus de atributo (sempre o último tier, quando inc.attrBonus existe)
+                        const isAttrTier = tierNum === inc.tiers.length && !!inc.attrBonus;
+                        let attrChoiceHtml = '';
+                        if (isAttrTier && active) {
+                            if (inc.attrBonus.fixo) {
+                                const label = inc.attrBonus.fixo.map(b => `+${b.valor} ${b.attr}`).join(' e ');
+                                attrChoiceHtml = `<div class="mt-1.5 text-[9px] font-bold text-orange-400">✦ ${label} (aplicado)</div>`;
+                            } else if (inc.attrBonus.escolha) {
+                                const chosen = draftChoices[inc.id] || '';
+                                const btns = inc.attrBonus.escolha.map(o => {
+                                    const isSel = chosen === o.attr;
+                                    return `<button onclick="event.stopPropagation();window._ciSetChoice('${inc.id}','${o.attr}')" style="padding:3px 8px;border-radius:6px;font-size:9px;font-weight:900;cursor:pointer;border:1.5px solid ${isSel ? '#f97316' : '#374151'};background:${isSel ? '#f9731622' : 'transparent'};color:${isSel ? '#f97316' : '#9ca3af'}">+${o.valor} ${o.attr}</button>`;
+                                }).join(' ');
+                                attrChoiceHtml = `<div class="mt-1.5 flex flex-wrap gap-1.5 items-center">${btns}${!chosen ? '<span class="text-[9px] text-red-400 font-bold">⚠ escolha o atributo</span>' : ''}</div>`;
+                            }
+                        }
                         return `<div class="flex gap-2 items-start p-2 rounded-lg ${active ? 'bg-orange-500/10 border border-orange-500/20' : 'bg-gray-900/50 border border-gray-800/50'} mb-1">
                             <button onclick="window._ciSetTier('${inc.id}',${active ? tierNum - 1 : tierNum})" style="min-width:28px;height:28px;border-radius:6px;border:1px solid ${active ? '#f97316' : '#374151'};background:${active ? '#f9731620' : '#111827'};color:${active ? '#f97316' : '#6b7280'};font-weight:900;font-size:11px;cursor:${(active && canDeactivate) || canActivate ? 'pointer' : 'default'};opacity:${(active && canDeactivate) || canActivate || active ? '1' : '0.35'}" ${(!canActivate && !active) ? 'disabled' : ''}>${active ? '✓' : tierNum}</button>
-                            <div class="flex-1"><span class="text-[9px] font-bold ${active ? 'text-orange-400' : 'text-gray-500'} uppercase tracking-widest block mb-0.5">Tier ${tierNum} — 1 ponto</span><p class="text-[10px] ${active ? 'text-gray-300' : 'text-gray-600'} leading-relaxed">${desc}</p></div>
+                            <div class="flex-1"><span class="text-[9px] font-bold ${active ? 'text-orange-400' : 'text-gray-500'} uppercase tracking-widest block mb-0.5">Tier ${tierNum} — 1 ponto</span><p class="text-[10px] ${active ? 'text-gray-300' : 'text-gray-600'} leading-relaxed">${desc}</p>${attrChoiceHtml}</div>
                         </div>`;
                     }).join('');
                     return `<div class="bg-gray-900 border ${cur > 0 ? 'border-orange-500/30' : 'border-gray-800'} rounded-xl p-3 mb-2">
@@ -1643,16 +1701,85 @@
                 if (tierNum > cur && (totalPts - getSpent()) <= 0) return;
                 if (tierNum > 3) return;
                 draft[id] = tierNum;
+                if (tierNum < 3) delete draftChoices[id]; // saiu do tier de bônus — esquece a escolha
+                document.getElementById('ci-modal-overlay')?.remove();
+                document.body.insertAdjacentHTML('beforeend', buildModalHtml());
+            };
+
+            window._ciSetChoice = function(id, attr) {
+                draftChoices[id] = attr;
                 document.getElementById('ci-modal-overlay')?.remove();
                 document.body.insertAdjacentHTML('beforeend', buildModalHtml());
             };
 
             window._ciSave = function() {
+                // Bloqueia salvar se algum tier de bônus com escolha está ativo sem atributo escolhido
+                const pending = window.COMBAT_INCLINATIONS_DB.find(inc =>
+                    inc.attrBonus && inc.attrBonus.escolha &&
+                    (draft[inc.id] || 0) >= inc.tiers.length && !draftChoices[inc.id]
+                );
+                if (pending) { alert(`Escolha o atributo do bônus de "${pending.nome}" antes de salvar.`); return; }
+
+                // "Ledger" do que já foi de fato aplicado nos atributos: fixo → true, escolha → attr
+                // escolhido. Comparar contra isso (em vez de contra o tier salvo anteriormente) também
+                // AUTOCORRIGE personagens que já tinham o tier de bônus marcado mas nunca receberam o
+                // ganho de atributo (bug anterior a esta correção).
+                const appliedBefore = char.combatInclinationAttrApplied || {};
+                const appliedAfter = {};
+                const changes = [];
+
+                window.COMBAT_INCLINATIONS_DB.forEach(inc => {
+                    if (!inc.attrBonus) return;
+                    const isActive = (draft[inc.id] || 0) >= inc.tiers.length;
+                    const wasApplied = appliedBefore[inc.id];
+
+                    if (!isActive) {
+                        if (wasApplied) {
+                            if (inc.attrBonus.fixo) {
+                                inc.attrBonus.fixo.forEach(b => changes.push({ attr: b.attr, delta: -b.valor, inc: inc.nome }));
+                            } else if (inc.attrBonus.escolha) {
+                                const opt = inc.attrBonus.escolha.find(o => o.attr === wasApplied);
+                                if (opt) changes.push({ attr: opt.attr, delta: -opt.valor, inc: inc.nome });
+                            }
+                        }
+                        return;
+                    }
+
+                    if (inc.attrBonus.fixo) {
+                        if (!wasApplied) inc.attrBonus.fixo.forEach(b => changes.push({ attr: b.attr, delta: b.valor, inc: inc.nome }));
+                        appliedAfter[inc.id] = true;
+                    } else if (inc.attrBonus.escolha) {
+                        const choice = draftChoices[inc.id];
+                        if (wasApplied !== choice) {
+                            if (wasApplied) {
+                                const oldOpt = inc.attrBonus.escolha.find(o => o.attr === wasApplied);
+                                if (oldOpt) changes.push({ attr: oldOpt.attr, delta: -oldOpt.valor, inc: inc.nome });
+                            }
+                            const newOpt = inc.attrBonus.escolha.find(o => o.attr === choice);
+                            if (newOpt) changes.push({ attr: newOpt.attr, delta: newOpt.valor, inc: inc.nome });
+                        }
+                        appliedAfter[inc.id] = choice;
+                    }
+                });
+
+                changes.forEach(c => {
+                    if (char.attributes[c.attr]) char.attributes[c.attr].value += c.delta;
+                });
+
                 char.combatInclinations = JSON.parse(JSON.stringify(draft));
+                char.combatInclinationAttrApplied = appliedAfter;
                 saveCharacter(char);
                 document.getElementById('ci-modal-overlay')?.remove();
                 render(true);
-                window._showXpToast && window._showXpToast('Inclinações de Combate salvas!');
+
+                if (changes.length > 0) {
+                    const byInc = {};
+                    changes.forEach(c => { (byInc[c.inc] = byInc[c.inc] || []).push(`${c.delta >= 0 ? '+' : ''}${c.delta} ${c.attr}`); });
+                    const summary = Object.entries(byInc).map(([nome, parts]) => `${nome}: ${parts.join(', ')}`).join(' · ');
+                    window._showXpToast && window._showXpToast(`✨ Atributo adicionado — ${summary}`);
+                } else {
+                    window._showXpToast && window._showXpToast('Inclinações de Combate salvas!');
+                }
             };
 
             document.getElementById('ci-modal-overlay')?.remove();

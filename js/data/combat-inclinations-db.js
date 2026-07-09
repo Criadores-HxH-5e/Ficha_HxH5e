@@ -6,7 +6,8 @@ window.COMBAT_INCLINATIONS_DB = [
       '+2 Reações.',
       '-1 Reação para adicionar 2 no acerto do seu próximo ataque (Livre por gasto para um novo alvo).',
       '+1 em INT e +1 em SAB.'
-    ]
+    ],
+    attrBonus: { fixo: [{ attr: 'INT', valor: 1 }, { attr: 'SAB', valor: 1 }] }
   },
   {
     id: 'arsenal_militar',
@@ -24,7 +25,8 @@ window.COMBAT_INCLINATIONS_DB = [
       'Vantagem em TRs de Constituição para manter concentração em conjuração ao sofrer dano.',
       'Pode aplicar IN em conjurações como: (a) ação livre no turno; ou (b) por metade da aura.',
       '+2 em INT.'
-    ]
+    ],
+    attrBonus: { fixo: [{ attr: 'INT', valor: 2 }] }
   },
   {
     id: 'combate_montado',
@@ -42,7 +44,8 @@ window.COMBAT_INCLINATIONS_DB = [
       '3 em Redução de Dano (RD) contra qualquer fonte de dano de qualquer oponente em combate.',
       '3×CON em RD em um ataque que falhe em bloquear (um uso por rodada).',
       '+2 em CON.'
-    ]
+    ],
+    attrBonus: { fixo: [{ attr: 'CON', valor: 2 }] }
   },
   {
     id: 'defensiva_precisa',
@@ -51,7 +54,8 @@ window.COMBAT_INCLINATIONS_DB = [
       '5 em Redução de Dano (RD) contra qualquer fonte de dano de um alvo em combate.',
       '+2 na CA ao usar Bloqueio Armado (um uso por rodada).',
       '+2 em CON.'
-    ]
+    ],
+    attrBonus: { fixo: [{ attr: 'CON', valor: 2 }] }
   },
   {
     id: 'defensiva_reativa_agil',
@@ -60,7 +64,8 @@ window.COMBAT_INCLINATIONS_DB = [
       'Defender como reação (Bloqueio) não gasta reação.',
       'Dobra proficiência na esquiva ou esquiva acrobática (um uso por rodada).',
       '+2 em CON.'
-    ]
+    ],
+    attrBonus: { fixo: [{ attr: 'CON', valor: 2 }] }
   },
   {
     id: 'experiente',
@@ -79,7 +84,8 @@ window.COMBAT_INCLINATIONS_DB = [
       'Realiza ataque de agarrão contra a CA do alvo em vez de teste contestado.',
       'Reação para agarrar de volta um alvo preso que tente escapar.',
       '+2 em FOR.'
-    ]
+    ],
+    attrBonus: { fixo: [{ attr: 'FOR', valor: 2 }] }
   },
   {
     id: 'investida_poderosa',
@@ -89,7 +95,8 @@ window.COMBAT_INCLINATIONS_DB = [
       'Ao usar ação Disparada, pode usar Ação Bônus para atacar corpo-a-corpo ou empurrar.',
       'Se o ataque/empurrão for bem-sucedido: (a) empurre o alvo 4m; ou (b) +5 no dano.',
       '+2 em FOR.'
-    ]
+    ],
+    attrBonus: { fixo: [{ attr: 'FOR', valor: 2 }] }
   },
   {
     id: 'maestria_armadura_media',
@@ -118,7 +125,8 @@ window.COMBAT_INCLINATIONS_DB = [
       'Ganha proficiência com qualquer arma.',
       'Qualquer item em sua posse torna-se arma (1d6 mínimo); imune a ser desarmado.',
       '+1 em FOR ou +1 em DES.'
-    ]
+    ],
+    attrBonus: { escolha: [{ attr: 'FOR', valor: 1 }, { attr: 'DES', valor: 1 }] }
   },
   {
     id: 'mestre_de_armas_grandes',
@@ -137,7 +145,8 @@ window.COMBAT_INCLINATIONS_DB = [
       'Adiciona bônus de CA do escudo em TRs de Destreza que tenham você como alvo.',
       'Reação: não sofre dano se passar no TR de DES contra efeito de metade do dano (um uso por rodada).',
       '+1 em CON e +1 em FOR.'
-    ]
+    ],
+    attrBonus: { fixo: [{ attr: 'CON', valor: 1 }, { attr: 'FOR', valor: 1 }] }
   },
   {
     id: 'ofensiva_bruta',
@@ -146,7 +155,8 @@ window.COMBAT_INCLINATIONS_DB = [
       '–2 na CA e +2 graus em qualquer ataque corpo-a-corpo com FOR.',
       '–3 Reações para dobrar o mod de FOR no dano do próximo ataque (um uso por rodada).',
       '+2 em FOR.'
-    ]
+    ],
+    attrBonus: { fixo: [{ attr: 'FOR', valor: 2 }] }
   },
   {
     id: 'ofensiva_precisa',
@@ -155,7 +165,8 @@ window.COMBAT_INCLINATIONS_DB = [
       '–2 na CA e +2 graus nos ataques à distância/arremesso.',
       '+2 no acerto de um ataque à distância se não se mover na rodada.',
       '+2 em DES, SAB ou INT.'
-    ]
+    ],
+    attrBonus: { escolha: [{ attr: 'DES', valor: 2 }, { attr: 'SAB', valor: 2 }, { attr: 'INT', valor: 2 }] }
   },
   {
     id: 'ofensiva_agil',
@@ -164,7 +175,8 @@ window.COMBAT_INCLINATIONS_DB = [
       '+5 na iniciativa.',
       '–2 no acerto de um contra-ataque do inimigo (um uso por rodada).',
       '+2 em DES, SAB ou INT.'
-    ]
+    ],
+    attrBonus: { escolha: [{ attr: 'DES', valor: 2 }, { attr: 'SAB', valor: 2 }, { attr: 'INT', valor: 2 }] }
   },
   {
     id: 'perceptiva',
@@ -173,7 +185,8 @@ window.COMBAT_INCLINATIONS_DB = [
       '+2 na iniciativa.',
       'Percepção passiva +5 em combate; pode usar GYO sem gastar ação (ao custo do movimento, metade da aura) se não se mover.',
       '+2 em SAB.'
-    ]
+    ],
+    attrBonus: { fixo: [{ attr: 'SAB', valor: 2 }] }
   },
   {
     id: 'premeditada_manipulada',
@@ -182,7 +195,8 @@ window.COMBAT_INCLINATIONS_DB = [
       'Escolha: (1) alvos manipulados +1 grau no passo de dano; ou (2) alvos manipulados +2 na CA.',
       'Adiciona 1d4 em uma jogada (não 1d20) para o alvo da manipulação (um uso por rodada).',
       '+1 em INT ou CAR.'
-    ]
+    ],
+    attrBonus: { escolha: [{ attr: 'INT', valor: 1 }, { attr: 'PRE', valor: 1 }] }
   },
   {
     id: 'premeditada_planejada',
@@ -191,7 +205,8 @@ window.COMBAT_INCLINATIONS_DB = [
       'Item/constructo feito por você fica com IN de forma passiva (sem gastar aura nem ação).',
       'Item/constructo feito por você adiciona proficiência no ataque/defesa ou TR provocado.',
       '+2 em INT.'
-    ]
+    ],
+    attrBonus: { fixo: [{ attr: 'INT', valor: 2 }] }
   },
   {
     id: 'sentinela',
@@ -200,7 +215,8 @@ window.COMBAT_INCLINATIONS_DB = [
       'Provoca ataques de oportunidade mesmo que o inimigo use Desengajar.',
       'Ao acertar com ataque de oportunidade, deslocamento do alvo é reduzido à metade pelo resto do turno.',
       '+1 em DES e +1 em SAB.'
-    ]
+    ],
+    attrBonus: { fixo: [{ attr: 'DES', valor: 1 }, { attr: 'SAB', valor: 1 }] }
   },
   {
     id: 'trapaceira',
@@ -209,7 +225,8 @@ window.COMBAT_INCLINATIONS_DB = [
       'Escolha: (1) golpes desarmados ganham Finta/Oculto; (2) vantagem em Enganação/Persuasão em batalha; ou (3) +3 em Furtividade/Prestidigitação em batalha.',
       'Uma vez por rodada: finta ou prestidigitação (TR 10) como Ação Bônus para atacar/pegar item sem ser visto.',
       '+2 em DES ou CAR.'
-    ]
+    ],
+    attrBonus: { escolha: [{ attr: 'DES', valor: 2 }, { attr: 'PRE', valor: 2 }] }
   },
   {
     id: 'visao_360',
@@ -218,6 +235,7 @@ window.COMBAT_INCLINATIONS_DB = [
       'Campo de visão 360°; imune a flanqueamento; não pode ser surpreendido.',
       'Uma vez por rodada: vantagem e +3 no TR de Percepção/Intuição contra Oculto/Finta de ataque recebido.',
       '+2 em SAB.'
-    ]
+    ],
+    attrBonus: { fixo: [{ attr: 'SAB', valor: 2 }] }
   }
 ];

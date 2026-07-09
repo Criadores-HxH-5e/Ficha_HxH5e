@@ -1127,28 +1127,24 @@ function renderHatsuDetail(container) {
                 specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">⚗ Combinação: ${_re2names}</div>`;
             }
             if (e.id === 'eg17' && sc.eg17) specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">⚡ Consequência: ${sc.eg17 === 'Reduz Duração' ? '⏱ −1/3 da duração total' : '🎲 −5 no TR de Concentração'}</div>`;
-            if (e.id === 'rt_e4') {
-                const elId4 = sc.rt_e4_elemento || (typeof sc.rt_e4 === 'string' ? sc.rt_e4 : '');
-                const db4 = elId4 && window.TRANSMUTACAO_DB && window.TRANSMUTACAO_DB.elemental.find(x=>x.id===elId4);
-                if (db4) {
-                    const escolhas4 = Array.isArray(sc.rt_e4) ? sc.rt_e4 : [];
-                    specialDetail = `<div style="margin-top:6px;padding:6px 10px;background:${db4.cor}18;border:1px solid ${db4.cor}44;border-radius:8px">
-                        <div style="font-size:9px;font-weight:900;color:${db4.cor};margin-bottom:2px">${db4.icon} ${db4.nome}</div>
-                        <div style="font-size:8px;color:#9ca3af;margin-bottom:${escolhas4.length?'6px':'0'}">${db4.efeito}</div>
-                        ${escolhas4.map(nome => `<div style="font-size:8px;color:${db4.cor};margin-top:2px">✓ ${nome}</div>`).join('')}
-                    </div>`;
-                }
-            }
-            if (e.id === 'rt_e5') {
-                const elId5 = sc.rt_e5_elemento || (typeof sc.rt_e5 === 'string' ? sc.rt_e5 : '');
-                const db5 = elId5 && window.TRANSMUTACAO_DB && window.TRANSMUTACAO_DB.versatil.find(x=>x.id===elId5);
-                if (db5) {
-                    const escolhas5 = Array.isArray(sc.rt_e5) ? sc.rt_e5 : [];
-                    specialDetail = `<div style="margin-top:6px;padding:6px 10px;background:${db5.cor}18;border:1px solid ${db5.cor}44;border-radius:8px">
-                        <div style="font-size:9px;font-weight:900;color:${db5.cor};margin-bottom:2px">${db5.icon} ${db5.nome}</div>
-                        <div style="font-size:8px;color:#9ca3af;margin-bottom:${escolhas5.length?'6px':'0'}">${db5.efeito}</div>
-                        ${escolhas5.map(nome => `<div style="font-size:8px;color:${db5.cor};margin-top:2px">✓ ${nome}</div>`).join('')}
-                    </div>`;
+            if (e.id === 'rt_e4' || e.id === 'rt_e5') {
+                const dbCategoria = e.id === 'rt_e4' ? (window.TRANSMUTACAO_DB && window.TRANSMUTACAO_DB.elemental) : (window.TRANSMUTACAO_DB && window.TRANSMUTACAO_DB.versatil);
+                const legacyElId = sc[e.id + '_elemento'] || (typeof sc[e.id] === 'string' ? sc[e.id] : '');
+                let elementos = Array.isArray(sc[e.id + '_elementos']) ? sc[e.id + '_elementos'] : (legacyElId ? [legacyElId] : []);
+                let escolhas = Array.isArray(sc[e.id]) ? sc[e.id] : [];
+                // Compatibilidade com formato antigo (escolhas como strings simples, sem elemento associado)
+                escolhas = escolhas.map(x => typeof x === 'string' ? { elemento: elementos[0] || '', nome: x } : x);
+                if (dbCategoria && elementos.length) {
+                    specialDetail = elementos.map(elId => {
+                        const db = dbCategoria.find(x => x.id === elId);
+                        if (!db) return '';
+                        const escolhasDoElemento = escolhas.filter(x => x.elemento === elId).map(x => x.nome);
+                        return `<div style="margin-top:6px;padding:6px 10px;background:${db.cor}18;border:1px solid ${db.cor}44;border-radius:8px">
+                            <div style="font-size:9px;font-weight:900;color:${db.cor};margin-bottom:2px">${db.icon} ${db.nome}</div>
+                            <div style="font-size:8px;color:#9ca3af;margin-bottom:${escolhasDoElemento.length?'6px':'0'}">${db.efeito}</div>
+                            ${escolhasDoElemento.map(nome => `<div style="font-size:8px;color:${db.cor};margin-top:2px">✓ ${nome}</div>`).join('')}
+                        </div>`;
+                    }).join('');
                 }
             }
             if (e.id === 'eg1' && sc.eg1) specialDetail = `<div style="margin-top:6px;font-size:8px;font-weight:700;color:#60a5fa;padding:2px 7px;background:#60a5fa18;border-radius:5px">${sc.eg1 === 'Área' ? '🔵 Aplicado em Área' : '📐 Aplicado em Alcance'}</div>`;
