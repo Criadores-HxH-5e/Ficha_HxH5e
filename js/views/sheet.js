@@ -693,7 +693,8 @@
 
             const nextXp = char.xp_next || 100;
             const xpPct = Math.min(100, (char.xp / nextXp) * 100);
-            const bgImage = char.imageUrl ? `background-image: url('${char.imageUrl}');` : '';
+            const imgPos = char.imagePosition || { x: 50, y: 50 };
+            const bgImage = char.imageUrl ? `background-image: url('${char.imageUrl}'); background-position: ${imgPos.x}% ${imgPos.y}%;` : '';
 
             container.innerHTML = `
             <div class="flex flex-col h-full bg-gray-950">
@@ -701,10 +702,11 @@
                 <div class="flex-1 overflow-y-auto custom-scrollbar pb-20 relative">
                     <div onclick="document.getElementById('char-image-upload').click()" class="relative h-64 w-full overflow-hidden cursor-pointer group bg-gray-900 border-b border-gray-800">
                         <input type="file" id="char-image-upload" accept="image/*" class="hidden" onchange="uploadCharacterImage(this)">
-                        <div class="absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-700 group-hover:scale-105" style="${bgImage}"></div>
+                        <div class="absolute inset-0 bg-cover bg-no-repeat transition-all duration-700 group-hover:scale-105" style="${bgImage}"></div>
                         ${!char.imageUrl ? `<div class="absolute inset-0 bg-[${themeColor}]/5 flex items-center justify-center"><i data-lucide="image-plus" size="48" class="text-[${themeColor}]/30"></i></div>` : ''}
                         <div class="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/60 to-transparent"></div>
                         <button onclick="event.stopPropagation(); state.view='LIST'; render()" class="absolute top-6 left-6 text-white/80 hover:text-white bg-black/40 p-2 rounded-full backdrop-blur-md border border-white/10 z-20 transition-all hover:bg-black/60"><i data-lucide="arrow-left" size="20"></i></button>
+                        ${char.imageUrl ? `<button onclick="event.stopPropagation(); window._openImagePositionModal()" class="absolute top-6 right-6 text-white/80 hover:text-white bg-black/40 p-2 rounded-full backdrop-blur-md border border-white/10 z-20 transition-all hover:bg-black/60" title="Ajustar posição da imagem"><i data-lucide="move" size="18"></i></button>` : ''}
                         <div class="absolute bottom-0 left-0 w-full p-6 flex flex-col justify-end z-10" onclick="event.stopPropagation()">
                             <h1 contenteditable="true" 
                                 onblur="updateCharProperty('name', this.innerText)"
@@ -1804,7 +1806,75 @@
         }
         function toggleSheetAccordion() { state.sheetOtherSkillsOpen = !state.sheetOtherSkillsOpen; render(true); }
         function handleArmorClick() { alert('Funcionalidade de Armadura em desenvolvimento.'); }
-        function uploadCharacterImage(input) { if (input.files && input.files[0]) { const reader = new FileReader(); reader.onload = function(e) { state.currentChar.imageUrl = e.target.result; saveCharacter(state.currentChar); render(true); }; reader.readAsDataURL(input.files[0]); } }
+        function uploadCharacterImage(input) { if (input.files && input.files[0]) { const reader = new FileReader(); reader.onload = function(e) { state.currentChar.imageUrl = e.target.result; state.currentChar.imagePosition = { x: 50, y: 50 }; saveCharacter(state.currentChar); render(true); }; reader.readAsDataURL(input.files[0]); } }
+
+        // Modal pra escolher qual parte da imagem do personagem fica visível no recorte do header
+        // (a área do header usa background-size:cover, então o resto da imagem é cortado — aqui o
+        // jogador clica/arrasta na prévia pra mover o ponto de foco do recorte).
+        window._openImagePositionModal = function() {
+            const char = state.currentChar;
+            if (!char || !char.imageUrl) return;
+            const tc = getComputedStyle(document.documentElement).getPropertyValue('--theme-color-hex').trim() || '#00ff9d';
+            const initial = char.imagePosition || { x: 50, y: 50 };
+            const draft = { x: initial.x, y: initial.y };
+
+            const overlay = document.createElement('div');
+            overlay.id = 'img-pos-modal-overlay';
+            overlay.style.cssText = 'position:fixed;inset:0;background:#000000ee;display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;font-family:Rajdhani,sans-serif';
+            overlay.innerHTML = `
+                <div style="background:#0d1117;border:2px solid ${tc};border-radius:20px;padding:20px;width:100%;max-width:400px;box-shadow:0 0 60px ${tc}44">
+                    <div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:13px;color:${tc};text-transform:uppercase;letter-spacing:2px;margin-bottom:4px">📍 Ajustar Imagem</div>
+                    <div style="font-size:10px;color:#6b7280;margin-bottom:14px">Clique ou arraste na prévia abaixo para escolher qual parte da imagem fica visível.</div>
+                    <div id="img-pos-preview" style="position:relative;width:100%;aspect-ratio:15/8;border-radius:12px;overflow:hidden;border:2px solid #1f2937;cursor:crosshair;background-image:url('${char.imageUrl.replace(/'/g,"\\'")}');background-size:cover;background-repeat:no-repeat;background-position:${draft.x}% ${draft.y}%;touch-action:none">
+                        <div id="img-pos-crosshair" style="position:absolute;width:18px;height:18px;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 2px ${tc},0 2px 8px rgba(0,0,0,0.6);left:${draft.x}%;top:${draft.y}%;transform:translate(-50%,-50%);pointer-events:none"></div>
+                    </div>
+                    <div style="display:flex;gap:8px;margin-top:16px">
+                        <button id="img-pos-cancel" style="flex:1;padding:11px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer;letter-spacing:1px">Cancelar</button>
+                        <button id="img-pos-save" style="flex:2;padding:11px;border-radius:10px;background:${tc};border:none;color:#000;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer;letter-spacing:1px;box-shadow:0 0 20px ${tc}55">✓ Salvar</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(overlay);
+
+            const preview = document.getElementById('img-pos-preview');
+            const crosshair = document.getElementById('img-pos-crosshair');
+            let dragging = false;
+
+            function updateFromPoint(clientX, clientY) {
+                const rect = preview.getBoundingClientRect();
+                const x = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
+                const y = Math.max(0, Math.min(100, ((clientY - rect.top) / rect.height) * 100));
+                draft.x = x; draft.y = y;
+                preview.style.backgroundPosition = `${x}% ${y}%`;
+                crosshair.style.left = `${x}%`;
+                crosshair.style.top = `${y}%`;
+            }
+            function onMouseDown(e) { dragging = true; updateFromPoint(e.clientX, e.clientY); }
+            function onMouseMove(e) { if (dragging) updateFromPoint(e.clientX, e.clientY); }
+            function onMouseUp() { dragging = false; }
+            function onTouchStart(e) { dragging = true; const t = e.touches[0]; updateFromPoint(t.clientX, t.clientY); }
+            function onTouchMove(e) { if (dragging) { const t = e.touches[0]; updateFromPoint(t.clientX, t.clientY); } }
+            function onTouchEnd() { dragging = false; }
+
+            preview.addEventListener('mousedown', onMouseDown);
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mouseup', onMouseUp);
+            preview.addEventListener('touchstart', onTouchStart, { passive: true });
+            preview.addEventListener('touchmove', onTouchMove, { passive: true });
+            preview.addEventListener('touchend', onTouchEnd);
+
+            function cleanup() {
+                window.removeEventListener('mousemove', onMouseMove);
+                window.removeEventListener('mouseup', onMouseUp);
+                overlay.remove();
+            }
+            document.getElementById('img-pos-cancel').onclick = cleanup;
+            document.getElementById('img-pos-save').onclick = function() {
+                char.imagePosition = { x: draft.x, y: draft.y };
+                saveCharacter(char);
+                cleanup();
+                render(true);
+            };
+        };
         function addItem() { const name = document.getElementById('new-item-name').value; if (name) { state.currentChar.inventory.push({ name, qty: 1 }); saveCharacter(state.currentChar); render(true); } }
         function updateItemQty(idx, delta) { const item = state.currentChar.inventory[idx]; item.qty += delta; if (item.qty <= 0) state.currentChar.inventory.splice(idx, 1); saveCharacter(state.currentChar); render(true); }
         function updateMoney(val) { state.currentChar.money = parseInt(val) || 0; saveCharacter(state.currentChar); render(true); }
