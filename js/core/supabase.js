@@ -113,17 +113,60 @@ function saveCharacter(char) {
 
 function deleteCharacter(id) {
     if (state._viewingMode) return;
-    if(confirm('Tem certeza que deseja apagar esta ficha?')) {
-        localStorage.removeItem('hxhrpg_' + id);
-        if (state.user) sbDelete('characters', `id=eq.${id}`);
-        loadCharacters();
-        if (state.currentChar && state.currentChar.id === id) {
-            state.view = 'LIST';
-            state.currentChar = null;
-        }
-        render();
-    }
+    const char = (state.characters || []).find(c => c.id === id);
+    const nome = (char && char.name) || 'esta ficha';
+
+    document.getElementById('delete-char-overlay')?.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'delete-char-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:#000000cc;display:flex;align-items:center;justify-content:center;z-index:9999;padding:24px;font-family:Rajdhani,sans-serif';
+    overlay.innerHTML = `
+        <div style="background:#0d1117;border:2px solid #ef4444;border-radius:16px;padding:24px;width:100%;max-width:380px;box-shadow:0 0 40px #ef444433">
+            <div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:13px;color:#ef4444;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px">⚠️ Apagar Ficha</div>
+            <div style="font-size:12px;color:#9ca3af;margin-bottom:16px;line-height:1.5">
+                Esta ação é <span style="color:#ef4444;font-weight:700">irreversível</span>. Para confirmar, digite o nome do personagem abaixo:
+            </div>
+            <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Nome do Personagem</div>
+            <div style="background:#111827;border:1px solid #374151;border-radius:8px;padding:8px 12px;margin-bottom:6px;font-family:Orbitron,sans-serif;font-size:13px;color:#fbbf24;letter-spacing:1px">${nome}</div>
+            <input id="delete-char-confirm-input" type="text" placeholder="Digite o nome aqui..." autocomplete="off"
+                style="width:100%;box-sizing:border-box;background:#0a0a0f;border:2px solid #374151;border-radius:8px;padding:10px 12px;color:#fff;font-size:13px;font-family:Rajdhani,sans-serif;outline:none;margin-bottom:16px;transition:border-color .2s"
+                oninput="
+                    const v = this.value;
+                    const match = v.trim().toLowerCase() === '${nome.replace(/'/g, "\\'").toLowerCase()}';
+                    this.style.borderColor = v.length === 0 ? '#374151' : match ? '#22c55e' : '#ef4444';
+                    document.getElementById('delete-char-confirm-btn').disabled = !match;
+                    document.getElementById('delete-char-confirm-btn').style.opacity = match ? '1' : '0.4';
+                    document.getElementById('delete-char-confirm-btn').style.cursor = match ? 'pointer' : 'not-allowed';
+                "
+                onkeydown="if(event.key==='Escape') document.getElementById('delete-char-overlay').remove();"
+            >
+            <div style="display:flex;gap:10px">
+                <button onclick="document.getElementById('delete-char-overlay').remove()"
+                    style="flex:1;padding:11px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer;letter-spacing:1px">
+                    Cancelar
+                </button>
+                <button id="delete-char-confirm-btn" disabled onclick="window._confirmDeleteCharacter('${id}','${nome.replace(/'/g,"\\'")}')"
+                    style="flex:1;padding:11px;border-radius:10px;background:#7f1d1d;border:1px solid #ef4444;color:#f87171;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;letter-spacing:1px;opacity:0.4;cursor:not-allowed">
+                    🗑️ Apagar
+                </button>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+    setTimeout(() => { const inp = document.getElementById('delete-char-confirm-input'); if (inp) inp.focus(); }, 50);
 }
+
+window._confirmDeleteCharacter = function(id, nome) {
+    document.getElementById('delete-char-overlay')?.remove();
+    localStorage.removeItem('hxhrpg_' + id);
+    if (state.user) sbDelete('characters', `id=eq.${id}`);
+    loadCharacters();
+    if (state.currentChar && state.currentChar.id === id) {
+        state.view = 'LIST';
+        state.currentChar = null;
+    }
+    render();
+    if (window._showXpToast) window._showXpToast(`🗑️ "${nome}" foi apagado.`);
+};
 
 // --- UTILITÁRIOS ---
 function generateId() { return Date.now().toString(36) + Math.random().toString(36).substr(2); }
