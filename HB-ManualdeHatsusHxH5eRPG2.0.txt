@@ -2532,22 +2532,46 @@ style='position:absolute;left:10px;top:700px;width:75%;mix-blend-mode:darken;'/>
 ###  Transmutação Elemental - Ácido
 {color:,text-align:center}
 | Elemento / Propriedade | Efeito Básico | Condições aplicáveis | Pré-requisito |
-|:--------------:|:------------:|:-------------:|:--:| 
-| <br>Ácido | A aura passa a ter a propriedade corrosiva, danificando as matérias sólidas e orgânicas deixando-os mais frágeis e **Expostos**. | <br>Exposto | Nível 1 <br> Transmutação Elemental | 
+|:--------------:|:------------:|:-------------:|:--:|
+| <br>Ácido | A aura passa a ter a propriedade corrosiva, danificando as matérias sólidas e orgânicas deixando-os mais frágeis e **Expostos**. | <br>Exposto | Nível 1 <br> Transmutação Elemental |
 |Corrosão de Proteção|Cada acerto reduz a CA do alvo em -1 (até um máximo de -5).|-|Nível 3<br>Ácido|
-| Queimadura Química | A aura ácida passa a **queimar** o alvo <br>(necessitando de líquido ou terra para diluir a queimadura química) | Queimado | Nível 5 <br>Ácido| 
-| **Dissolução Proximal*** | A aura derrete instantaneamente o solo em contato com os pés do usuário. Inimigos que terminam o turno no espaço (como agarrados) Recebem +1 dado (o menor) de dano. |<br> - | Nível 6<br>Ácido |
+| Queimadura Química | A aura ácida passa a **queimar** o alvo com dano ácido.  | Queimado | Nível 5 <br>Ácido|
+| **Dissolução Proximal*** | A aura derrete instantaneamente o solo em contato com os pés do usuário. Inimigos que terminam o turno no espaço (como na condição agarrados ou de qualquer outra forma ) Recebem +1 grau/passo de dano ao serem atingidos. |<br> - | Nível 6<br>Ácido |
 | <br>Diabo verde | O ácido foca em destruir a integridade do que causa perigo. Ao atingir um item de ataque ou arma, o usuário reduz em 1 grau/passo o dado de dano desse objeto (ex: 1d8 vira 1d6) até que seja reparado. |<br> - | Nível 8<br>Ácido |
 |<br> Deterioração Corrosiva | A aura aplicada em um ponto impreguina o alvo com danos considerados "necróticos" sendo reduzidos do total da vida do alvo e não da vida atual e aplicando.|<br> - | <br>Nível 10<br>Ácido |
 }}
 
-{{note
-**Dissolução Proximal:** Compre Área ou Alcance para maior proveito do efeito
+<img
+  src='https://i.pinimg.com/736x/2d/c7/4d/2dc74dc5c2324fa26e863d18a604e3a5.jpg'
+style='position:absolute;right:-80px;top:250px;width:120%;mix-blend-mode:darken;opacity:100%'/>
+
+{{wide,descriptive,opacity:60%
+## Dicionário - Transmutação Elemental (Ácido)
+{color:,text-align:center}
 }}
 
-<img 
-  src='https://i.pinimg.com/736x/2d/c7/4d/2dc74dc5c2324fa26e863d18a604e3a5.jpg' 
-style='position:absolute;right:-80px;top:250px;width:120%;mix-blend-mode:darken;opacity:100%'/>
+{{note
+Os efeitos aqui aparecem por ordem alfabética.
+{color:,text-align:center}
+}}
+
+{{descriptive,opacity:60%,wide
+* **Ácido:**	Um hatsu que funcione com um golpe, disparo ou dispersão com esse efeito irá aplicar a propriedade corrosiva sob as matérias citadas assim como a condição Exposto ao falharem em um TR de CON. Mas a condição é aplicada automaticamente caso a matéria não seja de um ser vivo.
+
+* **Corrosão de Proteção:** O efeito não funciona da mesma forma para Hatsus que apenas provocam Testes de Resistência e não contam com acerto. Nesse caso, a redução se dará para cada falha do alvo e pode aumentar basicamente ao selecionar o efeito diversas vezes. Todos os alvos recebem ao mesmo tempo a mesma quantidade de redução na proteção enquanto nos acertos os danos aumentam em cada sucesso.
+}}
+
+\column
+:::::::::::::::::
+{{descriptive,opacity:60%,wide
+* **Diabo verde:**	O simples toque enquanto o efeito está ativo aplica o resultado. Não há necessidade de golpes mirados nas armas. Em caso de uso com área o alvo deve selecionar um objeto/arma por alvo.
+
+* **Dissolução Proximal:** Compre Área ou Alcance para maior proveito do efeito.
+
+* **Deterioração Corrosiva:**	Detalhes bem descritos no efeito.
+
+* **Queimadura Química:** Um hatsu que funcione com um golpe, disparo ou dispersão com esse efeito irá aplicar a propriedade Queimando ao falharem em um TR de CON. Para efeitos mecânicos, o ácido fica "espalhado" no corpo do alvo (onde foi tocado) ou internamente pela duração. Para remover a condição é necessário um Teste de Medicina ou Sobrevivência consumindo a Ação Principal, como se estivesse "apagando o fogo" em uma situação de queimadura comum. Não é possível apagar da mesma forma que uma queimadura comum.
+}}
 
 <div class='pageNumber auto'></div>
 \page
@@ -2563,12 +2587,42 @@ style='position:absolute;right:-80px;top:250px;width:120%;mix-blend-mode:darken;
 | Manto de Fluidez | O usuário altera a tensão superficial da aura sobre sua pele, tornando-se extremamente escorregadio. Recebe +2 em testes de acrobacia para escapar de agarrões ou imobilizações. | <br>- |Nível 1 <br>Água/Líquido |
 | Lâmina de Pressão | A aura é concentrada em fios ou lâminas finas de altíssima velocidade. O dano do Hatsu passa a ignorar  2 de RD (Redução de Dano). | -| Nível 3 <br> Água/Líquido | 
 | Absorção Hidráulica | A aura ganha densidade líquida para amortecer danos físicos. <br>Adicione 2 em Redução de Dano | - | Nível 6 <br>Água/Líquido |
-| Refração de Aura | A aura transmuta a propriedade de distorcer a luz como uma coluna de água. Inimigos atacando à distância podem ser **Ofuscados** e recebem -5 em Acerto | Ofuscado | Nível 10 <br>Água/Líquido |
+| Refração de Água | A aura transmuta a propriedade de distorcer a luz como uma coluna de água. Inimigos atacando à distância recebem -5 em Acertos e corpo-a-corpo podem ser **Ofuscados** (-2) | <br>Ofuscado | Nível 10 <br>Água/Líquido |
 }}
 
-<img 
-  src='https://i.pinimg.com/736x/b8/39/61/b8396116151b791bfe13a1ad36ac7b3f.jpg' 
+<img
+  src='https://i.pinimg.com/736x/b8/39/61/b8396116151b791bfe13a1ad36ac7b3f.jpg'
 style='position:absolute;right:-80px;top:130px;width:120%;mix-blend-mode:darken;opacity:100%'/>
+
+{{wide,descriptive,opacity:60%
+## Dicionário - Transmutação Elemental (Água)
+{color:,text-align:center}
+}}
+
+{{note
+Os efeitos aqui aparecem por ordem alfabética.
+{color:,text-align:center}
+}}
+
+{{wide,descriptive,opacity:80%
+* **Absorção Hidráulica:** O Hatsu cria uma camada física e real de água ao redor do usuário/alvo gerando a proteção contra danos e possivelmente a condição **Vulnerável** sobre dano elétrico.
+
+* **Água/Líquido:** A condição Molhado apenas aplica no que a aura toca (gerando a vulnerabilidade a dano elétrico). Por isso é importante considerar em que proximidade o hatsu estará do alvo ou do usuário.
+
+* **Encharcar:** O efeito expressa o peso e dificuldade do alvo se mover enquanto está molhado e pesado com seus equipamentos molhados.
+}}
+
+\column
+::::::::::::::::::
+{{wide,descriptive,opacity:80%
+* **Jato Poderoso:** Quando o efeito é aliado a danos, aplica o dano diretamente ao toque com o alvo, mas aplica a condição apenas com a falha do alvo em um TR de FOR ou CON para se manter firme sem cair.
+
+* **Lâmina de Pressão:** Pela maleabilidade das "lâminas de água" o Hatsu ganha a propriedade de ignorar RD que amenize danos físicos, seja por equipamentos ou por aura.
+
+* **Manto de Fluidez:** Detalhes bem descritos no efeito.
+
+* **Refração de Água:** A condição Ofuscado é protetiva para quem está com o efeito do Hatsu, concedendo +2 à CA do alvo.
+}}
 
 <div class='pageNumber auto'></div>
 \page
@@ -2582,7 +2636,7 @@ style='position:absolute;right:-80px;top:130px;width:120%;mix-blend-mode:darken;
 |<br> Ar Rarefeito | A aura transmutada é dispersa ou condensada, dificultando a respiração. O alvo sofre -1 em CON **e está asfixiando** ao ser golpeado na cabeça (golpe mirado) ou estar na área do efeito. |<br>Asfixiado|Nível 3<br>Ar/Vento/Gases |
 | Reagente Coringa | A aura misturada com outro elemento permite um grau a mais de dano, TR ou Alcance/Área devido à volatilidade permitida pelo  ar/vento/gás. | - | Nível 3<br>Ar/Vento/Gases |
 |<br> Turbulência de Aura | Correntes de ar caóticas desestabilizam o equilíbrio do alvo. O alvo recebe uma penalidade de -1 em ataques à distância <br>**ou**<br>Alvos de ataques físicos em área dentro da área do Hatsu recebem a condição **Resistente** contra os danos físicos externos. | <br><br>Resistente | <br><br>Nível 3<br>Ar/Vento/Gases |
-| Vácuo de Comunicação | A aura impede a propagação do som e do ar de um alvo como uma fina camada envolvendo-o. O alvo perde a capacidade de falar (ser ouvido) |- |Nível 5<br>Ar/Vento/Gases |
+| Vácuo de Comunicação | A aura impede a propagação do som e do ar de um alvo como uma fina camada envolvendo-o de forma ruidosa. O alvo perde a capacidade de falar (ser ouvido) ou ouvir. |- |Nível 5<br>Ar/Vento/Gases |
 | Impacto de Vendaval | A aura transmuta a força de uma rajada constante. O alvo é empurrado 3 metros e, em caso de colisão, adicione o maior dado de dano 1x. | - | Nível 5<br>Ar/Vento/Gases |
 }}
 
@@ -2592,9 +2646,37 @@ style='position:absolute;right:-80px;top:130px;width:120%;mix-blend-mode:darken;
 **Gases***: Variações de dano dos gases devem ser considerados descritivamente nos efeitos de veneno.
 }}
 
-<img 
-  src='https://i.pinimg.com/736x/3c/4e/95/3c4e95b824c355abc825138e66f4bca3.jpg' 
+<img
+  src='https://i.pinimg.com/736x/3c/4e/95/3c4e95b824c355abc825138e66f4bca3.jpg'
 style='position:absolute;right:px;top:350px;width:80%;mix-blend-mode:darken;opacity:100%'/>
+
+{{wide,descriptive,opacity:60%
+## Dicionário - Transmutação Elemental (Ar/Vento)
+{color:,text-align:center}
+}}
+
+{{note
+Os efeitos aqui aparecem por ordem alfabética.
+{color:,text-align:center}
+}}
+
+{{descriptive,opacity:80%
+* **Ar/Vento/Gases:** A condição de imunidade considera uma ação "natural" de proteção do alvo enquanto o Hatsu estiver ativo. Manipulações para causar a condição Paralisado não são afetadas por esse efeito.
+
+* **Ar Rarefeito:** A descrição do efeito apresenta as formas de aplicar a condição, porém o alvo ainda tem o tempo de "ar guardado" que é apresentado na condição Asfixiado/Afogado.
+}}
+
+\column
+:::::::::::::::::::::::
+{{descriptive,opacity:80%
+* **Impacto de Vendaval:** Detalhes bem descritos no efeito.
+
+* **Reagente Coringa:** A mistura precisa ser entre elementos.
+
+* **Turbulência de Aura:** A condição Resistente é aplicada apenas no caso da alternativa do efeito que promove a condição Resistente.
+
+* **Vácuo de Comunicação:** O ruído do movimento no ar provoca a dificuldade da propagação do som de forma efetiva.
+}}
 
 <div class='pageNumber auto'></div>
 \page
@@ -2612,9 +2694,37 @@ style='position:absolute;right:px;top:350px;width:80%;mix-blend-mode:darken;opac
 | Sobrecarga Sináptica | A descarga elétrica drena a energia neural do alvo. Após receber 3 acertos desta aura, o alvo recebe Exaustão 1. | Exaustão 1 | Nível 6<br>Eletricidade |
 }}
 
-<img 
-  src='https://i.pinimg.com/736x/3e/d9/65/3ed965871c5fed03998115dbc8e5a198.jpg' 
+<img
+  src='https://i.pinimg.com/736x/3e/d9/65/3ed965871c5fed03998115dbc8e5a198.jpg'
 style='position:absolute;right:-90px;top:200px;width:120%;mix-blend-mode:darken;opacity:100%'/>
+
+{{wide,descriptive,opacity:60%
+## Dicionário - Transmutação Elemental (Eletricidade)
+{color:,text-align:center}
+}}
+
+{{note
+Os efeitos aqui aparecem por ordem alfabética.
+{color:,text-align:center}
+}}
+
+{{wide,descriptive,opacity:90%
+* **Curto Circuito:** Os diferentes efeitos podem ser selecionados e combinados ao gastar pontos em momentos diferentes.
+
+* **Desfibrilador:** Qualquer efeito de dano elétrico aplicado no Hatsu é suprimido para não causar dano no alvo. Apenas o mínimo suficiente para recobrar a consciência.
+
+* **Eletricidade:** O dano da propriedade elétrica pode ser resistida ou anulada (Resistentes ou Imunes contra eletricidade) por algumas propriedades como borracha ou constructos não elétricos e também potencializada (Vulneráveis contra eletricidade) como alvos molhados e constructos elétricos.
+}}
+
+\column
+::::::::::::::::::
+{{wide,descriptive,opacity:90%
+* **Estática Constritora:** O efeito limita diretamente as condições aplicadas a uma rodada. As condições podem ser aumentadas em duração ao comprar o efeito "Condição Perigosa".
+
+* **Neuro-Espasmo:** Lembre-se que mesmo que seja um efeito positivo, Hatsus que causam dano elemental também afetam seus alvos se a descarga não for através de um canalisador. Isso significa que apesar do benefício, o alvo também sofre parte do dano.
+
+* **Sobrecarga Sináptica:** A condição não pode ser ampliada ao selecionar esse efeito diversas vezes, mas a quantidade de acertos para ativar a condição pode ser reduzida. **A condição não depende de um Teste de Resistência.**
+}}
 
 <div class='pageNumber auto'></div>
 \page
@@ -2627,19 +2737,49 @@ style='position:absolute;right:-90px;top:200px;width:120%;mix-blend-mode:darken;
 | <br>**Fogo*** | A aura assume a propriedade de fogo/combustão, <br>causando dano correspondente | <br>Queimado/Queimando | Nível 1 <br> Transmutação Elemental |
 | Desidratação Crítica | A aura transmuta um calor seco que consome o fôlego.<br> O alvo sofre uma penalidade de -1 em CON enquanto estiver ao redor (1,5m) do usuário. | <br>- |Nível 3<br> Fogo |
 | Cauterização de Tecido | A aura é tão quente que sela ferimentos. O usuário pode usar sua aura para estancar a condição Sangramento de si mesmo ou de um aliado (causando 1d4 de dano de fogo no processo). | <br>- | Nível 3<br>Fogo |
-| <br>Piromaníaco | A aura incandescente se torna um pilar de fogo. Inimigos que terminam o turno no espaço (como agarrados) Recebem +1 dado (o menor) de dano. | <br>- |Nível 3<br> Fogo |
+| <br>Piromaníaco | A aura incandescente se torna um pilar de fogo. Inimigos que terminam o turno no espaço (como na condição agarrados ou de qualquer outra forma) Recebem +1 grau/passo de dano ao serem atingidos. | <br>- |Nível 3<br> Fogo |
 |<br>Incendiário|Mesmo que um alvo resista para não pegar fogo, equipamentos atingidos com golpes mirados são aquecidos ou pegam fogo com 1d10 por turno (tecidos e materiais similares não feitos de aura) | - |Nível 5<br> Fogo |
 |<br>Chamas azuis|As chamas mais refinadas não causam dor física por queimarem as enervações sensoriais da pele do alvo, mas causam dano psíquico ao ver o corpo pegando fogo sem sentir dor.| <br>- |Nível 8<br> Fogo |
-| Onda de Insolação | O calor irradiado pela aura simula um ambiente de deserto extremo. Se o alvo falhar em um TR de CON, ele recebe a condição Exaustão 2. | Exaustão 2 | Nível 10<br>Fogo | - |Nível 3<br> Fogo |
+| Onda de Insolação | O calor irradiado pela aura simula um ambiente de deserto extremo. Se o alvo falhar em um TR de CON, ele recebe a condição Exaustão 2. | Exaustão 2 | Nível 10<br>Fogo |
 }}
 
 {{note
 **Efeitos de Fogo:** Compre Área ou Alcance para maior proveito das derivações dos efeitos de fogo.
 }}
 
-<img 
-  src='https://i.pinimg.com/736x/0c/5d/4a/0c5d4adeacc1d3b7ad755baddaf7cb45.jpg' 
+<img
+  src='https://i.pinimg.com/736x/0c/5d/4a/0c5d4adeacc1d3b7ad755baddaf7cb45.jpg'
 style='position:absolute;right:-170px;top:100px;width:140%;mix-blend-mode:darken;opacity:100%'/>
+
+{{wide,descriptive,opacity:90%
+## Dicionário - Transmutação Elemental (Fogo)
+{color:,text-align:center}
+}}
+
+{{note
+Os efeitos aqui aparecem por ordem alfabética.
+{color:,text-align:center}
+}}
+
+{{wide,descriptive,opacity:90%
+* **Cauterização de Tecido:** Detalhes bem descritos no efeito.
+
+* **Chamas azuis:** O efeito causa dano de sanidade que, apesar de não reduzir o PV, pode causar surtos de Sanidade.
+
+* **Desidratação Crítica:** Esse efeito pode ser expandido com a compra de área ou alcance do Hatsu sobre o alvo. Ao sair do alcance máximo, mesmo que o Hatsu esteja ativo, a perda de CON é pausada e reinicia com a reaproximação.
+
+* **Fogo:** Seja o acerto por toque ou em área, após ser "atingido", o dano de fogo é recebido, porém a condição apenas se aplica quando o(s) alvo(s) falha(m) em um TR de CON ou DES (dependendo do contexto de uso do Hatsu à escolha do usuário).
+}}
+
+\column
+::::::::::::::::::
+{{wide,descriptive,opacity:90%
+* **Incendiário:** O dano base inicial é de 1d10, mas pode assumir o dano base do Hatsu (caso seja maior). O grau/passo **de dano de fogo** aumenta por cada escolha desse mesmo efeito, caso outros efeitos de dano sejam de elementos ou características diferentes.
+
+* **Onda de Insolação:** Detalhes bem descritos no efeito.
+
+* **Piromaníaco:** Compre Área ou Alcance para maior proveito do efeito.
+}}
 
 <div class='pageNumber auto'></div>
 \page
@@ -2657,9 +2797,35 @@ style='position:absolute;right:-170px;top:100px;width:140%;mix-blend-mode:darken
 | Fadiga Crionergética | Após receber qualquer dano de frio, o alvo perde 1 reação a cada rodada em combate. | - |Nível 10 <br>Frio / Gelo | 
 }}
 
-<img 
-  src='https://i.pinimg.com/736x/60/92/3b/60923b4249fe91ce621394180446bb7b.jpg' 
+<img
+  src='https://i.pinimg.com/736x/60/92/3b/60923b4249fe91ce621394180446bb7b.jpg'
 style='position:absolute;right:1px;top:250px;width:100%;mix-blend-mode:darken;opacity:100%'/>
+
+{{wide,descriptive,opacity:60%
+## Dicionário - Transmutação Elemental (Gelo)
+{color:,text-align:center}
+}}
+
+{{note
+Os efeitos aqui aparecem por ordem alfabética.
+{color:,text-align:center}
+}}
+
+{{wide,descriptive,opacity:90%
+* **Fadiga Crionergética:** O efeito traduz um frio intenso que piora, cansando o alvo até não conseguir se mover em grande velocidade por um longo período em combate.
+
+* **Frio / Gelo:** O efeito representa uma camada de gelo sobre o corpo do alvo ou sobre a área, dificultando o movimento, porém a condição apenas se aplica quando o(s) alvo(s) falha(m) em um TR de CON.
+}}
+
+\column
+:::::::::::::::::
+{{wide,descriptive,opacity:90%
+* **Jogos de Inverno:** O efeito manifesta uma dificuldade tática de diversas formas, mas se foca em especial no ambiente. A condição Lento apenas se aplica quando o(s) alvo(s) falha(m) em um TR de CON, porém o TR de DES para a condição Caído só deve ser aplicado se o alvo tentar se mover.
+
+* **Manto de Cisne:** Os benefícios e penalidades podem ser acrescentados em novas escolhas do mesmo efeito, aumentando seu grau de potência.
+
+* **Rigidez Articular:** O efeito manifesta uma dificuldade de locomoção e velocidade no geral ao entrar em contato com a aura.
+}}
 
 <div class='pageNumber auto'></div>
 \page
@@ -2670,15 +2836,37 @@ style='position:absolute;right:1px;top:250px;width:100%;mix-blend-mode:darken;op
 | Elemento / Propriedade | Efeito Básico | Condições aplicáveis | Pré-requisito |
 |:--------------:|:------------:|:-------------:|:--:|
 | Densidade granular | A aura transmuta o peso e maleabilidade da terra/areia. O usuário recebe +1 grau/passo para dados de dano e para RD contra golpes físicos. | <br>- | Nível 1<BR>Transmutação Elemental |
-| Abrasão de Areia | A aura torna-se granulada e áspera como lixa. O contato constante causa micro-cortes que aplicam podem causar sangramento.  | Sangramento | Nível 3<BR>Terra/Areia |
-| Areia movediça | Permite prender um alvo sobre uma densa camada de terra/areia. | Enredado/Preso | Nível 3<BR>Terra/Areia |
-| Jogo sujo | A aura torna-se poeirenta e sufocante. Jogadas que casuam dano podem também deixar alvos cegos, caso seus olhos estejam desprotegidos. | Cego | Nível 6<BR>Terra/Areia |
+| Abrasão de Areia | A aura torna-se granulada e áspera como lixa. O contato constante causa micro-cortes que podem causar sangramento.  | Sangramento | Nível 3<BR>Terra/Areia |
+|<br> Areia movediça |<br> Permite prender um alvo em uma densa camada de terra/areia ou até soterrá-lo em níveis mais altos. | Agarrado<br>Imóvel<br>Esmagado<br>Paralisado | <br>Nível 3<BR>Terra/Areia |
+| Jogo sujo | A aura torna-se poeirenta e sufocante. Jogadas que causam dano podem também deixar alvos cegos, caso seus olhos estejam desprotegidos e não gastem reações para se protegerem. | Cego | Nível 6<BR>Terra/Areia |
 | Centro de Gravidade | O usuário transmuta uma base sólida e inabalável. O usuário torna-se imune a ser empurrado e **caído**, ou qualquer penalidade imposta por terreno difícil |**Imune <br>(Caído, Lento) etc** | Nível 10<BR>Terra/Areia |
 }}
 
-<img 
-  src='https://i.pinimg.com/736x/0e/d4/b9/0ed4b931c67c659560206fa3922d7e78.jpg' 
+<img
+  src='https://i.pinimg.com/736x/0e/d4/b9/0ed4b931c67c659560206fa3922d7e78.jpg'
 style='position:absolute;right:5px;top:50px;width:100%;mix-blend-mode:darken;opacity:100%'/>
+
+{{wide,descriptive,opacity:90%
+## Dicionário - Transmutação Elemental (Terra/Areia)
+{color:,text-align:center}
+}}
+
+{{note
+Os efeitos aqui aparecem por ordem alfabética.
+{color:,text-align:center}
+}}
+
+{{wide,descriptive,opacity:90%
+* **Abrasão de Areia:** O efeito permite acessar a tabela de sangramento mesmo sem causar o dano mínimo de 20 no turno, já provocando um TR de CON do alvo de acordo com o padrão da condição.
+
+* **Areia movediça:** Inicialmente o efeito causa Agarrado. O(s) alvo(s) recebe(m) a condição ao falhar em um TR de CON ou FOR (dependendo do contexto de uso do Hatsu à escolha do usuário). Ao ser selecionado outra vez, a condição é substituída por Imóvel. Após isso, além de Imóvel, o alvo sofre dano de Esmagamento (+5 ao sofrer dano) pela duração. Selecionando novamente, a condição Imóvel é substituída por Paralisado (continuando o esmagamento).
+
+* **Centro de Gravidade:** Detalhes bem descritos no efeito.
+
+* **Densidade granular:** A terra/areia é sua aliada e lhe concede uma camada protetiva e bruta. Seus danos são envolvidos com o peso e densidade, assim como suas defesas.
+
+* **Jogo sujo:** A condição aqui é aplicada automaticamente, **mas primeiro o jogador alvo (ou mestre) deve ser avisado** de que os alvos poderiam não ficar cegos se gastarem uma reação para fechar os olhos. Hatsus com essa característica podem manter essa propriedade pelo tempo de duração que tiverem, obrigando os alvos a (1) manterem os olhos fechados, (2) utilizarem EN para encontrar o usuário e atacar, ou (3) manterem um combate à distância.
+}}
 
 <div class='pageNumber auto'></div>
 \page
@@ -2689,18 +2877,46 @@ style='position:absolute;right:5px;top:50px;width:100%;mix-blend-mode:darken;opa
 | Elemento / Propriedade | Efeito Básico | Condições aplicáveis | Pré-requisito |
 |:--------------:|:------------:|:-------------:|:--:|
 | <br>Veneno | A aura passa a ter propriedades quimicas ou naturais de veneno, causando o dano correspondente e Envenenamento | <br>Envenenado |Nível 1<BR>Transmutação Elemental |
-|<br>Toxina Botulínica|A substancia transmutada pela aura causa um relaxamento muscular,<br> causando -1 em força do alvo <br>**ou**<br>**progressivamente** _Imóvel_ e posteriormente, _Paralisado_|<br>-|<br>Nível 3<BR>Veneno|
+|<br><br><br>Toxina Botulínica|A substancia transmutada pela aura causa um relaxamento muscular, causando -1 em força do alvo.<br> Como progressão é possível aumentar a penalidade <br>**ou**<br>Impor **progressivamente** a condição _Imóvel_ e evoluir para _Paralisado_ ao selecionar o efeito outra vez|<br>Imóvel<br>-><br>Paralisado|<br><br>Nível 3<BR>Veneno|
 | Neurotoxina Motora | A aura transmuta propriedades que atacam o sistema nervoso. O alvo sofre uma penalidade imediata de -2 em DES ao ser tocado. | Lento | Nível 5<BR>Veneno |
 | <br>Degradação Orgânica | O veneno consome a vitalidade interna do alvo. O alvo sofre uma penalidade de -2 em CON enquanto a toxina estiver ativa em seu sistema. | <br>- | Nível 5<BR>Veneno |
 | Doença Terminal | A toxina induz um colapso físico acelerado. <br>Aplica diretamente Exaustão 3. | Exaustão 3 | Nível 6<BR>Veneno |
-|Toxina Relaxante/Depressora|A substancia transmutada pela aura causa um relaxamento muscular completo, causando **progressivamente** _Lentidão_, _Fragilizado_ e finalmente, _Inconsciente_|<br>-|Nível 8<BR>Veneno|
-|<br><br>Toxina Estimulante|A substancia transmutada pela aura causa um estímulo no Sistema Nervoso Central, acelerando atividade cerebral.<br> +1 em perícia de INT ou SAB à escolha <br>**ou**<br> +1 Reação (total) |<br><br>-|<br>Nível 8<BR>Veneno|
-| Delírio Tóxico | O veneno causa alucinações e perda de foco. O alvo sofre uma penalidade de -3 em Sanidade e pode ficar Confuso | Confuso | Nível 10<BR>Veneno |
+|Toxina Relaxante/Depressora|A substancia transmutada pela aura causa um relaxamento muscular completo, causando **progressivamente** _Lentidão_, _Fragilizado_ e finalmente, _Inconsciente_|<br> Lento<br>Fragilizado<br>Inconsciente|Nível 8<BR>Veneno|
+|<br><br>Toxina Estimulante|A substancia transmutada pela aura causa um estímulo no Sistema Nervoso Central, acelerando atividade cerebral.<br> +1 em INT ou SAB à escolha <br>**ou**<br> +1 Reação (total) |<br><br>-|<br>Nível 8<BR>Veneno|
+| Delírio Tóxico | O veneno causa alucinações e perda de foco. O alvo sofre uma penalidade de -3 em Sanidade e pode ficar **Confuso** | Confuso | Nível 10<BR>Veneno |
 }}
 
-<img 
-  src='https://i.pinimg.com/736x/c8/5f/bf/c85fbf4630fbda493acfad0ca3e5445e.jpg' 
+<img
+  src='https://i.pinimg.com/736x/c8/5f/bf/c85fbf4630fbda493acfad0ca3e5445e.jpg'
 style='position:absolute;right:1px;top:250px;width:100%;mix-blend-mode:darken;opacity:100%'/>
+
+{{wide,descriptive,opacity:60%
+## Dicionário - Transmutação Elemental (Veneno)
+{color:,text-align:center}
+}}
+
+{{note
+Os efeitos aqui aparecem por ordem alfabética.
+{color:,text-align:center}
+}}
+
+{{descriptive,opacity:80%,wide
+* **Doença Terminal:** Seja o acerto por toque ou em área, após ser "atingido", o efeito se aplica quando o(s) alvo(s) falha(m) em um TR de CON. O termo "diretamente" refere-se a não precisar passar pelos níveis anteriores de Exaustão.
+
+* **Degradação Orgânica:** Considere a duração da toxina como a duração máxima do Hatsu.
+
+* **Delírio Tóxico:** As alucinações podem ser causadas pela redução constante da Sanidade e não diretamente pelo efeito de maneira instantânea. O(s) alvo(s) recebe(m) a condição Confuso ao falhar em um TR de SAB ou INT imposto pelo Hatsu.
+
+* **Neurotoxina Motora:** Seja o acerto por toque ou em área, após ser "atingido", a penalidade na DES se aplica imediatamente. O(s) alvo(s) recebe(m) a condição Lento ao falhar em um TR de CON imposto pelo Hatsu.
+
+* **Toxina Botulínica:** Seja o acerto por toque ou em área, após ser "atingido", a penalidade na FOR se aplica imediatamente de acordo com o teto de evoluções do efeito (Graus de Potência). Ao selecionar aplicar condições, inicialmente o efeito causa Imóvel e, ao ser selecionado outra vez, é substituído por Paralisado. O(s) alvo(s) recebe(m) a condição ao falhar em um TR de CON ou FOR imposto pelo Hatsu.
+
+* **Toxina Estimulante:** O efeito aumenta de forma "bruta" +1 no atributo e não o modificador, porém não possui limite máximo de aumento no atributo (por exemplo, máx. +5).
+
+* **Toxina Relaxante/Depressora:** Inicialmente o efeito causa Lento e, ao ser selecionado outra vez, é substituído por Fragilizado. Ao ser selecionado outra vez, é substituído por Inconsciente. O(s) alvo(s) recebe(m) a condição ao falhar em um TR de CON por conta do veneno/toxina imposta pelo Hatsu.
+
+* **Veneno:** Seja o acerto por toque ou em área, após ser "atingido", o dano de veneno é recebido, porém a condição apenas se aplica quando o(s) alvo(s) falha(m) em um TR de CON.
+}}
 
 <div class='pageNumber auto'></div>
 
@@ -3199,7 +3415,7 @@ style='position:absolute;left:220px;top:520px;width:70%;mix-blend-mode:darken;'/
 |<br><br> Dimensão de bolso | Envia até 3 objetos ou criaturas para a Dimensão em até o dobro de tamanho/peso do alvo (cada)  | <br>Nível 1 **Característica Dimensão** |
 |Aparências Enganam|Permite acessar a [Tabela de Materialização com <br>Alterações Físicas](#p57)|<br>Nível 1|
 |<br><br>Materialização Modular| O(s) Objeto(s), Arma(s) ou Equipamento(s) Conju-rado(s) podem ser diferen-tes cada vez que conjura. Alternar entre eles depois de materializados requer Ação bônus ou Reação. |<br> Nível 2<br>Forjar Objeto, Arma ou Equipamento Conjurada(o|
-|<br><br>Cópia Perfeita|Permite copiar através de Materialização um objeto marcado ou tocado com todas as suas propriedades originais, mesmo sendo Materializações.|<br><br>Nível 2|
+|<br><br>Cópia Perfeita|Permite copiar através de Materialização um objeto marcado ou tocado, reproduzindo-o uma vez com todas as suas propriedades originais, desde que seja um objeto comum (não podendo ser oriundo de outro Hatsu).|<br><br>Nível 2|
 |<br><br><br> Imbuir Materialização | Adiciona um efeito de qualquer categoria **até seu nível** que não possua pré-requisitos, _como outro efeito dependente ou determinado valor de atributo._ <br> Não aplicável a efeitos <br>de Especialização | <br><br><br><br>Nível 2 |
 }}
 
@@ -3213,10 +3429,9 @@ style='position:absolute;left:220px;top:520px;width:70%;mix-blend-mode:darken;'/
 | Efeito | Descrição | Pré-requisito |
 |:-----:|:-----------------:|:---------|
 |<br>Pesos e Medidas|Permite reduzir e/ou aumentar o peso e/ou tamanho da Materialização na metade (reduzindo) ou dobro (aumentando) |<br><br>Nível 2|
-|<br> Dano Complexo | A criatura pode causar +1 dado de dano ao empurrar com sucesso inimigos. | <br>Nível 4 |
 |<br><br> **Vínculo Sustentado*** | O Hatsu dura enquanto o usuário mantiver concentração e gastar 5% de aura a cada 2 rodadas.<br> **Para compartilhar sentidos o gasto passa a ser por rodada** | <br><br><br>Nível 4 |
 |<br> Aura Condensada | O item armazena até 10% da aura para liberar depois como impulso de dano +1d8 ou de defesa (1d8 RD). | <br>Nível 5 |
-| <br>Forja Avançada | Ao gastar uma ação bônus, a arma ganha +1d8 | <br>Nível 5 |
+| <br>Forja Avançada | Ao gastar uma ação bônus, a arma ganha +1d8 de dano pela duração de 1 rodada | <br>Nível 5 |
 | <br>Forma Evoluída | 10 PV, +2 CA e uma [Característica de Invocação](#p26) adicional. | <br>Nível 6 |
 | <br>Lugar secreto/Pique esconde | A **Dimensão** pode ser usada como um espaço de 12x12m com a composição (ambiente, aparencia, mobilia) que o usuário pré-definir | <br>Nível 6<br>**Característica Dimensão** |
 |<br>**Invencível***<br>(Requer consciência)|Não pode ser destruida ou desfeita a não ser pelo usuário _ou pela duração_ **E** Adiciona temporariamente o valor máximo natural em 2 atributos.|<br>Nível 6<br>Restrições Específicas|
@@ -4357,7 +4572,7 @@ Os efeitos aqui aparecem por ordem alfabética.
 
 * **Aparencias enganam:** Efeito necessário para utilização de efeito de alterações corporais em aparência ou utilizade.
 
-* **Aura Condensada:** Detalhes bem descritos no efeito.
+* **Aura Condensada:** O usuário reserva uma parcela de sua aura (até 10% do total) dentro do item conjurado. Como ação bônus, pode liberar essa carga para causar um impulso de +1d8 de dano no próximo acerto, ou conceder 1d8 de Redução de Dano (RD) até o fim do próximo turno. Após o uso, a carga se esvazia e precisa ser reabastecida (gastando novamente até 10% da aura atual) para ser usada de novo.
 
 * **Características Básicas:** Adiciona uma das características disponíveis na lista da página 54. Adicione nova característica ou melhore uma escolhida a cada P.N.
 
@@ -4366,19 +4581,17 @@ Os efeitos aqui aparecem por ordem alfabética.
 
 * **Constructo Apex:** Detalhes bem descritos no efeito.
 
-* **Cópia Perfeita:** O efeito considera características copiadas de uma arma como dano (quantidade de dados e tipos/natureza diferente), alcance, área, durabilidade / material, PV, tamanho, resistencias e etc. **Desconsidere:** (1) Efeitos comprados ou (2) Benefícios adicionados por restrições no caso de cópias de Hatsus.
-
-* **Dano Complexo:** Aplicável com a ação complexa [Empurrar e Ferir de Constructos (pág.53)](#p53)
+* **Cópia Perfeita:** O efeito considera características copiadas de um objeto comum como dano (quantidade de dados e tipos/natureza diferente), alcance, área, durabilidade / material, PV, tamanho, resistencias e etc. **Desconsidere:** (1) Efeitos comprados ou (2) Benefícios adicionados por restrições. Objetos oriundos de outros Hatsus não podem ser copiados por esse efeito.
 
 * **Dimensão de bolso:** Aumente a quantidade de objetos/criaturas ao comprar novamente/evoluir o efeito em 3 para cada P.N gasto. Esse efeito difere do aumento padrão de grau/passo na compra de efeitos repetidos. _Em um personagem de nível 12, ter comprado esse efeito em todos os níveis permite guardar até 36 objetos/pessoas. Caso esse efeito se mostre "fraco", "forte" ou limitado no decorrer dos playtests ou lançamento oficial, será considerada:_ A quantidade total possível de guardar é contada por uso do Hatsu e não o total definitivo.)
 
 * **Imbuir Materialização:** O pré-requisito citado se refere a depender de outro efeito ou de determinado bônus mínimo de atributo.
 
-* **Invencível:** O valor máximo natural é = 5 de bônus no atributo. Acima disso se trata de um atributo evoluído.
+* **Invencível:** O valor máximo natural é = 5 de bônus no atributo. Acima disso se trata de um atributo evoluído. **Requisito 1** - O Hatsu não pode causar dano direto pelo usuário, nem ser utilizado para causar dano direto ou condições diretamente e fisicamente prejudiciais (como "cego" para receber um ataque) pelo usuário. **Requisito 2** - Depende de 2 Restrições Pesadas **OU** 1 Restrição Extrema.
 
 * **Encantamento Especializado:** Verifique as propriedades no capítulo sobre [propriedades de equipamentos](p#).
 
-* **Forja Avançada:** Não confunda com um aumento de grau. Aqui se trata de "transformar" sua ação bônus em +1d8, como se estivesse concentrando o dano com esse recurso.
+* **Forja Avançada:** Não confunda com um aumento de grau. Aqui se trata de "transformar" sua ação bônus em +1d8 de dano, como se estivesse concentrando o dano com esse recurso — o bônus dura apenas 1 rodada.
 
 * **Forjar Objeto, Arma ou Equipamento Conjurada(o):** O peso e propriedades da arma conjurada seguem normalmente como se tivesse comprado o equipamento. A mudança é que independente da arma o dano fixo é de 2d6 inicialmente por se tratar de um Hatsu de dano e que o efeito não reproduz Hatsus como outros objetos, armas ou equipamentos materializados e etc.
 
@@ -5273,7 +5486,7 @@ style='position:absolute;left:280px;top:390px;width:75%;mix-blend-mode:darken;'/
 {color:,text-align:center}
 | Efeito | Descrição | Pré-requisito |
 |:-----:|:-----------------:|:---------:|
-| Aura Viva: <br> **a) Energia Pura**<br><br> **b) Constructos/<br>Objetos** | Cria até 2 massas de aura que possuem turno em combate.<br> **a)** Formam portais <br>(por padrão "indestrutiveis" )<br><br> **b)** Criaturas ou Objetos médios com PV e dano = 1d6. |<br><br><br> Nível 1 |
+| Aura Viva: <br> **a) Energia Pura**<br><br> **b) Constructos/<br>Objetos** | Cria até 2 massas de aura que possuem turno em combate.<br> **a)** Formam portais <br>(por padrão "indestrutiveis" )<br><br> **b)** Criaturas ou Objetos médios com PV e dano = 1d6 e CA 12. |<br><br><br> Nível 1 |
 |Distância Segura|Adiciona 6m ao alcance <br>ou 3m a uma área |<br>Nível 1|
 |<br>Plano Avançado (Detonador)|O Hatsu pode ser aplicado com uma “marca” prévia que funciona como restrição para ativação e consome 5% de aura. Essa marca não conta no tempo de ativação ou duração do Hatsu |<br><br>Nível 1|
 |<br><br><br> Projétil de Aura | Desprende a aura do usuário em um projétil de aura pura com propriedade balística (efeito de dano mínimo 1d8). Alternativamente cria munições que podem ser usadas em armas (veja o dicionário) | <br><br><br>Nível 1 |
@@ -5290,7 +5503,7 @@ style='position:absolute;left:280px;top:390px;width:75%;mix-blend-mode:darken;'/
 {color:,text-align:center}
 | Efeito | Descrição | Pré-requisito |
 |:-----:|:-----------------:|:---------|
-| <br> Unificação de Constructos | Dois ou mais constructos se fundem em um único ser maior e mais poderoso até o fim do combate (soma dos PVs **ou** FOR). | <br>Nível 3 <br> Aura Viva |
+| <br> Unificação de Constructos | Dois ou mais constructos se fundem em um único ser maior e mais poderoso até o fim do combate (soma dos PVs **ou** DANO). | <br>Nível 3 <br> Aura Viva |
 | <br><br> Ancoragem | Não pode ser movido contra a vontade por meios físicos (empurrões, puxões, explosões e etc.) Também prende um objeto no espaço (como flutuando)|<br>  Nível 4 |
 |<br>Lugar Marcado|Aplique Ren em um local ou alvo (5%), marcando-o para **teletransportar-se** para a marca _independente da distância_|<br><br>Nível 4|
 | Expansão de Domínio: <br><br> **a) Partindo de si/marca** <br>**b) À  distância** | Hatsu pode afetar uma área:<br><br> **a)** 6m em cone, circulo, cilindro ou linha<br> **b)** 3m em cone, circulo, cilindro ou linha | <br> <br> <br> Nível 5 |
@@ -5298,7 +5511,7 @@ style='position:absolute;left:280px;top:390px;width:75%;mix-blend-mode:darken;'/
 |<br> Mira Guiada | Projétil contorna ou atravessa obstáculos simples e/ou alvos "no caminho" estáticos <br>(não reativos). | Nível 5<br>Sabedoria 3+<br>Projétil de Aura |
 | Troca Dimensional | Troca de lugar com um aliado, portal ou marca. | Nível 6 |
 | <br><br> Núcleo Vinculante | Um constructo canaliza aura para amplificar ataque ou defesa, sacrificando-se. Absorve ou Aumenta o dano de acordo com seu PV restante. | <br> Nível 8 <br> Aura Viva |
-| Espaço Reverso | Rebate um ataque de aura ou Hatsu com dano de volta ao alvo (1x/combate). | Nível 8<br>  Sabedoria 5+ |
+| Espaço Reverso | Rebate um ataque de aura ou Hatsu com dano de volta ao alvo (1x/combate). Sem o efeito Reação Ofensiva ou Reação Defensiva, só funciona se o atacante mirar em um alvo/área que já esteja sob o efeito Espaço Reverso. | Nível 8<br>  Sabedoria 5+ |
 | <br>Disparo Potente | <br></brAumenta>Aumenta dano em +2d6 e alcance/área em 18m. |Nível 10<br>Projétil de Aura<br>**ou**<br>Rajada Canalizada|
 | <br><br>Tão Tão Distante | Após todos os cálculos de efeitos o Hatsu tem seu alcance ou área dobrado <br>**ou**<br>Muda de "categoria" <br>(metros->km) |Nível 10 <br>Segunda opção requer 2 Restrições Pesadas ou 1 Extrema|
 }}
@@ -5525,7 +5738,7 @@ Os efeitos aqui aparecem por ordem alfabética.
 
 * **Aura Viva:** Esse efeito visa (a) Destacar a versatilidade da categoria de Emissão com "portais interativos" que se movem com o usuário e  (b) "Substituir" de maneira criativa, reduzida e simplificada as Materializações da categoria de Materialização. 
 {{descriptive
-**Os Constructos possuem rolagens "cruas" de 1d20 simples para iniciativas enquanto não recebem qualquer tipo de efeitos adicionais e as rolagens de acerto são baseadas no acerto/bonus do usuário.**<br> Em novas escolhas do efeito adicione 1 massa de aura ou um passo/grau no dado de dano e PV do Constructo, que por sua vez inicia cheia. 
+**Os Constructos possuem rolagens "cruas" de 1d20 simples para iniciativas enquanto não recebem qualquer tipo de efeitos adicionais e as rolagens de acerto são baseadas no acerto/bonus do usuário.** Os Constructos criados possuem CA 12 por padrão.<br> Em novas escolhas do efeito adicione 1 massa de aura, um passo/grau no dado de dano e PV do Constructo (que por sua vez inicia cheio), ou +1 na CA do Constructo.
 }} 
 <br>
 
@@ -5536,7 +5749,7 @@ Os efeitos aqui aparecem por ordem alfabética.
 
 * **Empurrar e Puxar:** Detalhes bem descritos no efeito.
 
-* **Espaço Reverso:** Caso o Hatsu **não tenha o efeito que permita ativar como reação**, o "rebater" funcionaria apenas se o usuário que causa o dano ou ataque mirar em uma área ou alvo que esteja com o efeito **Espaço Reverso** ativo. Recomenda-se fortemente adquirir o efeito **Reação Ofensiva** ou **Reação Defensiva.** O efeito funciona para ambos.
+* **Espaço Reverso:** Caso o Hatsu **não tenha o efeito que permita ativar como reação**, o "rebater" funciona apenas se o usuário que causa o dano ou ataque mirar em uma área ou alvo que esteja com o efeito **Espaço Reverso** ativo. Recomenda-se fortemente adquirir o efeito **Reação Ofensiva** ou **Reação Defensiva** — o efeito funciona para ambos.
 
 * **Expansão de Domínio:** Adiciona uma área especí-fica ao Hatsu. Essa adição é aplicada de um ponto de partida escolhido entre (a) Quando o Hatsu **não possui** alcance para além de toque **ou** (b) Quando o Hatsu **possui** alcance para além de toque.
 

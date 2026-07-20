@@ -236,15 +236,14 @@
         { id:'rm_e5',  nome:"Aparências Enganam",        desc:"Permite acessar a Tabela de Conjuração com Alterações Físicas.", req:"Nível 1", pn:1 },
         // ── Nível 2 ──────────────────────────────────────────────
         { id:'rm_e6',  nome:"Conjuração Modular",        desc:"O(s) Objeto(s), Arma(s) ou Equipamento(s) Conjurado(s) podem ser diferentes cada vez que conjura. Alternar entre eles depois de conjurados requer Ação bônus ou Reação.", req:"Nível 2 + Forjar Objeto, Arma ou Equipamento Conjurada(o)", pn:1 },
-        { id:'rm_e7',  nome:"Cópia Perfeita",            desc:"Permite copiar, através de conjuração, um objeto marcado ou tocado com todas as suas propriedades originais, mesmo sendo conjurações.", req:"Nível 2", pn:1 },
+        { id:'rm_e7',  nome:"Cópia Perfeita",            desc:"Permite copiar, através de conjuração, um objeto marcado ou tocado, reproduzindo-o uma vez com todas as suas propriedades originais, desde que seja um objeto comum (não podendo copiar objetos oriundos de outros Hatsus).", req:"Nível 2", pn:1 },
         { id:'rm_e8',  nome:"Imbuir Conjuração",         desc:"Adiciona um efeito de qualquer categoria até seu nível que não possua pré-requisitos (como outro efeito dependente ou determinado valor de atributo). Não aplicável a efeitos de Especialização.", req:"Nível 2", pn:1 },
         { id:'rm_e9',  nome:"Pesos e Medidas",           desc:"Permite reduzir e/ou aumentar o peso e/ou tamanho da conjuração na metade (reduzindo) ou no dobro (aumentando).", req:"Nível 2", pn:1 },
         // ── Nível 4 ──────────────────────────────────────────────
-        { id:'rm_e10', nome:"Dano Complexo",             desc:"A criatura pode causar +1 dado de dano ao empurrar com sucesso inimigos.", req:"Nível 4", pn:1 },
         { id:'rm_e11', nome:"Vínculo Sustentado",        desc:"O Hatsu dura enquanto o usuário mantiver concentração e gastar 5% de aura a cada 2 rodadas. Para compartilhar sentidos, o gasto passa a ser por rodada.", req:"Nível 4", pn:1 },
         // ── Nível 5 ──────────────────────────────────────────────
         { id:'rm_e12', nome:"Aura Condensada",           desc:"O item armazena até 10% da aura para liberar depois como impulso de dano +1d8 ou de defesa (1d8 RD).", req:"Nível 5", pn:1 },
-        { id:'rm_e13', nome:"Forja Avançada",            desc:"Ao gastar uma ação bônus, a arma ganha +1d8.", req:"Nível 5", pn:1 },
+        { id:'rm_e13', nome:"Forja Avançada",            desc:"Ao gastar uma ação bônus, a arma ganha +1d8 de dano pela duração de 1 rodada.", req:"Nível 5", pn:1 },
         // ── Nível 6 ──────────────────────────────────────────────
         { id:'rm_e14', nome:"Forma Evoluída",            desc:"10 PV, +2 CA e uma Característica de Invocação adicional.", req:"Nível 6", pn:1 },
         { id:'rm_e15', nome:"Lugar Secreto / Pique Esconde", desc:"A Dimensão pode ser usada como um espaço de 12×12m com a composição (ambiente, aparência, mobília) que o usuário pré-definir.", req:"Nível 6 — Característica Dimensão", pn:1 },
@@ -381,7 +380,7 @@
         { id:'em_p3', peso:'pesada',  nome:"Ricochete em Aliado",         desc:"Ricocheteia em aliado se errar",                                    bnf:"Acerto automático contra alvo Desprevenido" },
       ],
       efeitos: [
-        { id:'em_e1',  nome:"Aura Viva",              desc:"Cria até 2 massas de aura com turno em combate: a) Portais (indestrutiveis por padrão) ou b) Criaturas/Objetos médios (PV e dano 1d6)", req:"Nível 1", pn:1 },
+        { id:'em_e1',  nome:"Aura Viva",              desc:"Cria até 2 massas de aura com turno em combate: a) Portais (indestrutiveis por padrão) ou b) Criaturas/Objetos médios (PV e dano 1d6, CA 12)", req:"Nível 1", pn:1 },
         { id:'em_e2',  nome:"Distância Segura",       desc:"Adiciona 2 Grau/Passo de Alcance (6m) ou 2 Grau/Passo de Área (3m)",                    req:"Nível 1", pn:1 },
         { id:'em_e3',  nome:"Plano Avançado (Detonador)", desc:"Aplica 'marca' prévia (restrição de ativação, 5% aura). Não conta no tempo ou duração do Hatsu", req:"Nível 1", pn:1 },
         { id:'em_e4',  nome:"Projétil de Aura",       desc:"Desprende aura em projétil balístico (mínimo 1d8). Alternativa: cria munições para armas", req:"Nível 1", pn:1 },
@@ -391,7 +390,7 @@
         { id:'em_e8',  nome:"Stalker",                desc:"Marca alvo e localiza-o por 1h ou 100m ou +1 para encontrar/acertar (máx. +3)",           req:"Nível 2", pn:1 },
         { id:'em_e9',  nome:"Troca Estratégica",      desc:"Gasta 1 reação para trocar de lugar com constructo de aura ou aliado marcado",            req:"Nível 2 — Aura Viva ou Plano Avançado", pn:1 },
         { id:'em_e10', nome:"Reformar Constructo",    desc:"Divide constructo em duas entidades menores ou reconstrói um destruído (metade dos PVs)", req:"Nível 3", pn:1 },
-        { id:'em_e11', nome:"Unificação de Constructos", desc:"Dois ou mais constructos se fundem em um único ser maior (soma PVs ou FOR)",          req:"Nível 3 — Aura Viva", pn:1 },
+        { id:'em_e11', nome:"Unificação de Constructos", desc:"Dois ou mais constructos se fundem em um único ser maior (soma PVs ou DANO)",          req:"Nível 3 — Aura Viva", pn:1 },
         { id:'em_e12', nome:"Ancoragem",              desc:"Não pode ser movido por meios físicos. Também prende objeto no espaço (como flutuando)",  req:"Nível 4", pn:1 },
         { id:'em_e13', nome:"Lugar Marcado",          desc:"Aplica Ren em local/alvo (5%), marcando para teletransporte independente da distância",   req:"Nível 4", pn:1 },
         { id:'em_e14', nome:"Expansão de Domínio",    desc:"a) 4 Grau/Passo de Área (cone, círculo, cilindro ou linha de 6m a partir de si) ou b) 1 Grau/Passo de Alcance (3m à distância)", req:"Nível 5", pn:1 },
@@ -399,7 +398,7 @@
         { id:'em_e16', nome:"Mira Guiada",            desc:"Projétil contorna/atravessa obstáculos simples e alvos estáticos no caminho",             req:"Nível 5 — SAB 3+ e Projétil de Aura", pn:1 },
         { id:'em_e17', nome:"Troca Dimensional",      desc:"Troca de lugar com aliado, portal ou marca",                                              req:"Nível 6", pn:1 },
         { id:'em_e18', nome:"Núcleo Vinculante",      desc:"Constructo canaliza aura para amplificar ataque/defesa, sacrificando-se. Absorve ou Aumenta dano de acordo com PV restante", req:"Nível 8 — Aura Viva", pn:1 },
-        { id:'em_e19', nome:"Espaço Reverso",         desc:"Rebate ataque de aura ou Hatsu com dano de volta ao alvo (1x/combate)",                   req:"Nível 8 — SAB 5+", pn:1 },
+        { id:'em_e19', nome:"Espaço Reverso",         desc:"Rebate ataque de aura ou Hatsu com dano de volta ao alvo (1x/combate). Sem Reação Ofensiva/Defensiva, só funciona se o atacante mirar alvo/área já sob o efeito",                   req:"Nível 8 — SAB 5+", pn:1 },
         { id:'em_e20', nome:"Disparo Potente",        desc:"Aumenta dano em +2d6 e +6 Grau/Passo de Alcance ou +12 Grau/Passo de Área (18m)",       req:"Nível 10 — Projétil de Aura ou Rajada Canalizada", pn:1 },
         { id:'em_e21', nome:"Tão Tão Distante",       desc:"Dobra alcance/área ou muda de categoria (metros→km, requer 2 restrições pesadas ou 1 extrema)", req:"Nível 10", pn:1 },
       ]

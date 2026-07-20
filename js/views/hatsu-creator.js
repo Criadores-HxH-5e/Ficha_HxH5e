@@ -1,4 +1,27 @@
-﻿function renderHatsuCreator(container) {
+﻿window.CARACTERISTICAS_INVOCACAO = [
+    { nome:'Atento',               icon:'👁️',  desc:'Percepção/investigação de criaturas próximas (3m) +2 (escalável)' },
+    { nome:'Carapaça/Armadura',    icon:'🛡️',  desc:'Redução de Danos 2 (escalável até 5)' },
+    { nome:'Curandeira',           icon:'💚',  desc:'Cura +1 por dado rolado. Req: Efeito de Cura' },
+    { nome:'Defensor',             icon:'💎',  desc:'CA +2 para criaturas adjacentes (escalável até 5)' },
+    { nome:'Destruidor',           icon:'💥',  desc:'Ataque crítico causa +1 grau/passo de dano' },
+    { nome:'Dimensão',             icon:'🌀',  desc:'Conjuração pode ser um ambiente/espaço independente onde se pode entrar' },
+    { nome:'Enxame',               icon:'🐝',  desc:'3+ conjurações iguais formam um Enxame (mesma iniciativa, PVs/CAs/Atributos somados)' },
+    { nome:'Furtivo',              icon:'🌑',  desc:'Bônus +2 em Furtividade (escalável até 5)' },
+    { nome:'Grande',               icon:'⬆️',   desc:'Tamanho +1 grau (Médio→Grande→Enorme→Colossal). Vantagem em TR de FOR/CON' },
+    { nome:'Imparável',            icon:'🏃',  desc:'Ignora terreno difícil e não pode ter movimento reduzido' },
+    { nome:'Investida',            icon:'⚡',  desc:'Após mover 4,5m em linha reta: TR de FOR ou derruba + 1 grau/passo de dano' },
+    { nome:'Montaria',             icon:'🐴',  desc:'Pode servir como montaria (deve ser pelo menos Médio)' },
+    { nome:'Móvel/Veloz',          icon:'💨',  desc:'Movimento +3m (escalável: 4,5m, 6m, 7,5m, 9m)' },
+    { nome:'Movimento Variável',   icon:'🌊',  desc:'Adquire voo, nado, escalada ou movimento subterrâneo (escalável)' },
+    { nome:'Pequeno',              icon:'⬇️',   desc:'Tamanho −1 grau (Médio→Pequeno→Minúsculo). Vantagem em Furtividade' },
+    { nome:'Perito',               icon:'🎯',  desc:'Recebe 2 perícias adicionais' },
+    { nome:'Perturbador',          icon:'😵',  desc:'Hostis próximos (3m) sofrem −2 em testes de perícia (escalável até 5)' },
+    { nome:'Reativo',              icon:'⚔️',   desc:'Possui reações = Prof do usuário. 1x/rodada pode usar reação independente' },
+    { nome:'Robustez',             icon:'❤️',   desc:'PV máximo +5 (escalável: 10, 15, 25)' },
+    { nome:'Sangue Ruim',          icon:'🌵',  desc:'Ao receber ataque perfurante: criaturas adjacentes sofrem 1d6 de dano (ácido ou perfurante)' },
+];
+
+function renderHatsuCreator(container) {
     const char = state.currentChar;
     const cls  = char.class;
     const catDB = window.HATSU_DB.categorias[cls] || window.HATSU_DB.categorias['INTENSIFICAÇÃO'];
@@ -68,12 +91,13 @@
         var grauChips = Object.keys(GRAU_LABELS).filter(function(k){ return grauTotals[k] > 0; }).map(function(k) {
             var grauMaxCar = window.calcMaxGrauPorCaracteristica ? window.calcMaxGrauPorCaracteristica(char.level, char.class, k) : grauMaxNivel;
             var over = grauTotals[k] > grauMaxCar;
-            return '<span style="font-size:8px;font-weight:900;padding:2px 7px;border-radius:10px;background:' + (over ? '#ef444422' : '#1f2937') + ';color:' + (over ? '#f87171' : '#9ca3af') + '">' + GRAU_LABELS[k] + ': ' + grauTotals[k] + '/' + grauMaxCar + '</span>';
+            return '<span style="font-size:8px;font-weight:900;padding:2px 7px;border-radius:10px;background:' + (over ? '#fbbf2422' : '#1f2937') + ';color:' + (over ? '#fbbf24' : '#9ca3af') + '" title="' + (over ? 'Excedente reservado — só ' + grauMaxCar + ' conta(m) até seu nível aumentar o teto' : '') + '">' + GRAU_LABELS[k] + ': ' + grauTotals[k] + '/' + grauMaxCar + (over ? ' ⏳' : '') + '</span>';
         }).join('');
         if (!grauChips) return '';
         return '<div style="background:#0f1117;border:1px solid #1f2937;border-radius:10px;padding:8px;margin-bottom:10px">'
             + '<div style="font-size:7px;color:#4b5563;text-transform:uppercase;font-weight:700;letter-spacing:1px;margin-bottom:5px">⭐ Grau de Potência por Característica (nível ' + char.level + ')</div>'
             + '<div style="display:flex;flex-wrap:wrap;gap:4px">' + grauChips + '</div>'
+            + '<div style="font-size:7px;color:#4b5563;margin-top:5px;font-style:italic">⏳ = excedente reservado, aplicado automaticamente quando o teto do nível aumentar</div>'
             + '</div>';
     }
 
@@ -334,6 +358,9 @@
                 + '<div style="display:flex;align-items:flex-start;gap:8px;">'
                 + '<span style="font-size:7px;font-weight:900;padding:2px 5px;border-radius:4px;background:' + p.badge + ';color:' + p.bt + ';text-transform:uppercase;flex-shrink:0;margin-top:2px">'
                 + pw.substring(0,3).toUpperCase() + '</span>'
+                + (pw === 'variavel'
+                    ? '<button onclick="event.stopPropagation();window._hShowVariavelInfo(this)" style="background:transparent;border:1px solid ' + p.bt + '77;border-radius:50%;width:14px;height:14px;line-height:12px;padding:0;margin-top:2px;cursor:pointer;font-size:8px;font-weight:900;color:' + p.bt + ';flex-shrink:0" title="O que são Restrições Variáveis?">i</button>'
+                    : '')
                 + '<div style="flex:1;min-width:0">'
                 + '<div style="font-size:9px;font-weight:900;text-transform:uppercase;color:' + (isPure ? '#fbbf24' : sel ? p.bs : '#d1d5db') + ';line-height:1.2">'
                 + item.nome + (sel ? ' <span style="color:' + (isPure ? '#fbbf24' : p.bt) + '">✓</span>' : '') + '</div>'
@@ -787,6 +814,9 @@
                         { nome:'Gasoso',            ca:'—', icon:'💨' },
                     ];
                     const matSel = MATERIAIS.find(function(m){ return m.nome === chosenMat; });
+                    const chosenCaracE2 = specialChoices['rm_e2_carac'] || '';
+                    const CARACTS_E2 = window.CARACTERISTICAS_INVOCACAO || [];
+                    const caracSelE2 = CARACTS_E2.find(function(c){ return c.nome === chosenCaracE2; });
                     specialHtml = '<div style="margin-top:8px;background:#0a0f1a;border:1px solid '+ color +'33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
                         + '<div style="font-size:8px;font-weight:900;color:'+ color +';text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">💜 Material do Constructo:</div>'
                         + '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px">'
@@ -804,34 +834,28 @@
                                 + 'CA base: '+ (matSel ? matSel.ca : '—') +' + INT &nbsp;|&nbsp; PV = 5 + CON×2'
                               + '</div>'
                             : '<div style="font-size:8px;color:#f87171;margin-top:2px">⚠ Escolha o material</div>')
+                        + '<div style="font-size:8px;font-weight:900;color:'+ color +';text-transform:uppercase;letter-spacing:1px;margin:10px 0 8px">✨ Característica de Invocação (grátis):</div>'
+                        + '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px">'
+                        + CARACTS_E2.map(function(c) {
+                            var active = chosenCaracE2 === c.nome;
+                            return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\'rm_e2_carac\',\''+ c.nome +'\')" '
+                                + 'style="padding:4px 8px;border-radius:7px;font-size:8px;font-weight:900;cursor:pointer;border:1.5px solid '+ (active?color:'#1f2937') +';background:'+ (active?color+'22':'transparent') +';color:'+ (active?color:'#d1d5db') +';transition:all .15s">'
+                                + c.icon + ' ' + c.nome + '</button>';
+                        }).join('')
+                        + '</div>'
+                        + (caracSelE2
+                            ? '<div style="background:#060d1a;border:1px solid '+ color +'33;border-radius:8px;padding:8px;font-size:8px;color:#9ca3af">'
+                                + '<span style="color:'+ color +';font-weight:700">'+ caracSelE2.icon +' '+ caracSelE2.nome +'</span><br>'
+                                + caracSelE2.desc
+                              + '</div>'
+                            : '<div style="font-size:8px;color:#f87171;margin-top:2px">⚠ Escolha a Característica de Invocação incluída gratuitamente</div>')
                         + '</div>';
                 }
 
                 // rm_e3: Características Básicas — picker de 1 Característica de Invocação
                 if (item.id === 'rm_e3') {
                     const chosenCarac = specialChoices['rm_e3'] || '';
-                  const CARACTS = [
-                        { nome:'Atento',               icon:'👁️',  desc:'Percepção/investigação de criaturas próximas (3m) +2 (escalável)' },
-                        { nome:'Carapaça/Armadura',    icon:'🛡️',  desc:'Redução de Danos 2 (escalável até 5)' },
-                        { nome:'Curandeira',           icon:'💚',  desc:'Cura +1 por dado rolado. Req: Efeito de Cura' },
-                        { nome:'Defensor',             icon:'💎',  desc:'CA +2 para criaturas adjacentes (escalável até 5)' },
-                        { nome:'Destruidor',           icon:'💥',  desc:'Ataque crítico causa +1 grau/passo de dano' },
-                        { nome:'Dimensão',             icon:'🌀',  desc:'Conjuração pode ser um ambiente/espaço independente onde se pode entrar' },
-                        { nome:'Enxame',               icon:'🐝',  desc:'3+ conjurações iguais formam um Enxame (mesma iniciativa, PVs/CAs/Atributos somados)' },
-                        { nome:'Furtivo',              icon:'🌑',  desc:'Bônus +2 em Furtividade (escalável até 5)' },
-                        { nome:'Grande',               icon:'⬆️',   desc:'Tamanho +1 grau (Médio→Grande→Enorme→Colossal). Vantagem em TR de FOR/CON' },
-                        { nome:'Imparável',            icon:'🏃',  desc:'Ignora terreno difícil e não pode ter movimento reduzido' },
-                        { nome:'Investida',            icon:'⚡',  desc:'Após mover 4,5m em linha reta: TR de FOR ou derruba + 1 grau/passo de dano' },
-                        { nome:'Montaria',             icon:'🐴',  desc:'Pode servir como montaria (deve ser pelo menos Médio)' },
-                        { nome:'Móvel/Veloz',          icon:'💨',  desc:'Movimento +3m (escalável: 4,5m, 6m, 7,5m, 9m)' },
-                        { nome:'Movimento Variável',   icon:'🌊',  desc:'Adquire voo, nado, escalada ou movimento subterrâneo (escalável)' },
-                        { nome:'Pequeno',              icon:'⬇️',   desc:'Tamanho −1 grau (Médio→Pequeno→Minúsculo). Vantagem em Furtividade' },
-                        { nome:'Perito',               icon:'🎯',  desc:'Recebe 2 perícias adicionais' },
-                        { nome:'Perturbador',          icon:'😵',  desc:'Hostis próximos (3m) sofrem −2 em testes de perícia (escalável até 5)' },
-                        { nome:'Reativo',              icon:'⚔️',   desc:'Possui reações = Prof do usuário. 1x/rodada pode usar reação independente' },
-                        { nome:'Robustez',             icon:'❤️',   desc:'PV máximo +5 (escalável: 10, 15, 25)' },
-                        { nome:'Sangue Ruim',          icon:'🌵',  desc:'Ao receber ataque perfurante: criaturas adjacentes sofrem 1d6 de dano (ácido ou perfurante)' },
-                    ];
+                    const CARACTS = window.CARACTERISTICAS_INVOCACAO || [];
                     const caracSel = CARACTS.find(function(c){ return c.nome === chosenCarac; });
                     specialHtml = '<div style="margin-top:8px;background:#0a0f1a;border:1px solid '+ color +'33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
                         + '<div style="font-size:8px;font-weight:900;color:'+ color +';text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">✨ Característica de Invocação:</div>'
@@ -883,11 +907,13 @@
                 if (item.id === 'rt_e5') {
                     specialHtml = window._hBuildTransmutacaoProgressaoHtml('rt_e5', window.TRANSMUTACAO_DB ? window.TRANSMUTACAO_DB.versatil : [], color, totalCopies, charLevel, hb, '🔮 Escolha a Propriedade:');
                 }
-                // eg6: Poder é Intenção — pn:0, picker de efeito alvo
+                // eg6: Poder é Intenção — pn:0, picker de efeito alvo (Gerais + Categoria)
                 if (item.id === 'eg6') {
                     const chosen = specialChoices['eg6'] || '';
-                    const allEgList6 = (window.HATSU_DB && window.HATSU_DB.efeitos_gerais) || [];
-                    const eg6Buttons = allEgList6.filter(function(e){ return e.id !== 'eg6'; }).map(function(e) {
+                    const eg6Gerais = (window.HATSU_DB && window.HATSU_DB.efeitos_gerais) || [];
+                    const eg6CatEfs = (catDB && catDB.efeitos) ? catDB.efeitos : [];
+                    const allEgList6 = [...eg6Gerais, ...eg6CatEfs];
+                    function eg6BtnHtml(e) {
                         var active = chosen === e.nome;
                         var rq = checkReq(e.req);
                         var isBlocked = !rq.ok;
@@ -908,7 +934,15 @@
                         }
                         return '<button onclick="' + onclick + '" style="' + btnStyle + '">'
                             + (active ? '✓ ' : '') + e.nome + (isBlocked ? ' 🔒' : '') + '</button>';
-                    }).join('');
+                    }
+                    const eg6Buttons = '<div style="font-size:7px;font-weight:700;color:#9ca3af;margin:2px 0;text-transform:uppercase;letter-spacing:1px">🌐 Efeitos Gerais</div>'
+                        + '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">'
+                        + eg6Gerais.filter(function(e){ return e.id !== 'eg6'; }).map(eg6BtnHtml).join('')
+                        + '</div>'
+                        + '<div style="font-size:7px;font-weight:700;color:' + color + ';margin:2px 0;text-transform:uppercase;letter-spacing:1px">⚡ Efeitos de Categoria</div>'
+                        + '<div style="display:flex;flex-wrap:wrap;gap:4px">'
+                        + eg6CatEfs.filter(function(e){ return e.id !== 'eg6'; }).map(eg6BtnHtml).join('')
+                        + '</div>';
                     const chosenEff6 = chosen ? allEgList6.find(function(e){ return e.nome === chosen; }) : null;
                     const chosenPanel6 = chosenEff6
                         ? '<div style="margin-top:6px;background:#060d1a;border:1px solid '+ color +'33;border-radius:8px;padding:8px">'
@@ -920,9 +954,7 @@
                     specialHtml = '<div style="margin-top:8px;background:#0a0f1a;border:1px solid '+ color +'33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
                         + '<div style="font-size:8px;font-weight:900;color:'+ color +';text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">🎯 Poder é Intenção</div>'
                         + '<div style="font-size:8px;color:#6b7280;margin-bottom:8px">Selecione o efeito que será direcionado a inimigo(s):</div>'
-                        + '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">'
                         + eg6Buttons
-                        + '</div>'
                         + chosenPanel6
                         + '</div>';
                 }
@@ -1968,11 +2000,9 @@ window._hAddDuplicateE = function(id, tipo, pn) {
     }
     const _beforeDup = window._hSnapshotGrauTotals(hb);
     arr.push(id);
-    // rev. Manual 2.0: reverte a cópia extra se ela ultrapassar o limite de Grau de Potência do nível
-    if (!window._hCheckGrauLimiteENotify(hb, _beforeDup)) {
-        const revertIdx = arr.lastIndexOf(id);
-        if (revertIdx > -1) arr.splice(revertIdx, 1);
-    }
+    // rev.: não bloqueia mais a cópia extra — apenas avisa se isso ultrapassar o limite de Grau de
+    // Potência do nível. O excedente simplesmente não conta na mecânica até o teto subir de nível.
+    window._hCheckGrauLimiteENotify(hb, _beforeDup);
     renderHatsuInPlace();
 };
 
@@ -1990,14 +2020,11 @@ window._hSetFilterText = function(val) {
 window._hSetSpecialChoice = function(id, val) {
     const hb = state.hatsuBuilder; if (!hb) return;
     if (!hb.specialChoices) hb.specialChoices = {};
-    const previous = hb.specialChoices[id];
     const _beforeSC = window._hSnapshotGrauTotals(hb);
     hb.specialChoices[id] = val;
-    // rev. Manual 2.0: reverte a escolha se ela ultrapassar o limite de Grau de Potência do nível
+    // rev.: não bloqueia mais — apenas avisa se ultrapassar o limite de Grau de Potência do nível
     // (afeta principalmente eg1/eg9, que aplicam bônus em Alcance/Área)
-    if (!window._hCheckGrauLimiteENotify(hb, _beforeSC)) {
-        hb.specialChoices[id] = previous;
-    }
+    window._hCheckGrauLimiteENotify(hb, _beforeSC);
     renderHatsuInPlace();
 };
 window._hSetSpecialText = function(id, val) {
@@ -2257,6 +2284,27 @@ window._hShowStatInfo = function(idx, type, btn) {
     }, 50);
 };
 
+window._hShowVariavelInfo = function(btn) {
+    var popId = '_variavel_info_popup';
+    var existing = document.getElementById(popId);
+    if (existing) { existing.remove(); return; }
+    var pop = document.createElement('div');
+    pop.id = popId;
+    pop.style.cssText = 'position:fixed;z-index:99999;background:#0f172a;border:1px solid #a855f755;border-radius:12px;padding:14px 16px;min-width:220px;max-width:280px;box-shadow:0 8px 32px #000c;font-size:11px;pointer-events:auto';
+    pop.innerHTML = '<div style="font-weight:900;color:#c084fc;margin-bottom:8px;font-size:9px;letter-spacing:1.5px;text-transform:uppercase">🔮 Restrição Variável</div>'
+        + '<div style="color:#d1d5db;font-size:10px;line-height:1.5">Ao selecionar essa restrição, você varia no cumprimento dela em troca de receber também um benefício variável e correspondente.</div>'
+        + '<div onclick="document.getElementById(\''+popId+'\').remove()" style="margin-top:10px;font-size:8px;color:#4b5563;cursor:pointer;text-align:right;padding-top:6px;border-top:1px solid #1f2937">✕ fechar</div>';
+    var r = btn.getBoundingClientRect();
+    pop.style.top = Math.min(r.bottom + 6, window.innerHeight - 160) + 'px';
+    pop.style.left = Math.max(8, Math.min(r.left - 100, window.innerWidth - 300)) + 'px';
+    document.body.appendChild(pop);
+    setTimeout(function(){
+        document.addEventListener('click', function _cl(e){
+            if (!pop.contains(e.target) && e.target !== btn){ pop.remove(); document.removeEventListener('click', _cl); }
+        });
+    }, 50);
+};
+
 window._hToggleLore = function(id) {
     const hb = state.hatsuBuilder; if (!hb) return;
     if (!hb.openLore) hb.openLore = {};
@@ -2269,15 +2317,12 @@ window._hTogglePure = function(id) {
     const hb = state.hatsuBuilder; if (!hb) return;
     if (!hb.pureRestrictions) hb.pureRestrictions = {};
     if (hb.pureRestrictions[id]) {
-        // Deixando de ser Pura = passa a valer o benefício mecânico real. Só permite se isso não
-        // ultrapassar o limite de Grau de Potência do nível (rev. Manual 2.0).
+        // Deixando de ser Pura = passa a valer o benefício mecânico real. Não bloqueia mais —
+        // apenas avisa se isso ultrapassar o limite de Grau de Potência (o excedente só entra em
+        // vigor mecanicamente quando o teto do nível crescer).
         const _before = window._hSnapshotGrauTotals(hb);
         delete hb.pureRestrictions[id];
-        if (!window._hCheckGrauLimiteENotify(hb, _before)) {
-            hb.pureRestrictions[id] = true; // reverte — mantém como Pura
-            renderHatsuInPlace();
-            return;
-        }
+        window._hCheckGrauLimiteENotify(hb, _before);
         // Se era restrição extrema, limpa duplicatas que excedam o P.N extremo restante
         window._hCleanDuplicatesIfNeeded && window._hCleanDuplicatesIfNeeded(hb);
     } else {
@@ -2297,10 +2342,11 @@ window._hSnapshotGrauTotals = function(hb) {
     return window.calcGrausPotenciaPorCaracteristica(shim, char.level);
 };
 
-// rev. Manual 2.0 — Limite de Grau de Potência por nível. Verifica o total já resolvido (via
-// beneficioChoices) por característica contra window.calcMaxGrauPorNivel(nível). Só bloqueia (e
-// avisa o usuário) quando a característica ultrapassa o limite E a ação atual piorou esse total —
-// um excedente pré-existente (deixado de propósito, ex: restrição não-pura) não trava outras ações.
+// rev.: Limite de Grau de Potência por nível. NÃO bloqueia mais nenhuma seleção — o jogador pode
+// pegar restrições/efeitos que somem mais graus do que o teto do nível permite. Apenas avisa
+// (toast informativo) quando a característica ultrapassa o limite E a ação atual piorou esse
+// total. Mecanicamente, apenas o valor até o teto é aplicado (ver clamp em hatsu-detail.js); o
+// excedente passa a contar automaticamente quando o personagem subir de nível e o teto crescer.
 window._hCheckGrauLimiteENotify = function(hb, beforeTotals) {
     if (!window.calcGrausPotenciaPorCaracteristica || !window.calcMaxGrauPorNivel) return true;
     const char = state.currentChar; if (!char) return true;
@@ -2314,25 +2360,25 @@ window._hCheckGrauLimiteENotify = function(hb, beforeTotals) {
         const grauMax = window.calcMaxGrauPorCaracteristica ? window.calcMaxGrauPorCaracteristica(char.level, char.class, k) : grauMaxBase;
         if (totals[k] > grauMax) {
             window._hShowGrauLimiteToast(LABELS[k], totals[k], grauMax, char.level || 1);
-            return false;
         }
     }
     return true;
 };
 
-// Toast estilizado (substitui o alert() nativo) para o aviso de limite de Grau de Potência excedido
+// Toast estilizado (substitui o alert() nativo) — aviso informativo de excedente de Grau de
+// Potência. Não bloqueia nada; só explica que o excedente aguarda o teto do nível crescer.
 window._hShowGrauLimiteToast = function(label, atual, max, nivel) {
     const existing = document.getElementById('grau-limite-toast');
     if (existing) existing.remove();
     const toast = document.createElement('div');
     toast.id = 'grau-limite-toast';
-    toast.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#0d1117;border:2px solid #f87171;border-radius:14px;padding:14px 18px;z-index:99999;font-family:Rajdhani,sans-serif;max-width:340px;width:calc(100% - 32px);box-shadow:0 8px 32px #000c,0 0 24px #f8717144;animation:fadeIn .2s;cursor:pointer';
+    toast.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#0d1117;border:2px solid #fbbf24;border-radius:14px;padding:14px 18px;z-index:99999;font-family:Rajdhani,sans-serif;max-width:340px;width:calc(100% - 32px);box-shadow:0 8px 32px #000c,0 0 24px #fbbf2444;animation:fadeIn .2s;cursor:pointer';
     toast.innerHTML = '<div style="display:flex;align-items:flex-start;gap:10px">'
-        + '<span style="font-size:20px;flex-shrink:0;line-height:1">⚠️</span>'
+        + '<span style="font-size:20px;flex-shrink:0;line-height:1">⭐</span>'
         + '<div style="min-width:0">'
-        + '<div style="font-family:\'Orbitron\',sans-serif;font-weight:900;font-size:11px;color:#f87171;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Limite de Grau de Potência</div>'
-        + '<div style="font-size:12px;color:#e5e7eb;font-weight:700;margin-bottom:4px">' + label + ': <span style="color:#f87171">' + atual + '/' + max + '</span> <span style="color:#6b7280;font-weight:400">(nível ' + nivel + ')</span></div>'
-        + '<div style="font-size:10px;color:#9ca3af;line-height:1.4">Essa característica não pode ultrapassar o limite de Grau de Potência do nível do personagem. A seleção foi desfeita.</div>'
+        + '<div style="font-family:\'Orbitron\',sans-serif;font-weight:900;font-size:11px;color:#fbbf24;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Excedente de Grau de Potência</div>'
+        + '<div style="font-size:12px;color:#e5e7eb;font-weight:700;margin-bottom:4px">' + label + ': <span style="color:#fbbf24">' + atual + '/' + max + '</span> <span style="color:#6b7280;font-weight:400">(nível ' + nivel + ')</span></div>'
+        + '<div style="font-size:10px;color:#9ca3af;line-height:1.4">A seleção foi mantida, mas só ' + max + ' grau(s) serão aplicados nesta característica por enquanto. O restante passa a valer automaticamente quando o teto do seu nível aumentar.</div>'
         + '</div>'
         + '</div>';
     toast.onclick = function() { toast.style.opacity = '0'; toast.style.transition = 'opacity .2s'; setTimeout(() => toast.remove(), 200); };
@@ -2396,13 +2442,10 @@ window._hToggleR = function(id, tipo) {
 window._hSetBeneficioChoice = function(id, choice) {
     const hb = state.hatsuBuilder; if (!hb) return;
     if (!hb.beneficioChoices) hb.beneficioChoices = {};
-    const previous = hb.beneficioChoices[id];
     const _beforeBC = window._hSnapshotGrauTotals(hb);
     hb.beneficioChoices[id] = choice;
-    // rev. Manual 2.0: reverte a escolha se ela ultrapassar o limite de Grau de Potência do nível
-    if (!window._hCheckGrauLimiteENotify(hb, _beforeBC)) {
-        hb.beneficioChoices[id] = previous;
-    }
+    // rev.: não bloqueia mais — apenas avisa se ultrapassar o limite de Grau de Potência do nível
+    window._hCheckGrauLimiteENotify(hb, _beforeBC);
     renderHatsuInPlace();
 };
 window._hSetBeneficioChoiceIdx = function(id, idx) {
@@ -2530,13 +2573,9 @@ function _hTryComprarEfeito(hb, item, id, tipo, pn, isRepetivel) {
         hb.efeitoNiveis = hb.efeitoNiveis || {};
         hb.efeitoNiveis[id] = (hb.efeitoNiveis[id] || []).concat([charLevelNow]);
     }
-    // rev. Manual 2.0: reverte a seleção se já ultrapassar o limite de Grau de Potência do nível
-    if (!window._hCheckGrauLimiteENotify(hb, _beforeE)) {
-        const revertIdx = arr.lastIndexOf(id);
-        if (revertIdx > -1) arr.splice(revertIdx, 1);
-        if (isRepetivel) hb.efeitoNiveis[id].pop();
-        return false;
-    }
+    // rev.: não bloqueia mais a seleção — apenas avisa se ultrapassar o limite de Grau de Potência
+    // do nível. O excedente fica sem efeito mecânico até o teto subir de nível.
+    window._hCheckGrauLimiteENotify(hb, _beforeE);
     return true;
 }
 

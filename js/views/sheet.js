@@ -795,6 +795,14 @@
             render(true);
         };
         function selectNenType(cls) { state.tempChar.class = cls; const clsData = SYSTEM_DB.classes.find(c => c.id === cls); if(clsData) setThemeColor(clsData.color); render(true); }
+        function setCategoriaMetodo(method) { state.tempChar.categoriaMetodo = method; render(true); }
+        function rollCategoriaNen() {
+            const roll = Math.floor(Math.random() * 100) + 1;
+            const cls = window.rollCategoriaNenTable ? window.rollCategoriaNenTable(roll) : 'INTENSIFICAÇÃO';
+            state.tempChar.categoriaMetodo = 'rolled';
+            state.tempChar.categoriaRoll = roll;
+            selectNenType(cls);
+        }
         function selectBackground(bgName) { if (state.tempChar.background !== bgName) { state.tempChar.background = bgName; state.tempChar.backgroundFeature = null; } render(true); }
         function selectBackgroundFeature(featureName) { state.tempChar.backgroundFeature = featureName; }
         function toggleInclination(type, name, value) { const list = state.tempChar.inclinations[type]; const existsIdx = list.findIndex(i => i.nome === name); if (existsIdx >= 0) { list.splice(existsIdx, 1); } else { list.push({ nome: name, [type === 'positive' ? 'custo' : 'valor']: value }); } render(true); }
@@ -845,7 +853,7 @@
             const rolls = Array.from({ length: n }, () => Math.floor(Math.random() * d) + 1);
             return { rolls, total: rolls.reduce((a, b) => a + b, 0) };
         }
-        function rollHatsuDamage(mode, useRen) {
+        function rollHatsuDamage(mode, grausRen) {
             const rs = window._hatsuRollState;
             if (!rs || !rs.dice || !rs.hasBaseDmg) { alert('Este Hatsu não possui dano calculável.'); return; }
             const char = state.currentChar;
@@ -853,20 +861,23 @@
             const effectiveMode = mode || state.rollMode;
             const mod = getMod((char.attributes[rs.attr] || {}).value || 10);
 
-            // ── REN: +1 Grau de dano neste ataque (já validado que há espaço no limite antes de perguntar) ──
+            // ── REN: escalona +N Grau(s) de dano neste ataque (já validado o teto de grau antes de perguntar) ──
+            const renGraus = Math.max(0, parseInt(grausRen) || 0);
+            const useRen = renGraus > 0;
             let renDice = rs.dice;
-            let renUsedFree = false;
             if (useRen && window.DAMAGE_TABLE) {
                 const _idxD = window.DAMAGE_TABLE.indexOf(rs.dice);
-                if (_idxD >= 0) renDice = window.DAMAGE_TABLE[Math.min(_idxD + 1, window.DAMAGE_TABLE.length - 1)];
+                if (_idxD >= 0) renDice = window.DAMAGE_TABLE[Math.min(_idxD + renGraus, window.DAMAGE_TABLE.length - 1)];
             }
 
-            // ── Custo de Aura: ativação do Hatsu + REN (se usado e não for o uso grátis diário) ──
+            // ── Custo de Aura: ativação do Hatsu + REN (1º grau grátis 1x/dia no REN nível 3; demais 5% cada) ──
             const _auraCost = h ? window.calcHatsuAuraCostFinal(h, state.hatsuDetailIdx).pct : 0;
             let renCost = 0;
+            let renUsedFree = false;
             if (useRen) {
                 renUsedFree = window.isRenFreeUsoDisponivel ? window.isRenFreeUsoDisponivel(char) : false;
-                renCost = renUsedFree ? 0 : 5;
+                const grausPagos = Math.max(0, renGraus - (renUsedFree ? 1 : 0));
+                renCost = grausPagos * 5;
                 if (renUsedFree && window.marcarRenFreeUsoConsumido) window.marcarRenFreeUsoConsumido(char);
             }
             const totalAuraCost = _auraCost + renCost;
@@ -934,7 +945,7 @@
             }
             // ── Fim rolagem de ataque ─────────────────────────────────────────
 
-            const renNote = useRen ? `\n💪 **REN ativado** — +1 Grau de dano${renUsedFree ? ' (uso grátis do dia)' : ''}` : '';
+            const renNote = useRen ? `\n💪 **REN ativado** — +${renGraus} Grau${renGraus>1?'s':''} de dano${renUsedFree ? ' (1º grátis no dia)' : ''}` : '';
             const content = `⚡ **${char.name}** usou **${rs.nome}**${modeLabel}${attackLine}\nDano: [${dmgResult.rolls.join('+')}]${allModStr} = **${total}** (${formula})${extrasText}${renNote}`;
             fetch(getActiveWebhookUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content }) }).catch(() => {});
             if (state.activeTab !== 'DADOS') state.unreadRolls = true;
@@ -973,29 +984,53 @@
             const rs = window._hatsuRollState;
             const char = state.currentChar;
             const h = (char.hatsus||[])[state.hatsuDetailIdx];
-            if (rs && rs.hasBaseDmg && h && window.calcRenGrauDisponivel && window.calcRenGrauDisponivel(h, char)) {
-                state.pendingRenRoll = { mode };
+            const grausDisp = (rs && rs.hasBaseDmg && h && window.calcRenGrauDisponivel) ? window.calcRenGrauDisponivel(h, char) : 0;
+            // Limita também pelo espaço restante na tabela de dano (não há sentido oferecer mais graus que ela tem)
+            const idxAtual = (rs && window.DAMAGE_TABLE) ? window.DAMAGE_TABLE.indexOf(rs.dice) : -1;
+            const grausTabela = idxAtual >= 0 ? (window.DAMAGE_TABLE.length - 1 - idxAtual) : 0;
+            const grausMax = Math.min(grausDisp, grausTabela);
+            if (grausMax > 0) {
+                state.pendingRenRoll = { mode, grausMax, grausEscolhidos: 1 };
                 render(true);
             } else {
-                rollHatsuDamage(mode, false);
+                rollHatsuDamage(mode, 0);
             }
+        }
+        function _hSetRenPromptGraus(n) {
+            if (!state.pendingRenRoll) return;
+            const max = state.pendingRenRoll.grausMax || 1;
+            state.pendingRenRoll.grausEscolhidos = Math.max(1, Math.min(max, parseInt(n) || 1));
+            render(true);
         }
         window._hResolveRenPrompt = function(useRen) {
             const pr = state.pendingRenRoll;
             state.pendingRenRoll = null;
             if (!pr) return;
-            rollHatsuDamage(pr.mode, useRen);
+            rollHatsuDamage(pr.mode, useRen ? (pr.grausEscolhidos || 1) : 0);
         };
         function renderRenPromptModalHtml() {
             if (!state.pendingRenRoll) return '';
             const char = state.currentChar;
+            const pr = state.pendingRenRoll;
+            const grausMax = pr.grausMax || 1;
+            const grausEsc = pr.grausEscolhidos || 1;
             const renFree = window.isRenFreeUsoDisponivel ? window.isRenFreeUsoDisponivel(char) : false;
-            const custoTxt = renFree ? 'Grátis (1x/dia)' : '5% de Aura';
+            const grausPagos = Math.max(0, grausEsc - (renFree ? 1 : 0));
+            const custoTxt = grausPagos <= 0 ? 'Grátis (1x/dia)' : `${grausPagos * 5}% de Aura${renFree ? ' (1º grátis)' : ''}`;
+            const stepperHtml = grausMax > 1
+                ? `<div style="display:flex;gap:4px;justify-content:center;margin-top:12px">
+                    ${Array.from({length: grausMax}, (_, i) => i + 1).map(n => `
+                        <button onclick="_hSetRenPromptGraus(${n})" style="width:34px;height:34px;border-radius:9px;font-family:Orbitron,sans-serif;font-weight:900;font-size:13px;cursor:pointer;border:1.5px solid ${grausEsc===n?'#a78bfa':'#374151'};background:${grausEsc===n?'#a78bfa33':'#1f2937'};color:${grausEsc===n?'#a78bfa':'#9ca3af'}">${n}</button>
+                    `).join('')}
+                   </div>
+                   <div style="font-size:8px;color:#6b7280;margin-top:6px">Graus de dano a comprar (máx. ${grausMax} — limite do nível)</div>`
+                : '';
             return `<div style="position:fixed;inset:0;background:#000000cc;display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;font-family:Rajdhani,sans-serif">
                 <div style="background:#0d1117;border:2px solid #a78bfa;border-radius:18px;padding:22px;width:100%;max-width:340px;box-shadow:0 0 40px #a78bfa44;text-align:center">
                     <div style="font-size:22px;margin-bottom:6px">💪</div>
                     <div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:13px;color:#a78bfa;text-transform:uppercase;letter-spacing:2px">Usar REN neste ataque?</div>
-                    <div style="font-size:10px;color:#9ca3af;margin-top:8px;line-height:1.5">Adiciona +1 Grau de dano a este golpe.<br>Custo: <b style="color:#a78bfa">${custoTxt}</b></div>
+                    <div style="font-size:10px;color:#9ca3af;margin-top:8px;line-height:1.5">Adiciona +${grausEsc} Grau${grausEsc>1?'s':''} de dano a este golpe.<br>Custo: <b style="color:#a78bfa">${custoTxt}</b></div>
+                    ${stepperHtml}
                     <div style="display:flex;gap:8px;margin-top:16px">
                         <button onclick="window._hResolveRenPrompt(false)" style="flex:1;padding:12px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Não</button>
                         <button onclick="window._hResolveRenPrompt(true)" style="flex:2;padding:12px;border-radius:10px;background:#a78bfa;border:none;color:#000;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">💪 Usar REN</button>

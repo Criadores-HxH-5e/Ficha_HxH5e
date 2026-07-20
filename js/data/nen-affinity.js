@@ -6,6 +6,20 @@ window.isEfeitoRepetivel = function(item) {
     return !!item && item.repetivel !== false;
 };
 
+// Tabela de rolagem de Categoria de Nen (1d100) — usada na criação de personagem
+window.CATEGORY_ROLL_TABLE = [
+    { min:1,  max:18,  classId:'INTENSIFICAÇÃO' },
+    { min:19, max:36,  classId:'TRANSMUTAÇÃO' },
+    { min:37, max:54,  classId:'MATERIALIZAÇÃO' },
+    { min:55, max:72,  classId:'EMISSÃO' },
+    { min:73, max:90,  classId:'MANIPULAÇÃO' },
+    { min:91, max:100, classId:'ESPECIALIZAÇÃO' },
+];
+window.rollCategoriaNenTable = function(roll) {
+    const entry = window.CATEGORY_ROLL_TABLE.find(function(e){ return roll >= e.min && roll <= e.max; });
+    return entry ? entry.classId : 'INTENSIFICAÇÃO';
+};
+
 // Calculate bonus P.N granted by selected restrictions
 window.calcPNBonusFromRestr = function(hb) {
     if (!hb) return 0;

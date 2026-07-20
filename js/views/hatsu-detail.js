@@ -284,13 +284,14 @@ window.calcHatsuAuraCostFinal = function(h, idx) {
 
 // rev. Manual 2.0 — REN só pode adicionar seu grau de dano se ainda houver espaço dentro do limite
 // de Grau de Potência do nível do personagem (mesma regra de qualquer outra fonte de grau).
+// Retorna a quantidade de graus de REN ainda disponíveis para este golpe (0 = sem espaço).
 window.calcRenGrauDisponivel = function(h, char) {
-    if (!h || !char || !char.nenDominio || !(char.nenDominio.ren > 0)) return false;
-    if (!window.calcGrausPotenciaPorCaracteristica || !window.calcMaxGrauPorNivel) return false;
+    if (!h || !char || !char.nenDominio || !(char.nenDominio.ren > 0)) return 0;
+    if (!window.calcGrausPotenciaPorCaracteristica || !window.calcMaxGrauPorNivel) return 0;
     const grauMax = window.calcMaxGrauPorCaracteristica ? window.calcMaxGrauPorCaracteristica(char.level, h.classe, 'dano') : window.calcMaxGrauPorNivel(char.level);
-    if (grauMax === Infinity) return true;
+    if (grauMax === Infinity) return Infinity;
     const totals = window.calcGrausPotenciaPorCaracteristica(h, char.level);
-    return totals.dano < grauMax;
+    return Math.max(0, grauMax - totals.dano);
 };
 
 // REN nível 3 permite 1 uso gratuito (sem custo de aura) por dia — rastreado por data (pt-BR).
@@ -484,6 +485,19 @@ function renderHatsuDetail(container) {
         grauSources.push({ nome: '⭐ 1Âº Hatsu (Dano)', graus: h.primeiroHatsuGraus.dano });
     }
 
+    // rev.: a seleção de restrições/efeitos nunca é bloqueada por ultrapassar o teto de Grau de
+    // Potência (ver hatsu-creator.js) — mas mecanicamente só o valor até o teto é aplicado aqui. O
+    // excedente fica "reservado" e passa a contar automaticamente quando o nível do personagem
+    // aumentar o teto (calcMaxGrauPorCaracteristica é recalculado a cada render).
+    let danoGrauReservado = 0;
+    if (window.calcMaxGrauPorCaracteristica) {
+        const _grauMaxDano = window.calcMaxGrauPorCaracteristica(char.level, hatsuClasse, 'dano');
+        if (_grauMaxDano !== Infinity && totalGraus > _grauMaxDano) {
+            danoGrauReservado = totalGraus - _grauMaxDano;
+            totalGraus = _grauMaxDano;
+        }
+    }
+
     // Atributo base pelo tipo/categoria
     // MANIPULAÇÃO: INT para C.S.O (objetos), PRE para C.S.C (criaturas/pessoas)
     const attrMap = {
@@ -590,6 +604,7 @@ function renderHatsuDetail(container) {
                 _danoInfo.push({ l: 'Â Â → após dados', v: _afterDadoV, c: '#fbbf24', i: true });
             }
             grauSources.forEach(function(s){ _danoInfo.push({ l: '+' + s.graus + ' grau' + (s.graus > 1 ? 's' : ''), v: s.nome, c: '#f87171' }); });
+            if (danoGrauReservado > 0) _danoInfo.push({ l: '⏳ Reservado (teto do nível)', v: '+' + danoGrauReservado + ' grau' + (danoGrauReservado > 1 ? 's' : '') + ' aguardando', c: '#fbbf24' });
             if (flageloGrauPuro > 0) _danoInfo.push({ l: '+' + flageloGrauPuro + ' grau' + (flageloGrauPuro > 1 ? 's' : ''), v: 'Flagelo Puro ×' + flageloCopias, c: '#a78bfa' });
             if (overflowBonus > 0) _danoInfo.push({ l: '+' + overflowBonus + ' dano fixo', v: 'Excedente da tabela (fim em 20d20)', c: '#fbbf24' });
             _danoInfo.push({ l: '→ Total', v: finalDice + ' + ' + baseAttr, c: isPuroFlagelo ? '#a78bfa' : '#f87171', b: true });
@@ -709,7 +724,10 @@ function renderHatsuDetail(container) {
         calcDanoHtml = `<div style="margin-top:12px;padding-top:12px;border-top:1px solid #1f2937">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
                 <div style="font-size:8px;color:#374151;text-transform:uppercase;font-weight:700;letter-spacing:1px">💥 Dano Final</div>
+                <div style="display:flex;gap:4px">
                 ${grauDelta ? `<span style="font-size:7px;font-weight:900;padding:2px 8px;border-radius:10px;background:#ef444422;color:#f87171">${grauDelta} grau${Math.abs(totalGraus)!==1?'s':''}</span>` : ''}
+                ${danoGrauReservado > 0 ? `<span style="font-size:7px;font-weight:900;padding:2px 8px;border-radius:10px;background:#fbbf2422;color:#fbbf24" title="Excedente aguardando o teto do nível aumentar">+${danoGrauReservado} em espera ⏳</span>` : ''}
+                </div>
             </div>
             ${modPickerHtml}
             ${baseDmgSection}
@@ -767,6 +785,16 @@ function renderHatsuDetail(container) {
             acertoVantagem = true;
         }
     });
+    // Nunca deixa o bônus de acerto ultrapassar o teto do nível — excedente reservado, aplicado
+    // automaticamente quando o teto do nível aumentar.
+    let acertoGrauReservado = 0;
+    if (window.calcMaxGrauPorCaracteristica) {
+        const _grauMaxAcerto = window.calcMaxGrauPorCaracteristica(char.level, hatsuClasse, 'acerto');
+        if (_grauMaxAcerto !== Infinity && acertoBonus > _grauMaxAcerto) {
+            acertoGrauReservado = acertoBonus - _grauMaxAcerto;
+            acertoBonus = _grauMaxAcerto;
+        }
+    }
     // ── Fim cálculo de acerto ─────────────────────────────────────────────────
 
     window._hatsuRollState = {
@@ -817,6 +845,17 @@ function renderHatsuDetail(container) {
         cdBonusSources.push({ nome: '⭐ 1Âº Hatsu', bonus: h.primeiroHatsuGraus.cd });
     }
 
+    // Nunca deixa o bônus de CD ultrapassar o teto do nível — excedente reservado, aplicado
+    // automaticamente quando o teto do nível aumentar.
+    let cdGrauReservado = 0;
+    if (window.calcMaxGrauPorCaracteristica) {
+        const _grauMaxCD = window.calcMaxGrauPorCaracteristica(char.level, hatsuClasse, 'cd');
+        if (_grauMaxCD !== Infinity && cdBonusTotal > _grauMaxCD) {
+            cdGrauReservado = cdBonusTotal - _grauMaxCD;
+            cdBonusTotal = _grauMaxCD;
+        }
+    }
+
     // Determina se exibir o bloco de CD:
     // - categoria que usa CD, OU
     // - tem pelo menos 1 restrição/efeito com bônus de CD
@@ -838,6 +877,7 @@ function renderHatsuDetail(container) {
             { l: '½ Nível ('+halfLevel+')', v: '+'+halfLevel, c: '#d1d5db' },
             { l: 'Mod '+baseAttr+' ('+(attrMod>=0?'+':'')+attrMod+')', v: (attrMod>=0?'+':'')+attrMod, c: '#60a5fa' },
             ...cdBonusSources.map(s => ({ l: '+'+s.bonus+' bônus', v: s.nome, c: tc })),
+            ...(cdGrauReservado > 0 ? [{ l: '⏳ Reservado (teto do nível)', v: '+'+cdGrauReservado+' aguardando', c: '#fbbf24' }] : []),
             { l: '→ Total', v: 'CD '+cdFinal, c: tc, b: true }
         ];
 
@@ -857,7 +897,10 @@ function renderHatsuDetail(container) {
         calcCDHtml = `<div style="margin-top:12px;padding-top:12px;border-top:1px solid #1f2937">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
                 <div style="font-size:8px;color:#374151;text-transform:uppercase;font-weight:700;letter-spacing:1px">🎯 CD do Teste de Resistência</div>
+                <div style="display:flex;gap:4px">
                 ${cdBonusTotal > 0 ? `<span style="font-size:7px;font-weight:900;padding:2px 8px;border-radius:10px;background:${tc}22;color:${tc}">+${cdBonusTotal} bônus</span>` : ''}
+                ${cdGrauReservado > 0 ? `<span style="font-size:7px;font-weight:900;padding:2px 8px;border-radius:10px;background:#fbbf2422;color:#fbbf24" title="Excedente aguardando o teto do nível aumentar">+${cdGrauReservado} em espera ⏳</span>` : ''}
+                </div>
             </div>
             <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:6px">
                 <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:32px;color:${tc};text-shadow:0 0 14px ${tc}66;line-height:1">CD ${cdFinal}</div>
@@ -881,20 +924,20 @@ function renderHatsuDetail(container) {
     // 5 Graus do 1Âº Hatsu — alcance, área, duração
     if (idx === 0 && h.primeiroHatsuGraus) {
         const _phg = h.primeiroHatsuGraus;
-        if (_phg.alcance) alcanceBonus.push({ valor: _phg.alcance * 3, fonte: '⭐ 1º Hatsu (Alcance)' });
-        if (_phg.area)    areaBonus.push({ valor: _phg.area * 1.5, fonte: '⭐ 1º Hatsu (Área)' });
-        if (_phg.duracao) duracaoBonus.push({ valor: _phg.duracao, fonte: '⭐ 1º Hatsu (Duração)', unidade: 'rodada' });
+        if (_phg.alcance) alcanceBonus.push({ valor: _phg.alcance * 3, fonte: '⭐ 1º Hatsu (Alcance)', grau: _phg.alcance });
+        if (_phg.area)    areaBonus.push({ valor: _phg.area * 1.5, fonte: '⭐ 1º Hatsu (Área)', grau: _phg.area });
+        if (_phg.duracao) duracaoBonus.push({ valor: _phg.duracao, fonte: '⭐ 1º Hatsu (Duração)', unidade: 'rodada', grau: _phg.duracao });
     }
 
     // Bônus de Talento aplicado a alcance/área/duração
     if (h.bonusGraus) {
         const _bg = h.bonusGraus;
         if (_bg.tipo === 'alcance' && _bg.valor)
-            alcanceBonus.push({ valor: _bg.valor * 3,   fonte: '💠 Bônus Talentoso (Alcance)' });
+            alcanceBonus.push({ valor: _bg.valor * 3,   fonte: '💠 Bônus Talentoso (Alcance)', grau: _bg.valor });
         else if (_bg.tipo === 'area' && _bg.valor)
-            areaBonus.push({   valor: _bg.valor * 1.5,  fonte: '💠 Bônus Talentoso (Área)' });
+            areaBonus.push({   valor: _bg.valor * 1.5,  fonte: '💠 Bônus Talentoso (Área)', grau: _bg.valor });
         else if (_bg.tipo === 'duracao' && _bg.valor)
-            duracaoBonus.push({ valor: _bg.valor, fonte: '💠 Bônus Talentoso (Duração)', unidade: 'rodada' });
+            duracaoBonus.push({ valor: _bg.valor, fonte: '💠 Bônus Talentoso (Duração)', unidade: 'rodada', grau: _bg.valor });
     }
 
     // Efeitos Gerais
@@ -902,52 +945,52 @@ function renderHatsuDetail(container) {
     if (eg1Count > 0) {
         const eg1choice = (h.specialChoices||{})['eg1'] || 'Alcance';
         if (eg1choice === 'Área') {
-            areaBonus.push({ valor: eg1Count * 1.5, fonte: `Aumento de Alcance ×${eg1Count} (Área)` });
+            areaBonus.push({ valor: eg1Count * 1.5, fonte: `Aumento de Alcance ×${eg1Count} (Área)`, grau: eg1Count });
         } else {
-            alcanceBonus.push({ valor: eg1Count * 1.5, fonte: `Aumento de Alcance ×${eg1Count}` });
+            alcanceBonus.push({ valor: eg1Count * 1.5, fonte: `Aumento de Alcance ×${eg1Count}`, grau: eg1Count });
         }
     }
     const eg2Count = (h.efeitos||[]).filter(id => id === 'eg2').length;
-    if (eg2Count > 0) duracaoBonus.push({ valor: eg2Count, fonte: `Aumento de Duração ×${eg2Count}`, unidade: 'rodada' });
+    if (eg2Count > 0) duracaoBonus.push({ valor: eg2Count, fonte: `Aumento de Duração ×${eg2Count}`, unidade: 'rodada', grau: eg2Count });
     if ((h.efeitos||[]).includes('eg18')) duracaoBonus.push({ valor: null, fonte: 'Experiência Comprovada', unidade: 'escala' });
     const eg9Count = (h.efeitos||[]).filter(id => id === 'eg9').length;
     if (eg9Count > 0) {
         const eg9shape = (h.specialChoices||{})['eg9'] || 'Área';
-        areaBonus.push({ valor: eg9Count * 1.5, fonte: `Ajuste de Forma — ${eg9shape} ×${eg9Count}` });
+        areaBonus.push({ valor: eg9Count * 1.5, fonte: `Ajuste de Forma — ${eg9shape} ×${eg9Count}`, grau: eg9Count });
     }
 
     // Efeitos de categoria
     if ((h.efeitos||[]).includes('em_e2')) {
         const c = (h.specialChoices||{})['em_e2'] || 'Alcance';
-        if (c === 'Área') areaBonus.push({ valor: 3, fonte: 'Distância Segura (Área)' });
-        else alcanceBonus.push({ valor: 6, fonte: 'Distância Segura (Alcance)' });
+        if (c === 'Área') areaBonus.push({ valor: 3, fonte: 'Distância Segura (Área)', grau: window.AREA_GRAU_MAP['em_e2']||0 });
+        else alcanceBonus.push({ valor: 6, fonte: 'Distância Segura (Alcance)', grau: window.ALCANCE_GRAU_MAP['em_e2']||0 });
     }
     if ((h.efeitos||[]).includes('em_e14')) {
         const c = (h.specialChoices||{})['em_e14'] || 'Alcance';
-        if (c === 'Área') areaBonus.push({ valor: 3, fonte: 'Expansão de Domínio (Área)' });
-        else alcanceBonus.push({ valor: 6, fonte: 'Expansão de Domínio (Alcance)' });
+        if (c === 'Área') areaBonus.push({ valor: 3, fonte: 'Expansão de Domínio (Área)', grau: window.AREA_GRAU_MAP['em_e14']||0 });
+        else alcanceBonus.push({ valor: 6, fonte: 'Expansão de Domínio (Alcance)', grau: window.ALCANCE_GRAU_MAP['em_e14']||0 });
     }
 
     // Restrições — Alcance/Área (usando specialChoices para saber qual)
     const rg_l9Count = (h.restricoes||[]).filter(id => id === 'rg_l9').length;
     if (rg_l9Count > 0) {
         const l9choice = (h.specialChoices||{})['rg_l9'] || 'Alcance';
-        if (l9choice === 'Área') areaBonus.push({ valor: rg_l9Count * 1.5, fonte: `Exaustão 1 ×${rg_l9Count} (Área)` });
-        else alcanceBonus.push({ valor: rg_l9Count * 1.5, fonte: `Exaustão 1 ×${rg_l9Count} (Alcance)` });
+        if (l9choice === 'Área') areaBonus.push({ valor: rg_l9Count * 1.5, fonte: `Exaustão 1 ×${rg_l9Count} (Área)`, grau: rg_l9Count });
+        else alcanceBonus.push({ valor: rg_l9Count * 1.5, fonte: `Exaustão 1 ×${rg_l9Count} (Alcance)`, grau: rg_l9Count });
     }
     if ((h.restricoes||[]).includes('rg_l10')) {
         const l10choice = (h.specialChoices||{})['rg_l10'] || 'Alcance';
-        if (l10choice === 'Área') areaBonus.push({ valor: 1.5, fonte: 'Interação Sensorial Simples (Área)' });
-        else alcanceBonus.push({ valor: 3, fonte: 'Interação Sensorial Simples (Alcance)' });
+        if (l10choice === 'Área') areaBonus.push({ valor: 1.5, fonte: 'Interação Sensorial Simples (Área)', grau: 1 });
+        else alcanceBonus.push({ valor: 3, fonte: 'Interação Sensorial Simples (Alcance)', grau: 1 });
     }
     if ((h.restricoes||[]).includes('rg_m12')) {
         const m12choice = (h.beneficioChoices||{})['rg_m12'] || '';
         if (m12choice.toLowerCase().includes('dura')) duracaoDobrada = true;
         else alcanceDobrado = true;
     }
-    if ((h.restricoes||[]).includes('rt_l2')) alcanceBonus.push({ valor: 3, fonte: 'Sem Movimento no Turno' });
-    if ((h.restricoes||[]).includes('rt_m2')) areaBonus.push({ valor: 1.5, fonte: 'Sem Aliados a 3m' });
-    if ((h.restricoes||[]).includes('em_l1')) alcanceBonus.push({ valor: 6, fonte: 'Linha Reta Apenas' });
+    if ((h.restricoes||[]).includes('rt_l2')) alcanceBonus.push({ valor: 3, fonte: 'Sem Movimento no Turno', grau: window.ALCANCE_GRAU_MAP['rt_l2']||0 });
+    if ((h.restricoes||[]).includes('rt_m2')) areaBonus.push({ valor: 1.5, fonte: 'Sem Aliados a 3m', grau: window.AREA_GRAU_MAP['rt_m2']||0 });
+    if ((h.restricoes||[]).includes('em_l1')) alcanceBonus.push({ valor: 6, fonte: 'Linha Reta Apenas', grau: window.ALCANCE_GRAU_MAP['em_l1']||0 });
 
     // Restrições — Duração
     if ((h.restricoes||[]).includes('rg_p2')) duracaoBonus.push({ valor: 3, fonte: 'Boneca Russa', unidade: 'rodada' });
@@ -959,11 +1002,12 @@ function renderHatsuDetail(container) {
     if ((h.restricoes||[]).includes('rg_m13')) {
         const m13choice = (h.beneficioChoices||{})['rg_m13'] || '';
         if (m13choice.toLowerCase().includes('rodada') || m13choice.toLowerCase().includes('dura')) {
-            duracaoBonus.push({ valor: 2, fonte: 'Zetsu Protetivo (Rodadas)', unidade: 'rodada' });
+            duracaoBonus.push({ valor: 2, fonte: 'Zetsu Protetivo (Rodadas)', unidade: 'rodada', grau: window.DURACAO_GRAU_MAP['rg_m13']||0 });
         }
     }
 
-    // rg_v10: Zetsu por Falha — graus em alcance ou área baseado nas rodadas configuradas
+    // rg_v10: Zetsu por Falha — graus em alcance ou área baseado nas rodadas configuradas (não conta
+    // para o teto de Grau de Potência — é limitado pelo próprio risco de Zetsu, um sistema separado)
     if ((h.restricoes||[]).includes('rg_v10')) {
         const v10 = (h.specialChoices||{})['rg_v10'] || {};
         const rod = v10.rodadas || 0;
@@ -979,9 +1023,38 @@ function renderHatsuDetail(container) {
         else if (eg17choice === 'Penalidade TR') duracaoBonus.push({ valor: null, fonte: 'Dor pra Disgrama! — −5 no TR de Concentração', unidade: 'penalidade' });
     }
 
-    const totalAlcanceM = alcanceBonus.reduce((s,b) => s + (typeof b.valor === 'number' ? b.valor : 0), 0);
-    const totalAreaM = areaBonus.reduce((s,b) => s + (typeof b.valor === 'number' ? b.valor : 0), 0);
-    const totalDuracaoR = duracaoBonus.reduce((s,b) => s + (typeof b.valor === 'number' ? b.valor : 0), 0);
+    // rev.: nunca bloqueia a seleção por ultrapassar o teto de Grau de Potência (ver hatsu-creator.js)
+    // — mas mecanicamente só a fatia "rastreada" pelo teto (marcada com `grau`) é reduzida quando
+    // ultrapassa o limite do nível; o restante (bônus fixos fora do sistema de grau, como Boneca
+    // Russa ou Zetsu por Falha) nunca é afetado. O excedente reservado passa a valer quando o
+    // personagem subir de nível e o teto crescer.
+    function _hClampGrauTrackedTotal(bonusArr, grauMaxRaw) {
+        const grauMax = (grauMaxRaw == null) ? Infinity : grauMaxRaw;
+        let trackedGrau = 0, trackedValor = 0, untrackedValor = 0;
+        bonusArr.forEach(b => {
+            const v = typeof b.valor === 'number' ? b.valor : 0;
+            if (b.grau) { trackedGrau += b.grau; trackedValor += v; }
+            else { untrackedValor += v; }
+        });
+        if (grauMax === Infinity || trackedGrau <= grauMax) {
+            return { total: trackedValor + untrackedValor, reservado: 0 };
+        }
+        const ratio = trackedGrau > 0 ? grauMax / trackedGrau : 0;
+        const trackedValorClamped = Math.round(trackedValor * ratio * 10) / 10;
+        return { total: trackedValorClamped + untrackedValor, reservado: Math.round((trackedValor - trackedValorClamped) * 10) / 10 };
+    }
+    const _grauMaxAlcance = window.calcMaxGrauPorCaracteristica ? window.calcMaxGrauPorCaracteristica(char.level, hatsuClasse, 'alcance') : Infinity;
+    const _grauMaxArea    = window.calcMaxGrauPorCaracteristica ? window.calcMaxGrauPorCaracteristica(char.level, hatsuClasse, 'area') : Infinity;
+    const _grauMaxDuracao = window.calcMaxGrauPorCaracteristica ? window.calcMaxGrauPorCaracteristica(char.level, hatsuClasse, 'duracao') : Infinity;
+    const _alcClamp = _hClampGrauTrackedTotal(alcanceBonus, _grauMaxAlcance);
+    const _areaClamp = _hClampGrauTrackedTotal(areaBonus, _grauMaxArea);
+    const _duracaoClamp = _hClampGrauTrackedTotal(duracaoBonus, _grauMaxDuracao);
+    const totalAlcanceM = _alcClamp.total;
+    const totalAreaM = _areaClamp.total;
+    const totalDuracaoR = _duracaoClamp.total;
+    const alcanceReservadoM = _alcClamp.reservado;
+    const areaReservadoM = _areaClamp.reservado;
+    const duracaoReservadoR = _duracaoClamp.reservado;
 
     // Store info for alcance/área/duração popups
     if (!window._HATSU_STAT_INFO) window._HATSU_STAT_INFO = {};
@@ -989,17 +1062,20 @@ function renderHatsuDetail(container) {
     if (alcanceBonus.length > 0 || alcanceDobrado) {
         const _alcLines = alcanceBonus.map(b => ({ l: b.fonte, v: '+'+b.valor+'m', c: '#60a5fa' }));
         if (alcanceDobrado) _alcLines.push({ l: 'Tempo Marcado', v: 'Base ×2', c: '#60a5fa' });
+        if (alcanceReservadoM > 0) _alcLines.push({ l: '⏳ Reservado (teto do nível)', v: '+'+alcanceReservadoM+'m aguardando', c: '#fbbf24' });
         _alcLines.push({ l: '→ Total', v: (totalAlcanceM>0?'+'+totalAlcanceM+'m':'')+(alcanceDobrado?' + Base×2':''), c: '#60a5fa', b: true });
         window._HATSU_STAT_INFO[idx].alcance = _alcLines;
     }
     if (areaBonus.length > 0) {
         const _areaLines = areaBonus.map(b => ({ l: b.fonte, v: '+'+b.valor+'m', c: '#34d399' }));
+        if (areaReservadoM > 0) _areaLines.push({ l: '⏳ Reservado (teto do nível)', v: '+'+areaReservadoM+'m aguardando', c: '#fbbf24' });
         _areaLines.push({ l: '→ Total', v: '+'+totalAreaM+'m', c: '#34d399', b: true });
         window._HATSU_STAT_INFO[idx].area = _areaLines;
     }
     if (duracaoBonus.length > 0 || duracaoDobrada) {
         const _durLines = duracaoBonus.map(b => ({ l: b.fonte, v: b.valor !== null ? (typeof b.valor === 'number' ? '+'+b.valor+' rod.' : b.valor) : '(ver desc.)', c: '#a78bfa' }));
         if (duracaoDobrada) _durLines.push({ l: 'Tempo Marcado', v: 'Base ×2', c: '#a78bfa' });
+        if (duracaoReservadoR > 0) _durLines.push({ l: '⏳ Reservado (teto do nível)', v: '+'+duracaoReservadoR+' rod. aguardando', c: '#fbbf24' });
         const _durTotalStr = (totalDuracaoR>0?'+'+totalDuracaoR+' rod.':'')+(duracaoDobrada?' + Base×2':'');
         _durLines.push({ l: '→ Total', v: _durTotalStr||'(variável)', c: '#a78bfa', b: true });
         window._HATSU_STAT_INFO[idx].duracao = _durLines;
@@ -1014,6 +1090,7 @@ function renderHatsuDetail(container) {
                 <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px">
                     ${alcanceDobrado ? `<span style="font-size:12px;font-weight:900;color:#60a5fa">Base ×2</span>` : ''}
                     ${totalAlcanceM > 0 ? `<span style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:22px;color:#60a5fa;text-shadow:0 0 10px #60a5fa66">+${totalAlcanceM}m</span>` : ''}
+                    ${alcanceReservadoM > 0 ? `<span style="font-size:7px;font-weight:900;padding:2px 8px;border-radius:10px;background:#fbbf2422;color:#fbbf24" title="Excedente aguardando o teto do nível aumentar">+${alcanceReservadoM}m em espera ⏳</span>` : ''}
                     <button onclick="event.stopPropagation();window._hShowStatInfo(${idx},'alcance',this)" style="margin-left:4px;background:transparent;border:1px solid #374151;border-radius:50%;width:16px;height:16px;font-size:9px;color:#6b7280;cursor:pointer;padding:0;line-height:16px;flex-shrink:0" title="Detalhes">ⓘ</button>
                 </div>
                 ${alcanceBonus.map(b => `<div style="font-size:8px;color:#6b7280;margin-bottom:2px">• ${b.fonte}: +${b.valor}m</div>`).join('')}
@@ -1025,6 +1102,7 @@ function renderHatsuDetail(container) {
                 <div style="font-size:8px;color:#374151;text-transform:uppercase;font-weight:700;letter-spacing:1px;margin-bottom:6px">🔵 Área</div>
                 <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px">
                     <span style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:22px;color:#34d399;text-shadow:0 0 10px #34d39966">+${totalAreaM}m</span>
+                    ${areaReservadoM > 0 ? `<span style="font-size:7px;font-weight:900;padding:2px 8px;border-radius:10px;background:#fbbf2422;color:#fbbf24" title="Excedente aguardando o teto do nível aumentar">+${areaReservadoM}m em espera ⏳</span>` : ''}
                     <button onclick="event.stopPropagation();window._hShowStatInfo(${idx},'area',this)" style="margin-left:4px;background:transparent;border:1px solid #374151;border-radius:50%;width:16px;height:16px;font-size:9px;color:#6b7280;cursor:pointer;padding:0;line-height:16px;flex-shrink:0" title="Detalhes">ⓘ</button>
                 </div>
                 ${areaBonus.map(b => `<div style="font-size:8px;color:#6b7280;margin-bottom:2px">• ${b.fonte}: +${b.valor}m</div>`).join('')}
@@ -1036,6 +1114,7 @@ function renderHatsuDetail(container) {
                 <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px">
                     ${duracaoDobrada ? `<span style="font-size:12px;font-weight:900;color:#a78bfa">Base ×2</span>` : ''}
                     ${totalDuracaoR > 0 ? `<span style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:22px;color:#a78bfa;text-shadow:0 0 10px #a78bfa66">+${totalDuracaoR} rod.</span>` : ''}
+                    ${duracaoReservadoR > 0 ? `<span style="font-size:7px;font-weight:900;padding:2px 8px;border-radius:10px;background:#fbbf2422;color:#fbbf24" title="Excedente aguardando o teto do nível aumentar">+${duracaoReservadoR} rod. em espera ⏳</span>` : ''}
                     <button onclick="event.stopPropagation();window._hShowStatInfo(${idx},'duracao',this)" style="margin-left:4px;background:transparent;border:1px solid #374151;border-radius:50%;width:16px;height:16px;font-size:9px;color:#6b7280;cursor:pointer;padding:0;line-height:16px;flex-shrink:0" title="Detalhes">ⓘ</button>
                 </div>
                 ${duracaoBonus.map(b => `<div style="font-size:8px;color:#6b7280;margin-bottom:2px">• ${b.fonte}: ${b.valor !== null ? (typeof b.valor === 'number' ? '+'+b.valor+' rodada'+(b.valor!==1?'s':'') : b.valor) : '(ver descrição)'}</div>`).join('')}

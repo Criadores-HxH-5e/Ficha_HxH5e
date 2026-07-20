@@ -6,6 +6,28 @@
             let contentHtml = '';
             let title = '';
 
+            if (step === 0 && !state.tempChar.categoriaMetodo) {
+                title = 'CATEGORIA DE NEN';
+                const rolledLabel = state.tempChar.categoriaRoll ? `<div class="text-[10px] text-gray-500 mt-3">Resultado da rolagem: <span class="font-bold text-white">${state.tempChar.categoriaRoll}</span></div>` : '';
+                contentHtml = `
+                    <div class="space-y-6 text-center">
+                        <p class="text-xs text-gray-400 leading-relaxed px-2">Antes de definir sua identidade, escolha como sua categoria de Nen (Reforço, Transmutação, Materialização, Emissão, Manipulação ou Especialização) será determinada.</p>
+                        <div class="grid grid-cols-1 gap-3">
+                            <button onclick="rollCategoriaNen()" class="w-full py-5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl font-display font-bold text-white tracking-widest hover:brightness-110 active:scale-95 transition-all shadow-lg flex flex-col items-center gap-1 border border-white/10">
+                                <span class="text-sm">🎲 ROLAR 1d100</span>
+                                <span class="text-[9px] font-normal opacity-80 normal-case">Sua categoria é definida pelo destino (tabela de afinidade)</span>
+                            </button>
+                            <button onclick="setCategoriaMetodo('chosen')" class="w-full py-5 bg-gray-900 border-2 border-neon-theme rounded-xl font-display font-bold text-neon-theme tracking-widest hover:bg-neon-theme/10 active:scale-95 transition-all flex flex-col items-center gap-1">
+                                <span class="text-sm">✋ ESCOLHER MANUALMENTE</span>
+                                <span class="text-[9px] font-normal opacity-80 normal-case text-gray-400">Selecione livremente sua categoria de Nen</span>
+                            </button>
+                        </div>
+                        ${rolledLabel}
+                    </div>`;
+                container.innerHTML = `<div class="flex flex-col h-full bg-gray-950"><div class="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-900/50"><button onclick="state.view='LIST'; render()" class="text-gray-500 hover:text-white flex items-center gap-1 text-[10px] uppercase font-bold"><i data-lucide="chevron-left" size="14"></i> Cancelar</button><div class="w-16"></div><div class="w-16"></div></div><div class="flex-1 p-6 overflow-y-auto custom-scrollbar relative"><h2 class="text-2xl font-display font-bold text-white text-center mb-6 tracking-widest drop-shadow-[0_0_10px_rgba(var(--theme-rgb),0.5)]">${title}</h2>${contentHtml}</div></div>`;
+                return;
+            }
+
             if (step === 0) {
                  title = 'IDENTIDADE';
                 const currentClass = SYSTEM_DB.classes.find(c => c.id === state.tempChar.class) || SYSTEM_DB.classes[0];
