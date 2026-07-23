@@ -957,6 +957,62 @@
             // novo prompt de REN) porque nunca chamava render() — diferente de rollDice/rollSkill/rollAttack.
             render(true);
         }
+        // Manda a rolagem do constructo pro Discord, anexando a imagem de verdade quando ela foi
+        // enviada por upload (guardada como data: URI local): o Discord não aceita data: URI em
+        // embed.image.url (precisa ser http/https), então nesse caso sobe o arquivo via multipart
+        // (payload_json + files[0]) e referencia via attachment://. Se já for uma URL http(s) normal
+        // (colada pelo jogador), manda direto no embed sem precisar reenviar o arquivo.
+        function sendConstructoRollToDiscord(content, imagemUrl) {
+            const url = getActiveWebhookUrl();
+            if (!url) return;
+            if (imagemUrl && /^data:image\//i.test(imagemUrl)) {
+                fetch(imagemUrl)
+                    .then(r => r.blob())
+                    .then(blob => {
+                        if (blob.size > 8 * 1024 * 1024) throw new Error('imagem muito grande');
+                        const ext = (blob.type.split('/')[1] || 'png').split('+')[0];
+                        const filename = `constructo.${ext}`;
+                        const form = new FormData();
+                        form.append('payload_json', JSON.stringify({ content, embeds: [{ image: { url: `attachment://${filename}` } }] }));
+                        form.append('files[0]', blob, filename);
+                        return fetch(url, { method: 'POST', body: form });
+                    })
+                    .catch(() => {
+                        // Se o upload falhar (ou a imagem for grande demais), manda ao menos o texto
+                        fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content }) }).catch(() => {});
+                    });
+            } else {
+                const payload = { content };
+                if (imagemUrl && /^https?:\/\//i.test(imagemUrl)) payload.embeds = [{ image: { url: imagemUrl } }];
+                fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => {});
+            }
+        }
+        // Ataque básico do Constructo (Ficha do Constructo): sem efeito de dano próprio,
+        // o manual usa 1d6 + atributo (normalmente FOR/DES), mas o jogador pode escolher
+        // qual atributo do constructo entra na rolagem (guardado em h.constructo.atributoAtaque).
+        window.rollConstructoAtaque = function(idx) {
+            const char = state.currentChar;
+            const h = (char.hatsus || [])[idx];
+            if (!h || !h.constructo) return;
+            const cst = h.constructo;
+            const atributos = Object.assign({ FOR: 0, DES: 0, CON: 0, INT: 0, SAB: 0, PRE: 0 }, cst.atributos || {});
+            const attrKey = (cst.atributoAtaque && atributos.hasOwnProperty(cst.atributoAtaque))
+                ? cst.atributoAtaque
+                : (atributos.FOR >= atributos.DES ? 'FOR' : 'DES');
+            const attrMod = atributos[attrKey] || 0;
+            const roll = rollDiceExpr('1d6');
+            const total = roll.total + attrMod;
+            const nome = cst.nome || `${h.nome} (Constructo)`;
+            const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            char.history.push({ time, label: `🐣 ${nome} — Ataque`, dice: roll.rolls.join(', '), mod: attrMod, total });
+            if (char.history.length > 50) char.history.shift();
+            saveCharacter(char);
+            const content = `🐣 **${nome}** ataca!\nDano: [${roll.rolls.join('+')}] ${attrMod >= 0 ? '+' : ''}${attrMod} = **${total}** (1d6 + ${attrKey})`;
+            sendConstructoRollToDiscord(content, cst.imagemUrl);
+            if (state.activeTab !== 'DADOS') state.unreadRolls = true;
+            if (window._showXpToast) window._showXpToast(`🎲 ${nome}: ${total} de dano enviado ao Discord!`);
+            render(true);
+        };
         function openAttackModal(weaponName, diceExpr, tipoDano) {
             state.attackModal = { nome: weaponName, dano: diceExpr, tipoDano: tipoDano || '' };
             render(true);

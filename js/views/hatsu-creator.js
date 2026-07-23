@@ -1928,12 +1928,12 @@ function renderHatsuInPlace() {
             });
         }
     } else if (state.view === 'HATSU_DETAIL') {
-        const container = document.querySelector('.hatsu-detail-scroll') || app;
+        const container = document.querySelector('.hatsu-scroll-area') || app;
         const scrollTop = container ? container.scrollTop : 0;
         renderHatsuDetail(app);
         if (scrollTop > 0) {
             requestAnimationFrame(() => {
-                const c = document.querySelector('.hatsu-detail-scroll') || app;
+                const c = document.querySelector('.hatsu-scroll-area') || app;
                 if (c) c.scrollTop = scrollTop;
             });
         }
@@ -2260,7 +2260,7 @@ window._hShowStatInfo = function(idx, type, btn) {
     if (existing) { if (existing.dataset.for == idx+'_'+type) { existing.remove(); return; } existing.remove(); }
     var lines = ((window._HATSU_STAT_INFO || {})[idx] || {})[type];
     if (!lines || !lines.length) return;
-    var titles = { cd:'🎯 Cálculo do CD', alcance:'📐 Cálculo do Alcance', area:'🔵 Cálculo da Área', duracao:'⏱ Cálculo da Duração' };
+    var titles = { cd:'🎯 Cálculo do CD', alcance:'📐 Cálculo do Alcance', area:'🔵 Cálculo da Área', duracao:'⏱ Cálculo da Duração', constructoPv:'❤️ Cálculo do PV do Constructo', constructoCa:'🛡️ Cálculo da CA do Constructo' };
     var pop = document.createElement('div');
     pop.id = popId;
     pop.dataset.for = idx+'_'+type;

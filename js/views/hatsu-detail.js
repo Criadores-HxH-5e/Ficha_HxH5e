@@ -331,6 +331,179 @@ window._hCalcGrauVariavel = function(idx, restrId) {
         + (over ? '<span style="color:#f87171;font-weight:700">⚠ Excede o limite em ' + (total - grauMax) + '</span>' : '<span style="color:#4ade80;font-weight:700">✓ Dentro do limite</span>');
 };
 
+// ── Setters da Ficha do Constructo (h.constructo) ────────────────────────────
+window._hSetConstructoField = function(idx, field, value) {
+    const char = state.currentChar;
+    const h = (char.hatsus || [])[idx];
+    if (!h) return;
+    if (!h.constructo) h.constructo = {};
+    h.constructo[field] = value;
+    saveCharacter(char);
+    renderHatsuInPlace();
+};
+// Igual a uploadCharacterImage (sheet.js): lê o arquivo como data URL e guarda direto no personagem,
+// sem depender de nenhum bucket/storage externo.
+window._hUploadConstructoImage = function(idx, input) {
+    if (!input.files || !input.files[0]) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const char = state.currentChar;
+        const h = (char.hatsus || [])[idx];
+        if (!h) return;
+        if (!h.constructo) h.constructo = {};
+        h.constructo.imagemUrl = e.target.result;
+        h.constructo.imagePosition = { x: 50, y: 50 };
+        saveCharacter(char);
+        renderHatsuInPlace();
+    };
+    reader.readAsDataURL(input.files[0]);
+};
+// Mesmo modal de arrastar/clicar de window._openImagePositionModal (sheet.js), mas grava em
+// h.constructo.imagePosition em vez de char.imagePosition.
+window._hOpenConstructoImagePositionModal = function(idx) {
+    const char = state.currentChar;
+    const h = (char.hatsus || [])[idx];
+    if (!h || !h.constructo || !h.constructo.imagemUrl) return;
+    const cst = h.constructo;
+    const tc = getComputedStyle(document.documentElement).getPropertyValue('--theme-color-hex').trim() || '#00ff9d';
+    const initial = cst.imagePosition || { x: 50, y: 50 };
+    const draft = { x: initial.x, y: initial.y };
+
+    const overlay = document.createElement('div');
+    overlay.id = 'constructo-img-pos-modal-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:#000000ee;display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;font-family:Rajdhani,sans-serif';
+    overlay.innerHTML = `
+        <div style="background:#0d1117;border:2px solid ${tc};border-radius:20px;padding:20px;width:100%;max-width:360px;box-shadow:0 0 60px ${tc}44">
+            <div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:13px;color:${tc};text-transform:uppercase;letter-spacing:2px;margin-bottom:4px">📍 Ajustar Imagem</div>
+            <div style="font-size:10px;color:#6b7280;margin-bottom:14px">Clique ou arraste na prévia abaixo para escolher qual parte da imagem fica visível.</div>
+            <div id="constructo-img-pos-preview" style="position:relative;width:100%;aspect-ratio:1/1;border-radius:12px;overflow:hidden;border:2px solid #1f2937;cursor:crosshair;background-image:url('${cst.imagemUrl.replace(/'/g, "\\'")}');background-size:cover;background-repeat:no-repeat;background-position:${draft.x}% ${draft.y}%;touch-action:none">
+                <div id="constructo-img-pos-crosshair" style="position:absolute;width:18px;height:18px;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 2px ${tc},0 2px 8px rgba(0,0,0,0.6);left:${draft.x}%;top:${draft.y}%;transform:translate(-50%,-50%);pointer-events:none"></div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:16px">
+                <button id="constructo-img-pos-cancel" style="flex:1;padding:11px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer;letter-spacing:1px">Cancelar</button>
+                <button id="constructo-img-pos-save" style="flex:2;padding:11px;border-radius:10px;background:${tc};border:none;color:#000;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer;letter-spacing:1px;box-shadow:0 0 20px ${tc}55">✓ Salvar</button>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+
+    const preview = document.getElementById('constructo-img-pos-preview');
+    const crosshair = document.getElementById('constructo-img-pos-crosshair');
+    let dragging = false;
+
+    function updateFromPoint(clientX, clientY) {
+        const rect = preview.getBoundingClientRect();
+        const x = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
+        const y = Math.max(0, Math.min(100, ((clientY - rect.top) / rect.height) * 100));
+        draft.x = x; draft.y = y;
+        preview.style.backgroundPosition = `${x}% ${y}%`;
+        crosshair.style.left = `${x}%`;
+        crosshair.style.top = `${y}%`;
+    }
+    function onMouseDown(e) { dragging = true; updateFromPoint(e.clientX, e.clientY); }
+    function onMouseMove(e) { if (dragging) updateFromPoint(e.clientX, e.clientY); }
+    function onMouseUp() { dragging = false; }
+    function onTouchStart(e) { dragging = true; const t = e.touches[0]; updateFromPoint(t.clientX, t.clientY); }
+    function onTouchMove(e) { if (dragging) { const t = e.touches[0]; updateFromPoint(t.clientX, t.clientY); } }
+    function onTouchEnd() { dragging = false; }
+
+    preview.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    preview.addEventListener('touchstart', onTouchStart, { passive: true });
+    preview.addEventListener('touchmove', onTouchMove, { passive: true });
+    preview.addEventListener('touchend', onTouchEnd);
+
+    function cleanup() {
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
+        overlay.remove();
+    }
+    document.getElementById('constructo-img-pos-cancel').onclick = cleanup;
+    document.getElementById('constructo-img-pos-save').onclick = function() {
+        cst.imagePosition = { x: draft.x, y: draft.y };
+        saveCharacter(char);
+        cleanup();
+        renderHatsuInPlace();
+    };
+};
+window._hSetConstructoAttr = function(idx, attr, delta) {
+    const char = state.currentChar;
+    const h = (char.hatsus || [])[idx];
+    if (!h) return;
+    if (!h.constructo) h.constructo = {};
+    if (!h.constructo.atributos) h.constructo.atributos = { FOR: 0, DES: 0, CON: 0, INT: 0, SAB: 0, PRE: 0 };
+    const atuais = h.constructo.atributos;
+    const intMod = getMod((char.attributes.INT || {}).value || 10);
+    const maxPontos = Math.max(0, intMod);
+    const usados = Object.values(atuais).reduce((a, b) => a + (parseInt(b) || 0), 0);
+    const next = (atuais[attr] || 0) + delta;
+    if (next < 0) return;
+    if (delta > 0 && usados >= maxPontos) return;
+    atuais[attr] = next;
+    saveCharacter(char);
+    renderHatsuInPlace();
+};
+window._hAddConstructoCaracteristica = function(idx) {
+    const char = state.currentChar;
+    const h = (char.hatsus || [])[idx];
+    if (!h) return;
+    if (!h.constructo) h.constructo = {};
+    if (!h.constructo.caracteristicas) h.constructo.caracteristicas = [];
+    const nomes = (window.CARACTERISTICAS_INVOCACAO || []).map(c => c.nome);
+    h.constructo.caracteristicas.push(nomes[0] || '');
+    saveCharacter(char);
+    renderHatsuInPlace();
+};
+window._hSetConstructoCaracteristica = function(idx, i, nome) {
+    const char = state.currentChar;
+    const h = (char.hatsus || [])[idx];
+    if (!h || !h.constructo || !h.constructo.caracteristicas) return;
+    h.constructo.caracteristicas[i] = nome;
+    saveCharacter(char);
+    renderHatsuInPlace();
+};
+window._hRemoveConstructoCaracteristica = function(idx, i) {
+    const char = state.currentChar;
+    const h = (char.hatsus || [])[idx];
+    if (!h || !h.constructo || !h.constructo.caracteristicas) return;
+    h.constructo.caracteristicas.splice(i, 1);
+    saveCharacter(char);
+    renderHatsuInPlace();
+};
+window._hAddConstructoPericia = function(idx) {
+    const char = state.currentChar;
+    const h = (char.hatsus || [])[idx];
+    if (!h) return;
+    if (!h.constructo) h.constructo = {};
+    if (!h.constructo.pericias) h.constructo.pericias = [];
+    const slots = (window.CONSTRUCTO_DB || {}).PERICIA_SLOTS || 5;
+    if (h.constructo.pericias.length >= slots) return;
+    h.constructo.pericias.push({ tipo: 'tr', valor: 'FOR' });
+    saveCharacter(char);
+    renderHatsuInPlace();
+};
+window._hSetConstructoPericia = function(idx, i, field, value) {
+    const char = state.currentChar;
+    const h = (char.hatsus || [])[idx];
+    if (!h || !h.constructo || !h.constructo.pericias || !h.constructo.pericias[i]) return;
+    h.constructo.pericias[i][field] = value;
+    if (field === 'tipo') {
+        const tipoDef = ((window.CONSTRUCTO_DB || {}).PERICIA_TIPOS || []).find(t => t.id === value);
+        h.constructo.pericias[i].valor = tipoDef ? tipoDef.valores[0] : '';
+    }
+    saveCharacter(char);
+    renderHatsuInPlace();
+};
+window._hRemoveConstructoPericia = function(idx, i) {
+    const char = state.currentChar;
+    const h = (char.hatsus || [])[idx];
+    if (!h || !h.constructo || !h.constructo.pericias) return;
+    h.constructo.pericias.splice(i, 1);
+    saveCharacter(char);
+    renderHatsuInPlace();
+};
+// ── Fim setters da Ficha do Constructo ───────────────────────────────────────
+
 function renderHatsuDetail(container) {
     const char  = state.currentChar;
     const idx   = state.hatsuDetailIdx || 0;
@@ -945,6 +1118,233 @@ function renderHatsuDetail(container) {
     }
     // ── Fim toggle de Ataque ───────────────────────────────────────────────────
 
+    // ── Ficha do Constructo (efeitos de Materialização/Emissão que criam constructos) ──
+    // Ver HB-ManualdeHatsusHxH5eRPG2.0.txt, "Criando a ficha da Materialização".
+    const CDB = window.CONSTRUCTO_DB || {};
+    const constructEffectIds = (h.efeitos || []).filter(id => (window.CONSTRUCT_EFFECT_IDS || []).includes(id));
+    const hasConstructo = constructEffectIds.length > 0;
+    let constructoCardHtml = '';
+    if (hasConstructo) {
+        if (!h.constructo) h.constructo = {};
+        const cst = h.constructo;
+        const escAttr = (s) => String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const intMod = getMod((char.attributes.INT || {}).value || 10);
+        const intPontosTotal = Math.max(0, intMod);
+
+        const atributosDist = Object.assign({ FOR: 0, DES: 0, CON: 0, INT: 0, SAB: 0, PRE: 0 }, cst.atributos || {});
+        const intUsados = Object.values(atributosDist).reduce((a, b) => a + (parseInt(b) || 0), 0);
+        const attrAtaqueEfetivo = (cst.atributoAtaque && atributosDist.hasOwnProperty(cst.atributoAtaque))
+            ? cst.atributoAtaque
+            : (atributosDist.FOR >= atributosDist.DES ? 'FOR' : 'DES');
+
+        // Características já escolhidas por outros efeitos (rm_e2_carac, rm_e3) + as extras escolhidas aqui
+        const caracJaEscolhidas = [(h.specialChoices || {})['rm_e2_carac'], (h.specialChoices || {})['rm_e3']].filter(Boolean);
+        const caracExtras = cst.caracteristicas || [];
+        const todasCaracteristicas = [...caracJaEscolhidas, ...caracExtras];
+        const slotsCaracteristicas = constructEffectIds.reduce((sum, id) => sum + (CDB.EFEITO_CARACTERISTICAS[id] || 0), 0);
+        const slotsLivres = Math.max(0, slotsCaracteristicas - caracJaEscolhidas.length);
+
+        // Tamanho efetivo (Característica Grande/Pequeno desloca a ordem a partir do tamanho base).
+        // Golem de Aura (rm_e2) já é fixado como "Pequeno" no picker de material do criador de Hatsu;
+        // os demais constructos partem de Médio, como o restante do manual.
+        const grandes = todasCaracteristicas.filter(n => n === 'Grande').length;
+        const pequenos = todasCaracteristicas.filter(n => n === 'Pequeno').length;
+        const tamanhoOrdem = CDB.TAMANHO_ORDEM || ['Minúsculo', 'Pequeno', 'Médio', 'Grande', 'Enorme', 'Colossal'];
+        const tamanhoBase = constructEffectIds.includes('rm_e2') ? 'Pequeno' : 'Médio';
+        const baseIdx = tamanhoOrdem.indexOf(tamanhoBase);
+        const tamanhoIdx = Math.max(0, Math.min(tamanhoOrdem.length - 1, baseIdx + grandes - pequenos));
+        const tamanho = tamanhoOrdem[tamanhoIdx];
+
+        const durabilidadeEfetiva = cst.durabilidade === 'resistente' ? 'resistente' : 'fragil';
+
+        const valorEscala = (nome) => {
+            const escala = (CDB.CARACTERISTICA_SCALE || {})[nome];
+            if (!escala) return 0;
+            const vezes = todasCaracteristicas.filter(n => n === nome).length;
+            if (vezes <= 0) return 0;
+            return escala[Math.min(vezes, escala.length) - 1];
+        };
+        const robustezBonus = valorEscala('Robustez');
+
+        // ── PV ──
+        const pvBase = (CDB.PV_POR_TAMANHO[tamanho] || {})[durabilidadeEfetiva] || 0;
+        let pvEfeitos = 0;
+        const pvFontes = [];
+        constructEffectIds.forEach(id => {
+            const b = CDB.EFEITO_PV[id];
+            if (b) { pvEfeitos += b; const efObj = efeitosSel.find(e => e.id === id); pvFontes.push({ nome: efObj ? efObj.nome : id, bonus: b }); }
+        });
+        let pvRestricoes = 0;
+        (h.restricoes || []).forEach(id => {
+            const b = (CDB.RESTRICAO_PV || {})[id];
+            if (b) { pvRestricoes += b; const rObj = restricoesSel.find(r => r.id === id); pvFontes.push({ nome: rObj ? rObj.nome : id, bonus: b }); }
+        });
+        const pvTotal = pvBase + pvEfeitos + pvRestricoes + robustezBonus;
+
+        // ── CA ──
+        const materialEscolhido = (h.specialChoices || {})['rm_e2'] || '';
+        const usaMaterial = cst.tipoCA === 'material' || (cst.tipoCA !== 'organico' && !!materialEscolhido);
+        const caBaseMaterial = usaMaterial ? (CDB.CA_POR_MATERIAL || {})[materialEscolhido] : undefined;
+        const caBaseNum = (caBaseMaterial !== undefined) ? caBaseMaterial : (13 + intMod);
+        let caEfeitos = 0;
+        const caFontes = [];
+        constructEffectIds.forEach(id => {
+            const b = CDB.EFEITO_CA[id];
+            if (b) { caEfeitos += b; const efObj = efeitosSel.find(e => e.id === id); caFontes.push({ nome: efObj ? efObj.nome : id, bonus: b }); }
+        });
+        let caRestricoes = 0;
+        (h.restricoes || []).forEach(id => {
+            const b = (CDB.RESTRICAO_CA || {})[id];
+            if (b) { caRestricoes += b; const rObj = restricoesSel.find(r => r.id === id); caFontes.push({ nome: rObj ? rObj.nome : id, bonus: b }); }
+        });
+        const caTotal = (caBaseNum === null) ? null : (caBaseNum + caEfeitos + caRestricoes);
+
+        if (!window._HATSU_STAT_INFO) window._HATSU_STAT_INFO = {};
+        if (!window._HATSU_STAT_INFO[idx]) window._HATSU_STAT_INFO[idx] = {};
+        window._HATSU_STAT_INFO[idx].constructoPv = [
+            { l: `Base (${tamanho}, ${durabilidadeEfetiva === 'resistente' ? 'Resistente' : 'Frágil'})`, v: pvBase, c: '#9ca3af' },
+            ...pvFontes.map(f => ({ l: `+${f.bonus} PV`, v: f.nome, c: '#4ade80' })),
+            ...(robustezBonus ? [{ l: `+${robustezBonus} PV`, v: 'Robustez', c: '#f87171' }] : []),
+            { l: '→ Total', v: pvTotal, c: '#4ade80', b: true },
+        ];
+        window._HATSU_STAT_INFO[idx].constructoCa = [
+            { l: usaMaterial ? `Base (material: ${materialEscolhido || '—'})` : `Base (13 + INT ${intMod >= 0 ? '+' : ''}${intMod})`, v: caBaseNum === null ? '—' : caBaseNum, c: '#9ca3af' },
+            ...caFontes.map(f => ({ l: `+${f.bonus} CA`, v: f.nome, c: '#60a5fa' })),
+            { l: '→ Total', v: caTotal === null ? '—' : caTotal, c: '#60a5fa', b: true },
+        ];
+
+        const _periciaTipos = CDB.PERICIA_TIPOS || [];
+        const _periciaSlots = CDB.PERICIA_SLOTS || 5;
+
+        constructoCardHtml = `<div style="background:#0d1117;border:1px solid ${tc}33;border-radius:12px;padding:14px;margin-bottom:20px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+                <span style="font-size:14px">🐣</span>
+                <span style="font-size:10px;font-weight:900;color:#e5e7eb;text-transform:uppercase;letter-spacing:2px">Ficha do Constructo</span>
+            </div>
+
+            <div style="display:flex;gap:10px;margin-bottom:12px;align-items:flex-start">
+                <div onclick="event.stopPropagation();document.getElementById('constructo-img-${idx}').click()" title="Clique para enviar uma imagem" style="width:56px;height:56px;border-radius:10px;border:1px ${cst.imagemUrl ? 'solid ' + tc + '44' : 'dashed #374151'};display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;cursor:pointer;position:relative;overflow:hidden;background-color:#0a0f1a;${cst.imagemUrl ? `background-image:url('${escAttr(cst.imagemUrl)}');background-size:cover;background-position:${(cst.imagePosition||{x:50,y:50}).x}% ${(cst.imagePosition||{x:50,y:50}).y}%;` : ''}">
+                    <input type="file" id="constructo-img-${idx}" accept="image/*" style="display:none" onchange="event.stopPropagation();window._hUploadConstructoImage(${idx},this)">
+                    ${!cst.imagemUrl ? '🐣' : ''}
+                    ${cst.imagemUrl ? `<button onclick="event.stopPropagation();window._hOpenConstructoImagePositionModal(${idx})" title="Ajustar posição da imagem" style="position:absolute;bottom:2px;right:2px;background:#000000aa;border:1px solid #ffffff33;border-radius:5px;width:16px;height:16px;color:#fff;font-size:8px;cursor:pointer;padding:0;line-height:16px">✥</button>` : ''}
+                </div>
+                <div style="flex:1;display:flex;flex-direction:column;gap:6px;min-width:0">
+                    <input type="text" value="${escAttr(cst.nome)}" placeholder="Nome do constructo..." onchange="window._hSetConstructoField(${idx},'nome',this.value)" style="width:100%;box-sizing:border-box;background:#111827;border:1px solid #374151;border-radius:8px;padding:6px 8px;color:#fff;font-size:11px;font-weight:700">
+                    <div style="display:flex;gap:4px;align-items:center">
+                        <button onclick="event.stopPropagation();document.getElementById('constructo-img-${idx}').click()" style="flex-shrink:0;background:${tc}18;border:1px solid ${tc}44;color:${tc};border-radius:6px;padding:5px 8px;font-size:8px;font-weight:900;cursor:pointer;white-space:nowrap">📤 Enviar</button>
+                        <input type="text" value="${escAttr(cst.imagemUrl)}" placeholder="ou cole uma URL de imagem..." onchange="window._hSetConstructoField(${idx},'imagemUrl',this.value)" style="flex:1;min-width:0;box-sizing:border-box;background:#111827;border:1px solid #374151;border-radius:8px;padding:6px 8px;color:#9ca3af;font-size:9px">
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+                <div style="background:#0a0f1a;border:1px solid #1f2937;border-radius:10px;padding:10px;text-align:center">
+                    <div style="font-size:8px;color:#4b5563;text-transform:uppercase;font-weight:700;margin-bottom:2px">PV <button onclick="event.stopPropagation();window._hShowStatInfo(${idx},'constructoPv',this)" style="background:transparent;border:1px solid #374151;border-radius:50%;width:14px;height:14px;font-size:8px;color:#6b7280;cursor:pointer;padding:0;line-height:14px">ⓘ</button></div>
+                    <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:20px;color:#4ade80">${pvTotal}</div>
+                </div>
+                <div style="background:#0a0f1a;border:1px solid #1f2937;border-radius:10px;padding:10px;text-align:center">
+                    <div style="font-size:8px;color:#4b5563;text-transform:uppercase;font-weight:700;margin-bottom:2px">CA <button onclick="event.stopPropagation();window._hShowStatInfo(${idx},'constructoCa',this)" style="background:transparent;border:1px solid #374151;border-radius:50%;width:14px;height:14px;font-size:8px;color:#6b7280;cursor:pointer;padding:0;line-height:14px">ⓘ</button></div>
+                    <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:20px;color:#60a5fa">${caTotal === null ? '—' : caTotal}</div>
+                </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+                <div>
+                    <div style="font-size:7px;color:#374151;text-transform:uppercase;font-weight:700;margin-bottom:4px">Durabilidade</div>
+                    <div style="display:flex;gap:3px">
+                        ${['', 'fragil', 'resistente'].map(v => {
+                            const active = (cst.durabilidade || '') === v;
+                            const label = v === '' ? 'Auto' : v === 'fragil' ? 'Frágil' : 'Resistente';
+                            return `<button onclick="window._hSetConstructoField(${idx},'durabilidade','${v}')" style="flex:1;padding:5px 2px;border-radius:7px;font-size:8px;font-weight:900;cursor:pointer;border:1.5px solid ${active ? tc : '#1f2937'};background:${active ? tc + '22' : 'transparent'};color:${active ? tc : '#6b7280'}">${label}</button>`;
+                        }).join('')}
+                    </div>
+                </div>
+                <div>
+                    <div style="font-size:7px;color:#374151;text-transform:uppercase;font-weight:700;margin-bottom:4px">CA base</div>
+                    <div style="display:flex;gap:3px">
+                        ${['', 'organico', 'material'].map(v => {
+                            const active = (cst.tipoCA || '') === v;
+                            const label = v === '' ? 'Auto' : v === 'organico' ? 'Orgânico' : 'Material';
+                            return `<button onclick="window._hSetConstructoField(${idx},'tipoCA','${v}')" style="flex:1;padding:5px 2px;border-radius:7px;font-size:8px;font-weight:900;cursor:pointer;border:1.5px solid ${active ? tc : '#1f2937'};background:${active ? tc + '22' : 'transparent'};color:${active ? tc : '#6b7280'}">${label}</button>`;
+                        }).join('')}
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-bottom:12px">
+                <div style="font-size:7px;color:#374151;text-transform:uppercase;font-weight:700;margin-bottom:4px">Atributos (${intUsados}/${intPontosTotal} do mod. INT distribuído)</div>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">
+                    ${['FOR', 'DES', 'CON', 'INT', 'SAB', 'PRE'].map(attr => `
+                        <div style="background:#0a0f1a;border:1px solid #1f2937;border-radius:8px;padding:6px;text-align:center">
+                            <div style="font-size:7px;color:#6b7280;font-weight:700">${attr}</div>
+                            <div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-top:2px">
+                                <button onclick="window._hSetConstructoAttr(${idx},'${attr}',-1)" style="width:16px;height:16px;border-radius:50%;background:#1f2937;border:none;color:#9ca3af;font-size:10px;cursor:pointer;line-height:1">−</button>
+                                <span style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:12px;color:#fff">${atributosDist[attr] >= 0 ? '+' : ''}${atributosDist[attr]}</span>
+                                <button onclick="window._hSetConstructoAttr(${idx},'${attr}',1)" style="width:16px;height:16px;border-radius:50%;background:#1f2937;border:none;color:#9ca3af;font-size:10px;cursor:pointer;line-height:1">+</button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+
+            <div style="margin-bottom:12px">
+                <div style="font-size:7px;color:#374151;text-transform:uppercase;font-weight:700;margin-bottom:4px">Características de Invocação (${todasCaracteristicas.length}/${slotsCaracteristicas})</div>
+                ${caracJaEscolhidas.length > 0 ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">${caracJaEscolhidas.map(n => `<span style="font-size:8px;font-weight:700;padding:3px 8px;border-radius:6px;background:${tc}18;color:${tc}">${n}</span>`).join('')}</div>` : ''}
+                ${caracExtras.map((n, i) => `
+                    <div style="display:flex;gap:4px;margin-bottom:4px;align-items:center">
+                        <select onchange="window._hSetConstructoCaracteristica(${idx},${i},this.value)" style="flex:1;background:#111827;border:1px solid #374151;border-radius:6px;padding:4px 6px;color:#d1d5db;font-size:9px">
+                            ${(window.CARACTERISTICAS_INVOCACAO || []).map(c => `<option value="${c.nome}" ${c.nome === n ? 'selected' : ''}>${c.icon} ${c.nome}</option>`).join('')}
+                        </select>
+                        <button onclick="window._hRemoveConstructoCaracteristica(${idx},${i})" style="background:#ef444422;border:1px solid #ef444455;color:#f87171;border-radius:6px;padding:4px 8px;font-size:9px;cursor:pointer">×</button>
+                    </div>
+                `).join('')}
+                ${slotsLivres > caracExtras.length ? `<button onclick="window._hAddConstructoCaracteristica(${idx})" style="width:100%;padding:6px;border-radius:8px;background:transparent;border:1px dashed #374151;color:#6b7280;font-size:9px;font-weight:700;cursor:pointer">+ Adicionar Característica (${slotsLivres - caracExtras.length} livre${slotsLivres - caracExtras.length > 1 ? 's' : ''})</button>` : ''}
+            </div>
+
+            <div style="margin-bottom:12px">
+                <div style="font-size:7px;color:#374151;text-transform:uppercase;font-weight:700;margin-bottom:4px">Perícias (${(cst.pericias || []).length}/${_periciaSlots} pontos)</div>
+                ${(cst.pericias || []).map((p, i) => {
+                    const tipoDef = _periciaTipos.find(t => t.id === p.tipo) || _periciaTipos[0] || { valores: [] };
+                    return `<div style="display:flex;gap:4px;margin-bottom:4px">
+                        <select onchange="window._hSetConstructoPericia(${idx},${i},'tipo',this.value)" style="background:#111827;border:1px solid #374151;border-radius:6px;padding:4px 6px;color:#d1d5db;font-size:9px">
+                            ${_periciaTipos.map(t => `<option value="${t.id}" ${t.id === p.tipo ? 'selected' : ''}>${t.label}</option>`).join('')}
+                        </select>
+                        <select onchange="window._hSetConstructoPericia(${idx},${i},'valor',this.value)" style="flex:1;background:#111827;border:1px solid #374151;border-radius:6px;padding:4px 6px;color:#d1d5db;font-size:9px">
+                            ${tipoDef.valores.map(v => `<option value="${v}" ${v === p.valor ? 'selected' : ''}>${v}</option>`).join('')}
+                        </select>
+                        <button onclick="window._hRemoveConstructoPericia(${idx},${i})" style="background:#ef444422;border:1px solid #ef444455;color:#f87171;border-radius:6px;padding:4px 8px;font-size:9px;cursor:pointer">×</button>
+                    </div>`;
+                }).join('')}
+                ${(cst.pericias || []).length < _periciaSlots ? `<button onclick="window._hAddConstructoPericia(${idx})" style="width:100%;padding:6px;border-radius:8px;background:transparent;border:1px dashed #374151;color:#6b7280;font-size:9px;font-weight:700;cursor:pointer">+ Adicionar Perícia</button>` : ''}
+            </div>
+
+            <details style="margin-bottom:12px">
+                <summary style="font-size:7px;color:#374151;text-transform:uppercase;font-weight:700;cursor:pointer">📖 Ações (referência)</summary>
+                <div style="margin-top:6px">
+                    <div style="font-size:8px;color:${tc};font-weight:700;margin-bottom:2px">Simples (o constructo faz sozinho)</div>
+                    ${(CDB.ACOES_SIMPLES || []).map(a => `<div style="font-size:8px;color:#6b7280;margin-bottom:3px"><b style="color:#9ca3af">${a.nome}:</b> ${a.desc}</div>`).join('')}
+                    <div style="font-size:8px;color:${tc};font-weight:700;margin:8px 0 2px">Complexas (consomem ação do Materializador)</div>
+                    ${(CDB.ACOES_COMPLEXAS || []).map(a => `<div style="font-size:8px;color:#6b7280;margin-bottom:3px"><b style="color:#9ca3af">${a.nome}:</b> ${a.desc}</div>`).join('')}
+                </div>
+            </details>
+
+            <textarea placeholder="Notas (ações customizadas, roleplay...)" onchange="window._hSetConstructoField(${idx},'notas',this.value)" style="width:100%;box-sizing:border-box;background:#111827;border:1px solid #374151;border-radius:8px;padding:6px 8px;color:#9ca3af;font-size:9px;min-height:44px;resize:vertical;margin-bottom:12px">${escAttr(cst.notas)}</textarea>
+
+            <div style="margin-bottom:8px">
+                <div style="font-size:7px;color:#374151;text-transform:uppercase;font-weight:700;margin-bottom:4px">Atributo usado no Ataque</div>
+                <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:3px">
+                    ${['FOR', 'DES', 'CON', 'INT', 'SAB', 'PRE'].map(attr => {
+                        const active = attrAtaqueEfetivo === attr;
+                        return `<button onclick="window._hSetConstructoField(${idx},'atributoAtaque','${attr}')" style="padding:5px 2px;border-radius:7px;font-size:8px;font-weight:900;cursor:pointer;border:1.5px solid ${active ? tc : '#1f2937'};background:${active ? tc + '22' : 'transparent'};color:${active ? tc : '#6b7280'}">${attr}</button>`;
+                    }).join('')}
+                </div>
+            </div>
+
+            <button onclick="event.stopPropagation();window.rollConstructoAtaque(${idx})" style="width:100%;padding:10px;border-radius:10px;background:${tc}22;border:1px solid ${tc}66;color:${tc};font-family:'Orbitron',sans-serif;font-weight:900;font-size:10px;cursor:pointer;text-transform:uppercase;letter-spacing:1px">⚔️ Ataque do Constructo (1d6 ${atributosDist[attrAtaqueEfetivo] >= 0 ? '+' : ''}${atributosDist[attrAtaqueEfetivo]} ${attrAtaqueEfetivo})</button>
+        </div>`;
+    }
+    // ── Fim Ficha do Constructo ─────────────────────────────────────────────────
+
     // ── Cálculo de Alcance e Duração ──────────────────────────────────────────
     const allSelIds = [...(h.restricoes||[]), ...(h.efeitos||[])];
     let alcanceBonus = [];
@@ -1439,6 +1839,8 @@ function renderHatsuDetail(container) {
                 ${ataqueToggleHtml}
                 ${calcRangeDurHtml}
             </div>
+
+            ${constructoCardHtml}
 
             ${primeiroHatsuSection}
             ${grauVariavelSection}
