@@ -741,6 +741,7 @@
                 }
                 ${renderRollModeModalHtml()}
                 ${renderRenPromptModalHtml()}
+                ${renderZetsuPromptModalHtml()}
                 <div class="h-auto min-h-[4rem] bg-[#0e0e14] border-t border-gray-800 flex items-center justify-around px-2 relative z-50 pb-safe pt-2">
                     ${renderNavItem('FICHA', 'user', themeColor)}${renderNavItem('BIO', 'contact', themeColor)}${renderNavItem('NEN', 'flame', themeColor)}${renderNavItem('TRACOS', 'dna', themeColor)}${renderNavItem('INV', 'backpack', themeColor)}${renderNavItem('DADOS', 'dices', themeColor)}${renderNavItem('COND', 'brain', themeColor)}
                 </div>
@@ -942,6 +943,8 @@
                 if ((mod + pb + acertoBonus) < 0) attackModStr = `${mod + pb + acertoBonus}`;
                 const attackModeLabel = attackMode !== 'NORMAL' ? ` (${attackMode.charAt(0) + attackMode.slice(1).toLowerCase()})` : '';
                 attackLine = `\nAtaque${attackModeLabel}: [${attackRoll.dice.join(', ')}] ${attackModStr} = **${attackTotal}**${critSuffix}`;
+            } else if (rs.cd) {
+                attackLine = `\n🎯 CD do TR: **${rs.cd}**`;
             }
             // ── Fim rolagem de ataque ─────────────────────────────────────────
 
@@ -973,11 +976,49 @@
             state.rollMode = mode; // persiste o último modo usado
             if (!pr) return;
             if (pr.type === 'dice')   rollDice(pr.a1, pr.a2, mode);
-            else if (pr.type === 'skill')  rollSkill(pr.a1, pr.a2, mode);
+            else if (pr.type === 'skill')  maybeAskZetsuThenRollSkill(pr.a1, pr.a2, mode);
             else if (pr.type === 'attack') rollAttack(pr.a1, pr.a2, pr.a3, mode);
             else if (pr.type === 'hatsu')  maybeAskRenThenRoll(mode);
         }
         function cancelPendingRoll() { state.pendingRoll = null; render(true); }
+        // Zetsu (Suprimir) dá bônus de Furtividade: nível 1/2 → +3, nível 3 (Maestria) → +6.
+        function getZetsuFurtividadeBonus(char) {
+            const zetsu = ((char.nenDominio || {}).zetsu) || 0;
+            if (zetsu >= 3) return 6;
+            if (zetsu >= 1) return 3;
+            return 0;
+        }
+        function maybeAskZetsuThenRollSkill(skillName, attrKey, mode) {
+            const char = state.currentChar;
+            const bonus = skillName === 'Furtividade' ? getZetsuFurtividadeBonus(char) : 0;
+            if (bonus > 0) {
+                state.pendingZetsuRoll = { skillName, attrKey, mode, bonus };
+                render(true);
+            } else {
+                rollSkill(skillName, attrKey, mode);
+            }
+        }
+        window._hResolveZetsuPrompt = function(useZetsu) {
+            const pr = state.pendingZetsuRoll;
+            state.pendingZetsuRoll = null;
+            if (!pr) return;
+            rollSkill(pr.skillName, pr.attrKey, pr.mode, useZetsu ? pr.bonus : 0);
+        };
+        function renderZetsuPromptModalHtml() {
+            if (!state.pendingZetsuRoll) return '';
+            const pr = state.pendingZetsuRoll;
+            return `<div style="position:fixed;inset:0;background:#000000cc;display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;font-family:Rajdhani,sans-serif">
+                <div style="background:#0d1117;border:2px solid #22c55e;border-radius:18px;padding:22px;width:100%;max-width:340px;box-shadow:0 0 40px #22c55e44;text-align:center">
+                    <div style="font-size:22px;margin-bottom:6px">👁️</div>
+                    <div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:13px;color:#22c55e;text-transform:uppercase;letter-spacing:2px">Zetsu está ativo?</div>
+                    <div style="font-size:10px;color:#9ca3af;margin-top:8px;line-height:1.5">Suprimir a aura oculta sua presença.<br>Bônus: <b style="color:#22c55e">+${pr.bonus} Furtividade</b></div>
+                    <div style="display:flex;gap:8px;margin-top:16px">
+                        <button onclick="window._hResolveZetsuPrompt(false)" style="flex:1;padding:12px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Não</button>
+                        <button onclick="window._hResolveZetsuPrompt(true)" style="flex:2;padding:12px;border-radius:10px;background:#22c55e;border:none;color:#000;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">👁️ Usar Zetsu</button>
+                    </div>
+                </div>
+            </div>`;
+        }
         // rev. Manual 2.0 — antes de rolar o Hatsu, pergunta se o jogador quer usar REN (+1 Grau de
         // dano), mas só se ainda houver espaço dentro do limite de Grau de Potência do nível.
         function maybeAskRenThenRoll(mode) {
@@ -1105,7 +1146,7 @@
             fetch(getActiveWebhookUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content }) }).catch(() => {});
         }
         function rollDice(attrName, mod, mode) { const roll = getRollResult(mode || state.rollMode); const total = roll.total + mod; const entry = { time: new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}), label: `${attrName} (${roll.label})`, dice: roll.dice.join(', '), mod: mod, total: total }; state.currentChar.history.push(entry); if (state.currentChar.history.length > 50) state.currentChar.history.shift(); saveCharacter(state.currentChar); state.rollResult = { name: attrName, total: total, diceVal: roll.total, mod: mod, label: roll.label }; if (state.activeTab !== 'DADOS') state.unreadRolls = true; sendToDiscord(`${attrName} (${roll.label})`, roll.dice, mod, total, state.currentChar.name || 'Personagem'); render(true); }
-        function rollSkill(skillName, attrKey, mode) { const char = state.currentChar; const mod = getMod(char.attributes[attrKey].value); const isTrained = char.skills.includes(skillName); const isExpert = (char.expertise || []).includes(skillName); const pb = getProficiencyBonus(char.level); let totalMod = mod; if (isExpert) { totalMod += (pb * 2); } else if (isTrained) { totalMod += pb; } const roll = getRollResult(mode || state.rollMode); const total = roll.total + totalMod; const entry = { time: new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}), label: `${skillName} ${isExpert ? "(Exp)" : ""} (${roll.label})`, dice: roll.dice.join(', '), mod: totalMod, total: total }; state.currentChar.history.push(entry); if (state.currentChar.history.length > 50) state.currentChar.history.shift(); saveCharacter(state.currentChar); state.rollResult = { name: skillName, total: total, diceVal: roll.total, mod: totalMod, label: roll.label }; if (state.activeTab !== 'DADOS') state.unreadRolls = true; sendToDiscord(`${skillName}${isExpert ? ' (Exp)' : ''} (${roll.label})`, roll.dice, totalMod, total, char.name || 'Personagem'); render(true); }
+        function rollSkill(skillName, attrKey, mode, zetsuBonus) { const char = state.currentChar; const mod = getMod(char.attributes[attrKey].value); const isTrained = char.skills.includes(skillName); const isExpert = (char.expertise || []).includes(skillName); const pb = getProficiencyBonus(char.level); let totalMod = mod; if (isExpert) { totalMod += (pb * 2); } else if (isTrained) { totalMod += pb; } const zb = zetsuBonus || 0; totalMod += zb; const zetsuTag = zb > 0 ? ' 👁️Zetsu' : ''; const roll = getRollResult(mode || state.rollMode); const total = roll.total + totalMod; const entry = { time: new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}), label: `${skillName} ${isExpert ? "(Exp)" : ""}${zetsuTag} (${roll.label})`, dice: roll.dice.join(', '), mod: totalMod, total: total }; state.currentChar.history.push(entry); if (state.currentChar.history.length > 50) state.currentChar.history.shift(); saveCharacter(state.currentChar); state.rollResult = { name: skillName, total: total, diceVal: roll.total, mod: totalMod, label: roll.label }; if (state.activeTab !== 'DADOS') state.unreadRolls = true; sendToDiscord(`${skillName}${isExpert ? ' (Exp)' : ''}${zetsuTag} (${roll.label})`, roll.dice, totalMod, total, char.name || 'Personagem'); render(true); }
         function closeRollModal() { state.rollResult = null; render(true); }
         function copyToClipboard(idx) { const h = state.currentChar.history[idx]; if(!h) return; const text = `**${h.label}**\nRolagem: [${h.dice}] ${h.mod>=0?'+':''}${h.mod} = **${h.total}**`; navigator.clipboard.writeText(text).then(() => { const btn = document.activeElement; if(btn && btn.tagName === 'BUTTON') { const originalHTML = btn.innerHTML; btn.innerHTML = '<i data-lucide="check" size="14"></i>'; btn.classList.add('text-green-500'); setTimeout(() => { btn.innerHTML = originalHTML; btn.classList.remove('text-green-500'); lucide.createIcons(); }, 1000); } }); }
         function getRollResult(mode) { const r1 = Math.floor(Math.random() * 20) + 1; const r2 = Math.floor(Math.random() * 20) + 1; if (mode === 'NORMAL') return { total: r1, dice: [r1], label: 'Normal' }; if (mode === 'VANTAGEM') return { total: Math.max(r1, r2), dice: [r1, r2], label: 'Vantagem' }; if (mode === 'DESVANTAGEM') return { total: Math.min(r1, r2), dice: [r1, r2], label: 'Desvantagem' }; if (mode === 'ÊNFASE') { const dist1 = Math.abs(r1 - 10.5); const dist2 = Math.abs(r2 - 10.5); return { total: dist1 > dist2 ? r1 : r2, dice: [r1, r2], label: 'Ênfase' }; } return { total: r1, dice: [r1], label: 'Normal' }; }

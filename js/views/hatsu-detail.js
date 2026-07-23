@@ -736,8 +736,11 @@ function renderHatsuDetail(container) {
         </div>`;
     }
     // ── Cálculo de bônus de acerto ───────────────────────────────────────────
-    // Hatsus hostis/versáteis/instantâneos que NÃO usam CD precisam de jogada de ataque
-    const hasAttack = hasBaseDmg && !hasCDCategory;
+    // Hatsus hostis/versáteis/instantâneos que NÃO usam CD precisam de jogada de ataque.
+    // O jogador pode sobrescrever a regra padrão por categoria (h.ataqueOverride: 'sim'|'nao'),
+    // já que um Hatsu de categoria CD também pode ter jogada de Ataque, e vice-versa.
+    const ataqueOverride = h.ataqueOverride || '';
+    const hasAttack = hasBaseDmg && (ataqueOverride === 'sim' ? true : ataqueOverride === 'nao' ? false : !hasCDCategory);
 
     const ACERTO_BNF_MAP = {
         'rg_l12': 1,  // Limitação de Movimento 1: +1 em Jogadas de Acerto
@@ -803,6 +806,7 @@ function renderHatsuDetail(container) {
         nome: h.nome,
         hasBaseDmg,
         hasAttack,
+        cd: null,
         acertoBonus,
         acertoVantagem,
         nivel: parseInt(h.nivel || char.level || 1),
@@ -869,6 +873,7 @@ function renderHatsuDetail(container) {
         const attrMod = Math.floor((attrVal - 10) / 2);
         const cdBase = 8 + halfLevel + attrMod;
         const cdFinal = cdBase + cdBonusTotal;
+        if (window._hatsuRollState) window._hatsuRollState.cd = cdFinal;
 
         if (!window._HATSU_STAT_INFO) window._HATSU_STAT_INFO = {};
         if (!window._HATSU_STAT_INFO[idx]) window._HATSU_STAT_INFO[idx] = {};
@@ -913,6 +918,32 @@ function renderHatsuDetail(container) {
         </div>`;
     }
     // ── Fim cálculo de CD ─────────────────────────────────────────────────────
+
+    // ── Toggle: este Hatsu tem jogada de Ataque? ───────────────────────────────
+    // Padrão é por categoria (CD → não, resto → sim), mas o jogador pode sobrescrever
+    // porque um Hatsu de categoria CD também pode ter Ataque, e vice-versa.
+    let ataqueToggleHtml = '';
+    if (hasBaseDmg) {
+        const _atkOpts = [
+            { v: '', label: 'Automático', sub: hasCDCategory ? '(sem ataque)' : '(com ataque)' },
+            { v: 'sim', label: 'Tem Ataque' },
+            { v: 'nao', label: 'Sem Ataque' }
+        ];
+        ataqueToggleHtml = `<div style="margin-top:12px;padding-top:12px;border-top:1px solid #1f2937">
+            <div style="font-size:8px;color:#374151;text-transform:uppercase;font-weight:700;letter-spacing:1px;margin-bottom:6px">⚔️ Jogada de Ataque</div>
+            <div style="display:flex;gap:4px;flex-wrap:wrap">
+                ${_atkOpts.map(o => {
+                    const active = ataqueOverride === o.v;
+                    return `<button onclick="event.stopPropagation();state.currentChar.hatsus[${idx}].ataqueOverride='${o.v}';saveCharacter(state.currentChar);renderHatsuInPlace()"
+                        style="flex:1;min-width:80px;padding:7px 4px;border-radius:9px;font-size:9px;font-weight:900;cursor:pointer;border:1.5px solid ${active?tc:'#1f2937'};background:${active?tc+'22':'transparent'};color:${active?tc:'#6b7280'};transition:all .15s">
+                        ${o.label}${o.sub?` <span style="font-size:7px;opacity:.7">${o.sub}</span>`:''}
+                    </button>`;
+                }).join('')}
+            </div>
+            <div style="font-size:8px;color:#4b5563;font-style:italic;margin-top:4px">${hasAttack ? 'Rola 1d20 + mod + PB junto com o dano.' : 'Sem jogada de ataque — usa a CD do TR.'}</div>
+        </div>`;
+    }
+    // ── Fim toggle de Ataque ───────────────────────────────────────────────────
 
     // ── Cálculo de Alcance e Duração ──────────────────────────────────────────
     const allSelIds = [...(h.restricoes||[]), ...(h.efeitos||[])];
@@ -1405,6 +1436,7 @@ function renderHatsuDetail(container) {
                 </div>
                 ${calcDanoHtml}
                 ${calcCDHtml}
+                ${ataqueToggleHtml}
                 ${calcRangeDurHtml}
             </div>
 
