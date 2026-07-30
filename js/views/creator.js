@@ -129,7 +129,12 @@
                             <label class="text-[10px] font-bold text-neon-theme uppercase tracking-widest mb-2 block pl-2">Nome do Candidato</label>
                             <input type="text" id="creator-name" value="${state.tempChar.name}" placeholder="INSIRA SEU NOME..." class="w-full bg-gray-900 border border-gray-700 rounded-xl p-4 text-white text-center font-display font-bold tracking-wider focus:border-neon-theme focus:shadow-[0_0_15px_rgba(var(--theme-rgb),0.2)] transition-all uppercase placeholder-gray-600" oninput="state.tempChar.name = this.value">
                         </div>
-                        
+
+                        ${state.isAdmin ? `<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:#0d1117;border:1px solid #374151;border-radius:10px">
+                            <input type="checkbox" id="creator-isnpc" ${state.tempChar.isNPC ? 'checked' : ''} onchange="state.tempChar.isNPC = this.checked" style="width:16px;height:16px;accent-color:#f97316;cursor:pointer">
+                            <label for="creator-isnpc" style="font-size:10px;font-weight:700;color:#fb923c;text-transform:uppercase;letter-spacing:.05em;cursor:pointer">🤖 Este personagem é um NPC (libera regras de criação de Hatsu)</label>
+                        </div>` : ''}
+
                         ${diagramHtml}
 
                         <div class="text-center px-4 bg-gray-900/50 p-3 rounded-xl border border-gray-800/50">

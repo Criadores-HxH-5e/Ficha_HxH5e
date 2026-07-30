@@ -727,6 +727,11 @@
                                     <div class="flex flex-col items-center leading-none px-1"><span class="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Nível</span><span class="text-xl font-display font-bold text-white">${char.level}</span></div>
                                     <button onclick="window.openXpModal()" class="w-6 h-6 bg-white/10 rounded flex items-center justify-center text-white hover:bg-white/20 transition-colors"><i data-lucide="plus" size="12"></i></button>
                                 </div>
+                                ${state.isAdmin ? `<button onclick="event.stopPropagation(); updateCharProperty('isNPC', !state.currentChar.isNPC)"
+                                    class="flex items-center gap-1 px-2 py-1.5 rounded-lg border backdrop-blur transition-colors ${char.isNPC ? 'border-orange-500 bg-orange-500/20 text-orange-400' : 'border-gray-600 bg-black/40 text-gray-400'}"
+                                    title="Marcar/desmarcar como NPC — libera as regras de criação de Hatsu sem o limite de 1x por nível">
+                                    <span class="text-[9px] font-bold uppercase tracking-wider whitespace-nowrap">${char.isNPC ? '🤖 NPC' : '👤 PJ'}</span>
+                                </button>` : ''}
                             </div>
                         </div>
                     </div>

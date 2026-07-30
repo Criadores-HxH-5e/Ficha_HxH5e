@@ -560,7 +560,8 @@ function renderHatsuCreator(container) {
             const itemRepetivel = window.isEfeitoRepetivel(item);
             const repetivelNiveisArr = (hb.efeitoNiveis && hb.efeitoNiveis[item.id]) || [];
             const repetivelTracked = itemRepetivel ? repetivelNiveisArr.length : 0;
-            const repetivelNesteNivel = itemRepetivel && repetivelNiveisArr.some(lv => lv === charLevel);
+            const repetivelCompradoNesteNivel = itemRepetivel && repetivelNiveisArr.some(lv => lv === charLevel);
+            const repetivelNesteNivel = repetivelCompradoNesteNivel && !char.isNPC;
             const showRepetivelBadge = itemRepetivel && sel && totalCopies > 0;
 
             // Duplicatas via Restrição Extrema Pura: para efeitos repetíveis, só as cópias ALÉM das já
@@ -1188,7 +1189,7 @@ function renderHatsuCreator(container) {
             // Linha "Extra ⚡": só aparece com Restrição Extrema Pura ativa — compra cópias adicionais
             // além do limite de 1-por-nível, usando o P.N da extrema. As duas linhas somam no mesmo total.
             const canAddRepetivel = showRepetivelBadge && !repetivelNesteNivel && (!item.maxUsos || totalCopies < item.maxUsos) && pnLeft >= item.pn;
-            const canRemoveRepetivel = showRepetivelBadge && repetivelNesteNivel;
+            const canRemoveRepetivel = showRepetivelBadge && repetivelCompradoNesteNivel;
             const repetivelControlsHtml = showRepetivelBadge ? `
                 <div style="margin-top:6px" onclick="event.stopPropagation()">
                     <div style="display:flex;align-items:center;gap:6px">
@@ -2607,8 +2608,8 @@ window._hAddRepetivelE = function(id, tipo, pn) {
     hb.efeitoNiveis = hb.efeitoNiveis || {};
     const niveisComprados = hb.efeitoNiveis[id] || [];
 
-    // Só pode comprar mais uma cópia por nível
-    if (niveisComprados.some(lv => lv === charLevelNow)) return;
+    // Só pode comprar mais uma cópia por nível (exceto personagens marcados como NPC)
+    if (!char.isNPC && niveisComprados.some(lv => lv === charLevelNow)) return;
     // Respeita o teto de usos do efeito, se houver
     if (item.maxUsos) {
         const totalAtual = arr.filter(x => x === id).length;
