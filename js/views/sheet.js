@@ -200,13 +200,13 @@
                     const modalHtml = `<div class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm" onclick="closeAttackModal()">
                         <div style="background:#0d1117;border:2px solid #ef4444;border-radius:16px;padding:20px;width:80%;max-width:300px;box-shadow:0 0 40px #ef444440" onclick="event.stopPropagation()">
                             <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:13px;color:#ef4444;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">${wm.nome}</div>
-                            <div style="font-size:9px;color:#6b7280;margin-bottom:16px">Dano: <b style="color:#f87171">${wm.dano}</b> ${wm.tipoDano} Â· Qual modificador usar no ataque?</div>
+                            <div style="font-size:9px;color:#6b7280;margin-bottom:16px">Dano: <b style="color:#f87171">${wm.dano}</b> ${wm.tipoDano} · Qual modificador usar no ataque?</div>
                             <div style="display:flex;flex-direction:column;gap:8px">
                                 <button onclick="pickAttackAttr('${safeNome2}','${safeDano2}','FOR')" style="width:100%;padding:13px;border-radius:10px;background:#ef444422;border:1px solid #ef444466;color:#f87171;font-family:'Orbitron',sans-serif;font-weight:900;font-size:10px;cursor:pointer;text-transform:uppercase;letter-spacing:1px">
-                                    💪 FORÇA (${forMod >= 0 ? '+' : ''}${forMod}) Â· Ataque ${(forMod + pb2) >= 0 ? '+' : ''}${forMod + pb2}
+                                    💪 FORÇA (${forMod >= 0 ? '+' : ''}${forMod}) · Ataque ${(forMod + pb2) >= 0 ? '+' : ''}${forMod + pb2}
                                 </button>
                                 <button onclick="pickAttackAttr('${safeNome2}','${safeDano2}','DES')" style="width:100%;padding:13px;border-radius:10px;background:#38bdf822;border:1px solid #38bdf866;color:#38bdf8;font-family:'Orbitron',sans-serif;font-weight:900;font-size:10px;cursor:pointer;text-transform:uppercase;letter-spacing:1px">
-                                    💨 DESTREZA (${desMod >= 0 ? '+' : ''}${desMod}) Â· Ataque ${(desMod + pb2) >= 0 ? '+' : ''}${desMod + pb2}
+                                    💨 DESTREZA (${desMod >= 0 ? '+' : ''}${desMod}) · Ataque ${(desMod + pb2) >= 0 ? '+' : ''}${desMod + pb2}
                                 </button>
                             </div>
                             <button onclick="closeAttackModal()" style="width:100%;margin-top:10px;padding:8px;border-radius:8px;background:transparent;border:1px solid #374151;color:#6b7280;font-size:9px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:1px">Cancelar</button>
@@ -241,7 +241,7 @@
                                 <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px">
                                     <div style="flex:1;min-width:0">
                                         <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:13px;color:${catColor};text-transform:uppercase;letter-spacing:1px;line-height:1.2">${h.nome||'Sem nome'}</div>
-                                        <div style="font-size:8px;color:#4b5563;margin-top:3px">${tipoIcons[h.tipo]||'✦'} ${h.tipo||'—'} Â· Nível ${h.nivel||'?'} Â· ${h.criadoEm||''}</div>
+                                        <div style="font-size:8px;color:#4b5563;margin-top:3px">${tipoIcons[h.tipo]||'✦'} ${h.tipo||'—'} · Nível ${h.nivel||'?'} · ${h.criadoEm||''}</div>
                                     </div>
                                     <button onclick="event.stopPropagation();deleteHatsuConfirm(${idx},'list')"
                                         style="flex-shrink:0;background:#1f2937;border:1px solid #374151;border-radius:8px;color:#6b7280;font-size:11px;padding:4px 8px;cursor:pointer;line-height:1">✕</button>
@@ -261,7 +261,7 @@
                                         <div style="font-weight:900;color:#ef4444;font-size:13px">${rTotal}</div>
                                     </div>
                                 </div>
-                                <div style="text-align:right;font-size:8px;color:#374151;font-weight:700;text-transform:uppercase;letter-spacing:1px">Ver detalhes â€º</div>
+                                <div style="text-align:right;font-size:8px;color:#374151;font-weight:700;text-transform:uppercase;letter-spacing:1px">Ver detalhes ›</div>
                             </div>`;
                         }).join('')}
                     </div>`;
@@ -337,7 +337,7 @@
                                         <div style="height:100%;width:${pct}%;background:${barColor};border-radius:99px;box-shadow:0 0 8px ${barColor}88;transition:width .4s"></div>
                                     </div>
                                     <div style="display:flex;justify-content:space-between">
-                                        <span style="font-size:8px;color:#6b7280">${pnUsedAll} P.N Hatsus Â· ${pnDominio} P.N Domínio</span>
+                                        <span style="font-size:8px;color:#6b7280">${pnUsedAll} P.N Hatsus · ${pnDominio} P.N Domínio</span>
                                         <span style="font-size:8px;color:${pnFree<=0?'#ef4444':'#4b5563'}">${pnFree<=0?'Pool esgotado':pnFree+' livre'+(pnFree!==1?'s':'')}</span>
                                     </div>
                                     ${(char.talentBonus&&char.talentBonus.grausLivres) ? `
@@ -936,16 +936,18 @@
             if (rs.hasAttack) {
                 const nivel = rs.nivel || parseInt(char.level) || 1;
                 const pb = getProficiencyBonus(nivel);
+                // Atributo do Ataque pode ser diferente do atributo de Dano (rs.attr)
+                const atkMod = getMod((char.attributes[rs.atkAttr || rs.attr] || {}).value || 10);
                 // Segredo Mortal: força vantagem se modo for Normal
                 const attackMode = (rs.acertoVantagem && effectiveMode === 'NORMAL') ? 'VANTAGEM' : effectiveMode;
                 const attackRoll = getRollResult(attackMode);
                 const acertoBonus = rs.acertoBonus || 0;
-                const attackTotal = attackRoll.total + mod + pb + acertoBonus;
+                const attackTotal = attackRoll.total + atkMod + pb + acertoBonus;
                 const isCrit = attackRoll.dice.includes(20);
                 const isFumble = attackRoll.dice.length === 1 && attackRoll.dice[0] === 1;
                 const critSuffix = isCrit ? ' 🎯 **CRÍTICO!**' : isFumble ? ' 💀 **FALHA CRÍTICA!**' : '';
-                let attackModStr = `+${mod + pb + acertoBonus}`;
-                if ((mod + pb + acertoBonus) < 0) attackModStr = `${mod + pb + acertoBonus}`;
+                let attackModStr = `+${atkMod + pb + acertoBonus}`;
+                if ((atkMod + pb + acertoBonus) < 0) attackModStr = `${atkMod + pb + acertoBonus}`;
                 const attackModeLabel = attackMode !== 'NORMAL' ? ` (${attackMode.charAt(0) + attackMode.slice(1).toLowerCase()})` : '';
                 attackLine = `\nAtaque${attackModeLabel}: [${attackRoll.dice.join(', ')}] ${attackModStr} = **${attackTotal}**${critSuffix}`;
             } else if (rs.cd) {

@@ -156,7 +156,7 @@ function renderHatsuCreator(container) {
                     + (isPure ? '✓ Pura — +' + purePn + ' P.N' : '🔄 Usar como Pura (+' + purePn + ' P.N)')
                     + '</button>'
                     + (isPure ? '<span style="font-size:8px;color:#6b7280;font-style:italic">Converte benefício em '
-                        + purePn + ' P.N extra' + (pw === 'extrema' ? ' Â· permite repetir efeito' : '') + '</span>' : '')
+                        + purePn + ' P.N extra' + (pw === 'extrema' ? ' · permite repetir efeito' : '') + '</span>' : '')
                     + '</div>';
             }
 
@@ -831,7 +831,7 @@ function renderHatsuCreator(container) {
                         + '<div style="font-size:8px;color:#6b7280;margin-bottom:6px">📍 Tamanho: <strong style="color:#d1d5db">Pequeno</strong> (fixo)</div>'
                         + (chosenMat
                             ? '<div style="background:#060d1a;border:1px solid '+ color +'33;border-radius:8px;padding:8px;font-size:8px;color:#9ca3af">'
-                                + '<span style="color:'+ color +';font-weight:700">✓ Constructo: '+ chosenMat +' Â· Pequeno</span><br>'
+                                + '<span style="color:'+ color +';font-weight:700">✓ Constructo: '+ chosenMat +' · Pequeno</span><br>'
                                 + 'CA base: '+ (matSel ? matSel.ca : '—') +' + INT &nbsp;|&nbsp; PV = 5 + CON×2'
                               + '</div>'
                             : '<div style="font-size:8px;color:#f87171;margin-top:2px">⚠ Escolha o material</div>')
@@ -1459,7 +1459,7 @@ function renderHatsuCreator(container) {
                     <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:3px">
                         ${['TEN','REN','ZETSU','HATSU','GYO','EN','IN','KEN','KO','RYU'].map(pn => '<span style="font-size:7px;font-weight:700;padding:2px 5px;border-radius:5px;background:#1f2937;color:#6b7280">'+pn+'</span>').join('')}
                     </div>
-                    <div style="font-size:7px;color:#374151">Máx. 10 P.N por princípio Â· Hatsus não têm limite</div>
+                    <div style="font-size:7px;color:#374151">Máx. 10 P.N por princípio · Hatsus não têm limite</div>
                 </div>
             </div>
         </div>
@@ -2261,7 +2261,7 @@ window._hShowStatInfo = function(idx, type, btn) {
     if (existing) { if (existing.dataset.for == idx+'_'+type) { existing.remove(); return; } existing.remove(); }
     var lines = ((window._HATSU_STAT_INFO || {})[idx] || {})[type];
     if (!lines || !lines.length) return;
-    var titles = { cd:'🎯 Cálculo do CD', alcance:'📐 Cálculo do Alcance', area:'🔵 Cálculo da Área', duracao:'⏱ Cálculo da Duração', constructoPv:'❤️ Cálculo do PV do Constructo', constructoCa:'🛡️ Cálculo da CA do Constructo' };
+    var titles = { cd:'🎯 Cálculo do CD', ataque:'⚔️ Cálculo do Ataque', alcance:'📐 Cálculo do Alcance', area:'🔵 Cálculo da Área', duracao:'⏱ Cálculo da Duração', constructoPv:'❤️ Cálculo do PV do Constructo', constructoCa:'🛡️ Cálculo da CA do Constructo' };
     var pop = document.createElement('div');
     pop.id = popId;
     pop.dataset.for = idx+'_'+type;

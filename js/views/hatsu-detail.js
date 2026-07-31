@@ -168,6 +168,7 @@ window.calcGrausPotenciaPorCaracteristica = function(h, charLevel) {
             else if (id === 'rg_m13' && !choiceIncludes(id, 'dano')) { /* não conta */ }
             else if (id === 'rg_v2' && !choiceIncludes(id, 'dano') && !choiceIncludes(id, 'cura')) { /* escolheu Duração — ver DURACAO_GRAU_MAP */ }
             else if (id === 'rg_p5' && (!bc[id] || choiceIncludes(id, 'margem') || choiceIncludes(id, 'crítico'))) { /* escolheu Margem de Crítico, ou ainda não escolheu */ }
+            else if (id === 'rg_l1' && choiceIncludes(id, 'acerto')) { /* escolheu Acerto — ver ACERTO_GRAU_MAP, não conta em dano */ }
             else totals.dano += g;
         }
         // Alcance / Área: rg_l9 e rg_l10 usam specialChoices (picker dedicado 'Alcance'/'Área' em
@@ -633,6 +634,12 @@ function renderHatsuDetail(container) {
             const bc = (h.beneficioChoices||{})['rg_p5'] || '';
             if (!bc || bc.toLowerCase().includes('margem') || bc.toLowerCase().includes('crítico')) return;
         }
+        // rg_l1: Cálculo Pensado Básico 1 — escolha entre +1 Acerto OU +1 Grau/Passo de Dano/Cura
+        // (mutuamente exclusivo); se escolheu Acerto, não conta aqui (ver bloco de acerto abaixo).
+        if (item.id === 'rg_l1') {
+            const bc = (h.beneficioChoices||{})['rg_l1'] || '';
+            if (bc.toLowerCase().includes('acerto')) return;
+        }
         totalGraus += g;
         grauSources.push({ nome: item.nome, graus: g });
     });
@@ -652,10 +659,10 @@ function renderHatsuDetail(container) {
         totalGraus += h.bonusGraus.valor;
       grauSources.push({ nome: '💠 Bônus Talentoso', graus: h.bonusGraus.valor });
     }
-    // 5 Graus do 1Âº Hatsu — dano
+    // 5 Graus do 1º Hatsu — dano
     if (idx === 0 && h.primeiroHatsuGraus && h.primeiroHatsuGraus.dano) {
         totalGraus += h.primeiroHatsuGraus.dano;
-        grauSources.push({ nome: '⭐ 1Âº Hatsu (Dano)', graus: h.primeiroHatsuGraus.dano });
+        grauSources.push({ nome: '⭐ 1º Hatsu (Dano)', graus: h.primeiroHatsuGraus.dano });
     }
 
     // rev.: a seleção de restrições/efeitos nunca é bloqueada por ultrapassar o teto de Grau de
@@ -708,13 +715,18 @@ function renderHatsuDetail(container) {
     const rawBaseAttr = h.dmgMod || defaultAttr;
     const baseAttr = ALL_ATTRS.includes(rawBaseAttr) ? rawBaseAttr : modSugest[0];
 
+    // Atributo usado na Jogada de Ataque (acerto) — independente do atributo de Dano, pois o
+    // jogador pode querer, por ex., DES para acertar e FOR para o dano de um mesmo golpe.
+    const rawAtkAttr = h.atkMod || defaultAttr;
+    const baseAttrAtk = ALL_ATTRS.includes(rawAtkAttr) ? rawAtkAttr : modSugest[0];
+
     // Categorias que usam CD (definido aqui pois é usado no modPickerHtml também)
     const catTemCD = ['MANIPULAÇÃO','MATERIALIZAÇÃO','ESPECIALIZAÇÃO'];
     const hasCDCategory = catTemCD.some(c => c === (h.classe||char.class));
 
     // Modifier picker — todos os atributos disponíveis, sugeridos destacados com estrela
     const modPickerHtml = (hasBaseDmg || hasCDCategory) ? `<div style="margin-bottom:10px">
-        <div style="font-size:8px;color:#4b5563;text-transform:uppercase;font-weight:700;letter-spacing:1px;margin-bottom:6px">⚔️ Modificador do Ataque</div>
+        <div style="font-size:8px;color:#4b5563;text-transform:uppercase;font-weight:700;letter-spacing:1px;margin-bottom:6px">💥 Modificador de Dano</div>
         <div style="display:flex;gap:4px;flex-wrap:wrap">
             ${ALL_ATTRS.map(a => {
                 const active = baseAttr === a;
@@ -722,7 +734,7 @@ function renderHatsuDetail(container) {
                 const mod = getMod(char.attributes?.[a]?.value || 10);
                 return `<button onclick="state.currentChar.hatsus[${idx}].dmgMod='${a}';saveCharacter(state.currentChar);renderHatsuInPlace()"
                     style="flex:1;min-width:52px;padding:7px 4px;border-radius:9px;font-size:9px;font-weight:900;cursor:pointer;border:1.5px solid ${active?tc:isSugest?tc+'66':'#1f2937'};background:${active?tc+'22':'transparent'};color:${active?tc:isSugest?tc:'#6b7280'};transition:all .15s">
-                    ${isSugest?'â˜… ':''}${a} <span style="font-size:8px;opacity:.8">(${mod>=0?'+'+mod:mod})</span>
+                    ${isSugest?'★ ':''}${a} <span style="font-size:8px;opacity:.8">(${mod>=0?'+'+mod:mod})</span>
                 </button>`;
             }).join('')}
         </div>
@@ -774,7 +786,7 @@ function renderHatsuDetail(container) {
             if (dadoSources.length > 0) {
                 dadoSources.forEach(function(s){ _danoInfo.push({ l: '+' + s.n + ' dado (' + s.tipo + ')', v: s.nome, c: '#fbbf24' }); });
                 const _afterDadoV = afterDadoNote || DAMAGE_TABLE[Math.min(baseIdx, DAMAGE_TABLE.length - 1)];
-                _danoInfo.push({ l: 'Â Â → após dados', v: _afterDadoV, c: '#fbbf24', i: true });
+                _danoInfo.push({ l: '  → após dados', v: _afterDadoV, c: '#fbbf24', i: true });
             }
             grauSources.forEach(function(s){ _danoInfo.push({ l: '+' + s.graus + ' grau' + (s.graus > 1 ? 's' : ''), v: s.nome, c: '#f87171' }); });
             if (danoGrauReservado > 0) _danoInfo.push({ l: '⏳ Reservado (teto do nível)', v: '+' + danoGrauReservado + ' grau' + (danoGrauReservado > 1 ? 's' : '') + ' aguardando', c: '#fbbf24' });
@@ -834,7 +846,7 @@ function renderHatsuDetail(container) {
                 idsJaRenderizados.add(e.id);
             }
             // HB (p.11): Hatsu Hostil inicia em 2d6 "independente de arma ou efeito de dano escolhido (se for menor)".
-            // Efeitos cujo dado próprio é â‰¤ 2d6 são absorvidos pelo dano base e não aparecem separados.
+            // Efeitos cujo dado próprio é ≤ 2d6 são absorvidos pelo dano base e não aparecem separados.
             if ((isHostil || catDmg) && !d.dado.startsWith('+')) {
                 const specialTypes = ['Psíquico', 'Contínuo', 'Ferida', 'Sanidade'];
                 if (!specialTypes.includes(d.tipo)) {
@@ -961,6 +973,11 @@ function renderHatsuDetail(container) {
             acertoVantagem = true;
         }
     });
+    // 5 Graus do 1º Hatsu — Acerto
+    if (idx === 0 && h.primeiroHatsuGraus && h.primeiroHatsuGraus.acerto) {
+        acertoBonus += h.primeiroHatsuGraus.acerto;
+        acertoBonusSources.push({ nome: '⭐ 1º Hatsu', bonus: h.primeiroHatsuGraus.acerto });
+    }
     // Nunca deixa o bônus de acerto ultrapassar o teto do nível — excedente reservado, aplicado
     // automaticamente quando o teto do nível aumentar.
     let acertoGrauReservado = 0;
@@ -976,6 +993,7 @@ function renderHatsuDetail(container) {
     window._hatsuRollState = {
         dice: _hatsuFinalDice,
         attr: baseAttr,
+        atkAttr: baseAttrAtk,
         nome: h.nome,
         hasBaseDmg,
         hasAttack,
@@ -1011,15 +1029,21 @@ function renderHatsuDetail(container) {
     const cdBonusSources = [];
     [...restricoesSel, ...efeitosSel].forEach(item => {
         const bonus = CD_BNF_MAP[item.id];
-        if (bonus) {
-            cdBonusTotal += bonus;
-            cdBonusSources.push({ nome: item.nome, bonus });
-        }
+        if (!bonus) return;
+        const bc = (h.beneficioChoices||{})[item.id] || '';
+        // rg_l13: Limitação de Movimento 2 — escolha entre +1 Acerto OU +1 CD (mutuamente exclusivo);
+        // se escolheu Acerto, não conta aqui (ver bloco de acerto).
+        if (item.id === 'rg_l13' && bc.toLowerCase().includes('acerto')) return;
+        // rg_m5: Conhecimento Prof. do Alvo — escolha entre Ignora Resistências Físicas OU +2 CD;
+        // só conta aqui se explicitamente escolheu a opção de CD (ou ainda não escolheu).
+        if (item.id === 'rg_m5' && bc && !bc.toLowerCase().includes('cd')) return;
+        cdBonusTotal += bonus;
+        cdBonusSources.push({ nome: item.nome, bonus });
     });
-    // 5 Graus do 1Âº Hatsu — CD
+    // 5 Graus do 1º Hatsu — CD
     if (idx === 0 && h.primeiroHatsuGraus && h.primeiroHatsuGraus.cd) {
         cdBonusTotal += h.primeiroHatsuGraus.cd;
-        cdBonusSources.push({ nome: '⭐ 1Âº Hatsu', bonus: h.primeiroHatsuGraus.cd });
+        cdBonusSources.push({ nome: '⭐ 1º Hatsu', bonus: h.primeiroHatsuGraus.cd });
     }
 
     // Nunca deixa o bônus de CD ultrapassar o teto do nível — excedente reservado, aplicado
@@ -1061,7 +1085,7 @@ function renderHatsuDetail(container) {
 
         const cdSourcesHtml = cdBonusSources.length > 0
             ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">${cdBonusSources.map(s =>
-                `<span style="font-size:7px;font-weight:900;background:${tc}18;color:${tc};padding:2px 6px;border-radius:4px">+${s.bonus} CD Â· ${s.nome}</span>`
+                `<span style="font-size:7px;font-weight:900;background:${tc}18;color:${tc};padding:2px 6px;border-radius:4px">+${s.bonus} CD · ${s.nome}</span>`
               ).join('')}</div>` : '';
 
         const formulaStr = `8 + ${halfLevel} (nível) + ${attrMod >= 0 ? '+' : ''}${attrMod} (${baseAttr})${cdBonusTotal > 0 ? ` + ${cdBonusTotal} (restrições)` : ''}`;
@@ -1102,6 +1126,52 @@ function renderHatsuDetail(container) {
             { v: 'sim', label: 'Tem Ataque' },
             { v: 'nao', label: 'Sem Ataque' }
         ];
+
+        // Preview do total da Jogada de Ataque + seletor do atributo usado nela (independente
+        // do atributo de Dano escolhido em modPickerHtml — ex: DES para acertar, FOR pro dano).
+        let atkPreviewHtml = '';
+        if (hasAttack) {
+            const nivelAtk = parseInt(h.nivel || char.level || 1);
+            const pbAtk = getProficiencyBonus(nivelAtk);
+            const attrValAtk = char.attributes && char.attributes[baseAttrAtk] ? char.attributes[baseAttrAtk].value : 10;
+            const attrModAtk = getMod(attrValAtk);
+            const ataqueTotal = pbAtk + attrModAtk + acertoBonus;
+            const ataqueFormula = `1d20 ${ataqueTotal >= 0 ? '+' : ''}${ataqueTotal} (PB +${pbAtk}, ${baseAttrAtk} ${attrModAtk >= 0 ? '+' : ''}${attrModAtk}${acertoBonus !== 0 ? `, restrições ${acertoBonus >= 0 ? '+' : ''}${acertoBonus}` : ''})`;
+
+            if (!window._HATSU_STAT_INFO) window._HATSU_STAT_INFO = {};
+            if (!window._HATSU_STAT_INFO[idx]) window._HATSU_STAT_INFO[idx] = {};
+            window._HATSU_STAT_INFO[idx].ataque = [
+                { l: 'Bônus de Proficiência', v: '+'+pbAtk, c: '#9ca3af' },
+                { l: 'Mod '+baseAttrAtk+' ('+(attrModAtk>=0?'+':'')+attrModAtk+')', v: (attrModAtk>=0?'+':'')+attrModAtk, c: '#60a5fa' },
+                ...(acertoBonus !== 0 ? [{ l: (acertoBonus>=0?'+':'')+acertoBonus+' bônus', v: acertoBonusSources.map(s=>s.nome).join(', ') || 'restrições', c: tc }] : []),
+                ...(acertoGrauReservado > 0 ? [{ l: '⏳ Reservado (teto do nível)', v: '+'+acertoGrauReservado+' aguardando', c: '#fbbf24' }] : []),
+                { l: '→ Total', v: (ataqueTotal>=0?'+':'')+ataqueTotal, c: tc, b: true }
+            ];
+
+            const atkAttrPickerHtml = `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px">
+                ${ALL_ATTRS.map(a => {
+                    const active = baseAttrAtk === a;
+                    const isSugest = modSugest.includes(a);
+                    const mod = getMod(char.attributes?.[a]?.value || 10);
+                    return `<button onclick="event.stopPropagation();state.currentChar.hatsus[${idx}].atkMod='${a}';saveCharacter(state.currentChar);renderHatsuInPlace()"
+                        style="flex:1;min-width:52px;padding:6px 4px;border-radius:9px;font-size:9px;font-weight:900;cursor:pointer;border:1.5px solid ${active?tc:isSugest?tc+'66':'#1f2937'};background:${active?tc+'22':'transparent'};color:${active?tc:isSugest?tc:'#6b7280'};transition:all .15s">
+                        ${isSugest?'★ ':''}${a} <span style="font-size:8px;opacity:.8">(${mod>=0?'+'+mod:mod})</span>
+                    </button>`;
+                }).join('')}
+            </div>`;
+
+            atkPreviewHtml = `<div style="margin-top:10px;padding-top:10px;border-top:1px dashed #1f2937">
+                <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
+                    <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:24px;color:${tc};text-shadow:0 0 10px ${tc}55;line-height:1">${ataqueTotal>=0?'+':''}${ataqueTotal}</div>
+                    <div style="font-size:10px;font-weight:700;color:#6b7280">na Jogada de Ataque</div>
+                    <button onclick="event.stopPropagation();window._hShowStatInfo(${idx},'ataque',this)" style="margin-left:4px;background:transparent;border:1px solid #374151;border-radius:50%;width:16px;height:16px;font-size:9px;color:#6b7280;cursor:pointer;padding:0;line-height:16px;flex-shrink:0" title="Como chegamos aqui">ⓘ</button>
+                </div>
+                <div style="font-size:8px;color:#4b5563;font-style:italic;margin-top:2px">${ataqueFormula}</div>
+                <div style="font-size:7px;color:#374151;text-transform:uppercase;font-weight:700;letter-spacing:1px;margin-top:8px">🎯 Atributo do Ataque</div>
+                ${atkAttrPickerHtml}
+            </div>`;
+        }
+
         ataqueToggleHtml = `<div style="margin-top:12px;padding-top:12px;border-top:1px solid #1f2937">
             <div style="font-size:8px;color:#374151;text-transform:uppercase;font-weight:700;letter-spacing:1px;margin-bottom:6px">⚔️ Jogada de Ataque</div>
             <div style="display:flex;gap:4px;flex-wrap:wrap">
@@ -1113,7 +1183,8 @@ function renderHatsuDetail(container) {
                     </button>`;
                 }).join('')}
             </div>
-            <div style="font-size:8px;color:#4b5563;font-style:italic;margin-top:4px">${hasAttack ? 'Rola 1d20 + mod + PB junto com o dano.' : 'Sem jogada de ataque — usa a CD do TR.'}</div>
+            <div style="font-size:8px;color:#4b5563;font-style:italic;margin-top:4px">${hasAttack ? '' : 'Sem jogada de ataque — usa a CD do TR.'}</div>
+            ${atkPreviewHtml}
         </div>`;
     }
     // ── Fim toggle de Ataque ───────────────────────────────────────────────────
@@ -1352,7 +1423,7 @@ function renderHatsuDetail(container) {
     let duracaoBonus = [];
     let alcanceDobrado = false;
     let duracaoDobrada = false;
-    // 5 Graus do 1Âº Hatsu — alcance, área, duração
+    // 5 Graus do 1º Hatsu — alcance, área, duração
     if (idx === 0 && h.primeiroHatsuGraus) {
         const _phg = h.primeiroHatsuGraus;
         if (_phg.alcance) alcanceBonus.push({ valor: _phg.alcance * 3, fonte: '⭐ 1º Hatsu (Alcance)', grau: _phg.alcance });
@@ -1626,7 +1697,7 @@ function renderHatsuDetail(container) {
    }
             if (e.id === 'eg4' && sc.eg4) specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">🔀 Efeito Alternativo → ${sc.eg4}</div>`;
             if (e.id === 'eg6' && sc.eg6) specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">🎯 Poder é Intenção: ${sc.eg6}</div>`;
-            if (e.id === 'rm_e2' && sc.rm_e2) { specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">🧱 Pequeno Â· ${sc.rm_e2} &nbsp;|&nbsp; PV = 5 + CON×2</div>`; }
+            if (e.id === 'rm_e2' && sc.rm_e2) { specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">🧱 Pequeno · ${sc.rm_e2} &nbsp;|&nbsp; PV = 5 + CON×2</div>`; }
             if (e.id === 'rm_e3' && sc.rm_e3) { specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">✨ Característica: ${sc.rm_e3}</div>`; }
            if (e.id === 'rm_e5' && sc.rm_e5) { const _e5Names = {'ap_partes':'Aparência por Partes','fn_partes':'Funções em Partes','ap_compl':'Aparência Completa','fn_compl':'Funções Completas','ben10':'Ben 10'}; specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">🎭 Alteração: ${_e5Names[sc.rm_e5] || sc.rm_e5}</div>`; }
             if (e.id === 're_e17' && sc.re_e17) { const _e17n = {'vidente':'Vidente (Sharingan)','profeta':'Profeta','cego':'Cego de Tebas','joia':'Joia do Tempo','olho':'Olho de Agamoto'}; specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">🕧 Previsão: ${_e17n[sc.re_e17] || sc.re_e17}</div>`; }
@@ -1681,7 +1752,7 @@ function renderHatsuDetail(container) {
           }).join('')
         : `<div style="text-align:center;color:#374151;font-style:italic;font-size:11px;padding:20px">Nenhum efeito selecionado.</div>`;
 
-    // ── Seção 5 Graus do 1Âº Hatsu ─────────────────────────────────────────────
+    // ── Seção 5 Graus do 1º Hatsu ─────────────────────────────────────────────
    const _PH_LABELS = {
         acerto:    { icon:'⚔️', label:'Acerto',           desc:'+1 ataque' },
         atributos: { icon:'💪', label:'Atributos',         desc:'+1 atrib./perícia' },
@@ -1715,7 +1786,7 @@ function renderHatsuDetail(container) {
         primeiroHatsuSection = `
         <div style="background:#0d1117;border:2px solid ${tc}33;border-radius:12px;padding:14px;margin-bottom:20px">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-                <div style="font-size:8px;font-weight:900;color:${tc};text-transform:uppercase;letter-spacing:2px">⭐ 5 Graus do 1Âº Hatsu</div>
+                <div style="font-size:8px;font-weight:900;color:${tc};text-transform:uppercase;letter-spacing:2px">⭐ 5 Graus do 1º Hatsu</div>
                 ${_phgBtnHtml}
             </div>
             ${_phgRows}
@@ -1766,7 +1837,7 @@ function renderHatsuDetail(container) {
                 style="flex-shrink:0;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:#111827;border:1px solid #1f2937;cursor:pointer;color:#9ca3af;font-size:16px;font-weight:900">←</button>
             <div style="flex:1;min-width:0">
                 <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:12px;color:${tc};text-transform:uppercase;letter-spacing:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${h.nome||'Hatsu'}</div>
-                <div style="font-size:8px;color:#4b5563;margin-top:1px">${h.classe||char.class} Â· ${tipoNames[h.tipo]||'—'} Â· Nível ${h.nivel||'?'}</div>
+                <div style="font-size:8px;color:#4b5563;margin-top:1px">${h.classe||char.class} · ${tipoNames[h.tipo]||'—'} · Nível ${h.nivel||'?'}</div>
             </div>
             <button onclick="openHatsuEdit(${idx})"
                 style="flex-shrink:0;padding:7px 14px;border-radius:8px;background:${tc}22;border:1px solid ${tc}55;color:${tc};font-family:'Orbitron',sans-serif;font-weight:900;font-size:9px;text-transform:uppercase;cursor:pointer;letter-spacing:1px">✏️ Editar</button>
@@ -1815,7 +1886,7 @@ function renderHatsuDetail(container) {
                     </div>
                     <div>
                         <div style="font-size:8px;color:#374151;text-transform:uppercase;font-weight:700;margin-bottom:2px">Custo Base</div>
-                        <div style="font-size:10px;font-weight:600">${(() => { const _ac = window.calcHatsuAuraCostFinal(h, idx); const color = _ac.reduced ? '#4ade80' : '#d1d5db'; const extra = _ac.phgCusto > 0 ? ` <span style="font-size:8px;color:#4b5563">(−${_ac.phgCusto*5}% 1Âº Hatsu)</span>` : ''; return '<span style="color:'+color+'">' + _ac.pct + '% de Aura' + (_ac.reduced?' ✓':'') + '</span>' + extra; })()}</div>
+                        <div style="font-size:10px;font-weight:600">${(() => { const _ac = window.calcHatsuAuraCostFinal(h, idx); const color = _ac.reduced ? '#4ade80' : '#d1d5db'; const extra = _ac.phgCusto > 0 ? ` <span style="font-size:8px;color:#4b5563">(−${_ac.phgCusto*5}% 1º Hatsu)</span>` : ''; return '<span style="color:'+color+'">' + _ac.pct + '% de Aura' + (_ac.reduced?' ✓':'') + '</span>' + extra; })()}</div>
                     </div>
                     <div>
                         <div style="font-size:8px;color:#374151;text-transform:uppercase;font-weight:700;margin-bottom:2px">Alcance</div>

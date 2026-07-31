@@ -216,7 +216,7 @@ window.calcAuraCost = function(hb) {
 
 // Hexágono de afinidade entre categorias (padrão HxH)
 // Posições no hexágono (sentido horário, baseado nos ângulos de SYSTEM_DB):
-//   INTENSIFICAÇÃO(270Â°) → TRANSMUTAÇÃO(330Â°) → MATERIALIZAÇÃO(30Â°) → ESPECIALIZAÇÃO(90Â°) → MANIPULAÇÃO(150Â°) → EMISSÃO(210Â°)
+//   INTENSIFICAÇÃO(270°) → TRANSMUTAÇÃO(330°) → MATERIALIZAÇÃO(30°) → ESPECIALIZAÇÃO(90°) → MANIPULAÇÃO(150°) → EMISSÃO(210°)
 // Adjacentes (1 posição) = 80% | 2 posições = 60% | Opostos (3 posições) = 40%
 // Especialização é excluída do acesso cruzado padrão — regra especial para Manipulação/Materialização
 window.CATEGORY_AFFINITY = {
@@ -266,7 +266,7 @@ window.calcMaxGrauPorNivel = function(charLevel) {
 };
 
 // Verifica se Manipulação/Materialização cumpre a regra especial para acessar Especialização (1%)
-// Regra: restrições >= 3 + nÂº efeitos de especialização comprados; distribuição obedece pirâmide de pesos
+// Regra: restrições >= 3 + nº efeitos de especialização comprados; distribuição obedece pirâmide de pesos
 window.checkEspecializacaoAccess = function(hb) {
     if (!hb) return { ok: false, specEfeitos: 0, totalRestr: 0, needed: 3, rule: null };
 

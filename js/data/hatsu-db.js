@@ -121,7 +121,7 @@
         { id:'ri_m1', peso:'moderada',nome:"Aumento por Rodada",          desc:"Efeitos de atributo, dano, cura ou RD ativados parcialmente (não de uma vez)", bnf:"+2 Graus de Potência no total de cada efeito similar" },
         { id:'ri_m2', peso:'moderada',nome:"Sem Buffs Ativos",            desc:"Só pode ser usado sem buffs ativos",                                 bnf:"Ignora resistências a dano físico do alvo (uso/dia = proficiência)" },
         { id:'ri_m3', peso:'moderada',nome:"Inutilizável c/ +50% Aura",   desc:"Não pode usar com mais de 50% da aura",                             bnf:"+1 Grau de Potência no Hatsu" },
-        { id:'ri_p1', peso:'pesada',  nome:"Dano de Aura",                desc:"Causa 5% da aura como dano ao usuário (â‰ˆ1d6 com REN). +1 grau por dado rerolado", bnf:"Pode rerrolar um dos dados de dano" },
+        { id:'ri_p1', peso:'pesada',  nome:"Dano de Aura",                desc:"Causa 5% da aura como dano ao usuário (≈1d6 com REN). +1 grau por dado rerolado", bnf:"Pode rerrolar um dos dados de dano" },
         { id:'ri_p2', peso:'pesada',  nome:"Desvantagem em TRs Pós-Uso",  desc:"Desvantagem em testes de resistência após uso (resto do dia)",       bnf:"Hatsu ignora imunidade a dano (uso/dia = proficiência)" },
         { id:'ri_p3', peso:'pesada',  nome:"1x por Combate",              desc:"Só pode ser usado 1x por combate",                                   bnf:"+3 Pontos de Nen (P.N)" },
       ],

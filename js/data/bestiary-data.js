@@ -24,7 +24,7 @@
             imunidades:'Agarrado, Derrubado', resistencias:null, vulnerabilidades:null,
             sentidos:'Percepção Passiva 12', lingua:'Nenhuma',
             tracos:[
-              {n:'Camuflagem Subterrânea',d:'Cava um buraco em 2 rodadas, abre a mandíbula em 180Â° alinhada ao terreno e dá um bote quando alvos entram na armadilha. Pode regurgitar detritos para disfarçar o terreno.'}
+              {n:'Camuflagem Subterrânea',d:'Cava um buraco em 2 rodadas, abre a mandíbula em 180° alinhada ao terreno e dá um bote quando alvos entram na armadilha. Pode regurgitar detritos para disfarçar o terreno.'}
             ],
             acoes:[
               {n:'Bote Paciente',d:'Bote contra alvo Grande ou menor na armadilha ou a 1,5m: TR DES CD 22. Se atingir, engolido (cego, impedido, cobertura total), sofre 25 (5d10) ácido/turno. Se receber 20+ dano num turno: TR CON CD 15 ou regurgita.'}
