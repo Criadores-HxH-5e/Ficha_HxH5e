@@ -209,6 +209,10 @@ window.calcAuraCost = function(hb) {
     // rg_p8: Local/Condição Específica — reduz à metade (mínimo 5%)
     if (allR.includes('rg_p8')) custo = Math.max(5, Math.floor(custo / 2));
 
+    // O custo de aura só existe em incrementos de 5% — qualquer redução que não preserve isso
+    // (ex: rg_p8 dividindo por 2) precisa ser arredondada pro múltiplo de 5 mais próximo.
+    custo = Math.round(custo / 5) * 5;
+
     // Garante mínimo de 10%
     custo = Math.max(10, custo);
     return { pct: custo, label: custo + '% de Aura' };
