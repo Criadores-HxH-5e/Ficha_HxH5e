@@ -79,17 +79,19 @@ window.DANO_PROPRIO_MAP = {
 
 // ── Graus/Passo em outras características (Alcance, Área, Duração, Acerto, CD) ──
 // Conversão canônica de 1 grau por característica (mesma tabela usada nos "5 Graus do 1º Hatsu",
-// GRAU_INFO em js/init.js): Acerto=+1, Dano=+1 passo, Duração=+1 rodada, CD=+1, Alcance=+3m, Área=+1,5m.
+// GRAU_INFO em js/init.js): Acerto=+1, Dano=+1 passo, Duração=+1 rodada, CD=+1, Alcance=+1,5m,
+// Área=+1,5m (rev. — Alcance passou de 3m/grau para 1,5m/grau, igualando a taxa de Área; os graus
+// abaixo foram recalculados para preservar os mesmos metros de cada item, só refinando a granularidade).
 // Bônus numéricos diretos (sem a palavra "Grau/Passo" no texto) são convertidos por essa tabela —
 // não contados como "1 por compra" independente da magnitude.
 window.ALCANCE_GRAU_MAP = {
-    'rg_l9':  1, // Efeitos Neg. Exaustão 1 (escolha: Alcance ou Área)
-    'rg_l10': 1, // Interação Sensorial Simples (escolha: Alcance ou Área): +3m = 1 grau
-    'rt_l2':  1, // Sem Movimento no Turno (Transmutação): +3m = 1 grau
-    'em_l1':  2, // Linha Reta Apenas (Emissão): +6m = 2 graus
-    'em_e2':  2, // Distância Segura: +6m = 6m ÷ 3m/grau = 2 graus
-    'em_e14': 1, // Expansão de Domínio, opção Alcance: +3m = 1 grau
-    'em_e20': 6, // Disparo Potente: +18m = 18m ÷ 3m/grau = 6 graus
+    'rg_l9':  2, // Efeitos Neg. Exaustão 1 (escolha: Alcance ou Área): +3m = 2 graus
+    'rg_l10': 2, // Interação Sensorial Simples (escolha: Alcance ou Área): +3m = 2 graus
+    'rt_l2':  2, // Sem Movimento no Turno (Transmutação): +3m = 2 graus
+    'em_l1':  4, // Linha Reta Apenas (Emissão): +6m = 4 graus
+    'em_e2':  4, // Distância Segura: +6m = 6m ÷ 1,5m/grau = 4 graus
+    'em_e14': 2, // Expansão de Domínio, opção Alcance: +3m = 2 graus
+    'em_e20': 12, // Disparo Potente: +18m = 18m ÷ 1,5m/grau = 12 graus
 };
 window.AREA_GRAU_MAP    = {
     'rg_l9':  1,
@@ -1204,6 +1206,11 @@ function renderHatsuDetail(container) {
 
         const atributosDist = Object.assign({ FOR: 0, DES: 0, CON: 0, INT: 0, SAB: 0, PRE: 0 }, cst.atributos || {});
         const intUsados = Object.values(atributosDist).reduce((a, b) => a + (parseInt(b) || 0), 0);
+        // Trava pós-conclusão (mesmo padrão dos "5 Graus do 1º Hatsu") — destrava sozinha quando o
+        // personagem sobe de nível após concluir (ganhou mais P.N. pra editar o Hatsu), ou pra admin.
+        const _cstNivelConclusao = cst.atributosConcluidosNivel;
+        const _cstGanhouNivel = _cstNivelConclusao != null && (parseInt(char.level) || 0) > _cstNivelConclusao;
+        const atributosLocked = !!cst.atributosConcluidos && !_cstGanhouNivel && !state.isAdmin;
         const attrAtaqueEfetivo = (cst.atributoAtaque && atributosDist.hasOwnProperty(cst.atributoAtaque))
             ? cst.atributoAtaque
             : (atributosDist.FOR >= atributosDist.DES ? 'FOR' : 'DES');
@@ -1242,8 +1249,17 @@ function renderHatsuDetail(container) {
         let pvEfeitos = 0;
         const pvFontes = [];
         constructEffectIds.forEach(id => {
-            const b = CDB.EFEITO_PV[id];
-            if (b) { pvEfeitos += b; const efObj = efeitosSel.find(e => e.id === id); pvFontes.push({ nome: efObj ? efObj.nome : id, bonus: b }); }
+            let b = CDB.EFEITO_PV[id];
+            if (!b) return;
+            // Golem de Aura (rm_e2): a própria descrição do efeito documenta "PV = 5 + CON×2" — o
+            // +5 fixo já vinha de CDB.EFEITO_PV, faltava somar o CON distribuído no constructo.
+            let nomeFonte = (efeitosSel.find(e => e.id === id) || {}).nome || id;
+            if (id === 'rm_e2') {
+                const conBonusPv = atributosDist.CON * 2;
+                if (conBonusPv !== 0) { b += conBonusPv; nomeFonte += ` (+CON×2)`; }
+            }
+            pvEfeitos += b;
+            pvFontes.push({ nome: nomeFonte, bonus: b });
         });
         let pvRestricoes = 0;
         (h.restricoes || []).forEach(id => {
@@ -1268,7 +1284,10 @@ function renderHatsuDetail(container) {
             const b = (CDB.RESTRICAO_CA || {})[id];
             if (b) { caRestricoes += b; const rObj = restricoesSel.find(r => r.id === id); caFontes.push({ nome: rObj ? rObj.nome : id, bonus: b }); }
         });
-        const caTotal = (caBaseNum === null) ? null : (caBaseNum + caEfeitos + caRestricoes);
+        // rev. — regra homebrew do projeto: além do RAW (13 + INT do usuário), o CON distribuído no
+        // constructo também soma na CA. Não conta quando a CA é null (material Gasoso não tem CA).
+        const caConBonus = atributosDist.CON;
+        const caTotal = (caBaseNum === null) ? null : (caBaseNum + caEfeitos + caRestricoes + caConBonus);
 
         if (!window._HATSU_STAT_INFO) window._HATSU_STAT_INFO = {};
         if (!window._HATSU_STAT_INFO[idx]) window._HATSU_STAT_INFO[idx] = {};
@@ -1281,6 +1300,7 @@ function renderHatsuDetail(container) {
         window._HATSU_STAT_INFO[idx].constructoCa = [
             { l: usaMaterial ? `Base (material: ${materialEscolhido || '—'})` : `Base (13 + INT ${intMod >= 0 ? '+' : ''}${intMod})`, v: caBaseNum === null ? '—' : caBaseNum, c: '#9ca3af' },
             ...caFontes.map(f => ({ l: `+${f.bonus} CA`, v: f.nome, c: '#60a5fa' })),
+            ...(caBaseNum !== null && caConBonus !== 0 ? [{ l: `${caConBonus >= 0 ? '+' : ''}${caConBonus} CA`, v: 'CON do Constructo', c: '#a78bfa' }] : []),
             { l: '→ Total', v: caTotal === null ? '—' : caTotal, c: '#60a5fa', b: true },
         ];
 
@@ -1343,19 +1363,23 @@ function renderHatsuDetail(container) {
             </div>
 
             <div style="margin-bottom:12px">
-                <div style="font-size:7px;color:#374151;text-transform:uppercase;font-weight:700;margin-bottom:4px">Atributos (${intUsados}/${intPontosTotal} do mod. INT distribuído)</div>
-                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+                    <div style="font-size:7px;color:#374151;text-transform:uppercase;font-weight:700">Atributos (${intUsados}/${intPontosTotal} do mod. INT distribuído)</div>
+                    ${atributosLocked
+                        ? `<span style="font-size:7px;padding:2px 8px;border-radius:6px;background:#1f2937;border:1px solid #374151;color:#4b5563;font-weight:900;text-transform:uppercase">🔒 Bloqueado</span>`
+                        : (cst.atributosConcluidos ? `<span style="font-size:7px;padding:2px 8px;border-radius:6px;background:#f9731622;border:1px solid #f9731655;color:#fb923c;font-weight:900;text-transform:uppercase">⬆️ Redistribuir</span>` : '')}
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:6px">
                     ${['FOR', 'DES', 'CON', 'INT', 'SAB', 'PRE'].map(attr => `
                         <div style="background:#0a0f1a;border:1px solid #1f2937;border-radius:8px;padding:6px;text-align:center">
                             <div style="font-size:7px;color:#6b7280;font-weight:700">${attr}</div>
-                            <div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-top:2px">
-                                <button onclick="window._hSetConstructoAttr(${idx},'${attr}',-1)" style="width:16px;height:16px;border-radius:50%;background:#1f2937;border:none;color:#9ca3af;font-size:10px;cursor:pointer;line-height:1">−</button>
-                                <span style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:12px;color:#fff">${atributosDist[attr] >= 0 ? '+' : ''}${atributosDist[attr]}</span>
-                                <button onclick="window._hSetConstructoAttr(${idx},'${attr}',1)" style="width:16px;height:16px;border-radius:50%;background:#1f2937;border:none;color:#9ca3af;font-size:10px;cursor:pointer;line-height:1">+</button>
-                            </div>
+                            <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:14px;color:#fff;margin-top:2px">${atributosDist[attr] >= 0 ? '+' : ''}${atributosDist[attr]}</div>
                         </div>
                     `).join('')}
                 </div>
+                ${atributosLocked
+                    ? (state.isAdmin ? `<button onclick="window._openConstructoAttrModal(${idx})" style="width:100%;padding:6px;border-radius:8px;background:#f9731622;border:1px solid #f9731655;color:#fb923c;font-size:9px;font-weight:900;cursor:pointer;text-transform:uppercase">⚙️ Editar (Admin)</button>` : '')
+                    : `<button onclick="window._openConstructoAttrModal(${idx})" style="width:100%;padding:6px;border-radius:8px;background:${tc}22;border:1px solid ${tc}55;color:${tc};font-size:9px;font-weight:900;cursor:pointer;text-transform:uppercase">🪨 ${cst.atributosConcluidos ? 'Redistribuir' : 'Distribuir'} Atributos</button>`}
             </div>
 
             <div style="margin-bottom:12px">
@@ -1426,7 +1450,7 @@ function renderHatsuDetail(container) {
     // 5 Graus do 1º Hatsu — alcance, área, duração
     if (idx === 0 && h.primeiroHatsuGraus) {
         const _phg = h.primeiroHatsuGraus;
-        if (_phg.alcance) alcanceBonus.push({ valor: _phg.alcance * 3, fonte: '⭐ 1º Hatsu (Alcance)', grau: _phg.alcance });
+        if (_phg.alcance) alcanceBonus.push({ valor: _phg.alcance * 1.5, fonte: '⭐ 1º Hatsu (Alcance)', grau: _phg.alcance });
         if (_phg.area)    areaBonus.push({ valor: _phg.area * 1.5, fonte: '⭐ 1º Hatsu (Área)', grau: _phg.area });
         if (_phg.duracao) duracaoBonus.push({ valor: _phg.duracao, fonte: '⭐ 1º Hatsu (Duração)', unidade: 'rodada', grau: _phg.duracao });
     }
@@ -1435,7 +1459,7 @@ function renderHatsuDetail(container) {
     if (h.bonusGraus) {
         const _bg = h.bonusGraus;
         if (_bg.tipo === 'alcance' && _bg.valor)
-            alcanceBonus.push({ valor: _bg.valor * 3,   fonte: '💠 Bônus Talentoso (Alcance)', grau: _bg.valor });
+            alcanceBonus.push({ valor: _bg.valor * 1.5, fonte: '💠 Bônus Talentoso (Alcance)', grau: _bg.valor });
         else if (_bg.tipo === 'area' && _bg.valor)
             areaBonus.push({   valor: _bg.valor * 1.5,  fonte: '💠 Bônus Talentoso (Área)', grau: _bg.valor });
         else if (_bg.tipo === 'duracao' && _bg.valor)
@@ -1469,21 +1493,25 @@ function renderHatsuDetail(container) {
     }
     if ((h.efeitos||[]).includes('em_e14')) {
         const c = (h.specialChoices||{})['em_e14'] || 'Alcance';
-        if (c === 'Área') areaBonus.push({ valor: 3, fonte: 'Expansão de Domínio (Área)', grau: window.AREA_GRAU_MAP['em_e14']||0 });
-        else alcanceBonus.push({ valor: 6, fonte: 'Expansão de Domínio (Alcance)', grau: window.ALCANCE_GRAU_MAP['em_e14']||0 });
+        // rev. — corrige troca pré-existente: pela própria descrição do efeito (hatsu-db.js), a opção
+        // Área concede 6m (4 Grau/Passo) e a opção Alcance concede 3m (2 Grau/Passo), não o inverso.
+        if (c === 'Área') areaBonus.push({ valor: 6, fonte: 'Expansão de Domínio (Área)', grau: window.AREA_GRAU_MAP['em_e14']||0 });
+        else alcanceBonus.push({ valor: 3, fonte: 'Expansão de Domínio (Alcance)', grau: window.ALCANCE_GRAU_MAP['em_e14']||0 });
     }
 
     // Restrições — Alcance/Área (usando specialChoices para saber qual)
     const rg_l9Count = (h.restricoes||[]).filter(id => id === 'rg_l9').length;
     if (rg_l9Count > 0) {
         const l9choice = (h.specialChoices||{})['rg_l9'] || 'Alcance';
-        if (l9choice === 'Área') areaBonus.push({ valor: rg_l9Count * 1.5, fonte: `Exaustão 1 ×${rg_l9Count} (Área)`, grau: rg_l9Count });
-        else alcanceBonus.push({ valor: rg_l9Count * 1.5, fonte: `Exaustão 1 ×${rg_l9Count} (Alcance)`, grau: rg_l9Count });
+        // Alcance e Área concedem magnitudes de grau diferentes por cópia (2 vs 1), então os metros
+        // por cópia também diferem (3m vs 1,5m) mesmo com a mesma taxa de 1,5m/grau.
+        if (l9choice === 'Área') areaBonus.push({ valor: rg_l9Count * 1.5, fonte: `Exaustão 1 ×${rg_l9Count} (Área)`, grau: rg_l9Count * (window.AREA_GRAU_MAP['rg_l9']||0) });
+        else alcanceBonus.push({ valor: rg_l9Count * 3, fonte: `Exaustão 1 ×${rg_l9Count} (Alcance)`, grau: rg_l9Count * (window.ALCANCE_GRAU_MAP['rg_l9']||0) });
     }
     if ((h.restricoes||[]).includes('rg_l10')) {
         const l10choice = (h.specialChoices||{})['rg_l10'] || 'Alcance';
-        if (l10choice === 'Área') areaBonus.push({ valor: 1.5, fonte: 'Interação Sensorial Simples (Área)', grau: 1 });
-        else alcanceBonus.push({ valor: 3, fonte: 'Interação Sensorial Simples (Alcance)', grau: 1 });
+        if (l10choice === 'Área') areaBonus.push({ valor: 1.5, fonte: 'Interação Sensorial Simples (Área)', grau: window.AREA_GRAU_MAP['rg_l10']||0 });
+        else alcanceBonus.push({ valor: 3, fonte: 'Interação Sensorial Simples (Alcance)', grau: window.ALCANCE_GRAU_MAP['rg_l10']||0 });
     }
     if ((h.restricoes||[]).includes('rg_m12')) {
         const m12choice = (h.beneficioChoices||{})['rg_m12'] || '';
@@ -1757,7 +1785,7 @@ function renderHatsuDetail(container) {
         acerto:    { icon:'⚔️', label:'Acerto',           desc:'+1 ataque' },
         atributos: { icon:'💪', label:'Atributos',         desc:'+1 atrib./perícia' },
         dano:      { icon:'🔥', label:'Dano',              desc:'+1 passo de dano' },
-        alcance:   { icon:'📐', label:'Alcance',           desc:'+3m por grau' },
+        alcance:   { icon:'📐', label:'Alcance',           desc:'+1,5m por grau' },
         area:      { icon:'🔵', label:'Área',              desc:'+1,5m por grau' },
         duracao:   { icon:'⏱',  label:'Duração',           desc:'+1 rodada' },
         cd:        { icon:'🎯', label:'CD do TR',          desc:'+1 CD' },

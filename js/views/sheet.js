@@ -95,7 +95,7 @@
             if (state.activeTab === 'FICHA') {
                 const ATTR_FULL_NAMES = { 'FOR': 'FORÇA', 'DES': 'DESTREZA', 'CON': 'CONSTITUIÇÃO', 'INT': 'INTELIGÊNCIA', 'SAB': 'SABEDORIA', 'PRE': 'PRESENÇA', 'CAR': 'PRESENÇA' };
                 const ATTR_ICONS_MAP = { 'FOR': ['dumbbell', 'swords'], 'DES': ['wind', 'target'], 'CON': ['heart', 'activity'], 'INT': ['brain-circuit', 'book-open'], 'SAB': ['eye', 'sparkles'], 'PRE': ['crown', 'message-circle'], 'CAR': ['crown', 'message-circle'] };
-                const infoGridHtml = `<div class="grid grid-cols-4 divide-x divide-gray-800 bg-[#0b0c10] border-t border-b border-gray-800 mb-2"><div class="p-2 flex flex-col items-center justify-center"><span class="text-[9px] font-bold text-neon-blue uppercase tracking-widest mb-0.5">Tendência</span><select onchange="updateCharProperty('alignment', this.value)" class="bg-transparent text-white font-display font-bold text-xs uppercase outline-none cursor-pointer text-center appearance-none w-full"><option value="Heróico" ${char.alignment === 'Heróico' ? 'selected' : ''} class="bg-gray-900">Heróico</option><option value="Caótico" ${char.alignment === 'Caótico' ? 'selected' : ''} class="bg-gray-900">Caótico</option><option value="Neutro" ${!char.alignment || char.alignment === 'Neutro' ? 'selected' : ''} class="bg-gray-900">Neutro</option><option value="Maligno" ${char.alignment === 'Maligno' ? 'selected' : ''} class="bg-gray-900">Maligno</option></select></div><div class="p-2 flex flex-col items-center justify-center"><span class="text-[9px] font-bold text-neon-yellow uppercase tracking-widest mb-0.5">Proficiência</span><span class="font-display font-bold text-lg text-white tracking-wider">+${getProficiencyBonus(char.level)}</span></div><div class="p-2 flex flex-col items-center justify-center"><span class="text-[9px] font-bold text-white uppercase tracking-widest mb-0.5">Desl.</span><span class="font-display font-bold text-lg text-white tracking-wider">${char.vitals.desl || 9}m</span></div><div class="p-2 flex flex-col items-center justify-center"><span class="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-0.5">Jogador</span><input type="text" value="${char.playerName || ''}" placeholder="Nome..." onchange="updateCharProperty('playerName', this.value)" class="bg-transparent text-white font-display font-bold text-xs outline-none w-full text-center placeholder-gray-700"></div></div>`;
+                const infoGridHtml = `<div class="grid grid-cols-4 divide-x divide-gray-800 bg-[#0b0c10] border-t border-b border-gray-800 mb-2"><div class="p-2 flex flex-col items-center justify-center"><span class="text-[9px] font-bold text-neon-blue uppercase tracking-widest mb-0.5">Tendência</span><select onchange="updateCharProperty('alignment', this.value)" class="bg-transparent text-white font-display font-bold text-xs uppercase outline-none cursor-pointer text-center appearance-none w-full"><option value="Heróico" ${char.alignment === 'Heróico' ? 'selected' : ''} class="bg-gray-900">Heróico</option><option value="Caótico" ${char.alignment === 'Caótico' ? 'selected' : ''} class="bg-gray-900">Caótico</option><option value="Neutro" ${!char.alignment || char.alignment === 'Neutro' ? 'selected' : ''} class="bg-gray-900">Neutro</option><option value="Maligno" ${char.alignment === 'Maligno' ? 'selected' : ''} class="bg-gray-900">Maligno</option></select></div><div class="p-2 flex flex-col items-center justify-center"><span class="text-[9px] font-bold text-neon-yellow uppercase tracking-widest mb-0.5">Proficiência</span><span class="font-display font-bold text-lg text-white tracking-wider">+${getProficiencyBonus(char.level)}</span></div><div class="p-2 flex flex-col items-center justify-center"><span class="text-[9px] font-bold text-white uppercase tracking-widest mb-0.5">Desl.</span><span class="font-display font-bold text-lg text-white tracking-wider">${char.vitals.desl || 9}m</span>${char.deslocamentoTipo ? `<span class="text-[8px] font-bold text-neon-theme mt-0.5">${char.deslocamentoTipo === 'voo' ? '🕊️' : char.deslocamentoTipo === 'aquatico' ? '🌊' : '🧗'} +${char.deslocamentoValor}m</span>` : ''}</div><div class="p-2 flex flex-col items-center justify-center"><span class="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-0.5">Jogador</span><input type="text" value="${char.playerName || ''}" placeholder="Nome..." onchange="updateCharProperty('playerName', this.value)" class="bg-transparent text-white font-display font-bold text-xs outline-none w-full text-center placeholder-gray-700"></div></div>`;
                 // Migrate old characters: fix sanMax and add rdm
                 if (!char.vitals.sanMax || char.vitals.sanMax < 100) { char.vitals.sanMax = 100; if (char.vitals.san < 10) char.vitals.san = 100; }
                 const rdmVal = calcRDM(char);
@@ -126,7 +126,7 @@
                               return 20;
                           })(),
                         efeito: d.ten===1?'+2 RD':d.ten===2?'+4 RD':'+6 RD',
-                           desc: 'Reação — RD física', show: (d.ten||0)>0 },
+                           desc: 'Reação ou Ação Bônus — RD física', show: (d.ten||0)>0 },
                         { key:'ren', label:'REN', icon:'💪', custo:5,
                           efeito: '+1 Grau dano',
                           desc: 'Ação Bônus — aumenta grau', show: (d.ren||0)>0 },
@@ -226,14 +226,14 @@
                 const catColor = catDB ? catDB.cor : themeColor;
                 const savedHatsus = char.hatsus || [];
 
-                // Build hatsus list HTML
+                // Build hatsus list HTML — fica no topo da aba (junto com o botão de criar, ver
+                // hatsuBoxHtml abaixo); com mais de 1 Hatsu, os cards ficam "guardados" atrás de uma
+                // barra em accordion ("Hatsus (N)") para não empurrar o resto da aba pra baixo.
                 let hatsuListHtml = '';
                 if (savedHatsus.length > 0) {
                     const _tipoIconsMap = { hostil:'⚔️', suporte:'🛡️', versatil:'🌀', instantaneo:'⚡', longa_duracao:'⏳' };
     const tipoIcons = new Proxy(_tipoIconsMap, { get(t,k) { if(k in t) return t[k]; const parts=(k||'').split('+'); return parts.map(p=>t[p]||'✦').join(''); } });
-                    hatsuListHtml = `<div style="width:100%;padding:0 4px;margin-bottom:16px">
-                        <div style="font-size:9px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;text-align:center">⚡ Hatsus Criados</div>
-                        ${savedHatsus.map((h, idx) => {
+                    const hatsuCardsHtml = savedHatsus.map((h, idx) => {
                             const pnMax = window.calcularPHBase ? window.calcularPHBase(h.nivel||1) : 6;
                             const efTotal = (h.efeitos||[]).length;
                             const rTotal  = (h.restricoes||[]).length;
@@ -263,16 +263,42 @@
                                 </div>
                                 <div style="text-align:right;font-size:8px;color:#374151;font-weight:700;text-transform:uppercase;letter-spacing:1px">Ver detalhes ›</div>
                             </div>`;
-                        }).join('')}
-                    </div>`;
+                        }).join('');
+
+                    if (savedHatsus.length > 1) {
+                        const isHatsuListOpen = !!state.hatsuListOpen;
+                        hatsuListHtml = `<div style="width:100%;padding:0 4px;margin-bottom:16px">
+                            <div onclick="toggleHatsuAccordion()" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:12px 14px;background:#0a0f1a;border:2px solid ${catColor}44;border-radius:14px;transition:border-color .2s">
+                                <span style="font-size:10px;font-weight:900;color:${catColor};text-transform:uppercase;letter-spacing:2px">⚡ Hatsus (${savedHatsus.length})</span>
+                                <span style="transition:transform .3s;transform:rotate(${isHatsuListOpen ? 180 : 0}deg);color:${catColor};font-size:12px">▾</span>
+                            </div>
+                            <div class="accordion-content ${isHatsuListOpen ? 'open' : ''}" style="margin-top:10px">
+                                ${hatsuCardsHtml}
+                            </div>
+                        </div>`;
+                    } else {
+                        hatsuListHtml = `<div style="width:100%;padding:0 4px;margin-bottom:16px">
+                            <div style="font-size:9px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;text-align:center">⚡ Hatsus Criados</div>
+                            ${hatsuCardsHtml}
+                        </div>`;
+                    }
                 }
+                // Caixa de Hatsu (lista + botão de criar) — vai pro topo da aba, antes de tudo o resto.
+                const hatsuBoxHtml = `${hatsuListHtml}
+                    <div class="btn-hatsu-container" style="width:100%;padding:0 4px;margin-bottom:16px">
+                        <button class="btn-hatsu" onclick="openHatsuCreator()">
+                            <span class="text-xl">+</span> CRIAR HATSU
+                        </button>
+                    </div>`;
 
                 tabContent = `
                     <div class="p-4 h-full flex flex-col items-center" style="overflow-y:auto">
+                        ${hatsuBoxHtml}
+
                         <div class="text-center mb-4" style="width:100%">
                             <h3 class="text-2xl font-display font-black tracking-widest uppercase" style="color:${themeColor};text-shadow:0 0 10px ${themeColor}40">${char.class}</h3>
                         </div>
-                        
+
                         ${diagramHtml}
 
                         <div class="text-center px-4 bg-gray-900/50 p-3 rounded-xl border border-gray-800/50 max-w-sm mx-auto mb-4">
@@ -427,13 +453,13 @@
 
                             const isReforco = char.class === 'REFORÇO' || char.class === 'INTENSIFICAÇÃO';
                             const tenLevels = isReforco ? [
-                                '10% Aura + 1 Reação → +2 RD (Corte, Impacto, Explosão). Bloqueia intimidação por aura.',
-                                '5% Aura + 1 Reação → +4 RD. Imune a proj. que igualem CA.',
-                                '10% Aura + 1 Reação → +6 RD. Desbloqueia SHU.'
+                                '10% Aura + Reação ou Ação Bônus → +2 RD (Corte, Impacto, Explosão). Bloqueia intimidação por aura.',
+                                '5% Aura + Reação ou Ação Bônus → +4 RD. Imune a proj. que igualem CA.',
+                                '10% Aura + Reação ou Ação Bônus → +6 RD. Desbloqueia SHU.'
                             ] : [
-                                '20% Aura + 1 Reação → +2 RD (Corte, Impacto, Explosão). Bloqueia intimidação por aura.',
-                                '20% Aura + 1 Reação → +4 RD. Imune a proj. que igualem CA.',
-                                '20% Aura + 1 Reação → +6 RD. Desbloqueia SHU.'
+                                '20% Aura + Reação ou Ação Bônus → +2 RD (Corte, Impacto, Explosão). Bloqueia intimidação por aura.',
+                                '20% Aura + Reação ou Ação Bônus → +4 RD. Imune a proj. que igualem CA.',
+                                '20% Aura + Reação ou Ação Bônus → +6 RD. Desbloqueia SHU.'
                             ];
                             const renLevels = [
                                 '5% Aura + Ação Bônus → +1 Grau/Passo de dano, interação com NEN, proteção vs REN.',
@@ -488,20 +514,21 @@
                             </div>`;
                         })()}
 
-                        ${hatsuListHtml}
-
-                        <div class="btn-hatsu-container" style="width:100%;padding:0 4px">
-                            <button class="btn-hatsu" onclick="openHatsuCreator()">
-                                <span class="text-xl">+</span> CRIAR HATSU
-                            </button>
-                        </div>
                     </div>`;
             } else if (state.activeTab === 'TRACOS') {
                 const raceData = SYSTEM_DB.racas.find(r => r.nome === char.race); const bgData = SYSTEM_DB.antecedentes.find(b => b.nome === char.background); let traitsHtml = `<div class="flex items-center gap-3 mb-2 mt-2"><div class="bg-gray-800 p-2 rounded text-[${themeColor}]"><i data-lucide="dna" size="20"></i></div><div><h3 class="font-bold text-white uppercase tracking-wider text-sm">${char.race}</h3><p class="text-[10px] text-gray-500 uppercase tracking-widest">Características Raciais</p></div></div><div class="space-y-2 mb-6">`; 
                 
                 // Add Origin Display Here
                 if (char.race === 'Formiga Quimera' && char.fagogenese) {
-                    traitsHtml += `<div class="bg-gray-900 border border-gray-800 p-3 rounded-xl border-l-2 border-l-[${themeColor}] mb-2"><h4 class="font-bold text-white text-xs mb-1">Origem da Fagogênese</h4><p class="text-[10px] text-gray-400 leading-relaxed uppercase tracking-widest font-bold text-neon-blue">${char.fagogenese}</p></div>`;
+                    const deslocLabel = char.deslocamentoTipo === 'voo' ? '🕊️ Voo' : char.deslocamentoTipo === 'aquatico' ? '🌊 Aquático' : char.deslocamentoTipo === 'escalada' ? '🧗 Escalada' : null;
+                    traitsHtml += `<div class="bg-gray-900 border border-gray-800 p-3 rounded-xl border-l-2 border-l-[${themeColor}] mb-2"><h4 class="font-bold text-white text-xs mb-1">Origem da Fagogênese</h4><p class="text-[10px] text-gray-400 leading-relaxed uppercase tracking-widest font-bold text-neon-blue">${char.fagogenese}${char.fqPreset ? ` — Ref.: ${char.fqPreset}` : ''}</p><p class="text-[10px] text-gray-500 leading-relaxed mt-1">Tamanho: <b class="text-white">${char.fqTamanho || 'Médio'}</b> · Deslocamento: <b class="text-white">${char.vitals.desl || 9}m Terrestre</b>${deslocLabel ? ` + <b class="text-white">${char.deslocamentoValor}m ${deslocLabel}</b>` : ''}</p></div>`;
+                }
+
+                // "Esforço no lugar de talento" (Humano Comum) — característica emprestada de outra raça
+                if (char.race === 'Humano Comum' && char.effortTrait) {
+                    const effortData = (SYSTEM_DB.esforcoRacas || {})[char.effortRace];
+                    const effortOpt = effortData && effortData.opcoes.find(o => o.nome === char.effortTrait);
+                    traitsHtml += `<div class="bg-gray-900 border border-gray-800 p-3 rounded-xl border-l-2 border-l-[${themeColor}] mb-2"><h4 class="font-bold text-white text-xs mb-1">💪 Esforço no Lugar de Talento — ${char.effortTrait}</h4><p class="text-[9px] text-gray-500 uppercase tracking-widest font-bold mb-1">Origem: ${char.effortRace || '—'}</p><p class="text-[10px] text-gray-400 leading-relaxed">${effortOpt ? effortOpt.efeito : 'Descrição não encontrada.'}</p></div>`;
                 }
 
                 if (char.race === 'Formiga Quimera') { if (char.raceTraits && char.raceTraits.length > 0) { traitsHtml += char.raceTraits.map(tName => { 
@@ -510,7 +537,7 @@
                     const baseTraitName = parts[0].trim();
                     const detail = parts.length > 1 ? parts[1].trim() : '';
                     const tData = raceData.caracteristicas.find(c => c.nome === baseTraitName); 
-                    return `<div class="bg-gray-900 border border-gray-800 p-3 rounded-xl border-l-2 border-l-[${themeColor}]"><h4 class="font-bold text-white text-xs mb-1">${tName}</h4><p class="text-[10px] text-gray-400 leading-relaxed">${tData ? (tData.efeito || tData.mecanica) : 'Descrição não encontrada.'}</p></div>`; }).join(''); } } else { const fixedFeatures = [...(raceData.caracteristicas || [])]; if (fixedFeatures.length > 0) { traitsHtml += fixedFeatures.map(f => `<div class="bg-gray-900 border border-gray-800 p-3 rounded-xl border-l-2 border-l-[${themeColor}]"><h4 class="font-bold text-white text-xs mb-1">${f.nome}</h4><p class="text-[10px] text-gray-400 leading-relaxed">${f.efeito || f.mecanica || ''}</p></div>`).join(''); } } traitsHtml += `</div>`; let bgHtml = ''; if (bgData && char.backgroundFeature) { const feature = bgData.caracteristicas.find(f => f.nome === char.backgroundFeature); bgHtml = `<div class="flex items-center gap-3 mb-2 border-t border-gray-800 pt-4"><div class="bg-gray-800 p-2 rounded text-[${themeColor}]"><i data-lucide="book-open" size="20"></i></div><div><h3 class="font-bold text-white uppercase tracking-wider text-sm">${char.background}</h3><p class="text-[10px] text-gray-500 uppercase tracking-widest">Antecedente</p></div></div><div class="space-y-2 mb-6"><div class="bg-gray-900 border border-gray-800 p-3 rounded-xl border-l-4 border-l-[${themeColor}]"><h4 class="font-bold text-[${themeColor}] text-xs mb-1">${feature.nome}</h4><p class="text-[10px] text-gray-400 leading-relaxed">${feature.efeito}</p></div></div>`; }
+                    return `<div class="bg-gray-900 border border-gray-800 p-3 rounded-xl border-l-2 border-l-[${themeColor}]"><h4 class="font-bold text-white text-xs mb-1">${tName}</h4><p class="text-[10px] text-gray-400 leading-relaxed">${tData ? (tData.efeito || tData.mecanica) : 'Descrição não encontrada.'}</p></div>`; }).join(''); } } else { const fixedFeatures = [...(raceData.caracteristicas || [])]; if (fixedFeatures.length > 0) { traitsHtml += fixedFeatures.map(f => `<div class="bg-gray-900 border border-gray-800 p-3 rounded-xl border-l-2 border-l-[${themeColor}]"><h4 class="font-bold text-white text-xs mb-1">${f.nome}</h4><p class="text-[10px] text-gray-400 leading-relaxed">${f.efeito || f.mecanica || ''}</p></div>`).join(''); } if (char.raceFeatureChoice) { const chosenFeature = (raceData.opcoes_caracteristica || []).find(f => f.nome === char.raceFeatureChoice); traitsHtml += `<div class="bg-gray-900 border border-gray-800 p-3 rounded-xl border-l-4 border-l-[${themeColor}]"><h4 class="font-bold text-[${themeColor}] text-xs mb-1">${char.raceFeatureChoice}</h4><p class="text-[10px] text-gray-400 leading-relaxed">${chosenFeature ? (chosenFeature.efeito || chosenFeature.mecanica) : 'Descrição não encontrada.'}</p></div>`; } } traitsHtml += `</div>`; let bgHtml = ''; if (bgData && char.backgroundFeature) { const feature = bgData.caracteristicas.find(f => f.nome === char.backgroundFeature); bgHtml = `<div class="flex items-center gap-3 mb-2 border-t border-gray-800 pt-4"><div class="bg-gray-800 p-2 rounded text-[${themeColor}]"><i data-lucide="book-open" size="20"></i></div><div><h3 class="font-bold text-white uppercase tracking-wider text-sm">${char.background}</h3><p class="text-[10px] text-gray-500 uppercase tracking-widest">Antecedente</p></div></div><div class="space-y-2 mb-6"><div class="bg-gray-900 border border-gray-800 p-3 rounded-xl border-l-4 border-l-[${themeColor}]"><h4 class="font-bold text-[${themeColor}] text-xs mb-1">${feature.nome}</h4><p class="text-[10px] text-gray-400 leading-relaxed">${feature.efeito}</p></div></div>`; }
                 let generalIncHtml = '';
                 const posIncs = (char.inclinations && char.inclinations.positive) || [];
                 const negIncs = (char.inclinations && char.inclinations.negative) || [];
@@ -746,6 +773,7 @@
                 }
                 ${renderRollModeModalHtml()}
                 ${renderRenPromptModalHtml()}
+                ${renderRenAttackPromptModalHtml()}
                 ${renderZetsuPromptModalHtml()}
                 <div class="h-auto min-h-[4rem] bg-[#0e0e14] border-t border-gray-800 flex items-center justify-around px-2 relative z-50 pb-safe pt-2">
                     ${renderNavItem('FICHA', 'user', themeColor)}${renderNavItem('BIO', 'contact', themeColor)}${renderNavItem('NEN', 'flame', themeColor)}${renderNavItem('TRACOS', 'dna', themeColor)}${renderNavItem('INV', 'backpack', themeColor)}${renderNavItem('DADOS', 'dices', themeColor)}${renderNavItem('COND', 'brain', themeColor)}
@@ -809,10 +837,155 @@
             state.tempChar.categoriaRoll = roll;
             selectNenType(cls);
         }
-        function selectBackground(bgName) { if (state.tempChar.background !== bgName) { state.tempChar.background = bgName; state.tempChar.backgroundFeature = null; } render(true); }
+        // ── Inclinações Gerais: a "1ª de graça" só pode ser uma inclinação BÁSICA (custo baixo) ──
+        // Antes, o sistema pegava sempre a inclinação de MAIOR custo selecionada como grátis
+        // (b.custo - a.custo), permitindo comprar itens caríssimos como Aura Gigantesca (custo 6)
+        // de graça já na criação, bastando cobrir o resto com negativas. Não existe campo de
+        // "básica"/"poderosa" nos dados — o próprio custo já separa bem (a maioria das inclinações
+        // utilitárias custa 1-2; as narrativamente mais fortes custam 3+), então usamos um teto de
+        // custo. Sem nenhuma básica selecionada, não há desconto (freeCost = 0) — o jogador precisa
+        // pagar tudo com negativas, incentivando pegar ao menos 1 básica se quiser o desconto.
+        const GENERAL_INC_BASIC_MAX_CUSTO = 3;
+        function calcGeneralIncFreeCost(positiveList) {
+            const basics = (positiveList || []).filter(i => i.custo <= GENERAL_INC_BASIC_MAX_CUSTO);
+            if (basics.length === 0) return 0;
+            return Math.max(...basics.map(i => i.custo));
+        }
+        // ── Popup de escolha de Equipamento do Antecedente ("etapa 4") ──────────────────────────
+        // O array `equipamento` de um antecedente mistura itens fixos com alternativas em texto
+        // livre ("A ou B", "Qualquer arma simples/Marcial", "Qualquer outro Kit"). Sem resolver isso
+        // pra um nome real do ITEM_DB, o item entra "quebrado" no inventário (sem dano/CA/peso — ver
+        // findItemData, sheet.js:765). classifyEquipSlot decide o tipo de cada posição do array.
+        const EQUIP_FLAVOR_PASSTHROUGH = [
+            'Celular com contato ou anotações de seu mestre', // Discípulo — sabor, não é escolha de item real
+            'Bíblia, ou qualquer outro livro sagrado',         // Religioso — idem
+        ];
+        // Mismatches conhecidos entre o texto do antecedente e o nome exato no ITEM_DB.
+        const EQUIP_NAME_ALIASES = {
+            'Kit de Caça e Rastreio de Criaturas': 'Kit de Caça e Rastreio',
+            'Kit de Ferramenta de Ofício': 'Kit Ferramentas Ofício',
+            'Kit de Ferramentas de Ofício': 'Kit Ferramentas Ofício',
+            'Mochila Comum/Maleta': 'Mochila',
+            'Espingarda Carregada': 'Espingarda',
+            'Tazer': 'Tazer (3 Cargas)',
+            '1 Mala de Roupas': 'Mala de Roupas', // Soldado: "1 Mala de Roupas ou Mochila Comum/Maleta"
+        };
+        function resolveEquipName(nome) { return EQUIP_NAME_ALIASES[nome] || nome; }
+        function getWeaponPool(category) {
+            const { simples_corpo_a_corpo, simples_distancia, marciais_corpo_a_corpo, marciais_distancia } = ITEM_DB.armas;
+            if (category === 'simples') return [...simples_corpo_a_corpo, ...simples_distancia];
+            if (category === 'marcial') return [...marciais_corpo_a_corpo, ...marciais_distancia];
+            return [...simples_corpo_a_corpo, ...simples_distancia, ...marciais_corpo_a_corpo, ...marciais_distancia];
+        }
+        function classifyEquipSlot(str) {
+            const s = (str || '').trim();
+            if (EQUIP_FLAVOR_PASSTHROUGH.includes(s)) return { type: 'fixed' };
+            // "Qualquer equipamento dentro do orçamento de X$" (Negociante) — mini-loja com teto de
+            // gasto, mecânica separada; fica como texto por ora.
+            if (/qualquer equipamento dentro do orçamento/i.test(s)) return { type: 'fixed' };
+            if (/^qualquer outro kit$/i.test(s)) return { type: 'kit-any' };
+            const weaponMatch = s.match(/^Qualquer arma (simples ou Marcial|simples|Marcial)(\s+e\s+(.+))?$/i);
+            if (weaponMatch) {
+                const catRaw = weaponMatch[1].toLowerCase();
+                const category = catRaw.includes('simples') && catRaw.includes('marcial') ? 'ambas' : catRaw.includes('marcial') ? 'marcial' : 'simples';
+                return { type: 'weapon-category', category, extra: weaponMatch[3] ? weaponMatch[3].trim() : null };
+            }
+            if (/\bou\b/i.test(s)) {
+                const parts = s.split(/\s+ou\s+/i).map(p => p.trim()).filter(Boolean);
+                if (parts.length > 1) return { type: 'choice', options: parts };
+            }
+            return { type: 'fixed' };
+        }
+        // Slots (índices do array `equipamento`) que precisam de uma escolha do jogador.
+        function getPendingEquipSlots(bgData) {
+            if (!bgData) return [];
+            return bgData.equipamento.map((str, idx) => ({ idx, str, info: classifyEquipSlot(str) })).filter(s => s.info.type !== 'fixed');
+        }
+        function selectBackground(bgName) {
+            if (state.tempChar.background !== bgName) {
+                state.tempChar.background = bgName;
+                state.tempChar.backgroundFeature = null;
+                const bgData = SYSTEM_DB.antecedentes.find(b => b.nome === bgName);
+                const pending = getPendingEquipSlots(bgData);
+                state.tempChar.equipChoices = {};
+                pending.forEach(slot => {
+                    if (slot.info.type === 'choice') state.tempChar.equipChoices[slot.idx] = slot.info.options[0];
+                    else if (slot.info.type === 'weapon-category') state.tempChar.equipChoices[slot.idx] = getWeaponPool(slot.info.category)[0].nome;
+                    else if (slot.info.type === 'kit-any') state.tempChar.equipChoices[slot.idx] = [...ITEM_DB.kits, ...ITEM_DB.itens_medicos][0].nome;
+                });
+                state.equipChoiceModalOpen = pending.length > 0;
+            }
+            render(true);
+        }
+        function openEquipChoiceModal() { state.equipChoiceModalOpen = true; render(true); }
+        function closeEquipChoiceModal() { state.equipChoiceModalOpen = false; render(true); }
+        function setEquipChoice(idx, value) { if (!state.tempChar.equipChoices) state.tempChar.equipChoices = {}; state.tempChar.equipChoices[idx] = value; render(true); }
+        function renderEquipChoiceModalHtml() {
+            if (!state.equipChoiceModalOpen || !state.tempChar || !state.tempChar.background) return '';
+            const bgData = SYSTEM_DB.antecedentes.find(b => b.nome === state.tempChar.background);
+            const pending = getPendingEquipSlots(bgData);
+            if (pending.length === 0) return '';
+            const choices = state.tempChar.equipChoices || {};
+            const rows = pending.map(slot => {
+                let optionsHtml = '';
+                let label = slot.str;
+                if (slot.info.type === 'choice') {
+                    optionsHtml = slot.info.options.map(o => `<option value="${o}" ${choices[slot.idx] === o ? 'selected' : ''}>${o}</option>`).join('');
+                } else if (slot.info.type === 'weapon-category') {
+                    label = slot.info.category === 'ambas' ? 'Qualquer arma simples ou Marcial' : `Qualquer arma ${slot.info.category}`;
+                    if (slot.info.extra) label += ` (+ ${slot.info.extra} incluso)`;
+                    optionsHtml = getWeaponPool(slot.info.category).map(w => `<option value="${w.nome}" ${choices[slot.idx] === w.nome ? 'selected' : ''}>${w.nome} (${w.dano} ${w.tipo_dano||''})</option>`).join('');
+                } else if (slot.info.type === 'kit-any') {
+                    label = 'Qualquer outro Kit';
+                    optionsHtml = [...ITEM_DB.kits, ...ITEM_DB.itens_medicos].map(k => `<option value="${k.nome}" ${choices[slot.idx] === k.nome ? 'selected' : ''}>${k.nome}</option>`).join('');
+                }
+                return `<div class="mb-3">
+                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">${label}</label>
+                    <select onchange="setEquipChoice(${slot.idx}, this.value)" class="w-full bg-black border border-gray-700 rounded p-2 text-xs text-white outline-none focus:border-neon-theme">${optionsHtml}</select>
+                </div>`;
+            }).join('');
+            return `<div class="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onclick="closeEquipChoiceModal()">
+                <div style="background:#0d1117;border:2px solid var(--theme-color-hex,#00ff9d);border-radius:16px;padding:20px;width:100%;max-width:360px;max-height:80vh;overflow-y:auto" onclick="event.stopPropagation()">
+                    <div class="font-display font-black text-sm text-white uppercase tracking-widest mb-1">⚔️ Escolha seu Equipamento</div>
+                    <div class="text-[10px] text-gray-500 mb-4">${state.tempChar.background} — resolva as alternativas abaixo.</div>
+                    ${rows}
+                    <button onclick="closeEquipChoiceModal()" class="w-full mt-2 py-3 rounded-xl font-bold text-xs uppercase tracking-wider" style="background:var(--theme-color-hex,#00ff9d);color:#000">Confirmar</button>
+                </div>
+            </div>`;
+        }
         function selectBackgroundFeature(featureName) { state.tempChar.backgroundFeature = featureName; }
         function toggleInclination(type, name, value) { const list = state.tempChar.inclinations[type]; const existsIdx = list.findIndex(i => i.nome === name); if (existsIdx >= 0) { list.splice(existsIdx, 1); } else { list.push({ nome: name, [type === 'positive' ? 'custo' : 'valor']: value }); } render(true); }
-        function selectRace(raceName) { state.tempChar.race = raceName; state.allocations = {}; render(true); }
+        function selectRace(raceName) { state.tempChar.race = raceName; state.allocations = {}; state.tempChar.raceFeatureChoice = null; render(true); }
+        // Escolha genérica de "1 entre N" características raciais (qualquer raça com `opcoes_caracteristica`
+        // em SYSTEM_DB.racas — antes só existia texto informativo, sem seleção real nem exibição em Traços).
+        function selectRaceFeatureChoice(nome) { state.tempChar.raceFeatureChoice = nome; render(true); }
+        // "Esforço no lugar de talento" (Humano Comum) — ao trocar a raça-fonte, limpa a característica
+        // escolhida (as opções mudam por raça, não faz sentido manter a seleção anterior).
+        function selectEffortRace(raceName) { state.tempChar.effortRace = raceName; state.tempChar.effortTrait = null; render(true); }
+        function selectEffortTrait(traitName) { state.tempChar.effortTrait = traitName; render(true); }
+        // ── Formiga Quimera: fagogênese, referência pronta, tamanho e deslocamento de inseto ──────
+        // Trocar a categoria de fagogênese invalida a referência pronta escolhida (presets são por categoria).
+        function selectFagogenese(value) { state.tempChar.fagogenese = value; state.tempChar.fqPreset = null; render(true); }
+        function selectFQTamanho(tamanho) { state.tempChar.fqTamanho = tamanho; render(true); }
+        function selectFQPequenoPenalidade(attr) { state.tempChar.fqPequenoPenalidade = attr; render(true); }
+        function selectFQInsetoDeslocamento(tipo) { state.tempChar.fqInsetoDeslocamento = tipo; render(true); }
+        function selectFQPreset(nome) {
+            state.tempChar.fqPreset = nome || null;
+            if (nome) {
+                const presetsList = (SYSTEM_DB.fqPresets && SYSTEM_DB.fqPresets[state.tempChar.fagogenese]) || [];
+                const preset = presetsList.find(p => p.nome === nome);
+                if (preset) {
+                    if (!state.tempChar.raceTraits) state.tempChar.raceTraits = [];
+                    if (!state.tempChar.traitDetails) state.tempChar.traitDetails = {};
+                    (preset.tracosSugeridos || []).forEach(sug => {
+                        if (state.tempChar.raceTraits.length >= 3) return; // respeita o limite de 3 traços
+                        if (!state.tempChar.raceTraits.includes(sug.nome)) state.tempChar.raceTraits.push(sug.nome);
+                        if (sug.opcao) state.tempChar.traitDetails[sug.nome] = sug.opcao;
+                    });
+                }
+            }
+            render(true);
+        }
         function toggleRaceTrait(traitName) { const list = state.tempChar.raceTraits || []; const idx = list.indexOf(traitName); if (idx >= 0) { list.splice(idx, 1); if(state.tempChar.traitDetails && state.tempChar.traitDetails[traitName]) { delete state.tempChar.traitDetails[traitName]; } } else { if (list.length >= 3) { alert("Você só pode escolher até 3 características."); return; } list.push(traitName); } state.tempChar.raceTraits = list; render(true); }
         function toggleCreatorSkill(skill, type = 'main') { const list = type === 'main' ? state.tempChar.skills : state.tempChar.otherSkills; const bgSkillsText = state.tempChar.background ? SYSTEM_DB.antecedentes.find(b => b.nome === state.tempChar.background).proficiencias : ""; const isBgSkill = type === 'main' && bgSkillsText.includes(skill); let limit = type === 'main' ? 5 : 4; if (type === 'other') { if (bgSkillsText.includes("Kit") || bgSkillsText.includes("Ferramenta")) { limit = 5; } } const idx = list.indexOf(skill); if (idx >= 0) { list.splice(idx, 1); } else { if (!isBgSkill) { const currentManualCount = list.filter(s => !bgSkillsText.includes(s)).length; if (currentManualCount >= limit) { alert(`Limite de ${limit} escolhas manuais atingido.`); return; } } list.push(skill); } render(true); }
         // ── Gerenciamento de Webhooks do Discord ─────────────────────────────
@@ -1040,7 +1213,7 @@
             if (!pr) return;
             if (pr.type === 'dice')   rollDice(pr.a1, pr.a2, mode);
             else if (pr.type === 'skill')  maybeAskZetsuThenRollSkill(pr.a1, pr.a2, mode);
-            else if (pr.type === 'attack') rollAttack(pr.a1, pr.a2, pr.a3, mode);
+            else if (pr.type === 'attack') maybeAskRenThenRollAttack(pr.a1, pr.a2, pr.a3, mode);
             else if (pr.type === 'hatsu')  maybeAskRenThenRoll(mode);
         }
         function cancelPendingRoll() { state.pendingRoll = null; render(true); }
@@ -1142,6 +1315,68 @@
                 </div>
             </div>`;
         }
+        // rev. Manual (Cap. 4 Combate) — mesma mecânica de REN do Hatsu ("Cada 5% Aura = +1
+        // grau/passo de dano"), agora aplicada a golpes de arma/desarmado. Só oferece o prompt se
+        // o dado atual da arma existir na window.DAMAGE_TABLE (armas com dado fora da progressão
+        // padrão, ex. 2d4/3d6/4d6, não têm posição na tabela — o golpe rola normal, sem REN).
+        function maybeAskRenThenRollAttack(weaponName, diceExpr, attrKey, mode) {
+            const char = state.currentChar;
+            const ren = ((char.nenDominio || {}).ren) || 0;
+            const idxAtual = window.DAMAGE_TABLE ? window.DAMAGE_TABLE.indexOf(diceExpr) : -1;
+            const grausTabela = idxAtual >= 0 ? (window.DAMAGE_TABLE.length - 1 - idxAtual) : 0;
+            const aura = char.vitals.aura || 0;
+            const renFree = window.isRenFreeUsoDisponivel ? window.isRenFreeUsoDisponivel(char) : false;
+            const grausAura = Math.floor(aura / 5) + (renFree ? 1 : 0);
+            const grausMax = ren > 0 ? Math.min(grausTabela, grausAura) : 0;
+            if (grausMax > 0) {
+                state.pendingRenAttackRoll = { weaponName, diceExpr, attrKey, mode, grausMax, grausEscolhidos: 1 };
+                render(true);
+            } else {
+                rollAttack(weaponName, diceExpr, attrKey, mode, 0);
+            }
+        }
+        function _hSetRenAttackPromptGraus(n) {
+            if (!state.pendingRenAttackRoll) return;
+            const max = state.pendingRenAttackRoll.grausMax || 1;
+            state.pendingRenAttackRoll.grausEscolhidos = Math.max(1, Math.min(max, parseInt(n) || 1));
+            render(true);
+        }
+        window._hResolveRenAttackPrompt = function(useRen) {
+            const pr = state.pendingRenAttackRoll;
+            state.pendingRenAttackRoll = null;
+            if (!pr) return;
+            rollAttack(pr.weaponName, pr.diceExpr, pr.attrKey, pr.mode, useRen ? (pr.grausEscolhidos || 1) : 0);
+        };
+        function renderRenAttackPromptModalHtml() {
+            if (!state.pendingRenAttackRoll) return '';
+            const char = state.currentChar;
+            const pr = state.pendingRenAttackRoll;
+            const grausMax = pr.grausMax || 1;
+            const grausEsc = pr.grausEscolhidos || 1;
+            const renFree = window.isRenFreeUsoDisponivel ? window.isRenFreeUsoDisponivel(char) : false;
+            const grausPagos = Math.max(0, grausEsc - (renFree ? 1 : 0));
+            const custoTxt = grausPagos <= 0 ? 'Grátis (1x/dia)' : `${grausPagos * 5}% de Aura${renFree ? ' (1º grátis)' : ''}`;
+            const stepperHtml = grausMax > 1
+                ? `<div style="display:flex;gap:4px;justify-content:center;margin-top:12px;flex-wrap:wrap">
+                    ${Array.from({length: grausMax}, (_, i) => i + 1).map(n => `
+                        <button onclick="_hSetRenAttackPromptGraus(${n})" style="width:34px;height:34px;border-radius:9px;font-family:Orbitron,sans-serif;font-weight:900;font-size:13px;cursor:pointer;border:1.5px solid ${grausEsc===n?'#a78bfa':'#374151'};background:${grausEsc===n?'#a78bfa33':'#1f2937'};color:${grausEsc===n?'#a78bfa':'#9ca3af'}">${n}</button>
+                    `).join('')}
+                   </div>
+                   <div style="font-size:8px;color:#6b7280;margin-top:6px">Graus de dano a comprar (máx. ${grausMax} — limite de Aura disponível)</div>`
+                : '';
+            return `<div style="position:fixed;inset:0;background:#000000cc;display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;font-family:Rajdhani,sans-serif">
+                <div style="background:#0d1117;border:2px solid #a78bfa;border-radius:18px;padding:22px;width:100%;max-width:340px;box-shadow:0 0 40px #a78bfa44;text-align:center">
+                    <div style="font-size:22px;margin-bottom:6px">💪</div>
+                    <div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:13px;color:#a78bfa;text-transform:uppercase;letter-spacing:2px">Usar REN neste golpe?</div>
+                    <div style="font-size:10px;color:#9ca3af;margin-top:8px;line-height:1.5">${pr.weaponName}: adiciona +${grausEsc} Grau${grausEsc>1?'s':''} de dano a este golpe.<br>Custo: <b style="color:#a78bfa">${custoTxt}</b></div>
+                    ${stepperHtml}
+                    <div style="display:flex;gap:8px;margin-top:16px">
+                        <button onclick="window._hResolveRenAttackPrompt(false)" style="flex:1;padding:12px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Não</button>
+                        <button onclick="window._hResolveRenAttackPrompt(true)" style="flex:2;padding:12px;border-radius:10px;background:#a78bfa;border:none;color:#000;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">💪 Usar REN</button>
+                    </div>
+                </div>
+            </div>`;
+        }
         function renderRollModeModalHtml() {
             if (!state.pendingRoll) return '';
            const MODES = [
@@ -1177,22 +1412,41 @@
                 </div>
             </div>`;
         }
-        function rollAttack(weaponName, diceExpr, attrKey, mode) {
+        function rollAttack(weaponName, diceExpr, attrKey, mode, grausRen) {
             const char = state.currentChar;
             const mod = getMod((char.attributes[attrKey] || {}).value || 10);
             const pb = getProficiencyBonus(char.level);
             const attackRoll = getRollResult(mode || state.rollMode);
             const attackTotal = attackRoll.total + mod + pb;
-            const dmgResult = rollDiceExpr(diceExpr);
+
+            // ── REN: escalona +N Grau(s) de dano deste golpe (Manual: cada 5% Aura = +1 grau/passo) ──
+            const renGraus = Math.max(0, parseInt(grausRen) || 0);
+            const useRen = renGraus > 0;
+            let renDiceExpr = diceExpr;
+            let renCost = 0;
+            let renUsedFree = false;
+            if (useRen && window.DAMAGE_TABLE) {
+                const idxD = window.DAMAGE_TABLE.indexOf(diceExpr);
+                if (idxD >= 0) renDiceExpr = window.DAMAGE_TABLE[Math.min(idxD + renGraus, window.DAMAGE_TABLE.length - 1)];
+                renUsedFree = window.isRenFreeUsoDisponivel ? window.isRenFreeUsoDisponivel(char) : false;
+                const grausPagos = Math.max(0, renGraus - (renUsedFree ? 1 : 0));
+                renCost = grausPagos * 5;
+                if (renUsedFree && window.marcarRenFreeUsoConsumido) window.marcarRenFreeUsoConsumido(char);
+                char.vitals.aura = Math.max(0, (char.vitals.aura || 0) - renCost);
+            }
+
+            const dmgResult = rollDiceExpr(renDiceExpr);
             const dmgTotal = dmgResult.total + mod;
             const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-            char.history.push({ time, label: `⚔️ ${weaponName} (${attrKey})`, dice: attackRoll.dice.join(', '), mod: mod + pb, total: attackTotal });
+            const renLabel = useRen ? ' 💪REN' : '';
+            char.history.push({ time, label: `⚔️ ${weaponName} (${attrKey})${renLabel}`, dice: attackRoll.dice.join(', '), mod: mod + pb, total: attackTotal });
             if (char.history.length > 50) char.history.shift();
             saveCharacter(char);
             const isCrit = attackRoll.dice.includes(20);
             const isFumble = attackRoll.dice.length === 1 && attackRoll.dice[0] === 1;
             const suffix = isCrit ? ' 🎯 **CRÍTICO!**' : isFumble ? ' 💀 **FALHA CRÍTICA!**' : '';
-            const content = `⚔️ **${char.name}** atacou com **${weaponName}**\nAtaque: [${attackRoll.dice.join(', ')}] +${mod + pb} = **${attackTotal}**${suffix}\nDano: [${dmgResult.rolls.join('+')}] +${mod} = **${dmgTotal}** (${diceExpr} + ${attrKey})`;
+            const renNote = useRen ? `\n💪 **REN ativado** — +${renGraus} Grau${renGraus>1?'s':''} de dano${renUsedFree ? ' (1º grátis no dia)' : ''}` : '';
+            const content = `⚔️ **${char.name}** atacou com **${weaponName}**\nAtaque: [${attackRoll.dice.join(', ')}] +${mod + pb} = **${attackTotal}**${suffix}\nDano: [${dmgResult.rolls.join('+')}] +${mod} = **${dmgTotal}** (${renDiceExpr} + ${attrKey})${renNote}`;
             fetch(getActiveWebhookUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content }) }).catch(() => {});
             state.attackModal = null;
             state.rollResult = { name: `⚔️ ${weaponName}`, total: attackTotal, diceVal: attackRoll.total, mod: mod + pb, label: attackRoll.label };
@@ -1222,11 +1476,53 @@
         function assignToSlot(attr) { if (state.selectedPoolIdx === null) return; if (state.tempChar.attributes[attr] !== null) state.attrPool.push(state.tempChar.attributes[attr]); const val = state.attrPool[state.selectedPoolIdx]; state.tempChar.attributes[attr] = val; state.attrPool.splice(state.selectedPoolIdx, 1); state.attrPool.sort((a,b) => b-a); state.selectedPoolIdx = null; render(true); }
         function returnToPool(attr) { const val = state.tempChar.attributes[attr]; if (val !== null) { state.attrPool.push(val); state.attrPool.sort((a,b) => b-a); state.tempChar.attributes[attr] = null; render(true); } }
         function applyBackgroundProficiencies() { if (!state.tempChar.background) return; const bgData = SYSTEM_DB.antecedentes.find(b => b.nome === state.tempChar.background); if (!bgData) return; const profText = bgData.proficiencias; SYSTEM_DB.skills.forEach(skill => { if (profText.includes(skill) && !state.tempChar.skills.includes(skill)) { state.tempChar.skills.push(skill); } }); if (profText.includes("Kit") || profText.includes("Ferramenta")) { if (!state.tempChar.otherSkills.includes("Kits")) { state.tempChar.otherSkills.push("Kits"); } } }
-        function nextCreatorStep() { if (state.creatorStep === 0 && !state.tempChar.name) { alert("Dê um nome ao personagem!"); return; } if (state.creatorStep === 2) { if (state.attrTab === 'COMPRA') { const cost = calculateTotalCost(state.tempChar.attributes); if (cost > 20) { alert("Você excedeu o limite de pontos de compra (20)!"); return; } } else { const values = Object.values(state.tempChar.attributes); if (values.some(v => v === null)) { alert("Aloque todos os valores do pool para os atributos!"); return; } } } if (state.creatorStep === 3) { if (!state.tempChar.background) { alert("Selecione um Antecedente!"); return; } if (!state.tempChar.backgroundFeature) { alert("Escolha uma característica do Antecedente!"); return; } } if (state.creatorStep === 4) { const posCost = state.tempChar.inclinations.positive.reduce((acc, i) => acc + i.custo, 0); const negVal = state.tempChar.inclinations.negative.reduce((acc, i) => acc + i.valor, 0); const sortedPos = [...state.tempChar.inclinations.positive].sort((a,b) => b.custo - a.custo); const freeCost = sortedPos.length > 0 ? sortedPos[0].custo : 0; const paidCost = Math.max(0, posCost - freeCost); const balance = negVal - paidCost; if (balance < 0) { alert("Suas inclinações não estão balanceadas! Adicione negativas ou remova positivas extras."); return; } if (negVal > 10) { alert("O máximo de compensação negativa é 10 pontos."); return; } applyBackgroundProficiencies(); } if (state.creatorStep === 5) { const bgSkillsText = state.tempChar.background ? SYSTEM_DB.antecedentes.find(b => b.nome === state.tempChar.background).proficiencias : ""; const currentManualCount = state.tempChar.skills.filter(s => !bgSkillsText.includes(s)).length; if (currentManualCount !== 5) { alert(`Você deve selecionar exatamente 5 perícias manuais (além das concedidas pelo antecedente). Atualmente: ${currentManualCount}`); return; } } state.creatorStep++; render(); }
-        function finishCreator() { Object.entries(state.allocations).forEach(([key, val]) => { state.tempChar.attributes[key] += val; }); const bgData = SYSTEM_DB.antecedentes.find(b => b.nome === state.tempChar.background); const initialInv = bgData ? bgData.equipamento.map(i => ({ name: i, qty: 1 })) : []; const raceData = SYSTEM_DB.racas.find(r => r.nome === state.tempChar.race); const finalAttrs = { ...state.tempChar.attributes }; if (raceData && typeof raceData.aumento_atributo === 'object') { const req = getBonusRequirements(state.tempChar.race); if (!req) { Object.entries(raceData.aumento_atributo).forEach(([key, val]) => { if (finalAttrs[key] !== undefined) { finalAttrs[key] += val; } }); } } const modCon = getMod(finalAttrs.CON || 10); const modInt = getMod(finalAttrs.INT || 10); const modSab = getMod(finalAttrs.SAB || 10); const hasGiantBody = state.tempChar.inclinations.positive.some(i => i.nome === "Corpo de Gigante"); let hpInitial = 15 + modCon; if (hasGiantBody) hpInitial += 5; 
+        function nextCreatorStep() { if (state.creatorStep === 0 && !state.tempChar.name) { alert("Dê um nome ao personagem!"); return; } if (state.creatorStep === 1 && state.tempChar.race === 'Humano Comum' && !state.tempChar.effortTrait) { alert("Escolha uma característica de 'Esforço no lugar de talento'!"); return; } if (state.creatorStep === 1) { const rd1 = SYSTEM_DB.racas.find(r => r.nome === state.tempChar.race); if (rd1 && (rd1.opcoes_caracteristica||[]).length > 0 && !state.tempChar.raceFeatureChoice) { alert("Escolha uma característica racial!"); return; } } if (state.creatorStep === 2) { if (state.attrTab === 'COMPRA') { const cost = calculateTotalCost(state.tempChar.attributes); if (cost > 20) { alert("Você excedeu o limite de pontos de compra (20)!"); return; } } else { const values = Object.values(state.tempChar.attributes); if (values.some(v => v === null)) { alert("Aloque todos os valores do pool para os atributos!"); return; } } } if (state.creatorStep === 3 && state.tempChar.race !== 'Formiga Quimera') { if (!state.tempChar.background) { alert("Selecione um Antecedente!"); return; } if (!state.tempChar.backgroundFeature) { alert("Escolha uma característica do Antecedente!"); return; } } if (state.creatorStep === 4) { const posCost = state.tempChar.inclinations.positive.reduce((acc, i) => acc + i.custo, 0); const negVal = state.tempChar.inclinations.negative.reduce((acc, i) => acc + i.valor, 0); const freeCost = calcGeneralIncFreeCost(state.tempChar.inclinations.positive); const paidCost = Math.max(0, posCost - freeCost); const balance = negVal - paidCost; if (balance < 0) { alert("Suas inclinações não estão balanceadas! Adicione negativas ou remova positivas extras."); return; } if (negVal > 10) { alert("O máximo de compensação negativa é 10 pontos."); return; } applyBackgroundProficiencies(); } if (state.creatorStep === 5) { const bgSkillsText = state.tempChar.background ? SYSTEM_DB.antecedentes.find(b => b.nome === state.tempChar.background).proficiencias : ""; const currentManualCount = state.tempChar.skills.filter(s => !bgSkillsText.includes(s)).length; if (currentManualCount !== 5) { alert(`Você deve selecionar exatamente 5 perícias manuais (além das concedidas pelo antecedente). Atualmente: ${currentManualCount}`); return; } }
+            // rev. Manual (Formiga Quimera "inicia sem Antecedentes") — pula o step 3 (Antecedente) nos dois sentidos.
+            if (state.tempChar.race === 'Formiga Quimera' && state.creatorStep === 2) { state.creatorStep = 4; render(); return; }
+            state.creatorStep++; render(); }
+        function prevCreatorStep() {
+            if (state.tempChar.race === 'Formiga Quimera' && state.creatorStep === 4) { state.creatorStep = 2; render(); return; }
+            state.creatorStep--; render();
+        }
+        function finishCreator() { Object.entries(state.allocations).forEach(([key, val]) => { state.tempChar.attributes[key] += val; }); const bgData = SYSTEM_DB.antecedentes.find(b => b.nome === state.tempChar.background);
+            // Resolve equipamento do antecedente: itens fixos passam pelo alias de nome (corrige
+            // mismatches com o ITEM_DB); slots ambíguos ("A ou B", "Qualquer arma...") usam a escolha
+            // feita no popup (state.tempChar.equipChoices), com um fallback sensato se não foi aberto.
+            const equipChoicesFinal = state.tempChar.equipChoices || {};
+            const initialInv = bgData ? bgData.equipamento.flatMap((str, idx) => {
+                const info = classifyEquipSlot(str);
+                if (info.type === 'choice') return [{ name: resolveEquipName(equipChoicesFinal[idx] || info.options[0]), qty: 1 }];
+                if (info.type === 'kit-any') return [{ name: equipChoicesFinal[idx] || [...ITEM_DB.kits, ...ITEM_DB.itens_medicos][0].nome, qty: 1 }];
+                if (info.type === 'weapon-category') {
+                    const items = [{ name: equipChoicesFinal[idx] || getWeaponPool(info.category)[0].nome, qty: 1 }];
+                    if (info.extra) items.push({ name: resolveEquipName(info.extra), qty: 1 });
+                    return items;
+                }
+                return [{ name: resolveEquipName(str), qty: 1 }];
+            }) : [];
+            const raceData = SYSTEM_DB.racas.find(r => r.nome === state.tempChar.race); const finalAttrs = { ...state.tempChar.attributes }; if (raceData && typeof raceData.aumento_atributo === 'object') { const req = getBonusRequirements(state.tempChar.race); if (!req) { Object.entries(raceData.aumento_atributo).forEach(([key, val]) => { if (finalAttrs[key] !== undefined) { finalAttrs[key] += val; } }); } }
+            // rev. Manual (regra de tamanho de Formiga Quimera) — Miúdo/Pequeno alteram atributos finais.
+            const fqTamanho = state.tempChar.race === 'Formiga Quimera' ? (state.tempChar.fqTamanho || 'Médio') : null;
+            if (fqTamanho === 'Miúdo') { finalAttrs.DES += 2; finalAttrs.FOR -= 1; finalAttrs.CON -= 1; }
+            else if (fqTamanho === 'Pequeno') { finalAttrs.DES += 1; finalAttrs[state.tempChar.fqPequenoPenalidade || 'FOR'] -= 1; }
+            const modCon = getMod(finalAttrs.CON || 10); const modInt = getMod(finalAttrs.INT || 10); const modSab = getMod(finalAttrs.SAB || 10); const hasGiantBody = state.tempChar.inclinations.positive.some(i => i.nome === "Corpo de Gigante"); let hpInitial = 15 + modCon; if (hasGiantBody) hpInitial += 5; 
             // Merge traits with details
             const mergedTraits = (state.tempChar.raceTraits || []).map(t => { const detail = state.tempChar.traitDetails && state.tempChar.traitDetails[t]; return detail ? `${t}: ${detail}` : t; });
-            const newChar = { id: generateId(), name: state.tempChar.name, class: state.tempChar.class, race: state.tempChar.race, background: state.tempChar.background, backgroundFeature: state.tempChar.backgroundFeature, inclinations: state.tempChar.inclinations, level: 0, xp: 0, xp_next: 50, money: 0, alignment: 'Neutro', playerName: '', attributes: {}, skills: [...state.tempChar.skills, ...state.tempChar.otherSkills], expertise: [], raceTraits: mergedTraits, vitals: { hp: hpInitial, hpMax: hpInitial, aura: 100, auraMax: 100, san: 100, sanMax: 100, rdm: 0, ca: 10 + modCon, rea: 7 + modSab, desl: 9 }, inventory: initialInv, history: [], imageUrl: null, bio: { personality: '', history: '', organizations: '', enemies: '', allies: '' }, fagogenese: state.tempChar.fagogenese || null, afinidade: state.tempChar.afinidade || null, genialidade: state.tempChar.genialidade || null, genialidadeRoll: state.tempChar.genialidadeRoll || null }; Object.entries(finalAttrs).forEach(([k,v]) => { const hasSave = state.tempChar.skills.includes(`TR de ${k}`); newChar.attributes[k] = { value: v || 10, save: hasSave }; }); saveCharacter(newChar); state.currentChar = newChar; state.view = 'SHEET'; state.activeTab = 'FICHA'; render(); }
+            // rev. Manual — deslocamento especial de Formiga Quimera: referência pronta manda (inclusive
+            // quando ela é "terrestre" mas mais rápida/lenta que o padrão, ex. Coelho 10,5m, Tatu 7,5m);
+            // sem referência, aplica a regra por categoria (Ave→voo, Aquático→aquático, Inseto→escolha).
+            let fqDeslocTipo = null, fqDeslocValor = null, deslTerrestre = 9;
+            if (state.tempChar.race === 'Formiga Quimera') {
+                const presetsList = (SYSTEM_DB.fqPresets && SYSTEM_DB.fqPresets[state.tempChar.fagogenese]) || [];
+                const preset = state.tempChar.fqPreset ? presetsList.find(p => p.nome === state.tempChar.fqPreset) : null;
+                if (preset) {
+                    if (preset.deslocamentoTipo === 'terrestre') { deslTerrestre = preset.deslocamentoValor; }
+                    else { fqDeslocTipo = preset.deslocamentoTipo; fqDeslocValor = preset.deslocamentoValor; }
+                } else if (state.tempChar.fagogenese === 'Ave') { fqDeslocTipo = 'voo'; fqDeslocValor = 9; }
+                else if (state.tempChar.fagogenese === 'Aquático') { fqDeslocTipo = 'aquatico'; fqDeslocValor = 9; }
+                else if (state.tempChar.fagogenese === 'Inseto/Insectóide') { fqDeslocTipo = state.tempChar.fqInsetoDeslocamento || 'voo'; fqDeslocValor = 9; }
+            }
+            const newChar = { id: generateId(), name: state.tempChar.name, class: state.tempChar.class, race: state.tempChar.race, background: state.tempChar.background, backgroundFeature: state.tempChar.backgroundFeature, inclinations: state.tempChar.inclinations, level: 0, xp: 0, xp_next: 50, money: 0, alignment: 'Neutro', playerName: '', attributes: {}, skills: [...state.tempChar.skills, ...state.tempChar.otherSkills], expertise: [], raceTraits: mergedTraits, effortRace: state.tempChar.race === 'Humano Comum' ? (state.tempChar.effortRace || null) : null, effortTrait: state.tempChar.race === 'Humano Comum' ? (state.tempChar.effortTrait || null) : null, raceFeatureChoice: state.tempChar.raceFeatureChoice || null, fqTamanho: fqTamanho, fqPreset: state.tempChar.race === 'Formiga Quimera' ? (state.tempChar.fqPreset || null) : null, deslocamentoTipo: fqDeslocTipo, deslocamentoValor: fqDeslocValor, vitals: { hp: hpInitial, hpMax: hpInitial, aura: 100, auraMax: 100, san: 100, sanMax: 100, rdm: 0, ca: 10 + modCon, rea: 7 + modSab, desl: deslTerrestre }, inventory: initialInv, history: [], imageUrl: null, bio: { personality: '', history: '', organizations: '', enemies: '', allies: '' }, fagogenese: state.tempChar.fagogenese || null, afinidade: state.tempChar.afinidade || null, genialidade: state.tempChar.genialidade || null, genialidadeRoll: state.tempChar.genialidadeRoll || null }; Object.entries(finalAttrs).forEach(([k,v]) => { const hasSave = state.tempChar.skills.includes(`TR de ${k}`); newChar.attributes[k] = { value: v || 10, save: hasSave }; }); saveCharacter(newChar); state.currentChar = newChar; state.view = 'SHEET'; state.activeTab = 'FICHA'; render(); }
         function setTab(tab) { state.activeTab = tab; if(tab === 'DADOS') state.unreadRolls = false; render(true); }
         function setRollMode(mode) { state.rollMode = mode; render(true); }
         function updateSheetAttr(key, delta) {
@@ -1633,7 +1929,7 @@
 
             function giPosCost() { return draft.positive.reduce((a, i) => a + i.custo, 0); }
             function giNegVal()  { return draft.negative.reduce((a, i) => a + i.valor, 0); }
-            function giFree()    { const s = [...draft.positive].sort((a,b) => b.custo - a.custo); return s.length > 0 ? s[0].custo : 0; }
+            function giFree()    { return calcGeneralIncFreeCost(draft.positive); }
             function giPaid()    { return Math.max(0, giPosCost() - giFree()); }
             function giBalance() { return giNegVal() - giPaid(); }
             function giIsOk()    { return giBalance() >= 0; }
@@ -1726,7 +2022,7 @@
                                 if (giFilterText && posShown.length === 0 && negShown.length === 0) {
                                     return `<div style="text-align:center;color:#374151;font-style:italic;font-size:11px;padding:20px">Nenhuma inclinação encontrada para "${giFilterText}".</div>`;
                                 }
-                                return `${posShown.length ? `<div style="font-size:9px;font-weight:900;color:#00ff9d;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;display:flex;align-items:center;gap:6px">👍 Gerais Positivas <span style="font-size:8px;background:#00ff9d15;border:1px solid #00ff9d30;padding:2px 6px;border-radius:4px;font-weight:700">1ª Grátis (Maior Valor)</span></div>${posShown.map(renderPosInc).join('')}` : ''}
+                                return `${posShown.length ? `<div style="font-size:9px;font-weight:900;color:#00ff9d;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;display:flex;align-items:center;gap:6px">👍 Gerais Positivas <span style="font-size:8px;background:#00ff9d15;border:1px solid #00ff9d30;padding:2px 6px;border-radius:4px;font-weight:700">1ª Básica Grátis (custo ≤ ${GENERAL_INC_BASIC_MAX_CUSTO})</span></div>${posShown.map(renderPosInc).join('')}` : ''}
                                 ${negShown.length ? `<div style="font-size:9px;font-weight:900;color:#ff4d6d;text-transform:uppercase;letter-spacing:2px;margin:12px 0 8px;display:flex;align-items:center;gap:6px">👎 Gerais Negativas</div>${negShown.map(renderNegInc).join('')}` : ''}`;
                             })()}
                         </div>
@@ -1944,6 +2240,7 @@
             }
         }
         function toggleSheetAccordion() { state.sheetOtherSkillsOpen = !state.sheetOtherSkillsOpen; render(true); }
+        function toggleHatsuAccordion() { state.hatsuListOpen = !state.hatsuListOpen; render(true); }
         function handleArmorClick() { alert('Funcionalidade de Armadura em desenvolvimento.'); }
         function uploadCharacterImage(input) { if (input.files && input.files[0]) { const reader = new FileReader(); reader.onload = function(e) { state.currentChar.imageUrl = e.target.result; state.currentChar.imagePosition = { x: 50, y: 50 }; saveCharacter(state.currentChar); render(true); }; reader.readAsDataURL(input.files[0]); } }
 

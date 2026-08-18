@@ -19,6 +19,7 @@ const state = {
     rollMode: 'NORMAL',
     allocations: {},
     sheetOtherSkillsOpen: null,
+    hatsuListOpen: null,
     rollResult: null,
     unreadRolls: false,
     invMode: 'BAG',

@@ -362,7 +362,7 @@ function closeHatsuCreator() {
     acerto:    { label: '⚔️ Acerto',           desc: '+1 na jogada de ataque' },
     atributos: { label: '💪 Atributos',        desc: '+1 em atributo ou perícia' },
     dano:      { label: '🔥 Dano',             desc: '+1 passo na tabela de dano' },
-    alcance:   { label: '📏 Alcance',          desc: '+3m de alcance' },
+    alcance:   { label: '📏 Alcance',          desc: '+1,5m de alcance' },
     area:      { label: '🔵 Área',             desc: '+1,5m de raio/área' },
     duracao:   { label: '⏱️ Duração',          desc: '+1 rodada de duração' },
     cd:        { label: '🎯 CD do TR',          desc: '+1 na CD do Teste de Resistência' },
@@ -486,6 +486,115 @@ function closeHatsuCreator() {
             const h = char.hatsus[idx];
             if (!h) return;
             window._showPrimeiroHatsuModal(char, idx, h, char.genialidade);
+        };
+
+        // ── Modal de distribuição de Atributos do Constructo (Golem de Aura e afins) ──────────
+        // Mesmo padrão visual/interação do modal de 5 Graus do 1º Hatsu acima. O orçamento de
+        // pontos é o modificador de INT do USUÁRIO (não do constructo) — mesma regra já usada
+        // pelos botões +/- antigos (rev. Manual: "atributos do Constructo vêm do bônus de
+        // Inteligência do Materializador").
+        window._showConstructoAttrModal = function(char, hatsuIdx) {
+            const h = char.hatsus[hatsuIdx];
+            if (!h) return;
+            if (!h.constructo) h.constructo = {};
+            const cst = h.constructo;
+            const hatsuClasse = h.classe || char.class || '';
+            const catDB = (window.HATSU_DB && window.HATSU_DB.categorias[hatsuClasse]) || {};
+            const tc = catDB.cor || '#00ff88';
+            const intMod = getMod((char.attributes.INT || {}).value || 10);
+            const TOTAL = Math.max(0, intMod);
+            const ATTRS = ['FOR', 'DES', 'CON', 'INT', 'SAB', 'PRE'];
+            const ATTR_INFO = {
+                FOR: { icon: '💪', desc: 'Dano/acerto do constructo (se escolhido no ataque)' },
+                DES: { icon: '🏃', desc: 'Dano/acerto do constructo (se escolhido no ataque)' },
+                CON: { icon: '❤️', desc: '+2 PV por ponto (Golem de Aura) e +1 CA por ponto' },
+                INT: { icon: '🧠', desc: 'Perícias e testes mentais do constructo' },
+                SAB: { icon: '👁️', desc: 'Perícias e testes de percepção do constructo' },
+                PRE: { icon: '🎭', desc: 'Perícias e testes sociais do constructo' },
+            };
+            const existing = cst.atributos || {};
+            const alloc = {};
+            ATTRS.forEach(a => alloc[a] = Math.max(0, existing[a] || 0));
+
+            const overlay = document.createElement('div');
+            overlay.id = 'constructo-attr-overlay';
+            overlay.style.cssText = 'position:fixed;inset:0;background:#000000dd;display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;font-family:Rajdhani,sans-serif';
+
+            function rebuild() {
+                const total = Object.values(alloc).reduce((s, v) => s + v, 0);
+                const remaining = TOTAL - total;
+                const done = total === TOTAL;
+                const rowsHtml = ATTRS.map(a => {
+                    const info = ATTR_INFO[a];
+                    const val = alloc[a] || 0;
+                    const canAdd = remaining > 0;
+                    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#0a0f1a;border-radius:10px;border:1px solid ${val > 0 ? tc + '44' : '#1f2937'}">
+                        <div>
+                            <div style="font-size:11px;font-weight:700;color:${val > 0 ? tc : '#d1d5db'}">${info.icon} ${a}</div>
+                            <div style="font-size:8px;color:#6b7280">${info.desc}</div>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <button onclick="window._caGrauDecr('${a}')"
+                                style="width:28px;height:28px;border-radius:7px;background:${val > 0 ? tc + '22' : '#1f2937'};border:1px solid ${val > 0 ? tc + '44' : '#374151'};color:${val > 0 ? tc : '#4b5563'};font-size:16px;font-weight:900;cursor:${val > 0 ? 'pointer' : 'default'};line-height:1">−</button>
+                            <span style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:14px;color:${val > 0 ? tc : '#4b5563'};min-width:18px;text-align:center">${val}</span>
+                            <button onclick="window._caGrauIncr('${a}')"
+                                style="width:28px;height:28px;border-radius:7px;background:${canAdd ? tc + '22' : '#1f2937'};border:1px solid ${canAdd ? tc + '44' : '#374151'};color:${canAdd ? tc : '#4b5563'};font-size:16px;font-weight:900;cursor:${canAdd ? 'pointer' : 'default'};line-height:1">+</button>
+                        </div>
+                    </div>`;
+                }).join('');
+                overlay.innerHTML = `
+                <div style="background:#0d1117;border:2px solid ${tc};border-radius:20px;padding:24px;width:100%;max-width:380px;box-shadow:0 0 40px ${tc}44;max-height:90vh;overflow-y:auto">
+                    <div style="text-align:center;margin-bottom:16px">
+                        <div style="font-size:24px;margin-bottom:6px">🐣</div>
+                        <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:13px;color:${tc};text-transform:uppercase;letter-spacing:2px">Atributos do Constructo</div>
+                        <div style="font-size:9px;color:#9ca3af;margin-top:6px;line-height:1.5">
+                            Distribua <b style="color:${tc}">${TOTAL} ponto${TOTAL !== 1 ? 's' : ''}</b> (seu modificador de INT) entre os atributos do constructo.
+                        </div>
+                        <div style="margin-top:10px;display:inline-flex;align-items:center;gap:8px;padding:6px 16px;border-radius:20px;background:${done ? tc + '22' : '#1f2937'};border:1px solid ${done ? tc + '55' : '#374151'}">
+                            <span style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:18px;color:${done ? tc : '#9ca3af'}">${total}/${TOTAL}</span>
+                            <span style="font-size:9px;color:#6b7280">${remaining > 0 ? remaining + ' restante' + (remaining > 1 ? 's' : '') : 'Completo ✓'}</span>
+                        </div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">${rowsHtml}</div>
+                    <button onclick="window._confirmConstructoAttr()" ${done ? '' : 'disabled'}
+                        style="width:100%;padding:13px;border-radius:10px;background:${done ? tc : '#374151'};border:none;color:${done ? '#000' : '#6b7280'};font-family:'Orbitron',sans-serif;font-weight:900;font-size:11px;text-transform:uppercase;cursor:${done ? 'pointer' : 'not-allowed'};letter-spacing:1px;box-shadow:${done ? '0 0 16px ' + tc + '55' : 'none'};transition:all .2s">
+                        Concluir Construção
+                    </button>
+                    <button onclick="document.getElementById('constructo-attr-overlay').remove()" style="width:100%;margin-top:8px;padding:10px;border-radius:10px;background:transparent;border:1px solid #374151;color:#6b7280;font-size:9px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:1px">Cancelar</button>
+                </div>`;
+            }
+
+            window._caGrauIncr = function(a) {
+                const total = Object.values(alloc).reduce((s, v) => s + v, 0);
+                if (total >= TOTAL) return;
+                alloc[a] = (alloc[a] || 0) + 1;
+                rebuild();
+            };
+            window._caGrauDecr = function(a) {
+                if ((alloc[a] || 0) <= 0) return;
+                alloc[a]--;
+                rebuild();
+            };
+            window._confirmConstructoAttr = function() {
+                const total = Object.values(alloc).reduce((s, v) => s + v, 0);
+                if (total !== TOTAL) return;
+                if (!confirm("Após concluir a construção do constructo, os atributos só poderão ser editados ao receber mais P.N para editar o Hatsu (ou seja, ao subir de nível). Tem certeza que deseja concluir?")) return;
+                if (!char.hatsus[hatsuIdx].constructo) char.hatsus[hatsuIdx].constructo = {};
+                char.hatsus[hatsuIdx].constructo.atributos = Object.assign({}, alloc);
+                char.hatsus[hatsuIdx].constructo.atributosConcluidos = true;
+                char.hatsus[hatsuIdx].constructo.atributosConcluidosNivel = char.level;
+                saveCharacter(char);
+                overlay.remove();
+                render(true);
+            };
+
+            document.body.appendChild(overlay);
+            rebuild();
+        };
+
+        window._openConstructoAttrModal = function(hatsuIdx) {
+            const char = state.currentChar;
+            window._showConstructoAttrModal(char, hatsuIdx);
         };
 
         window._showSanityModal = function(char, threshold, currentPct) {
@@ -695,9 +804,9 @@ function closeHatsuCreator() {
             // Effect messages per principle
             const nivel = d[key] || 1;
            const EFEITOS = {
-    ten:   ['🛡️ TEN ativado — +2 RD (Corte, Impacto, Explosão) por esta reação.',
-            '🛡️ TEN ativado — +4 RD. Imune a projéteis que igualem CA.',
-            '🛡️ TEN ativado — +6 RD. Máxima proteção.'],
+    ten:   ['🛡️ TEN ativado (Reação ou Ação Bônus) — +2 RD (Corte, Impacto, Explosão) por esta reação.',
+            '🛡️ TEN ativado (Reação ou Ação Bônus) — +4 RD. Imune a projéteis que igualem CA.',
+            '🛡️ TEN ativado (Reação ou Ação Bônus) — +6 RD. Máxima proteção.'],
     ren:   ['💪 REN ativado — próximo ataque no turno: +1 Grau de dano.',
             '💪 REN ativado — +1 Grau de dano e +3 em Intimidação/Arcanismo com REN.',
             '💪 REN ativado — Intermediário + pode usar 1×/dia sem custo de aura.'],

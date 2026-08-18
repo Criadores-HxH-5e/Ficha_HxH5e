@@ -166,8 +166,11 @@ function renderHatsuCreator(container) {
             var ALCANCE_AREA_IDS = ['rg_l9','rg_l10'];
             if (sel && ALCANCE_AREA_IDS.includes(item.id)) {
                 var aaVal = (hb && hb.specialChoices && hb.specialChoices[item.id]) || '';
-                var aaBonusAlc = item.id === 'rg_l9' ? '+1,5m' : '+3m';
-                var aaBonusArea = item.id === 'rg_l9' ? '+1,5m' : '+1,5m';
+                // rg_l9 e rg_l10 concedem os mesmos metros de Alcance (3m) e Área (1,5m) — a taxa de
+                // Alcance agora é 1,5m/grau (igual à de Área), então rg_l9 só precisa do dobro de graus
+                // pra chegar nos mesmos 3m (corrige bug antigo que mostrava 1,5m pra rg_l9 no Alcance).
+                var aaBonusAlc = '+3m';
+                var aaBonusArea = '+1,5m';
                 specialInputHtml = '<div style="margin-top:8px" onclick="event.stopPropagation()">'
                     + '<div style="font-size:8px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">📍 Bônus em:</div>'
                     + '<div style="display:flex;gap:6px">'
@@ -741,11 +744,11 @@ function renderHatsuCreator(container) {
                     const scKey = item.id;
                     const chosen = specialChoices[scKey] || '';
                     const opts = item.id === 'em_e2'
-                        ? [['Alcance','📐','+6m · 2 Grau/Passo'],['Área','🔵','+3m · 2 Grau/Passo']]
-                        : [['Alcance','📐','+3m à distância · 1 Grau/Passo'],['Área','🔵','+6m em forma · 4 Grau/Passo']];
+                        ? [['Alcance','📐','+6m · 4 Grau/Passo'],['Área','🔵','+3m · 2 Grau/Passo']]
+                        : [['Alcance','📐','+3m à distância · 2 Grau/Passo'],['Área','🔵','+6m em forma · 4 Grau/Passo']];
                     const confirmLabel = item.id === 'em_e2'
-                        ? { Alcance: '+6m · 2 Grau/Passo', 'Área': '+3m · 2 Grau/Passo' }
-                        : { Alcance: '+3m à distância · 1 Grau/Passo', 'Área': '+6m em forma · 4 Grau/Passo' };
+                        ? { Alcance: '+6m · 4 Grau/Passo', 'Área': '+3m · 2 Grau/Passo' }
+                        : { Alcance: '+3m à distância · 2 Grau/Passo', 'Área': '+6m em forma · 4 Grau/Passo' };
                     specialHtml = '<div style="margin-top:8px;background:#0a0f1a;border:1px solid '+ color +'33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
                         + '<div style="font-size:8px;font-weight:900;color:'+ color +';text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">📐 Aplicar bônus em:</div>'
                         + '<div style="display:flex;gap:6px">'
@@ -1886,6 +1889,13 @@ window._hNext = function() {
             criadoEm: (hb.editingIdx !== undefined ? char.hatsus[hb.editingIdx].criadoEm : null) || new Date().toLocaleDateString('pt-BR')
         };
         if (hb.editingIdx !== undefined) {
+            // rev. — o wizard só conhece os campos de "regras" do Hatsu (restrições/efeitos/etc.); campos
+            // preenchidos fora dele (Ficha do Constructo, 5 Graus do 1º Hatsu, bônus de Talento) viviam
+            // só no objeto antigo e eram apagados silenciosamente por essa substituição total. Preserva.
+            const oldHatsu = char.hatsus[hb.editingIdx] || {};
+            if (oldHatsu.constructo !== undefined) hatsuData.constructo = oldHatsu.constructo;
+            if (oldHatsu.primeiroHatsuGraus !== undefined) hatsuData.primeiroHatsuGraus = oldHatsu.primeiroHatsuGraus;
+            if (oldHatsu.bonusGraus !== undefined) hatsuData.bonusGraus = oldHatsu.bonusGraus;
             char.hatsus[hb.editingIdx] = hatsuData;
         } else {
             char.hatsus.push(hatsuData);
@@ -2391,6 +2401,33 @@ window._hShowGrauLimiteToast = function(label, atual, max, nivel) {
     }, 5000);
 };
 
+// rev. — fora da categoria EMISSÃO, um Hatsu só pode ter até 3 restrições/efeitos que concedam
+// Grau de Potência de Alcance e/ou Área (soma de rg+rc+eg+ec, contando repetições de um mesmo ID
+// separadamente). Emissão fica de fora do limite por ser a categoria de longo alcance por natureza.
+function _hAlcanceAreaIds() {
+    const s = new Set();
+    Object.keys(window.ALCANCE_GRAU_MAP || {}).forEach(k => s.add(k));
+    Object.keys(window.AREA_GRAU_MAP || {}).forEach(k => s.add(k));
+    s.add('eg1'); s.add('eg9'); // Efeitos Gerais de Alcance/Área — usam taxa própria, fora dos maps
+    return s;
+}
+function _hCountAlcanceAreaCompras(hb) {
+    const ids = _hAlcanceAreaIds();
+    let count = 0;
+    [...(hb.rg||[]), ...(hb.rc||[]), ...(hb.eg||[]), ...(hb.ec||[])].forEach(id => { if (ids.has(id)) count++; });
+    return count;
+}
+function _hBlockedByAlcanceAreaLimit(hb, id) {
+    if (!_hAlcanceAreaIds().has(id)) return false;
+    const cls = state.currentChar && state.currentChar.class;
+    if (cls === 'EMISSÃO') return false;
+    if (_hCountAlcanceAreaCompras(hb) >= 3) {
+        alert('Fora da categoria Emissão, você só pode ter até 3 restrições/efeitos que concedam Alcance e/ou Área.');
+        return true;
+    }
+    return false;
+}
+
 window._hToggleR = function(id, tipo) {
     const hb = state.hatsuBuilder; if (!hb) return;
     const arr = tipo === 'rg' ? hb.rg : hb.rc;
@@ -2416,6 +2453,7 @@ window._hToggleR = function(id, tipo) {
                 if (_charClsR !== 'ESPECIALIZAÇÃO' && _charClsR !== 'MANIPULAÇÃO' && _charClsR !== 'MATERIALIZAÇÃO') return;
             }
         }
+        if (_hBlockedByAlcanceAreaLimit(hb, id)) return;
         arr.push(id);
         // Juramento Imutável: grava o nível em que foi adquirida (o bônus só ativa 3 níveis depois)
         if (id === 'rg_e5' && hb.juramentoImutavelNivelBase == null) {
@@ -2567,6 +2605,7 @@ function _hTryComprarEfeito(hb, item, id, tipo, pn, isRepetivel) {
             if (_charCls !== 'ESPECIALIZAÇÃO' && _charCls !== 'MANIPULAÇÃO' && _charCls !== 'MATERIALIZAÇÃO') return false;
         }
     }
+    if (_hBlockedByAlcanceAreaLimit(hb, id)) return false;
     const charLevelNow = parseInt(char.level) || 0;
     const _beforeE = window._hSnapshotGrauTotals(hb);
     arr.push(id);
