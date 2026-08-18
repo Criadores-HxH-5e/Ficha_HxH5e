@@ -806,8 +806,12 @@ function renderHatsuCreator(container) {
                 }
 
                 // rm_e2: Golem de Aura — material picker (tamanho fixo: Pequeno)
+                // rev. — cada cópia comprada (Golem de Aura é repetível) precisa de material e
+                // Característica de Invocação PRÓPRIOS. Antes, as duas escolhas viviam numa chave
+                // única compartilhada ('rm_e2'/'rm_e2_carac'), então a 2ª cópia sobrescrevia a 1ª e
+                // era impossível ter dois Golems diferentes. Cópia 0 usa a chave sem sufixo (mantém
+                // compatibilidade com hatsus salvos antes desta correção); cópias extras usam "#N".
                 if (item.id === 'rm_e2') {
-                    const chosenMat = specialChoices['rm_e2'] || '';
                    const MATERIAIS = [
                         { nome:'Tecido/Papel',      ca:11, icon:'📄' },
                         { nome:'Cristal/Vidro',     ca:12, icon:'💎' },
@@ -817,42 +821,54 @@ function renderHatsuCreator(container) {
                         { nome:'Metal',             ca:15, icon:'⚙️' },
                         { nome:'Gasoso',            ca:'—', icon:'💨' },
                     ];
-                    const matSel = MATERIAIS.find(function(m){ return m.nome === chosenMat; });
-                    const chosenCaracE2 = specialChoices['rm_e2_carac'] || '';
                     const CARACTS_E2 = window.CARACTERISTICAS_INVOCACAO || [];
-                    const caracSelE2 = CARACTS_E2.find(function(c){ return c.nome === chosenCaracE2; });
+                    const totalCopiasRm2 = Math.max(1, (hb.ec||[]).filter(function(x){ return x === 'rm_e2'; }).length);
+                    const keyRm2 = function(base, i) { return i > 0 ? (base + '#' + i) : base; };
+                    let blocksRm2Html = '';
+                    for (let _i = 0; _i < totalCopiasRm2; _i++) {
+                        const matKey = keyRm2('rm_e2', _i);
+                        const caracKey = keyRm2('rm_e2_carac', _i);
+                        const chosenMat = specialChoices[matKey] || '';
+                        const matSel = MATERIAIS.find(function(m){ return m.nome === chosenMat; });
+                        const chosenCaracE2 = specialChoices[caracKey] || '';
+                        const caracSelE2 = CARACTS_E2.find(function(c){ return c.nome === chosenCaracE2; });
+                        const tituloGolem = totalCopiasRm2 > 1 ? ('💜 Golem #' + (_i + 1) + ' — Material:') : '💜 Material do Constructo:';
+                        blocksRm2Html += '<div style="' + (_i > 0 ? ('margin-top:14px;padding-top:12px;border-top:1px dashed ' + color + '33;') : '') + '">'
+                            + '<div style="font-size:8px;font-weight:900;color:'+ color +';text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">'+ tituloGolem +'</div>'
+                            + '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px">'
+                            + MATERIAIS.map(function(m) {
+                                var active = chosenMat === m.nome;
+                                return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\''+ matKey +'\',\''+ m.nome +'\')" '
+                                    + 'style="padding:5px 8px;border-radius:7px;font-size:8px;font-weight:900;cursor:pointer;border:1.5px solid '+ (active?color:'#1f2937') +';background:'+ (active?color+'22':'transparent') +';color:'+ (active?color:'#d1d5db') +';transition:all .15s">'
+                                    + m.icon + ' ' + m.nome + ' <span style="opacity:.7;font-size:7px">CA '+ m.ca +'</span></button>';
+                            }).join('')
+                            + '</div>'
+                            + '<div style="font-size:8px;color:#6b7280;margin-bottom:6px">📍 Tamanho: <strong style="color:#d1d5db">Pequeno</strong> (fixo)</div>'
+                            + (chosenMat
+                                ? '<div style="background:#060d1a;border:1px solid '+ color +'33;border-radius:8px;padding:8px;font-size:8px;color:#9ca3af">'
+                                    + '<span style="color:'+ color +';font-weight:700">✓ Constructo: '+ chosenMat +' · Pequeno</span><br>'
+                                    + 'CA base: '+ (matSel ? matSel.ca : '—') +' + INT &nbsp;|&nbsp; PV = 5 + CON×2'
+                                  + '</div>'
+                                : '<div style="font-size:8px;color:#f87171;margin-top:2px">⚠ Escolha o material</div>')
+                            + '<div style="font-size:8px;font-weight:900;color:'+ color +';text-transform:uppercase;letter-spacing:1px;margin:10px 0 8px">✨ Característica de Invocação (grátis):</div>'
+                            + '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px">'
+                            + CARACTS_E2.map(function(c) {
+                                var active = chosenCaracE2 === c.nome;
+                                return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\''+ caracKey +'\',\''+ c.nome +'\')" '
+                                    + 'style="padding:4px 8px;border-radius:7px;font-size:8px;font-weight:900;cursor:pointer;border:1.5px solid '+ (active?color:'#1f2937') +';background:'+ (active?color+'22':'transparent') +';color:'+ (active?color:'#d1d5db') +';transition:all .15s">'
+                                    + c.icon + ' ' + c.nome + '</button>';
+                            }).join('')
+                            + '</div>'
+                            + (caracSelE2
+                                ? '<div style="background:#060d1a;border:1px solid '+ color +'33;border-radius:8px;padding:8px;font-size:8px;color:#9ca3af">'
+                                    + '<span style="color:'+ color +';font-weight:700">'+ caracSelE2.icon +' '+ caracSelE2.nome +'</span><br>'
+                                    + caracSelE2.desc
+                                  + '</div>'
+                                : '<div style="font-size:8px;color:#f87171;margin-top:2px">⚠ Escolha a Característica de Invocação incluída gratuitamente</div>')
+                            + '</div>';
+                    }
                     specialHtml = '<div style="margin-top:8px;background:#0a0f1a;border:1px solid '+ color +'33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
-                        + '<div style="font-size:8px;font-weight:900;color:'+ color +';text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">💜 Material do Constructo:</div>'
-                        + '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px">'
-                        + MATERIAIS.map(function(m) {
-                            var active = chosenMat === m.nome;
-                            return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\'rm_e2\',\''+ m.nome +'\')" '
-                                + 'style="padding:5px 8px;border-radius:7px;font-size:8px;font-weight:900;cursor:pointer;border:1.5px solid '+ (active?color:'#1f2937') +';background:'+ (active?color+'22':'transparent') +';color:'+ (active?color:'#d1d5db') +';transition:all .15s">'
-                                + m.icon + ' ' + m.nome + ' <span style="opacity:.7;font-size:7px">CA '+ m.ca +'</span></button>';
-                        }).join('')
-                        + '</div>'
-                        + '<div style="font-size:8px;color:#6b7280;margin-bottom:6px">📍 Tamanho: <strong style="color:#d1d5db">Pequeno</strong> (fixo)</div>'
-                        + (chosenMat
-                            ? '<div style="background:#060d1a;border:1px solid '+ color +'33;border-radius:8px;padding:8px;font-size:8px;color:#9ca3af">'
-                                + '<span style="color:'+ color +';font-weight:700">✓ Constructo: '+ chosenMat +' · Pequeno</span><br>'
-                                + 'CA base: '+ (matSel ? matSel.ca : '—') +' + INT &nbsp;|&nbsp; PV = 5 + CON×2'
-                              + '</div>'
-                            : '<div style="font-size:8px;color:#f87171;margin-top:2px">⚠ Escolha o material</div>')
-                        + '<div style="font-size:8px;font-weight:900;color:'+ color +';text-transform:uppercase;letter-spacing:1px;margin:10px 0 8px">✨ Característica de Invocação (grátis):</div>'
-                        + '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px">'
-                        + CARACTS_E2.map(function(c) {
-                            var active = chosenCaracE2 === c.nome;
-                            return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\'rm_e2_carac\',\''+ c.nome +'\')" '
-                                + 'style="padding:4px 8px;border-radius:7px;font-size:8px;font-weight:900;cursor:pointer;border:1.5px solid '+ (active?color:'#1f2937') +';background:'+ (active?color+'22':'transparent') +';color:'+ (active?color:'#d1d5db') +';transition:all .15s">'
-                                + c.icon + ' ' + c.nome + '</button>';
-                        }).join('')
-                        + '</div>'
-                        + (caracSelE2
-                            ? '<div style="background:#060d1a;border:1px solid '+ color +'33;border-radius:8px;padding:8px;font-size:8px;color:#9ca3af">'
-                                + '<span style="color:'+ color +';font-weight:700">'+ caracSelE2.icon +' '+ caracSelE2.nome +'</span><br>'
-                                + caracSelE2.desc
-                              + '</div>'
-                            : '<div style="font-size:8px;color:#f87171;margin-top:2px">⚠ Escolha a Característica de Invocação incluída gratuitamente</div>')
+                        + blocksRm2Html
                         + '</div>';
                 }
 

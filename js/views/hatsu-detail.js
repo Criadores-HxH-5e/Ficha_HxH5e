@@ -1215,8 +1215,12 @@ function renderHatsuDetail(container) {
             ? cst.atributoAtaque
             : (atributosDist.FOR >= atributosDist.DES ? 'FOR' : 'DES');
 
-        // Características já escolhidas por outros efeitos (rm_e2_carac, rm_e3) + as extras escolhidas aqui
-        const caracJaEscolhidas = [(h.specialChoices || {})['rm_e2_carac'], (h.specialChoices || {})['rm_e3']].filter(Boolean);
+        // Características já escolhidas por outros efeitos (rm_e2_carac × cópia, rm_e3) + as extras
+        // escolhidas aqui. Cada cópia de Golem de Aura (rm_e2) tem sua própria Característica de
+        // Invocação — cópia 0 na chave sem sufixo, cópias extras em 'rm_e2_carac#1', '#2', etc.
+        const _rm2CopiesForCarac = constructEffectIds.filter(id => id === 'rm_e2').length;
+        const _rm2CaracsAll = Array.from({ length: _rm2CopiesForCarac }, (_, i) => (h.specialChoices || {})[i > 0 ? `rm_e2_carac#${i}` : 'rm_e2_carac']).filter(Boolean);
+        const caracJaEscolhidas = [..._rm2CaracsAll, (h.specialChoices || {})['rm_e3']].filter(Boolean);
         const caracExtras = cst.caracteristicas || [];
         const todasCaracteristicas = [...caracJaEscolhidas, ...caracExtras];
         const slotsCaracteristicas = constructEffectIds.reduce((sum, id) => sum + (CDB.EFEITO_CARACTERISTICAS[id] || 0), 0);
@@ -1269,6 +1273,11 @@ function renderHatsuDetail(container) {
         const pvTotal = pvBase + pvEfeitos + pvRestricoes + robustezBonus;
 
         // ── CA ──
+        // NOTA: "Ficha do Constructo" (nome/imagem/atributos/PV/CA/ataque) ainda é 1 bloco só por
+        // Hatsu, mesmo com 2+ cópias de Golem de Aura — por isso usamos aqui sempre o material da
+        // cópia 0. Ter 2 Golems com PV/CA/atributos DE VERDADE independentes exigiria transformar
+        // h.constructo num array (1 ficha por cópia) — fora do escopo desta correção, que resolveu
+        // só o material/característica de cada cópia ficarem sobrescrevendo um ao outro.
         const materialEscolhido = (h.specialChoices || {})['rm_e2'] || '';
         const usaMaterial = cst.tipoCA === 'material' || (cst.tipoCA !== 'organico' && !!materialEscolhido);
         const caBaseMaterial = usaMaterial ? (CDB.CA_POR_MATERIAL || {})[materialEscolhido] : undefined;
@@ -1709,8 +1718,14 @@ function renderHatsuDetail(container) {
           }).join('')
         : `<div style="text-align:center;color:#374151;font-style:italic;font-size:11px;padding:20px">Nenhuma restrição selecionada.</div>`;
 
+    // Conta ocorrências de cada ID pra saber "qual cópia" cada card representa (efeitosSel preserva
+    // duplicatas na mesma ordem de h.efeitos) — usado por rm_e2 pra mostrar o material/característica
+    // certos de CADA Golem, em vez de repetir a mesma escolha em todos os cards.
+    const _eIdOccurrence = {};
     const eHtml = efeitosSel.length
         ? efeitosSel.map(e => {
+            const _eCopyIdx = _eIdOccurrence[e.id] || 0;
+            _eIdOccurrence[e.id] = _eCopyIdx + 1;
             const isGeral = e.origem === 'geral';
             const ec = isGeral ? '#9ca3af' : tc;
             const costColor = (e.pn||1) >= 3 ? '#f87171' : (e.pn||1) >= 2 ? '#fbbf24' : '#6b7280';
@@ -1725,7 +1740,10 @@ function renderHatsuDetail(container) {
    }
             if (e.id === 'eg4' && sc.eg4) specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">🔀 Efeito Alternativo → ${sc.eg4}</div>`;
             if (e.id === 'eg6' && sc.eg6) specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">🎯 Poder é Intenção: ${sc.eg6}</div>`;
-            if (e.id === 'rm_e2' && sc.rm_e2) { specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">🧱 Pequeno · ${sc.rm_e2} &nbsp;|&nbsp; PV = 5 + CON×2</div>`; }
+            if (e.id === 'rm_e2') {
+                const _rm2Mat = sc[_eCopyIdx > 0 ? `rm_e2#${_eCopyIdx}` : 'rm_e2'];
+                if (_rm2Mat) specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">🧱 Pequeno · ${_rm2Mat} &nbsp;|&nbsp; PV = 5 + CON×2</div>`;
+            }
             if (e.id === 'rm_e3' && sc.rm_e3) { specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">✨ Característica: ${sc.rm_e3}</div>`; }
            if (e.id === 'rm_e5' && sc.rm_e5) { const _e5Names = {'ap_partes':'Aparência por Partes','fn_partes':'Funções em Partes','ap_compl':'Aparência Completa','fn_compl':'Funções Completas','ben10':'Ben 10'}; specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">🎭 Alteração: ${_e5Names[sc.rm_e5] || sc.rm_e5}</div>`; }
             if (e.id === 're_e17' && sc.re_e17) { const _e17n = {'vidente':'Vidente (Sharingan)','profeta':'Profeta','cego':'Cego de Tebas','joia':'Joia do Tempo','olho':'Olho de Agamoto'}; specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">🕧 Previsão: ${_e17n[sc.re_e17] || sc.re_e17}</div>`; }
