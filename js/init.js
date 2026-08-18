@@ -597,6 +597,102 @@ function closeHatsuCreator() {
             window._showConstructoAttrModal(char, hatsuIdx);
         };
 
+        // ── Editar Traços Raciais (ficha já criada) ───────────────────────────────────────────
+        // Permite preencher retroativamente escolhas que não existiam quando a ficha foi criada
+        // (ex: "Esforço no lugar de talento" do Humano, ou a escolha de característica de raças que
+        // hoje viraram `opcoes_caracteristica` mas antes só tinham texto informativo).
+        window._openRaceTraitsModal = function() {
+            const char = state.currentChar;
+            if (!char) return;
+            const isHumano = char.race === 'Humano Comum';
+            const raceData = SYSTEM_DB.racas.find(r => r.nome === char.race);
+            const hasChoice = !!(raceData && (raceData.opcoes_caracteristica || []).length > 0);
+            if (!isHumano && !hasChoice) { alert('Esta raça não tem nenhuma característica de escolha para editar.'); return; }
+
+            const tc = getComputedStyle(document.documentElement).getPropertyValue('--theme-color-hex').trim() || '#00ff9d';
+            const esforcoDB = SYSTEM_DB.esforcoRacas || {};
+            const esforcoRaceNames = Object.keys(esforcoDB);
+
+            // Rascunho local — só grava no personagem ao confirmar.
+            const draft = {
+                effortRace: char.effortRace || esforcoRaceNames[0] || null,
+                effortTrait: char.effortTrait || null,
+                raceFeatureChoice: char.raceFeatureChoice || null,
+            };
+
+            const overlay = document.createElement('div');
+            overlay.id = 'race-traits-modal-overlay';
+            overlay.style.cssText = 'position:fixed;inset:0;background:#000000dd;display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;font-family:Rajdhani,sans-serif';
+
+            function rebuild() {
+                let bodyHtml = '';
+                if (isHumano) {
+                    if (!draft.effortRace) draft.effortRace = esforcoRaceNames[0];
+                    const esforcoData = esforcoDB[draft.effortRace] || { opcoes: [] };
+                    bodyHtml = `
+                        <h4 style="font-size:10px;font-weight:900;color:${tc};text-transform:uppercase;letter-spacing:2px;margin-bottom:8px">💪 Esforço no Lugar de Talento</h4>
+                        <p style="font-size:9px;color:#9ca3af;margin-bottom:10px;line-height:1.5">Escolha UMA característica (sem o bônus de atributo) de uma destas raças:</p>
+                        <select id="rtm-race-select" style="width:100%;background:#000;border:1px solid #374151;border-radius:8px;padding:8px;color:#fff;font-size:12px;margin-bottom:10px">
+                            ${esforcoRaceNames.map(rn => `<option value="${rn}" ${draft.effortRace === rn ? 'selected' : ''}>${rn}</option>`).join('')}
+                        </select>
+                        <div style="display:flex;flex-direction:column;gap:8px">
+                            ${esforcoData.opcoes.map(o => `
+                                <label style="display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:10px;border:1.5px solid ${draft.effortTrait === o.nome ? tc : '#1f2937'};background:${draft.effortTrait === o.nome ? tc + '11' : '#0a0f1a'};cursor:pointer">
+                                    <input type="radio" name="rtm-trait" value="${o.nome}" ${draft.effortTrait === o.nome ? 'checked' : ''} style="margin-top:3px" onclick="window._rtmSetTrait('${o.nome.replace(/'/g, "\\'")}')">
+                                    <div>
+                                        <div style="font-size:11px;font-weight:700;color:#fff">${o.nome}</div>
+                                        <div style="font-size:9px;color:#9ca3af;margin-top:2px;line-height:1.4">${o.efeito}</div>
+                                    </div>
+                                </label>`).join('')}
+                        </div>`;
+                } else {
+                    bodyHtml = `
+                        <h4 style="font-size:10px;font-weight:900;color:${tc};text-transform:uppercase;letter-spacing:2px;margin-bottom:10px">Escolha uma Característica</h4>
+                        <div style="display:flex;flex-direction:column;gap:8px">
+                            ${(raceData.opcoes_caracteristica || []).map(f => `
+                                <label style="display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:10px;border:1.5px solid ${draft.raceFeatureChoice === f.nome ? tc : '#1f2937'};background:${draft.raceFeatureChoice === f.nome ? tc + '11' : '#0a0f1a'};cursor:pointer">
+                                    <input type="radio" name="rtm-featurechoice" value="${f.nome}" ${draft.raceFeatureChoice === f.nome ? 'checked' : ''} style="margin-top:3px" onclick="window._rtmSetFeatureChoice('${f.nome.replace(/'/g, "\\'")}')">
+                                    <div>
+                                        <div style="font-size:11px;font-weight:700;color:#fff">${f.nome}</div>
+                                        <div style="font-size:9px;color:#9ca3af;margin-top:2px;line-height:1.4">${f.efeito || f.mecanica || ''}</div>
+                                    </div>
+                                </label>`).join('')}
+                        </div>`;
+                }
+                const canConfirm = isHumano ? !!draft.effortTrait : !!draft.raceFeatureChoice;
+                overlay.innerHTML = `
+                    <div style="background:#0d1117;border:2px solid ${tc};border-radius:20px;padding:22px;width:100%;max-width:400px;max-height:85vh;overflow-y:auto;box-shadow:0 0 40px ${tc}44">
+                        <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:13px;color:${tc};text-transform:uppercase;letter-spacing:2px;margin-bottom:4px">✏️ Editar Traços Raciais</div>
+                        <div style="font-size:9px;color:#6b7280;margin-bottom:16px">${char.race} — ficha criada antes dessa opção existir? Agora dá pra escolher.</div>
+                        ${bodyHtml}
+                        <div style="display:flex;gap:8px;margin-top:18px">
+                            <button onclick="document.getElementById('race-traits-modal-overlay').remove()" style="flex:1;padding:12px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:'Orbitron',sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Cancelar</button>
+                            <button onclick="window._rtmConfirm()" ${canConfirm ? '' : 'disabled'} style="flex:2;padding:12px;border-radius:10px;background:${canConfirm ? tc : '#374151'};border:none;color:${canConfirm ? '#000' : '#6b7280'};font-family:'Orbitron',sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:${canConfirm ? 'pointer' : 'not-allowed'}">✓ Salvar</button>
+                        </div>
+                    </div>`;
+                // innerHTML recria o <select>, então o listener precisa ser religado a cada rebuild.
+                const sel = document.getElementById('rtm-race-select');
+                if (sel) sel.onchange = function() { draft.effortRace = this.value; draft.effortTrait = null; rebuild(); };
+            }
+
+            window._rtmSetTrait = function(nome) { draft.effortTrait = nome; rebuild(); };
+            window._rtmSetFeatureChoice = function(nome) { draft.raceFeatureChoice = nome; rebuild(); };
+            window._rtmConfirm = function() {
+                if (isHumano) {
+                    char.effortRace = draft.effortRace;
+                    char.effortTrait = draft.effortTrait;
+                } else {
+                    char.raceFeatureChoice = draft.raceFeatureChoice;
+                }
+                saveCharacter(char);
+                overlay.remove();
+                render(true);
+            };
+
+            document.body.appendChild(overlay);
+            rebuild();
+        };
+
         window._showSanityModal = function(char, threshold, currentPct) {
             const CURTA = [
                 [1,20,'Paralisia mental — paralisado. Termina ao sofrer qualquer dano.'],

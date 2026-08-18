@@ -516,7 +516,11 @@
 
                     </div>`;
             } else if (state.activeTab === 'TRACOS') {
-                const raceData = SYSTEM_DB.racas.find(r => r.nome === char.race); const bgData = SYSTEM_DB.antecedentes.find(b => b.nome === char.background); let traitsHtml = `<div class="flex items-center gap-3 mb-2 mt-2"><div class="bg-gray-800 p-2 rounded text-[${themeColor}]"><i data-lucide="dna" size="20"></i></div><div><h3 class="font-bold text-white uppercase tracking-wider text-sm">${char.race}</h3><p class="text-[10px] text-gray-500 uppercase tracking-widest">Características Raciais</p></div></div><div class="space-y-2 mb-6">`; 
+                const raceData = SYSTEM_DB.racas.find(r => r.nome === char.race); const bgData = SYSTEM_DB.antecedentes.find(b => b.nome === char.background);
+                // Botão "Editar" — permite fichas antigas (criadas antes dessas opções existirem, ex.
+                // Humano sem "Esforço no lugar de talento") preencherem retroativamente a característica.
+                const canEditRaceTraits = char.race === 'Humano Comum' || (raceData && (raceData.opcoes_caracteristica||[]).length > 0);
+                let traitsHtml = `<div class="flex items-center justify-between mb-2 mt-2"><div class="flex items-center gap-3"><div class="bg-gray-800 p-2 rounded text-[${themeColor}]"><i data-lucide="dna" size="20"></i></div><div><h3 class="font-bold text-white uppercase tracking-wider text-sm">${char.race}</h3><p class="text-[10px] text-gray-500 uppercase tracking-widest">Características Raciais</p></div></div>${canEditRaceTraits ? `<button onclick="window._openRaceTraitsModal()" class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[${themeColor}]/10 border border-[${themeColor}]/30 text-[${themeColor}] text-[10px] font-bold uppercase tracking-widest hover:bg-[${themeColor}]/20 transition-colors"><i data-lucide="edit-3" size="12"></i> Editar</button>` : ''}</div><div class="space-y-2 mb-6">`;
                 
                 // Add Origin Display Here
                 if (char.race === 'Formiga Quimera' && char.fagogenese) {
