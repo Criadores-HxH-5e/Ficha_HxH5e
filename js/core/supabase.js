@@ -111,10 +111,17 @@ function saveCharacter(char) {
     if (state.user) sbUpsert('characters', { id: char.id, user_id: state.user.id, data: char, last_mod: char.lastMod });
 }
 
-function deleteCharacter(id) {
-    if (state._viewingMode) return;
-    const char = (state.characters || []).find(c => c.id === id);
+// viewing=true → apagar a ficha de OUTRO jogador (só permitido para admin, ver state.viewingChars,
+// aberto via "Jogadores"/Admin → Ver Fichas). viewing=false/omitido → apagar ficha própria (lista LIST).
+function deleteCharacter(id, viewing) {
+    const isViewing = !!viewing;
+    if (isViewing && !state.isAdmin) return; // só admin apaga ficha de outro jogador
+    if (state._viewingMode && !isViewing) return; // guarda defensiva do modo de leitura do Mestre
+    const char = isViewing
+        ? (state.viewingChars || []).find(c => c.id === id)
+        : (state.characters || []).find(c => c.id === id);
     const nome = (char && char.name) || 'esta ficha';
+    const dono = isViewing ? (state.viewingUser && state.viewingUser.username) : null;
 
     document.getElementById('delete-char-overlay')?.remove();
     const overlay = document.createElement('div');
@@ -124,7 +131,7 @@ function deleteCharacter(id) {
         <div style="background:#0d1117;border:2px solid #ef4444;border-radius:16px;padding:24px;width:100%;max-width:380px;box-shadow:0 0 40px #ef444433">
             <div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:13px;color:#ef4444;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px">⚠️ Apagar Ficha</div>
             <div style="font-size:12px;color:#9ca3af;margin-bottom:16px;line-height:1.5">
-                Esta ação é <span style="color:#ef4444;font-weight:700">irreversível</span>. Para confirmar, digite o nome do personagem abaixo:
+                ${dono ? `Ficha de <span style="color:#fbbf24;font-weight:700">${dono}</span>. ` : ''}Esta ação é <span style="color:#ef4444;font-weight:700">irreversível</span>. Para confirmar, digite o nome do personagem abaixo:
             </div>
             <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Nome do Personagem</div>
             <div style="background:#111827;border:1px solid #374151;border-radius:8px;padding:8px 12px;margin-bottom:6px;font-family:Orbitron,sans-serif;font-size:13px;color:#fbbf24;letter-spacing:1px">${nome}</div>
@@ -145,7 +152,7 @@ function deleteCharacter(id) {
                     style="flex:1;padding:11px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer;letter-spacing:1px">
                     Cancelar
                 </button>
-                <button id="delete-char-confirm-btn" disabled onclick="window._confirmDeleteCharacter('${id}','${nome.replace(/'/g,"\\'")}')"
+                <button id="delete-char-confirm-btn" disabled onclick="window._confirmDeleteCharacter('${id}','${nome.replace(/'/g,"\\'")}', ${isViewing})"
                     style="flex:1;padding:11px;border-radius:10px;background:#7f1d1d;border:1px solid #ef4444;color:#f87171;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;letter-spacing:1px;opacity:0.4;cursor:not-allowed">
                     🗑️ Apagar
                 </button>
@@ -155,16 +162,29 @@ function deleteCharacter(id) {
     setTimeout(() => { const inp = document.getElementById('delete-char-confirm-input'); if (inp) inp.focus(); }, 50);
 }
 
-window._confirmDeleteCharacter = function(id, nome) {
+window._confirmDeleteCharacter = function(id, nome, viewing) {
     document.getElementById('delete-char-overlay')?.remove();
-    localStorage.removeItem('hxhrpg_' + id);
-    if (state.user) sbDelete('characters', `id=eq.${id}`);
-    loadCharacters();
-    if (state.currentChar && state.currentChar.id === id) {
-        state.view = 'LIST';
-        state.currentChar = null;
+    if (viewing) {
+        // Ficha de outro jogador: só existe no Supabase (não fica no localStorage deste dispositivo).
+        sbDelete('characters', `id=eq.${id}`);
+        state.viewingChars = (state.viewingChars || []).filter(c => c.id !== id);
+        if (state.currentChar && state.currentChar.id === id) {
+            state.currentChar = state._prevChar || null;
+            state._viewingMode = false;
+            state.readOnly = false;
+            state.view = 'PLAYER_CHARS';
+        }
+        render(true);
+    } else {
+        localStorage.removeItem('hxhrpg_' + id);
+        if (state.user) sbDelete('characters', `id=eq.${id}`);
+        loadCharacters();
+        if (state.currentChar && state.currentChar.id === id) {
+            state.view = 'LIST';
+            state.currentChar = null;
+        }
+        render();
     }
-    render();
     if (window._showXpToast) window._showXpToast(`🗑️ "${nome}" foi apagado.`);
 };
 

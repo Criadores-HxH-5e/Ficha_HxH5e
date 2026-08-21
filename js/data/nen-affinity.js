@@ -334,19 +334,159 @@ window.getMaxLevelForCategory = function(myClass, targetClass, charLevel, extrem
 window.calcPNSpentInDominio = function(char) {
     const d = char.nenDominio || {};
     let spent = 0;
-    // Fundamentais: Ten, Ren, Zetsu → 1 ponto por nível (0-3)
-    spent += (d.ten || 0);
-    spent += (d.ren || 0);
-    spent += (d.zetsu || 0);
-    // Avançados: cada um custa 1 ponto extra
-    if (d.en)  spent += 1;
-    if (d.inp) spent += 1; // IN (inp para não conflitar com keyword)
-    if (d.gyo) spent += 1;
-    if (d.shu) spent += 1;
-    if (d.ken) spent += 1;
-    if (d.ko)  spent += 1;
-    if (d.ryu) spent += 1;
+    // Fundamentais: Ten, Ren, Zetsu → 1 ponto por nível (0-3) + Aprimoramento (P.N extra após a Maestria)
+    spent += (d.ten || 0) + (d.ten===3 ? Math.min(7, d.ten_pn||0) : 0);
+    spent += (d.ren || 0) + (d.ren===3 ? Math.min(7, d.ren_pn||0) : 0);
+    spent += (d.zetsu || 0) + (d.zetsu===3 ? Math.min(7, d.zetsu_pn||0) : 0);
+    // Avançados: 1 P.N para desbloquear + 1 P.N para o nível Superior + Aprimoramento (até 8 P.N extra)
+    window.NEN_AVANCADOS.forEach(function(key) {
+        if (!d[key]) return;
+        spent += 1;
+        if (d[key + '_sup']) {
+            spent += 1;
+            spent += Math.min(8, d[key + '_pn'] || 0);
+        }
+    });
     return spent;
+};
+
+// Chaves dos Princípios/Técnicas Avançadas (desbloqueio 1 P.N + Superior 1 P.N + Aprimoramento até 8 P.N)
+window.NEN_AVANCADOS = ['en', 'inp', 'gyo', 'shu', 'ken', 'ko', 'ryu'];
+
+// ── Aprimoramento — bônus vivos calculados a partir do P.N investido em cada Princípio/Técnica ──
+// (ver "Atualizações -> Princípios e Técnicas de Nen")
+
+// TEN: Maestria (+6 RD) + 1 RD para cada P.N investido alem da Maestria (máx. P.N total = 10)
+window.calcTenRD = function(char) {
+    const d = (char && char.nenDominio) || {};
+    const lvl = d.ten || 0;
+    if (!lvl) return 0;
+    const base = lvl === 1 ? 2 : lvl === 2 ? 4 : 6;
+    const extra = lvl === 3 ? Math.min(7, d.ten_pn || 0) : 0;
+    return base + extra;
+};
+
+// REN: grau/passo de dano (sempre ativo a partir do Básico) + testes de Intimidação/Arcanismo-Religião
+// (Intermediário/Maestria). Aprimoramento: Opção 1 = +1 Grau por P.N | Opção 2 = +1 nos testes por P.N.
+window.calcRenBonus = function(char) {
+    const d = (char && char.nenDominio) || {};
+    const lvl = d.ren || 0;
+    if (!lvl) return { grau: 0, teste: 0, teste1x: 0, freeUso: false, opcao: 1, extra: 0 };
+    const opcao = d.ren_opcao || 1;
+    const extra = lvl === 3 ? Math.min(7, d.ren_pn || 0) : 0;
+    let grau = 1;
+    let teste = lvl >= 2 ? 3 : 0;
+    let teste1x = lvl >= 3 ? 6 : 0;
+    if (extra > 0) {
+        if (opcao === 1) grau += extra;
+        else { teste += extra; teste1x += extra; }
+    }
+    return { grau, teste, teste1x, freeUso: lvl >= 3, opcao, extra };
+};
+
+// ZETSU: recuperação de aura + Furtividade. Aprimoramento: Opção 1 = +5% recuperação a cada 2 P.N |
+// Opção 2 = +1 em Furtividade por P.N.
+window.calcZetsuBonus = function(char) {
+    const d = (char && char.nenDominio) || {};
+    const lvl = d.zetsu || 0;
+    if (!lvl) return { auraPct: 0, furtividade: 0, reacoes: 0, rodadas: 0, opcao: 1, extra: 0 };
+    const opcao = d.zetsu_opcao || 1;
+    const extra = lvl === 3 ? Math.min(7, d.zetsu_pn || 0) : 0;
+    const base = lvl === 1 ? { auraPct: 5, furtividade: 3, reacoes: 1, rodadas: 3 }
+        : lvl === 2 ? { auraPct: 10, furtividade: 3, reacoes: 1, rodadas: 2 }
+        : { auraPct: 10, furtividade: 6, reacoes: 2, rodadas: 1 };
+    if (extra > 0) {
+        if (opcao === 1) base.auraPct += Math.floor(extra / 2) * 5;
+        else base.furtividade += extra;
+    }
+    return Object.assign({ opcao, extra }, base);
+};
+
+// Tabelas de fluidez do RYU. Exemplos 1-3 disponíveis a partir da Maestria em TEN+REN+ZETSU;
+// Exemplos 4-6 (com Reações Extras) exigem RYU Superior. Os 3 turnos iniciais são iguais em
+// todas as tabelas; a partir do 4º turno o usuário escolhe livremente entre as linhas restantes
+// de qualquer tabela disponível, sem repetir uma linha da mesma tabela.
+window.NEN_RYU_TABLES = [
+    { nome: 'Exemplo 1', superior: false, linhas: [
+        { turno: '3 iniciais', ca: 3, reacoes: null, ataqueDano: 3 },
+        { turno: '4º', ca: 3, reacoes: null, ataqueDano: 2 },
+        { turno: '5º', ca: 4, reacoes: null, ataqueDano: 2 },
+        { turno: '6º', ca: 5, reacoes: null, ataqueDano: 5 },
+    ]},
+    { nome: 'Exemplo 2', superior: false, linhas: [
+        { turno: '3 iniciais', ca: 3, reacoes: null, ataqueDano: 3 },
+        { turno: '4º', ca: 4, reacoes: null, ataqueDano: 2 },
+        { turno: '5º', ca: 5, reacoes: null, ataqueDano: 5 },
+        { turno: '6º', ca: 3, reacoes: null, ataqueDano: 2 },
+    ]},
+    { nome: 'Exemplo 3', superior: false, linhas: [
+        { turno: '3 iniciais', ca: 3, reacoes: null, ataqueDano: 3 },
+        { turno: '4º', ca: 5, reacoes: null, ataqueDano: 5 },
+        { turno: '5º', ca: 4, reacoes: null, ataqueDano: 2 },
+        { turno: '6º', ca: 3, reacoes: null, ataqueDano: 2 },
+    ]},
+    { nome: 'Exemplo 4', superior: true, linhas: [
+        { turno: '3 iniciais', ca: 3, reacoes: 3, ataqueDano: 3 },
+        { turno: '4º', ca: 3, reacoes: 1, ataqueDano: 2 },
+        { turno: '5º', ca: 5, reacoes: 0, ataqueDano: 5 },
+        { turno: '6º', ca: 4, reacoes: 2, ataqueDano: 2 },
+    ]},
+    { nome: 'Exemplo 5', superior: true, linhas: [
+        { turno: '3 iniciais', ca: 3, reacoes: 3, ataqueDano: 3 },
+        { turno: '4º', ca: 4, reacoes: 2, ataqueDano: 2 },
+        { turno: '5º', ca: 3, reacoes: 1, ataqueDano: 2 },
+        { turno: '6º', ca: 5, reacoes: 0, ataqueDano: 5 },
+    ]},
+    { nome: 'Exemplo 6', superior: true, linhas: [
+        { turno: '3 iniciais', ca: 3, reacoes: 3, ataqueDano: 3 },
+        { turno: '4º', ca: 5, reacoes: 0, ataqueDano: 5 },
+        { turno: '5º', ca: 3, reacoes: 1, ataqueDano: 2 },
+        { turno: '6º', ca: 4, reacoes: 2, ataqueDano: 2 },
+    ]},
+];
+
+// Quantas graduações extras de dano do REN saem "de graça" (sem custo de aura) por conta da
+// Aprimoramento Opção 1 (+1 Grau/Passo por P.N investido além da Maestria). Usado junto com o
+// 1º grau grátis diário da Maestria (isRenFreeUsoDisponivel) ao calcular o custo de aura do golpe.
+window.calcRenGrausGratisAprimoramento = function(char) {
+    const b = window.calcRenBonus ? window.calcRenBonus(char) : { opcao: 1, extra: 0 };
+    return b.opcao === 1 ? b.extra : 0;
+};
+
+// Avançados/Técnicas — cada um com Superior + Aprimoramento próprios.
+window.calcAvancadoBonus = function(char, key) {
+    const d = (char && char.nenDominio) || {};
+    const active = !!d[key];
+    const sup = active && !!d[key + '_sup'];
+    const extra = sup ? Math.min(8, d[key + '_pn'] || 0) : 0;
+    const opcao = d[key + '_opcao'] || 1;
+    const out = { active, sup, extra, opcao };
+    switch (key) {
+        case 'en':
+            out.diametro = (sup ? 6 : 3) + (opcao === 2 ? extra * 1.5 : 0); // Superior dobra o alcance base (3m → 6m)
+            out.reacoes = opcao === 1 ? Math.max(1, 2 - extra) : 2;
+            break;
+        case 'inp':
+            out.rodadas = (sup ? 2 : 1) + Math.floor(extra / 2);
+            break;
+        case 'gyo':
+            out.attrBonus = 3 + Math.floor(extra / 2);
+            break;
+        case 'shu':
+            out.rodadas = 1 + extra;
+            break;
+        case 'ken':
+            out.auraCusto = opcao === 1 ? Math.max(5, 30 - extra * 5) : 30;
+            out.reacoes = opcao === 2 ? Math.max(1, 4 - extra) : 4;
+            break;
+        case 'ko':
+            out.caBonus = Math.floor(extra / 2);
+            break;
+        case 'ryu':
+            out.tabelaBonus = Math.floor(extra / 2);
+            break;
+    }
+    return out;
 };
 
 window.calcPNSpentInOtherHatsus = function(char, editingIdx) {

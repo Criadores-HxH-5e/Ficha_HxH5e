@@ -117,6 +117,18 @@
                     if (!activeAny) return '';
                     const tc2 = (window.HATSU_DB&&window.HATSU_DB.categorias[char.class]&&window.HATSU_DB.categorias[char.class].cor)||themeColor;
 
+                    // Bônus vivos (já contam Aprimoramento — P.N investido além da Maestria/Superior)
+                    const rBon = window.calcRenBonus ? window.calcRenBonus(char) : { grau:1, teste:0, teste1x:0, opcao:1, extra:0 };
+                    const zBon = window.calcZetsuBonus ? window.calcZetsuBonus(char) : { auraPct:0, furtividade:0, rodadas:3, opcao:1, extra:0 };
+                    const tenRD = window.calcTenRD ? window.calcTenRD(char) : 0;
+                    const enB = window.calcAvancadoBonus ? window.calcAvancadoBonus(char,'en') : { diametro:3, reacoes:2 };
+                    const inB = window.calcAvancadoBonus ? window.calcAvancadoBonus(char,'inp') : { rodadas:1 };
+                    const gyB = window.calcAvancadoBonus ? window.calcAvancadoBonus(char,'gyo') : { attrBonus:3 };
+                    const shB = window.calcAvancadoBonus ? window.calcAvancadoBonus(char,'shu') : { rodadas:1 };
+                    const keB = window.calcAvancadoBonus ? window.calcAvancadoBonus(char,'ken') : { auraCusto:30, reacoes:4 };
+                    const koB = window.calcAvancadoBonus ? window.calcAvancadoBonus(char,'ko') : { caBonus:0 };
+                    const ryB = window.calcAvancadoBonus ? window.calcAvancadoBonus(char,'ryu') : { tabelaBonus:0 };
+
                     const PRINCIPIOS = [
                         { key:'ten', label:'TEN', icon:'🛡️',
                           custo: (() => {
@@ -125,28 +137,28 @@
                               if (isR) return nv === 2 ? 5 : 10;
                               return 20;
                           })(),
-                        efeito: d.ten===1?'+2 RD':d.ten===2?'+4 RD':'+6 RD',
-                           desc: 'Reação ou Ação Bônus — RD física', show: (d.ten||0)>0 },
-                        { key:'ren', label:'REN', icon:'💪', custo:5,
-                          efeito: '+1 Grau dano',
-                          desc: 'Ação Bônus — aumenta grau', show: (d.ren||0)>0 },
+                        efeito: `+${tenRD} RD`,
+                           desc: 'Reação ou Ação Bônus — RD contra Corte/Impacto/Explosão', show: (d.ten||0)>0 },
+                        { key:'ren', label:'REN', icon:'💪', custo:10,
+                          efeito: rBon.opcao===2 && rBon.extra>0 ? `+${rBon.teste} Intim./Arc.` : `+${rBon.grau} Grau dano`,
+                          desc: 'Ação Bônus — aumenta grau/passo de dano', show: (d.ren||0)>0 },
                         { key:'zetsu', label:'ZETSU', icon:'👁️', custo:0,
-                          efeito: d.zetsu===1?'+5% Aura/3rod':d.zetsu===2?'+10% Aura/2rod':'+10% Aura/1rod',
+                          efeito: `+${zBon.auraPct}% Aura/${zBon.rodadas}rod`,
                           desc: 'Ação Bônus — recupera aura', show: (d.zetsu||0)>0 },
                         { key:'en', label:'EN', icon:'🔵', custo:10,
-                          efeito: 'Detecta 3m', desc: '10% + 2 Reações', show: !!d.en },
+                          efeito: `Detecta ${enB.diametro}m`, desc: `10% + ${enB.reacoes} Reações`, show: !!d.en },
                         { key:'inp', label:'IN', icon:'🌑', custo:5,
-                          efeito: 'Oculta objeto', desc: '5% por rodada', show: !!d.inp },
+                          efeito: `Oculta ${inB.rodadas}rod`, desc: '5% por rodada', show: !!d.inp },
                         { key:'gyo', label:'GYO', icon:'🔍', custo:10,
-                          efeito: 'Ver aura/oculto', desc: '10% olhos / 30% corpo', show: !!d.gyo },
+                          efeito: `Ver aura/oculto (+${gyB.attrBonus} corp.)`, desc: '10% olhos / 30% corpo', show: !!d.gyo },
                         { key:'shu', label:'SHU', icon:'⚡', custo:10,
-                          efeito: '+1d4 dano+CA', desc: '10% em objeto 1m', show: !!d.shu },
-                        { key:'ken', label:'KEN', icon:'🏰', custo:30,
-                          efeito: 'CA ×2 por 2rod', desc: '30% + 4 Reações', show: !!d.ken },
+                          efeito: `+1d4 dano+CA ${shB.rodadas}rod`, desc: '10% em objeto 1m', show: !!d.shu },
+                        { key:'ken', label:'KEN', icon:'🏰', custo: keB.auraCusto,
+                          efeito: 'CA ×2 por 2rod', desc: `${keB.auraCusto}% + ${keB.reacoes} Reações`, show: !!d.ken },
                         { key:'ko', label:'KO', icon:'🔥', custo:30,
-                          efeito: 'Dano ×3, CA −80%', desc: '30% Aura', show: !!d.ko },
+                          efeito: `Dano ×3, CA −80%${koB.caBonus>0?` (+${koB.caBonus})`:''}`, desc: '30% Aura', show: !!d.ko },
                         { key:'ryu', label:'RYU', icon:'🌊', custo:30,
-                          efeito: '+3 CA/Ataque', desc: '30% Aura, 3 turnos', show: !!d.ryu },
+                          efeito: `+3 CA/Ataque${ryB.tabelaBonus>0?` (+${ryB.tabelaBonus})`:''}`, desc: '30% Aura, 3 turnos', show: !!d.ryu },
                     ].filter(p => p.show);
 
                     const btns = PRINCIPIOS.map(p => {
@@ -394,8 +406,33 @@
                                 })()`;
                             };
 
-                            // Helper: render level selector (0-3) for fundamental principles
-                            const fundamentalCard = (key, label, icon, desc, levelsData, reqCheck) => {
+                            const noteBox = (text) => `<div style="background:#0d1117;border:1px dashed #374151;border-radius:8px;padding:6px 8px;margin:0 0 8px;font-size:7px;color:#6b7280;line-height:1.4">💡 ${text}</div>`;
+
+                            // Bloco de "Aprimoramento" — P.N extra investido após a Maestria/Superior.
+                            // opcaoInfo = null | { value, labels:[opcao1, opcao2] }
+                            const aprimoramentoBox = (key, curExtra, maxExtra, opcaoInfo, bonusText) => {
+                                const canUp = curExtra < maxExtra && pnFree > 0;
+                                const canDown = curExtra > 0;
+                                const opcaoHtml = opcaoInfo ? `<div style="display:flex;gap:4px;margin-bottom:6px">${[1,2].map(v => `<button onclick="${setDom(key+'_opcao', v)}" style="flex:1;padding:4px 3px;border-radius:6px;font-size:7px;font-weight:700;border:1px solid ${opcaoInfo.value===v?'#a78bfa88':'#1f2937'};background:${opcaoInfo.value===v?'#a78bfa22':'transparent'};color:${opcaoInfo.value===v?'#a78bfa':'#6b7280'};cursor:pointer">${opcaoInfo.labels[v-1]}</button>`).join('')}</div>` : '';
+                                return `<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #2d2440">
+                                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                                        <span style="font-size:7px;font-weight:900;color:#a78bfa;text-transform:uppercase;letter-spacing:1px">✦ Aprimoramento</span>
+                                        <div style="display:flex;align-items:center;gap:5px">
+                                            <button onclick="${setDom(key+'_pn', Math.max(0, curExtra-1))}" ${canDown?'':'disabled'}
+                                                style="width:20px;height:20px;border-radius:5px;background:${canDown?'#1f2937':'#111'};border:1px solid #374151;color:${canDown?'#f87171':'#374151'};font-size:12px;cursor:${canDown?'pointer':'not-allowed'};display:flex;align-items:center;justify-content:center">−</button>
+                                            <span style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:11px;min-width:16px;text-align:center;color:#a78bfa">${curExtra}</span>
+                                            <button onclick="${setDom(key+'_pn', Math.min(maxExtra, curExtra+1))}" ${canUp?'':'disabled'}
+                                                style="width:20px;height:20px;border-radius:5px;background:${canUp?'#a78bfa22':'#111'};border:1px solid ${canUp?'#a78bfa55':'#374151'};color:${canUp?'#a78bfa':'#374151'};font-size:12px;cursor:${canUp?'pointer':'not-allowed'};display:flex;align-items:center;justify-content:center">+</button>
+                                        </div>
+                                    </div>
+                                    ${opcaoHtml}
+                                    <div style="font-size:8px;color:#c4b5fd;line-height:1.5">${bonusText}</div>
+                                    <div style="font-size:7px;color:#4b5563;margin-top:2px">Máx. de P.N aplicáveis neste princípio: 10</div>
+                                </div>`;
+                            };
+
+                            // Helper: render level selector (0-3) para os Princípios Fundamentais + Aprimoramento pós-Maestria
+                            const fundamentalCard = (key, label, icon, desc, levelsData, reqCheck, aprimoramento) => {
                                 const cur = d[key] || 0;
                                 const canUp = cur < 3 && pnFree > 0 && (reqCheck ? reqCheck(d) : true);
                                 const canDown = cur > 0;
@@ -423,14 +460,16 @@
                                     </div>
                                     ${cur > 0 ? `<div style="font-size:8px;font-weight:700;color:${levelColor};margin-bottom:4px">● ${levelLabel}</div>
                                     <div style="font-size:8px;color:#9ca3af;line-height:1.5">${levelsData[cur-1]}</div>` : `<div style="font-size:8px;color:#374151;font-style:italic">Não desbloqueado (custa 1 P.N por nível)</div>`}
+                                    ${cur === 3 && aprimoramento ? aprimoramento : ''}
                                 </div>`;
                             };
 
-                            // Helper: advanced principle toggle
-                            const advancedCard = (key, label, icon, desc, effect, req, reqMet) => {
+                            // Helper: Princípio/Técnica Avançada — desbloqueio (1 P.N) → Superior (+1 P.N) → Aprimoramento (P.N extra)
+                            const advancedCard = (key, label, icon, desc, effect, req, reqMet, supInfo) => {
                                 const active = !!(d[key]);
                                 const canBuy = !active && pnFree > 0 && reqMet;
-                                const ac = active ? '#a78bfa' : '#374151';
+                                const sup = active && !!(d[key + '_sup']);
+                                const canBuySup = active && !sup && pnFree > 0 && supInfo;
                                 return `<div style="background:#0a0f1a;border:1.5px solid ${active?'#a78bfa44':'#1f2937'};border-radius:12px;padding:10px;margin-bottom:6px;opacity:${reqMet||active?1:0.45}">
                                     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
                                         <div style="flex:1">
@@ -438,41 +477,68 @@
                                                 <span style="font-size:13px">${icon}</span>
                                                 <span style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:10px;color:${active?'#a78bfa':'#d1d5db'};text-transform:uppercase">${label}</span>
                                                 ${active?`<span style="font-size:7px;font-weight:900;padding:1px 5px;background:#a78bfa22;color:#a78bfa;border-radius:4px">✓ ATIVO</span>`:''}
+                                                ${sup?`<span style="font-size:7px;font-weight:900;padding:1px 5px;background:#ff4df722;color:#ff4df7;border-radius:4px">★ SUPERIOR</span>`:''}
                                             </div>
                                             <div style="font-size:8px;color:#6b7280;margin-bottom:4px">${desc}</div>
                                             ${req?`<div style="font-size:7px;color:${reqMet?'#4ade80':'#ef4444'};font-weight:700">Req: ${req}</div>`:''}
                                             ${active?`<div style="font-size:8px;color:#9ca3af;margin-top:4px;line-height:1.5">${effect}</div>`:''}
+                                            ${sup&&supInfo?`<div style="font-size:8px;color:#ff9df7;margin-top:4px;line-height:1.5"><b>Superior:</b> ${supInfo.effect}</div>`:''}
                                         </div>
                                         <button onclick="${active?setDom(key, false):setDom(key, true)}" ${(canBuy||active)?'':'disabled'}
                                             style="flex-shrink:0;padding:6px 10px;border-radius:8px;font-size:8px;font-weight:900;cursor:${(canBuy||active)?'pointer':'not-allowed'};border:1.5px solid ${active?'#ef444455':'#a78bfa44'};background:${active?'#ef444411':'#a78bfa11'};color:${active?'#f87171':'#a78bfa'}">
                                             ${active?'−1 P.N':'+1 P.N'}
                                         </button>
                                     </div>
+                                    ${active&&supInfo&&!sup?`<button onclick="${setDom(key+'_sup', true)}" ${canBuySup?'':'disabled'}
+                                        style="width:100%;margin-top:8px;padding:6px;border-radius:8px;font-size:7px;font-weight:900;text-transform:uppercase;letter-spacing:1px;cursor:${canBuySup?'pointer':'not-allowed'};border:1.5px dashed #ff4df766;background:#ff4df711;color:${canBuySup?'#ff4df7':'#374151'}">★ Desbloquear Nível Superior (+1 P.N)</button>`:''}
+                                    ${sup&&supInfo?supInfo.aprimoramento||'':''}
+                                    ${sup&&supInfo&&supInfo.extraHtml?supInfo.extraHtml:''}
                                 </div>`;
                             };
 
                             const isReforco = char.class === 'REFORÇO' || char.class === 'INTENSIFICAÇÃO';
                             const tenLevels = isReforco ? [
-                                '10% Aura + Reação ou Ação Bônus → +2 RD (Corte, Impacto, Explosão). Bloqueia intimidação por aura.',
+                                '10% Aura + Reação ou Ação Bônus → +2 RD (Corte, Impacto, Explosão — incluso quedas).',
                                 '5% Aura + Reação ou Ação Bônus → +4 RD. Imune a proj. que igualem CA.',
                                 '10% Aura + Reação ou Ação Bônus → +6 RD. Desbloqueia SHU.'
                             ] : [
-                                '20% Aura + Reação ou Ação Bônus → +2 RD (Corte, Impacto, Explosão). Bloqueia intimidação por aura.',
+                                '20% Aura + Reação ou Ação Bônus → +2 RD (Corte, Impacto, Explosão — incluso quedas).',
                                 '20% Aura + Reação ou Ação Bônus → +4 RD. Imune a proj. que igualem CA.',
                                 '20% Aura + Reação ou Ação Bônus → +6 RD. Desbloqueia SHU.'
                             ];
                             const renLevels = [
-                                '5% Aura + Ação Bônus → +1 Grau/Passo de dano, interação com NEN, proteção vs REN.',
-                                '10% Aura + Ação Bônus → Básico + +3 em Intimidação/Arcanismo com REN. Desbloqueia EN.',
-                                '10% Aura + Ação Bônus → Intermediário + 1×/dia +6 Intimidação sem gastar aura. Desbloqueia GYO.'
+                                '10% Aura + Ação Bônus → +1 Grau/Passo de dano de Armas, interação com materiais de NEN, proteção contra REN (Reação).',
+                                '10% Aura + Ação Bônus/Ação → Básico + +3 em Intimidação ou Arcanismo/Religião usando REN. Desbloqueia EN.',
+                                '10% Aura + Ação Bônus/Ação → Intermediário + 1×/dia +6 em Intimidação ou Arcanismo/Religião sem gastar aura. Desbloqueia GYO.'
                             ];
                             const zetsuLevels = [
-                                '3 rodadas → +5% Aura, +1 Reação, +3 Furtividade. (Dano crítico ao sofrer NEN)',
-                                '2 rodadas → +10% Aura, +1 Reação, +3 Furtividade. Desbloqueia IN.',
-                                '1 rodada → +10% Aura, +2 Reações, +6 Furtividade. Criaturas não-inteligentes te ignoram.'
+                                '3 rodadas em Zetsu → +5% Aura, +1 Reação, +3 Furtividade. (Dano crítico ao sofrer dano de NEN)',
+                                '2 rodadas em Zetsu → +10% Aura, +1 Reação, +3 Furtividade. Desbloqueia IN. (Dano crítico ao sofrer dano de NEN)',
+                                '1 rodada em Zetsu → +10% Aura, +2 Reações, +6 Furtividade. Criaturas não-inteligentes te ignoram. (Dano crítico ao sofrer dano de NEN)'
                             ];
 
                             const ten = d.ten||0; const ren = d.ren||0; const zetsu = d.zetsu||0;
+
+                            const rBon = window.calcRenBonus(char);
+                            const zBon = window.calcZetsuBonus(char);
+                            const tenAprimoramento = aprimoramentoBox('ten', Math.min(7, d.ten_pn||0), 7, null,
+                                `RD total: <b>+${window.calcTenRD(char)}</b> (Maestria +6, +1 por P.N extra)`);
+                            const renAprimoramento = aprimoramentoBox('ren', Math.min(7, d.ren_pn||0), 7,
+                                { value: d.ren_opcao||1, labels: ['① Grau de Dano', '② Testes com REN'] },
+                                rBon.opcao===1 ? `Opção 1: Grau/Passo de dano corpo-a-corpo: <b>+${rBon.grau}</b>`
+                                    : `Opção 2: Testes com REN: <b>+${rBon.teste}</b> (padrão) / <b>+${rBon.teste1x}</b> (1×dia sem gastar aura)`);
+                            const zetsuAprimoramento = aprimoramentoBox('zetsu', Math.min(7, d.zetsu_pn||0), 7,
+                                { value: d.zetsu_opcao||1, labels: ['① Recuperação', '② Furtividade'] },
+                                zBon.opcao===1 ? `Opção 1: Recuperação de Aura: <b>+${zBon.auraPct}%</b> por conclusão`
+                                    : `Opção 2: Furtividade: <b>+${zBon.furtividade}</b>`);
+
+                            const enB = window.calcAvancadoBonus(char,'en'), inB = window.calcAvancadoBonus(char,'inp'), gyB = window.calcAvancadoBonus(char,'gyo');
+                            const shB = window.calcAvancadoBonus(char,'shu'), keB = window.calcAvancadoBonus(char,'ken'), koB = window.calcAvancadoBonus(char,'ko'), ryB = window.calcAvancadoBonus(char,'ryu');
+
+                            const ryuTablesHtml = `<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #2d2440">
+                                <div style="font-size:7px;font-weight:900;color:#ff4df7;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Exemplos de RYU disponíveis ${ryB.tabelaBonus>0?`(+${ryB.tabelaBonus} em todos os valores)`:''}</div>
+                                ${window.NEN_RYU_TABLES.filter(t => !t.superior || d.ryu_sup).map(t => `<div style="font-size:7px;color:#9ca3af;margin-bottom:2px"><b style="color:#d1d5db">${t.nome}${t.superior?' ★':''}:</b> ${t.linhas.map(l => `${l.turno}(CA+${l.ca+ryB.tabelaBonus}${l.reacoes!==null?`/Rea ${l.reacoes+ryB.tabelaBonus}`:''}/At+${l.ataqueDano+ryB.tabelaBonus})`).join(' · ')}</div>`).join('')}
+                            </div>`;
 
                             return `<div style="width:100%;padding:0 4px;margin-bottom:16px">
                                 <div style="font-size:9px;font-weight:900;color:#6b7280;text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;text-align:center">🔮 Domínio de NEN</div>
@@ -483,34 +549,53 @@
                                 </div>
 
                                 <div style="font-size:8px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">⚡ PRINCÍPIOS FUNDAMENTAIS</div>
-                                ${fundamentalCard('ten','TEN — Proteção','🛡️','Envolver/Proteger. Ativa RD contra golpes físicos.',tenLevels,null)}
-                                ${fundamentalCard('ren','REN — Controlar','💪','Praticar/Expandir. Aumenta grau de dano e intimidação.',renLevels,null)}
-                                ${fundamentalCard('zetsu','ZETSU — Suprimir','🧠','Anular/Ocultar. Recupera aura e oculta presença.',zetsuLevels,null)}
+                                ${fundamentalCard('ten','TEN — Proteção','🛡️','Envolver/Proteger. RD contra Corte, Impacto e Explosão; interrompe intimidação por aura (não Hatsu) sem precisar superar a rolagem.',tenLevels,null,tenAprimoramento)}
+                                ${fundamentalCard('ren','REN — Controlar','💪','Praticar/Expandir. Aumenta grau de dano e testes de Intimidação/Arcanismo-Religião.',renLevels,null,renAprimoramento)}
+                                ${noteBox('Quem não usa REN pode ter sua vontade subjugada automaticamente por um usuário, mesmo hostil e consciente. Saber ao menos o Básico de REN evita a subjugação automática — permite contestar gastando 1 Reação, ou usar TEN (Ação Principal ou Reação) após ser afetado.')}
+                                ${fundamentalCard('zetsu','ZETSU — Suprimir','🧠','Anular/Ocultar. Recupera aura e oculta presença; pode ser desativado livremente, mas perde os benefícios se fizer isso.',zetsuLevels,null,zetsuAprimoramento)}
+                                ${noteBox('Transformadores têm vantagem para detectar alguém em Zetsu; Reforçadores e Emissores têm desvantagem. Em combate, Zetsu só pode ser usado por restrição de Hatsu, esgotamento de aura, necessidade estratégica ou condição de Selado.')}
 
                                 <div style="font-size:8px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px">🌟 PRINCÍPIOS AVANÇADOS</div>
-                                ${advancedCard('en','EN — Envolver','🔵','Expansão do Ren em esfera de detecção (3m+). 10% Aura + 2 Reações.',
-                                    '10% Aura + 2 Reações → detecta tudo a 3m. Ataque de reação contra quem entrar.',
-                                    'REN 2 + TEN 1', ren>=2 && ten>=1)}
-                                ${advancedCard('inp','IN — Ocultar','🌑','Oculta objetos de aura. 5% Aura por rodada.',
-                                    '5% Aura → oculta item de aura até próximo turno. Com Zetsu Maestria: +1 rodada ou −5%.',
-                                    'ZETSU 2', zetsu>=2)}
-                                ${advancedCard('gyo','GYO — Focar','🧠','Concentra aura nos olhos/corpo. 10%/30% Aura.',
-                                    '10% Aura → ver aura e oculto. 30% Aura → +3 FOR/DES/CON por 1 rodada.',
-                                    'REN Maestria + ZETSU 2', ren>=3 && zetsu>=2)}
-                                ${advancedCard('shu','SHU — Agregar','⚡','Envolve objetos em aura. 10% Aura.',
-                                    '10% Aura → +1d4 Dano e CA em objeto (1m). Golpe considerado mirado sem ônus.',
-                                    'TEN Maestria', ten>=3)}
+                                ${advancedCard('en','EN — Envolver','🔵','Expansão do Ren em esfera de detecção. 10% Aura + 2 Reações para 3m de diâmetro (dura até o início do seu próximo turno).',
+                                    `Detecta forma/movimento em ${enB.diametro}m de diâmetro. Ataque de reação sem gastar Ação Principal contra quem entrar. +10% Aura e +2 Reações a cada +3m adicional. Funciona contra ilusões. Emissores mantêm por +1 turno sem custo extra.`,
+                                    'REN 2 + TEN 1', ren>=2 && ten>=1,
+                                    { effect: 'Dobra o alcance base e permite mudar o formato entre Círculo, Cone (+3m), Linha (+4,5m) ou Cilindro (+3m).',
+                                      aprimoramento: aprimoramentoBox('en', Math.min(8, d.en_pn||0), 8, { value: d.en_opcao||1, labels: ['① Menos Reações', '② Mais Alcance'] },
+                                          enB.opcao===1 ? `Opção 1: Custo de Reações: <b>${enB.reacoes}</b> (mínimo 1)` : `Opção 2: Diâmetro do EN: <b>${enB.diametro.toFixed(1)}m</b>`) })}
+                                ${advancedCard('inp','IN — Ocultar','🌑','Princípio Avançado do Zetsu — esconde objeto/material feito de NEN. Só é revelado com GYO. 5% Aura por rodada (1 item em sua posse/domínio/controle).',
+                                    `Oculta por ${inB.rodadas} rodada(s). Custa 10% (5% acima do padrão) para Reforçadores, Manipuladores e Especialistas.`,
+                                    'ZETSU 2', zetsu>=2,
+                                    { effect: 'Duração aumentada para 2 Rodadas.',
+                                      aprimoramento: aprimoramentoBox('inp', Math.min(8, d.inp_pn||0), 8, null, `Duração do IN: <b>${inB.rodadas}</b> rodada(s) (+1 a cada 2 P.N extra)`) })}
+                                ${advancedCard('gyo','GYO — Focar','🧠','Aplicação avançada de REN+ZETSU concentrada em uma parte do corpo. 10% Aura nos olhos/ouvidos (vê aura e oculto por IN, +5 Investigação/Percepção) ou 30% Aura em outra parte do corpo.',
+                                    `Aplicado no corpo: +${gyB.attrBonus} temporário em FOR, DES ou CON por 1 rodada (propriedade de Arma de Cerco). Ataques com GYO forçam TR de FOR ou CON (CD = valor do ataque) para não ser empurrado 6m — bloqueado por GYO, KEN ou RYU no defensor.`,
+                                    'ZETSU 2 + REN Maestria', ren>=3 && zetsu>=2,
+                                    { effect: '1) Cancela condição de golpe mirado ao usar GYO em bloqueio reativo, mesmo com o ataque acertando. 2) Multiplica distância/altura de salto em 1,5m × valor de FOR ou Atletismo.',
+                                      aprimoramento: aprimoramentoBox('gyo', Math.min(8, d.gyo_pn||0), 8, null, `Bônus de atributo com GYO: <b>+${gyB.attrBonus}</b> (+1 a cada 2 P.N extra)`) })}
+                                ${advancedCard('shu','SHU — Agregar/Proteger','⚡','Envolve um item/objeto (até 1m) em aura completa. 10% Aura → +1d4 Dano e CA por 1 rodada, protegido de efeitos físicos. +5% para equipamentos maiores; +5% adicional para aumentar CA/Dano, aplicar Arma de Cerco, +1 rodada de duração ou +1m de tamanho.',
+                                    `Duração: ${shB.rodadas} rodada(s). Só pode ser destruído por Hatsu, SHU, KO ou RYU. Golpe com item em SHU é considerado mirado/preciso sem o ônus da mecânica. Emissores, Manipuladores e Reforçadores (adjacentes à Emissão) mantêm por +1 rodada por uso.`,
+                                    'TEN Maestria', ten>=3,
+                                    { effect: 'Gasta a mesma aura independente do tamanho do objeto e aumenta Dano e CA ao mesmo tempo.',
+                                      aprimoramento: aprimoramentoBox('shu', Math.min(8, d.shu_pn||0), 8, null, `Duração do SHU: <b>${shB.rodadas}</b> rodada(s) (+1 por P.N extra)`) })}
 
                                 <div style="font-size:8px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px">🌟 TÉCNICAS AVANÇADAS</div>
-                                ${advancedCard('ken','KEN — Fortificar','🏰','Combina REN+TEN em proteção total. 30% Aura + 4 Reações.',
-                                    '30% Aura + 4 Reações → CA dobrada por 2 rodadas. Pode triplicar gastando o dobro.',
-                                    'TEN Maestria + REN Maestria', ten>=3 && ren>=3)}
-                                ${advancedCard('ko','KO — Endurecer','🔥','Toda aura em um ponto. 30% Aura → dano ×3, CA −80%.',
-                                    '30% Aura → triplica dano, mas CA cai 80% até próximo turno.',
-                                    'REN Maestria + ZETSU Maestria + TEN 1', ren>=3 && zetsu>=3 && ten>=1)}
-                                ${advancedCard('ryu','RYU — Fluir','🌊','Maestria total em tempo real. 30% Aura.',
-                                    '30% Aura → múltiplos contra-ataques, +3 CA e Ataque por 3 turnos.',
-                                    'TEN + REN + ZETSU Maestria', ten>=3 && ren>=3 && zetsu>=3)}
+                                ${advancedCard('ken','KEN — Fortificar','🏰','Mantém REN fora do corpo todo com proteção de TEN, defendendo contra ataques de qualquer direção sem precisar de GYO.',
+                                    `${keB.auraCusto}% Aura + ${keB.reacoes} Reações → dobra a CA por 2 rodadas (o dobro de aura/reações para triplicar). Também aplica RD de TEN contra dano de queda: CA iguala a altura = 50% menos dano; CA supera a altura = nenhum dano.`,
+                                    'TEN Maestria + REN Maestria', ten>=3 && ren>=3,
+                                    { effect: 'Gaste 1 P.N para escolher, por uso: (1) Triplicar o RD de TEN na Maestria (3×6=18) OU (2) +5 CA até o início do próximo turno.',
+                                      aprimoramento: aprimoramentoBox('ken', Math.min(8, d.ken_pn||0), 8, { value: d.ken_opcao||1, labels: ['① −5% Aura', '② −1 Reação'] },
+                                          keB.opcao===1 ? `Opção 1: Custo de Aura: <b>${keB.auraCusto}%</b>` : `Opção 2: Custo de Reações: <b>${keB.reacoes}</b> (mínimo 1)`) })}
+                                ${advancedCard('ko','KO — Endurecer','🔥','Toda a aura concentrada em uma parte do corpo, com Zetsu no resto. 30% Aura → triplica o dano, mas reduz a CA em 80% até o início do próximo turno (não pode ser interrompido intencionalmente).',
+                                    `CA cai para a faixa 2–6 conforme CA inicial${koB.caBonus>0?` <b>+${koB.caBonus}</b>`:''} (tabela de impacto).`,
+                                    'REN Maestria + ZETSU Maestria + TEN 1', ren>=3 && zetsu>=3 && ten>=1,
+                                    { effect: 'CA mínima após o uso passa a ser 10 (em vez da faixa 2–6).',
+                                      aprimoramento: aprimoramentoBox('ko', Math.min(8, d.ko_pn||0), 8, null, `Bônus na CA restante após KO: <b>+${koB.caBonus}</b> (+1 a cada 2 P.N extra)`) })}
+                                ${advancedCard('ryu','RYU — Fluir','🌊','GYO em tempo real em várias partes do corpo simultaneamente, para combate corpo-a-corpo e armas de arremesso. 30% Aura → acesso aos Exemplos 1–3 (Bônus em CA e Ataque+Dano).',
+                                    `Após os 3 turnos iniciais, escolha livremente entre as linhas restantes de qualquer tabela disponível, sem repetir uma linha da mesma tabela. Consome Reações para contra-ataques sem perder Ação Principal.`,
+                                    'TEN + REN + ZETSU Maestria', ten>=3 && ren>=3 && zetsu>=3,
+                                    { effect: 'Desbloqueia os Exemplos 4, 5 e 6 de RYU, que concedem Reações Extras.',
+                                      aprimoramento: aprimoramentoBox('ryu', Math.min(8, d.ryu_pn||0), 8, null, `Bônus em todos os valores das tabelas de RYU: <b>+${ryB.tabelaBonus}</b> (+1 a cada 2 P.N extra)`),
+                                      extraHtml: ryuTablesHtml })}
                             </div>`;
                         })()}
 
@@ -1059,7 +1144,8 @@
             let renUsedFree = false;
             if (useRen) {
                 renUsedFree = window.isRenFreeUsoDisponivel ? window.isRenFreeUsoDisponivel(char) : false;
-                const grausPagos = Math.max(0, renGraus - (renUsedFree ? 1 : 0));
+                const grausGratisAprim = window.calcRenGrausGratisAprimoramento ? window.calcRenGrausGratisAprimoramento(char) : 0;
+                const grausPagos = Math.max(0, renGraus - (renUsedFree ? 1 : 0) - grausGratisAprim);
                 renCost = grausPagos * 5;
                 if (renUsedFree && window.marcarRenFreeUsoConsumido) window.marcarRenFreeUsoConsumido(char);
             }
@@ -1222,7 +1308,9 @@
         }
         function cancelPendingRoll() { state.pendingRoll = null; render(true); }
         // Zetsu (Suprimir) dá bônus de Furtividade: nível 1/2 → +3, nível 3 (Maestria) → +6.
+        // Se a Aprimoramento (Opção 2 — P.N extra pós-Maestria) estiver escolhida, o bônus sobe +1 por P.N investido.
         function getZetsuFurtividadeBonus(char) {
+            if (window.calcZetsuBonus) return window.calcZetsuBonus(char).furtividade;
             const zetsu = ((char.nenDominio || {}).zetsu) || 0;
             if (zetsu >= 3) return 6;
             if (zetsu >= 1) return 3;
@@ -1296,8 +1384,9 @@
             const grausMax = pr.grausMax || 1;
             const grausEsc = pr.grausEscolhidos || 1;
             const renFree = window.isRenFreeUsoDisponivel ? window.isRenFreeUsoDisponivel(char) : false;
-            const grausPagos = Math.max(0, grausEsc - (renFree ? 1 : 0));
-            const custoTxt = grausPagos <= 0 ? 'Grátis (1x/dia)' : `${grausPagos * 5}% de Aura${renFree ? ' (1º grátis)' : ''}`;
+            const grausGratisAprim = window.calcRenGrausGratisAprimoramento ? window.calcRenGrausGratisAprimoramento(char) : 0;
+            const grausPagos = Math.max(0, grausEsc - (renFree ? 1 : 0) - grausGratisAprim);
+            const custoTxt = grausPagos <= 0 ? 'Grátis' : `${grausPagos * 5}% de Aura${(renFree || grausGratisAprim>0) ? ` (${(renFree?1:0)+grausGratisAprim} grátis)` : ''}`;
             const stepperHtml = grausMax > 1
                 ? `<div style="display:flex;gap:4px;justify-content:center;margin-top:12px">
                     ${Array.from({length: grausMax}, (_, i) => i + 1).map(n => `
@@ -1330,7 +1419,8 @@
             const grausTabela = idxAtual >= 0 ? (window.DAMAGE_TABLE.length - 1 - idxAtual) : 0;
             const aura = char.vitals.aura || 0;
             const renFree = window.isRenFreeUsoDisponivel ? window.isRenFreeUsoDisponivel(char) : false;
-            const grausAura = Math.floor(aura / 5) + (renFree ? 1 : 0);
+            const grausGratisAprim = window.calcRenGrausGratisAprimoramento ? window.calcRenGrausGratisAprimoramento(char) : 0;
+            const grausAura = Math.floor(aura / 5) + (renFree ? 1 : 0) + grausGratisAprim;
             const grausMax = ren > 0 ? Math.min(grausTabela, grausAura) : 0;
             if (grausMax > 0) {
                 state.pendingRenAttackRoll = { weaponName, diceExpr, attrKey, mode, grausMax, grausEscolhidos: 1 };
@@ -1358,8 +1448,9 @@
             const grausMax = pr.grausMax || 1;
             const grausEsc = pr.grausEscolhidos || 1;
             const renFree = window.isRenFreeUsoDisponivel ? window.isRenFreeUsoDisponivel(char) : false;
-            const grausPagos = Math.max(0, grausEsc - (renFree ? 1 : 0));
-            const custoTxt = grausPagos <= 0 ? 'Grátis (1x/dia)' : `${grausPagos * 5}% de Aura${renFree ? ' (1º grátis)' : ''}`;
+            const grausGratisAprim = window.calcRenGrausGratisAprimoramento ? window.calcRenGrausGratisAprimoramento(char) : 0;
+            const grausPagos = Math.max(0, grausEsc - (renFree ? 1 : 0) - grausGratisAprim);
+            const custoTxt = grausPagos <= 0 ? 'Grátis' : `${grausPagos * 5}% de Aura${(renFree || grausGratisAprim>0) ? ` (${(renFree?1:0)+grausGratisAprim} grátis)` : ''}`;
             const stepperHtml = grausMax > 1
                 ? `<div style="display:flex;gap:4px;justify-content:center;margin-top:12px;flex-wrap:wrap">
                     ${Array.from({length: grausMax}, (_, i) => i + 1).map(n => `
@@ -1433,7 +1524,8 @@
                 const idxD = window.DAMAGE_TABLE.indexOf(diceExpr);
                 if (idxD >= 0) renDiceExpr = window.DAMAGE_TABLE[Math.min(idxD + renGraus, window.DAMAGE_TABLE.length - 1)];
                 renUsedFree = window.isRenFreeUsoDisponivel ? window.isRenFreeUsoDisponivel(char) : false;
-                const grausPagos = Math.max(0, renGraus - (renUsedFree ? 1 : 0));
+                const grausGratisAprim = window.calcRenGrausGratisAprimoramento ? window.calcRenGrausGratisAprimoramento(char) : 0;
+                const grausPagos = Math.max(0, renGraus - (renUsedFree ? 1 : 0) - grausGratisAprim);
                 renCost = grausPagos * 5;
                 if (renUsedFree && window.marcarRenFreeUsoConsumido) window.marcarRenFreeUsoConsumido(char);
                 char.vitals.aura = Math.max(0, (char.vitals.aura || 0) - renCost);

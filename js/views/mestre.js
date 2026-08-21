@@ -43,12 +43,16 @@
                 const avatar = char.imageUrl
                     ? `<img src="${char.imageUrl}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:1px solid #374151">`
                     : `<div style="width:44px;height:44px;border-radius:50%;background:#1f2937;display:flex;align-items:center;justify-content:center;color:#6b7280"><i data-lucide="user" size="18"></i></div>`;
+                const deleteBtn = state.isAdmin
+                    ? `<button onclick="event.stopPropagation(); deleteCharacter('${char.id}', true)" class="p-2" style="color:#4b5563;flex-shrink:0" onmouseover="this.style.color='#f87171'" onmouseout="this.style.color='#4b5563'" title="Apagar ficha (admin)"><i data-lucide="trash-2" size="16"></i></button>`
+                    : '';
                 return `<div onclick="window._openViewingChar('${char.id}')" style="background:#111827;border:1px solid #1f2937;border-left:3px solid ${color};border-radius:12px;padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer" onmouseover="this.style.borderColor='${color}'" onmouseout="this.style.borderLeftColor='${color}';this.style.borderTopColor='#1f2937';this.style.borderRightColor='#1f2937';this.style.borderBottomColor='#1f2937'">
                     ${avatar}
                     <div style="flex:1">
                         <div style="font-weight:900;color:#fff;font-size:13px">${char.name}</div>
                         <div style="font-size:9px;color:#9ca3af;text-transform:uppercase">${char.race || ''} • <span style="color:${color}">${char.class || ''}</span> ${char.level > 0 ? `• Lv ${char.level}` : ''}</div>
                     </div>
+                    ${deleteBtn}
                 </div>`;
             };
 

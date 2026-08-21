@@ -897,25 +897,29 @@ function closeHatsuCreator() {
                 char.vitals.aura = Math.max(0, aura - custo);
             }
 
-            // Effect messages per principle
+            // Effect messages per principle — já refletem o Aprimoramento (P.N extra investido)
             const nivel = d[key] || 1;
+            const tenRD = window.calcTenRD ? window.calcTenRD(char) : 0;
+            const rBon = window.calcRenBonus ? window.calcRenBonus(char) : { grau:1, teste:0, teste1x:0 };
+            const zBon = window.calcZetsuBonus ? window.calcZetsuBonus(char) : { auraPct:0, furtividade:0, rodadas:3 };
+            const advB = window.calcAvancadoBonus ? window.calcAvancadoBonus(char, key) : {};
            const EFEITOS = {
-    ten:   ['🛡️ TEN ativado (Reação ou Ação Bônus) — +2 RD (Corte, Impacto, Explosão) por esta reação.',
-            '🛡️ TEN ativado (Reação ou Ação Bônus) — +4 RD. Imune a projéteis que igualem CA.',
-            '🛡️ TEN ativado (Reação ou Ação Bônus) — +6 RD. Máxima proteção.'],
-    ren:   ['💪 REN ativado — próximo ataque no turno: +1 Grau de dano.',
-            '💪 REN ativado — +1 Grau de dano e +3 em Intimidação/Arcanismo com REN.',
-            '💪 REN ativado — Intermediário + pode usar 1×/dia sem custo de aura.'],
-    zetsu: ['👁️ ZETSU ativado — aguarde 3 rodadas: +5% Aura, +1 Reação, +3 Furtividade.',
-            '👁️ ZETSU ativado — aguarde 2 rodadas: +10% Aura, +1 Reação, +3 Furtividade.',
-            '👁️ ZETSU ativado — aguarde 1 rodada: +10% Aura, +2 Reações, +6 Furtividade.'],
-    en:    ['🔵 EN ativado — detecta forma e movimento em 3m por 1 rodada. Ataque de reação vs quem entrar.'],
-    inp:   ['🌑 IN ativado — objeto de aura oculto até próximo turno.'],
-    gyo:   ['👁️ GYO ativado — visão de aura e objetos ocultos (ou +3 FOR/DES/CON por 1 rodada se corporal).'],
-    shu:   ['⚡ SHU ativado — objeto envolto: +1d4 Dano e CA por 1 rodada. Golpe mirado sem ônus.'],
-    ken:   ['🏯 KEN ativado — CA dobrada por 2 rodadas. Consome 4 Reações.'],
-    ko:    ['🔥 KO ativado — próximo golpe: dano ×3. ATENÇÃO: CA reduzida em 80% até próximo turno!'],
-    ryu:   ['🌊 RYU ativado — +3 CA e Ataque por 3 turnos. Múltiplos contra-ataques permitidos.'],
+    ten:   ['🛡️ TEN ativado (Reação ou Ação Bônus) — +' + tenRD + ' RD (Corte, Impacto, Explosão) por esta reação. Interrompe intimidação por aura.',
+            '🛡️ TEN ativado (Reação ou Ação Bônus) — +' + tenRD + ' RD. Imune a projéteis que igualem CA.',
+            '🛡️ TEN ativado (Reação ou Ação Bônus) — +' + tenRD + ' RD. Máxima proteção.'],
+    ren:   ['💪 REN ativado — próximo ataque no turno: +' + rBon.grau + ' Grau de dano.',
+            '💪 REN ativado — +' + rBon.grau + ' Grau de dano e +' + rBon.teste + ' em Intimidação/Arcanismo com REN.',
+            '💪 REN ativado — Intermediário + 1×/dia +' + rBon.teste1x + ' sem custo de aura.'],
+    zetsu: ['👁️ ZETSU ativado — aguarde 3 rodadas: +' + zBon.auraPct + '% Aura, +1 Reação, +' + zBon.furtividade + ' Furtividade.',
+            '👁️ ZETSU ativado — aguarde 2 rodadas: +' + zBon.auraPct + '% Aura, +1 Reação, +' + zBon.furtividade + ' Furtividade.',
+            '👁️ ZETSU ativado — aguarde 1 rodada: +' + zBon.auraPct + '% Aura, +2 Reações, +' + zBon.furtividade + ' Furtividade.'],
+    en:    ['🔵 EN ativado — detecta forma e movimento em ' + (advB.diametro||3) + 'm por 1 rodada. Ataque de reação vs quem entrar, sem gastar Ação Principal.'],
+    inp:   ['🌑 IN ativado — objeto de aura oculto por ' + (advB.rodadas||1) + ' rodada(s).'],
+    gyo:   ['👁️ GYO ativado — visão de aura e objetos ocultos (ou +' + (advB.attrBonus||3) + ' FOR/DES/CON por 1 rodada se corporal).'],
+    shu:   ['⚡ SHU ativado — objeto envolto: +1d4 Dano e CA por ' + (advB.rodadas||1) + ' rodada(s). Golpe mirado sem ônus.'],
+    ken:   ['🏯 KEN ativado — CA dobrada por 2 rodadas. Consome ' + (advB.reacoes||4) + ' Reações.'],
+    ko:    ['🔥 KO ativado — próximo golpe: dano ×3. ATENÇÃO: CA reduzida em 80% até próximo turno' + (advB.caBonus>0?(' (+' + advB.caBonus + ' restante)'):'') + '!'],
+    ryu:   ['🌊 RYU ativado — Exemplos 1-3' + (advB.sup?'-6':'') + ' de RYU disponíveis' + (advB.tabelaBonus>0?(' (+' + advB.tabelaBonus + ' em todos os valores)'):'') + '. Múltiplos contra-ataques permitidos.'],
 };
             const msgs = EFEITOS[key];
             const msg = msgs ? (msgs[nivel-1] || msgs[msgs.length-1]) : 'Princípio ativado.';

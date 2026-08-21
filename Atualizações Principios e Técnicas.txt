@@ -1,0 +1,535 @@
+ATUALIZAÇÕES -> PRINCÍPIOS E TÉCNICAS DE NEN
+
+##### 1. TEN = PROTEÇÃO/ENVOLVER
+
+&nbsp;Ao utilizar a Ação Bônus ou Reação para aplicar TEN é possível ativar uma **Redução de Dano (RD)** contra danos de Cortes, Impacto (incluso quedas) e Explosões.
+
+TEN permite interromper o efeito de intimidação causado por aura (não em Hatsus), sem precisar superar a rolagem de intimidação de um inimigo.
+
+### Domínio de TEN
+
+{color:,text-align:center}
+:
+| Nível do Domínio<br><br>| Gastos (Aura %) e Tempo de Ativação| Efeito do Princípio |
+|:------------:|:-------------:|:-----------------:|
+|1º Nível (Básico)       | 20% e 1 Reação|+2 RD |
+|2º Nível (Intermediário)| 20% e 1 Reação|+4 RD |
+|3º Nível (Maestria)    | 20% e 1 Reação|+6 RD |
+:
+&nbsp;É possível gastar mais aura para aumentar a RD proporcionalmente, como por exemplo, 40% e 2 reações para +4 RD se o domínio é apenas o nível Básico. Na maestria permite utilizar o **princípio avançado SHU**
+
+{{note
+**Reforçadores gastam:**
+
+10% e 1 Reação para +2 RD no Básico;
+
+5% e 1 Reação para +4 RD no Intermediário
+
+10% e 1 Reação para +6 RD na Maestria
+}}
+
+\column
+::::::::::::::::::::
+{{descriptive
+APRIMORANDO TEN
+{color:,text-align:center}
+Após a Maestria, aplica-se +1 RD para cada Ponto de Nen investido neste princípio. Se 3 pontos levam à Maestria (+6 RD), 4 pontos levam a +7 RD e assim por diante.<br>
+**Além da maestria, o máximo de P.N aplicáveis é = 10.**
+
+&nbsp;É utilizado para diminuir (ou mesmo evitar) a perda gradual de aura pela qual todo ser vivo passa, mantendo a circulação da aura dentro e ao redor do corpo. Uma vez mantida, a aura serve como uma segunda pele, servindo de proteção contra os mais básicos golpes que utilizam NEN. 
+}}
+
+##### 2. REN = PRATICAR/CONTROLAR
+:
+<div class='descriptive'>
+&nbsp;É a técnica aplicada no teste de NEN do copo com água. A prática se foca em expandir a aura o máximo possível para fora do corpo aumentando as capacidades do corpo do usuário, sendo muito utilizado para técnicas ofensivas (chamada nesse caso de Hatsu). Também é utilizada em interação com objetos controlados por NEN com prestidigitação.
+</div>
+
+
+&nbsp;O custo da utilização do REN irá variar sendo:
+:
+1. Ação Principal para Intimidar. O valor da rolagem da intimidação com REN dura até o alvo se libertar sem precisar manter o gasto do REN.
+:
+2. Ação bônus para aumentar o Grau/Passo de dano para o próximo ataque que acerte (no mesmo turno). **Esse efeito se extende para mais de um ataque com a Eficiência de Aura 2.**
+::::::::::::::::::::::
+
+{{descriptive
+APRIMORANDO REN OPÇÃO 1
+{color:,text-align:center}
+Após a Maestria, aplica-se +1 Grau/Passo de dano em ataques corpo-a-corpo para cada Ponto de Nen investido neste princípio. Se 3 pontos levam à Maestria (somando todos os benefícios), 4 pontos mantém todos os benefícios, mas aumenta o grau/passo da arma +1 vez. <br>
+**Além da maestria, o máximo de P.N aplicáveis é = 10.**
+}}
+
+{{descriptive
+APRIMORANDO REN OPÇÃO 2
+{color:,text-align:center}
+Após a Maestria, aplica-se +1 ao teste realizado com perícia beneficiado por esse recurso (intimidação, prestidigitação e etc).Se 3 pontos levam à Maestria (somando todos os benefícios), 4 pontos mantém todos os benefícios, mas aplica-se +1 nos testes, como +4 nos testes citados por padrão ou +7 no teste de 1x por dia.sem gastar aura.<br>
+**Além da maestria, o máximo de P.N aplicáveis é = 10.**
+}}
+
+
+\column
+
+### Domínio de REN
+{color:,text-align:center}
+| Nível<br><br>| Gastos (Aura %) e Tempo de Ativação| Efeito do Princípio <br><br> |
+|:------------:|:-------------:|:-----------------:|
+|  <br><br><br>1º Nível (Básico)| <br><br><br> 10% e Ação Bônus| <div style='margin-bottom:1px'></div> **1.** Aplicar aumento no Grau/Passo de dano de Armas <br> **2.** Interação com materiais que possuem NEN <br> **3.** Proteção contra REN (Reação)|
+| <br> 2º Nível (Intermediário)|<br> 10% e Ação Bônus/Ação <br>  <br> | **+3 em Intimidação ou Arcanismo/Religião Utilizando REN** + Efeito Básico<br>|
+| <br>  <br> 3º Nível (Maestria)     | <br>  <br> 10% e Ação Bônus/Ação | **1x/dia adc +6 em Intimidação ou Arcanismo/Religião Utilizando REN sem gastar aura.** + Efeito Intermediário |
+
+
+2º Nível (Intermediário)
+
+**Abre o EN**  <br>
+&nbsp;3º Nível (Maestria)
+
+**Abre o GYO (Necessário Zetsu 2º Nível)**
+
+<img 
+  src='https://i.pinimg.com/564x/40/58/c7/4058c75ece6cbf4f10da38fd942b697a.jpg' 
+style='position:absolute;right:150px;top:240px;width:100%;mix-blend-mode:darken;opacity:50%'/>
+:
+
+&nbsp;**Alguém que não utiliza REN pode ter sua vontade subjugada automaticamente por um usuário**, mesmo &nbsp;que o alvo esteja consciente da imposição da &nbsp;&nbsp;vontade desse usuário e este lhe seja hostil (como &nbsp;&nbsp;&nbsp;Hisoka contra Gon e Killua na Torre Celestial). 
+:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Saber o básico de REN capacita o &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;indivíduo a, pelo menos, tentar se &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;proteger com REN e não falhar automa- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ticamente em embates "mentais" como &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; as perícias apresentadas na tabela &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;acima.
+:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Assim, um usuário de NEN pode &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sair de uma intimidação por REN &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**(não considerando efeito de &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Hatsus)** de 2 formas:
+:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**1. Contestando a Intimidação &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ao usar REN gastando 1 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Reação** e superando o inimigo &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;na imposição.
+:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2. Após ser afetado, **ativar o &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TEN consumindo a ação &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;principal** ou Reação para se <br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;proteger.
+
+##### 3. ZETSU = ANULAR/SUPRIMIR
+:
+{{descriptive
+&nbsp;É utilizado para suprimir o fluxo externo da aura do indivíduo, ocultando sua presença de outros usuários da nen. O fluxo pára porque os nós de aura são fechados por meio do treinamento do domínio de NEN, aliviando a fadiga do usuário e deixando-o completamente despro-tegido contra ataques de nen como resultado.
+
+&nbsp;É um princípio fundamental para todos os usuários de NEN, justamente pelos seus dois principais motivos, suprimir o fluxo, recuperando mais rapidamente suas energias e também para ocultar sua presença.
+{{note
+O tempo de Ativação (reebendo bônus em furtividade) é uma Ação Bônus ou Reação, porém **a recuperação de aura é recebida apenas no tempo de conclusão.**<br> O Tempo de Conclusão descrito abaixo corresponde ao tempo necessário para que a aura seja recebida
+}}
+}}
+:
+
+### Domínio de ZETSU em Combate
+{color:,text-align:center}
+
+| Nível<br><br>| Tempo de Conclusão| Efeito do Princípio <br><br> |
+|:------------:|:-------------:|:-----------------:|
+|<br> <br> 1º Nível (Básico)|<div style='margin-bottom:15px'></div>  3 **Rodadas** em Zetsu |<br>+5% Aura +1 Reação +3 Furtividade **(Dano crítico ao sofrer dano de NEN)** <br>|
+|<br> 2º Nível (Intermediário)|<div style='margin-bottom:15px'></div>  2 **Rodadas** em Zetsu |<br>+10% Aura +1 Reação +3 Furtividade **(Dano crítico ao sofrer dano de NEN)**|
+|<br> <br> 3º Nível (Maestria)     |<div style='margin-bottom:15px'></div> <br> 1 **Rodada** em Zetsu |<br> +10% Aura +2 Reação +6 Furtividade **(Dano crítico ao sofrer dano de NEN)** - Criaturas não inteligentes ignoram sua presença|
+
+2º Nível (Intermediário)
+
+**Abre o IN**
+
+**Abre o GYO (Necessário Maestria em REN)**
+
+{{note
+**Transformadores** tem vantagem em detectar alguém em Zetsu enquanto **Reforçadores** e **Emissores** tem desvantagem.
+}}
+
+&nbsp;Zetsu pode ser desativado de forma livre, não sendo necessário gastar a ação bônus ou esperar seu turno para desativar. 
+
+**Porém, caso faça (para evitar grandes danos) os efeitos/benefícios não serão recebidos.**
+
+{{descriptive
+APRIMORANDO ZETSU OPÇÃO 1
+{color:,text-align:center}
+:
+Após a Maestria, aplica-se +1 Grau/Passo de recuperação de aura (+5%) para cada 2 Pontos de Nen investidos neste princípio. Se 3 pontos levam à Maestria (recuperando 10% em 1 rodada), 5 pontos aumenta o grau/passo da recuperação com 15% em 1 rodada. <br>
+**Além da maestria, o máximo de P.N aplicáveis é = 10.**
+}}
+
+{{descriptive
+APRIMORANDO ZETSU OPÇÃO 2
+{color:,text-align:center}
+:
+Após a Maestria, aplica-se +1 ao teste realizado com perícia beneficiado por esse recurso (furtividade).Se 3 pontos levam à Maestria (+6 em furtividade), 4 pontos aplica-se +1 nos testes. Ou seja, +7 e assim por diante.<br>
+**Além da maestria, o máximo de P.N aplicáveis é = 10.**
+}}
+:::::::::::::::::::::::::::
+
+##### Em combate:
+{{descriptive
+Zetsu pode ser usado **em combate** sob 4 circunstâncias:
+
+1. Restrição de um Hatsu, cumprindo determinada quantidade de rodadas e restrições similares.
+2. Esgotamento de aura, ativando automaticamente
+3. Necessidade estratégica (furtividade, recuperação e etc)
+4. Condição de Selado
+}}
+
+##### Fora de combate:
+{{descriptive
+Em uma situação sem combate zetsu pode ser usado para recuperação de aura **apenas em 3 circustâncias:**
+
+1. Necessidade de furtividade
+2. Situação de descanso curto ou longo
+3. Condição de Selado
+}}
+
+##### EN = Envolver
+###### Requisitos: 2º Nível em REN e 1º Nível em TEN
+:::::
+
+{{descriptive,wide
+
+&nbsp;**En** funciona quando se expande seu **Ren**, de modo que a sua aura estende-se ainda mais do que o normal, então utiliza **Ten** ao mesmo tempo para "dar forma" à aura, geralmente uma esfera . Alguém usando **En** pode sentir a forma e o movimento de qualquer coisa física que entrar na área.
+
+A desvantagem para isso é que ele é extremamente cansativo e desgastante para o usuário manter constantemente. Esse gasto é cobrado em aura e reações.
+
+**Um dos maiores benefícios desse recurso é funcionar contra ilusões, detectando que algo visto na verdade não possui matéria e, portanto, não causa um risco físico.**
+}}
+
+&nbsp;Gasta-se 10% de aura e 2 reações para 3m de diâmetro de EN (1,5 em todas as direções ). Esse recurso dura até o **INÍCIO** de **SEU** próximo turno.
+
+Caso **algo ou alguém entre** no espaço, é possível realizar um ataque direto **como** Reação, mas **sem gastar** sua Ação Principal no seu próximo turno ou recurso de Reação além do gasto no princípio.
+
+Para ampliar o efeito de maneira natural, gasta-se +10% de aura e +2 reações para aumentar a distância **a cada 3m.** Exemplo: 30% de aura e 6 Reações para um En de 9m de diâmetro (4,5m em todas as direções).
+
+{{note
+**Benefício de Emissores:**
+
+Emissores podem manter o EN por um turno a mais sem custo adicional.
+}}
+
+&nbsp;Se múltiplos inimigos estiverem na área, é possível atacar todos uma vez (com uma mesma rolagem) **ao custo de um nível de exaustão.**
+
+\column
+
+##### EN SUPERIOR:
+{color:,text-align:center}
+{{descriptive
+Tornar o EN superior, **representando um treinamento focado,** permite ao usuário:
+
+Dobrar o alcance do EN básico + Mudar seu formato entre Circulo, Cone (+3m na distancia final), Linha (+4,5m na distancia final) ou Cilindro (+3m na distancia final).
+}}
+
+{{descriptive
+APRIMORANDO EN OPÇÃO 1
+{color:,text-align:center}
+:
+Após o nível Superior, reduza o custo de Reações em 1 (Mínimo 1) para cada P.N investido.<BR>
+**Além do nível Superior, o máximo de P.N aplicáveis é = 10.**
+}}
+
+{{descriptive
+APRIMORANDO EN OPÇÃO 2
+{color:,text-align:center}
+:
+Após o nível Superior, aumente o alcance/área do EN em 1,5 para cada P.N investido (independente do formato).<BR>
+**Além do nível Superior, o máximo de P.N aplicáveis é = 10.**
+}}	
+
+##### IN = Ocultar
+###### Requisitos:2º Nível em ZETSU
+
+<div class='descriptive'>
+&nbsp;É um Princípio Avançado do **Zetsu** usado para esconder quase completamente um objeto, arma, equipamento ou substância feitos com o seu próprio NEN. **Esse objeto/material só pode ser inevitavelmente visto com o uso de GYO.**
+</div>
+
+&nbsp;Gasta-se 5% de aura para ocultar um item, material ou substância **feita de aura** em sua posse, domínio ou controle por 1 rodada (fim do próximo turno).
+
+<img 
+  src='https://i.pinimg.com/564x/f4/63/5c/f4635c4339d3efa997009218b53fac97.jpg' 
+style='position:absolute;left:-280px;top:10px;width:115%;mix-blend-mode:darken;'/>
+
+{{note
+Pela assimilação do Diagrama de NEN, utilizar o IN custa 10% por rodada (5% acima do padrão) para **Reforçadores, Manipuladores e Especialistas**
+}}
+:::
+##### IN SUPERIOR:
+{color:,text-align:center}
+{{descriptive
+Tornar o IN superior, **representando um treinamento focado,** permite ao usuário aumentar a duração para 2 Rodadas
+}}
+
+{{descriptive
+APRIMORANDO IN
+{color:,text-align:center}
+:
+Após o nível Superior, aumente a quantidade de rodadas com IN no Hatsu em 1 a cada 2 P.N investidos.<BR>
+**Além do nível Superior, o máximo de P.N aplicáveis é = 10.**
+}}
+
+##### GYO = Focar
+###### Requisitos: 2º Nível em ZETSU e Maestria em REN
+:
+<div class='descriptive'>
+&nbsp;É uma aplicação avançada de **REN** e **ZETSU** pela qual um usuário de NEN concentra uma maior parte de sua aura em uma parte específica do corpo. **GYO** quando usado nos olhos permite ver a aura de outros usuários de NEN ou mesmo objetos/materiais escondidos com IN.
+</div>
+
+&nbsp;Gasta-se 10% de aura para aplicar NEN **nos olhos ou ouvidos** aplicando certos efeitos, como descobrir coisas ocultas ao alcance de **Visão** (contra IN) e **Audição** com IN ou Zetsu, além de somar 5 nos testes de Investigação ou Percepção.
+
+Utilizada em outras partes do corpo, gasta-se **30% de aura e aplica-se +3 temporário ao modificadores de FOR, DES ou CON** até o início de seu próximo turno (1 rodada).
+
+Esse aumento NÃO provoca os efeitos dos Atributos Evoluídos citados no Cap. [XP - Sobreviver, Evoluir e Caçar](#p39), mas aplica a propriedade de Arma de Cerco, descrita no Cap. [Riquezas e Recursos](#p57)
+
+
+<img 
+  src='https://i.pinimg.com/564x/2b/fc/26/2bfc26206f177c6cc1313e787bde4186.jpg' 
+style='position:absolute;right:200px;top:420px;width:100%;mix-blend-mode:darken;opacity:100%'/>
+
+\column
+::
+
+{{note
+&nbsp;Ataques com GYO automaticamente provocam um TR de FOR **(padrão)** ou CON **(ao reagir defensivamente)** para que o alvo não seja empurrado 6m pela intensidade da aura condensada multiplicada pela velocidade do impacto. <br>A CD a ser superada = Valor do Ataque. **Corpos protegidos com GYO, KEN ou RYU impedem esse efeito passivo.**
+}}
+##### GYO SUPERIOR:
+{color:,text-align:center}
+{{descriptive
+Tornar o GYO Superior, **representando um treinamento focado,** permite ao usuário **dois benefícios:**
+
+1. Cancelar uma condição imposta por ataque/golpe mirado ao utilizar GYO em uma parte do corpo atacada como reação de bloqueio, mesmo que o acerto tenha sucesso (superando sua CA).
+
+2. Multiplicar a distância ou altura de salto no total de 1,5m pelo valor de força ou atletismo com GYO aplicado 
+}}
+
+{{descriptive
+APRIMORANDO GYO
+{color:,text-align:center}
+:
+Após o nível Superior, aumente o valor de atributo cOM GYO em 1 para cada 2 P.N investidos.<BR>
+**Além do nível Superior, o máximo de P.N aplicáveis é = 10.**
+}}
+
+##### SHU = Agregar/Proteger
+###### Requisitos: Maestria em TEN
+:
+{{descriptive
+É a aplicação de aura de maneira completa em um item/objeto mesmo que natural. Essa camada aumenta a durabilidade e proteção e, também, sua letalidade.
+}}
+
+&nbsp;Gasta-se 10% de aura para aplicar **+1d4 no Dano e CA ao item de 1m em qualquer proporção**, o prote-gendo de efeitos físicos como queimar, molhar e etc **apor uma rodada.** 
+{{note
+Para equipamentos maiores é necessário +5%. Para armas de fogo, o custo e tamanho consideram o projétil.
+}}
+É possível gastar 5% a mais de aura para:
+1. Aumentar a CA ou Dano do item (como REN)
+2. Aplicar a propriedade de Arma de Cerco
+3. Aumentar em uma rodada o tempo de duração
+4. Englobar itens maiores que 1m. Sendo 5% para cada metro
+
+Um Item envolto em Shu apenas pode ser <br>destruído ou danificado por ataques de <br>**Hatsu**, **SHU**, **KO** ou **RYU**.
+
+\column
+
+&nbsp;Aplicar Shu em uma arma, permite o golpe ser considerado "mirado/preciso" **sem receber o ônus** apresentado na mecânica.
+
+{{note
+**Benefício de Emissores e Manipuladores:**
+
+Emissores ou Manipuladores e Reforçadores (adjacentes à Emissão) podem manter a aura fora por 1 rodada a mais por uso.
+}}
+
+<img 
+  src='https://i.pinimg.com/564x/43/e9/80/43e98049d6bfce8677c50166dbf86e48.jpg' 
+style='position:absolute;left:0px;top:350px;width:100%;mix-blend-mode:darken;opacity:100%'/>
+::
+##### SHU SUPERIOR:
+{color:,text-align:center}
+{{descriptive
+
+Tornar o SHU Superior, **representando um treinamento focado,** permite ao usuário gastar a mesma aura independente do tamanho do objeto **e** aumentar dano e CA do objeto ao mesmo tempo.
+}}
+
+
+{{descriptive
+APRIMORANDO SHU
+{color:,text-align:center}
+:
+Após o nível Superior, para cada P.N investidos em SHU, aumenta-se a duração do efeito em 1 rodada.<BR>
+**Além do nível Superior, o máximo de P.N aplicáveis é = 10.**
+}}
+
+##### KEN = Fortificar
+###### Requisitos: Maestria em TEN e REN
+
+<div class='descriptive'>
+&nbsp;É uma técnica defensiva avançada onde um usuário de Nen mantém um estado de **REN** com aura fora de todo o seu corpo, porém exercendo uma proteção com TEN para se defender contra ataques de qualquer direção sem a necessidade de usar Gyo . Ken é tão útil como uma posição defensiva, mas é difícil de se manter. Além disso, não é tão forte como Gyo em qualquer parte do corpo, uma vez que protege todo o corpo por igual. Por causa disso, ele é usado quando se quer ser muito cauteloso. 
+</div>
+
+&nbsp;Ao usar uma Ação bônus ou Reação, o usuário expande sua aura de forma densa que dobra a CA por duas rodadas ao custo de 4 reações e 30% de aura. 
+
+É possível gastar o dobro de aura e Reações para triplicar a CA original no lugar de dobrar. 
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;O usuário ainda pode se <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;beneficiar dessa técnica para &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;aplicar Redução de Dano [(RD](#pxx) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [como em TEN)](#pxx) em caso de dano <br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;de  Queda. 
+:::
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 1. Caso da CA **IGUALE** a altura <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;da queda, o alvo terá 50% do &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dano reduzido. <br>
+:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2. Caso a CA **SUPERE** a &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;altura da queda, &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;nenhum dano será &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sofrido.
+
+:::::
+##### KEN SUPERIOR:
+
+{{descriptive
+
+Gastar 1 ponto de Domínio de NEN nesse princípio para ampliar o efeito, **representando um treinamento focado,** permite ao usuário **um dos**  benefícios **por uso**:
+
+1. Triplicar o RD de TEN na maestria (3x6 = 18 por padrão)
+2. Aumentar a CA em +5 até o início do seu próximo turno.
+}}
+
+{{descriptive
+APRIMORANDO KEN
+{color:,text-align:center}
+:
+Após o nível Superior, para cada P.N investidos em KEN, reduza o custo de Aura em 5% **ou** reduza o custo de Reações em 1 (Mínimo 1).<BR>
+**Além do nível Superior, o máximo de P.N aplicáveis é = 10.**
+}}
+
+##### KO = Endurecer
+###### Requisitos: Maestria em REN, ZETSU e 1º Nível de TEN
+:
+<div class='descriptive'>
+&nbsp;Uma versão avançada do Gyo em que toda aura de um indivíduo está concentrada em uma determinada parte do corpo. Zetsu é usado para interromper completamente o fluxo de Nen em todas as outras partes do corpo. Isto faz com que uma parte do corpo excepcionalmente potente, mas deixa o resto do corpo completamente desprotegido. Isto é usado por alguns usuários de NEN como uma técnica ofensiva, mas é uma jogada arriscada, deixando o resto de seu corpo desprotegido. Em uma luta contra outro usuário de Nen, geralmente não é uma boa ideia.
+</div>
+
+Gasta-se 30% de aura e triplica o dano, porém reduz a CA em 80% até o início do próximo turno. Veja abaixo o calculo de impacto na CA para KO:
+
+:
+{{classTable
+| CA inicial |CA em todo o corpo após KO| CA inicial | CA em todo o corpo após KO 
+|:-----:|:-----------------:|:---------|:---------------------:|
+|  10  | 2 | 20   |4|
+|  11  | 2 | 21   |5|
+|  12  | 2 | 22   |5|
+|  13  | 3 | 23   |5|
+|  14  | 3 | 24   |5|
+|  15  | 3 | 25   |5|
+|  16  | 4 | 26   |5|
+|  17  | 4 | 27   |6|
+|  18  | 4 | 28   |6|
+|  19  | 4 | 29   |6|
+}}
+
+{{note
+**Nesse caso específico, a CA pode ficar abaixo de 10 e o efeito não pode ser intencionalmente interrompido**
+}}
+
+##### KO SUPERIOR:
+
+{{descriptive
+
+Tornar o KO Superior, **representando um treinamento focado,** permite ao usuário ter sua CA reduzida ao mínimo de 10 (não mais entre 2-6)
+}}
+
+{{descriptive
+APRIMORANDO KO
+{color:,text-align:center}
+:
+Após o nível Superior, para cada 2 P.N investidos em KO, adicione +1 em sua CA restante no corpo após o uso.<BR>
+**Além do nível Superior, o máximo de P.N aplicáveis é = 10.**
+}}
+
+##### RYU = Fluir
+###### Requisitos: Maestria em REN, ZETSU e TEN
+:
+<div class='descriptive'>
+
+&nbsp;&nbsp;É a técnica detida apenas por mestres no domínio de NEN. Utiliza-se Gyo em tempo real na batalha em diferen-tes partes do corpo de forma simultânea **para combate corpo-a-corpo e armas de arremesso**.
+</div>
+
+&nbsp;Gasta-se 30% de aura e acesse os 3 exemplos iniciais de fluidez do RYU com seus bonus em CA, Ataques+Dano e, posteriormente, Reações. 
+
+Ryu permite consumir as reações para diversos contra-ataques **(como em atributo evoluído para reações)** sem perder ação principal. Por isso seu tempo de uso é contato por turno e não por rodadas, já que a quantidade de turnos depende de quantos estão em combate e isso pode consumir rodadas de forma variável.
+
+Durante os 3 turnos iniciais com RYU ativado, todas as tabelas são similares. Após esses 3 turnos iniciais, o usuário pode utilizar o fluir da aura como bem quiser (traduzindo as diferentes tabelas possíveis), desde que não repita uma das linhas da mesma tabela. 
+
+Veja abaixo abaixo as 3 tabelas de RYU disponíveis ao alcançar a maestria nos 3 princípios básicos seguidas do exemplo. 
+
+
+{{classTable
+### Exemplo 1 - RYU
+{color:,text-align:center}
+|     Turnos   |Bônus na CA | Bônus no ataque e dano
+|:------------:|:----------:|:---------------------:|
+|  3 iniciais  |      3     |           3           |
+|  4º  				 |      3     |           2           |
+|  5º  				 |      4     |           2           |
+|  6º  				 |      5     |           5           |
+}}
+:
+{{classTable
+### Exemplo 2 - RYU
+{color:,text-align:center}
+|     Turnos   |Bônus na CA |  Bônus no ataque e dano
+|:------------:|:----------:|:---------------------:|
+|  3 iniciais  |      3     |           3           |
+|  4º  				 |      4     |           2           |
+|  5º  				 |      5     |           5           |
+|  6º  				 |      3     |           2           |
+}}
+:
+{{classTable
+### Exemplo 3 - RYU
+{color:,text-align:center}
+|     Turnos   |Bônus na CA | Bônus no ataque e dano
+|:------------:|:----------:|:---------------------:|
+|  3 iniciais  |      3     |           3           |
+|  4º  				 |      5     |           5           |
+|  5º  				 |      4     |           2           |
+|  6º  				 |      3     |           2           |
+}}
+:::
+{{note
+Ex. Um personagem **que normalmente** realiza um ataque com +1 (atributo) para acertar e causa 1d6 **+1** (atributo) quando utilizar Ryu, terá um ataque com acerto +1 (atributo) **+3(ryu)** = 4 para acertar e dano com 1d8 **+1 (atributo) +3(ryu).**
+}}
+
+\column
+
+##### RYU SUPERIOR:
+
+{{descriptive
+
+Tornar o Ryu Superior, **representando um treinamento focado,** permite ao usuário acessar as demais tabelas de RYU, que aumentam a imprevisibilidade em combate concedendo **Reações Extras**, conforme apresentado.
+}}
+
+{{classTable
+### Exemplo 4 - RYU
+{color:,text-align:center}
+|     Turnos   |Bônus na CA | Reações disponíveis | Bônus no ataque e dano
+|:------------:|:----------:|:-------------------:|:---------------------:|
+|  3 iniciais  |      3     |          3          |           3           |
+|  4º  				 |      3     |          1          |           2           |
+|  5º  				 |      5     |          0          |           5           |
+|  6º  				 |      4     |          2          |           2           |
+}}
+
+{{classTable
+### Exemplo 5 - RYU
+{color:,text-align:center}
+|     Turnos   |Bônus na CA | Reações disponíveis | Bônus no ataque e dano
+|:------------:|:----------:|:-------------------:|:---------------------:|
+|  3 iniciais  |      3     |          3          |           3           |
+|  4º  				 |      4     |          2          |           2           |
+|  5º  				 |      3     |          1          |           2           |
+|  6º  				 |      5     |          0          |           5           |
+}}
+:
+{{classTable
+### Exemplo 6 - RYU
+{color:,text-align:center}
+|     Turnos   |Bônus na CA | Reações disponíveis | Bônus no ataque e dano
+|:------------:|:----------:|:-------------------:|:---------------------:|
+|  3 iniciais  |      3     |          3          |           3           |
+|  4º  				 |      5     |          0          |           5           |
+|  5º  				 |      3     |          1          |           2           |
+|  6º  				 |      4     |          2          |           2           |
+}}
+<div class='pageNumber auto'></div>
+
+:::::::
+
+{{descriptive
+APRIMORANDO RYU
+{color:,text-align:center}
+:
+Após o nível Superior, para cada 2 P.N investidos em RYU, adicione +1 em todos os bonus da tabela.<BR>
+**Além do nível Superior, o máximo de P.N aplicáveis é = 10.**
+}}
