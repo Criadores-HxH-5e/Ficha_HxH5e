@@ -127,11 +127,35 @@ function deleteCharacter(id, viewing) {
     const overlay = document.createElement('div');
     overlay.id = 'delete-char-overlay';
     overlay.style.cssText = 'position:fixed;inset:0;background:#000000cc;display:flex;align-items:center;justify-content:center;z-index:9999;padding:24px;font-family:Rajdhani,sans-serif';
+
+    if (isViewing) {
+        // Admin apagando ficha de outro jogador: só confirmação simples (sem digitar o nome).
+        overlay.innerHTML = `
+            <div style="background:#0d1117;border:2px solid #ef4444;border-radius:16px;padding:24px;width:100%;max-width:380px;box-shadow:0 0 40px #ef444433">
+                <div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:13px;color:#ef4444;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px">⚠️ Apagar Ficha</div>
+                <div style="font-size:12px;color:#9ca3af;margin-bottom:20px;line-height:1.5">
+                    Tem certeza que deseja apagar <span style="color:#fbbf24;font-weight:700">${nome}</span>${dono ? ` (ficha de <span style="color:#fbbf24;font-weight:700">${dono}</span>)` : ''}? Esta ação é <span style="color:#ef4444;font-weight:700">irreversível</span>.
+                </div>
+                <div style="display:flex;gap:10px">
+                    <button onclick="document.getElementById('delete-char-overlay').remove()"
+                        style="flex:1;padding:11px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer;letter-spacing:1px">
+                        Cancelar
+                    </button>
+                    <button onclick="window._confirmDeleteCharacter('${id}','${nome.replace(/'/g,"\\'")}', true)"
+                        style="flex:1;padding:11px;border-radius:10px;background:#7f1d1d;border:1px solid #ef4444;color:#f87171;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;letter-spacing:1px;cursor:pointer">
+                        🗑️ Sim, apagar
+                    </button>
+                </div>
+            </div>`;
+        document.body.appendChild(overlay);
+        return;
+    }
+
     overlay.innerHTML = `
         <div style="background:#0d1117;border:2px solid #ef4444;border-radius:16px;padding:24px;width:100%;max-width:380px;box-shadow:0 0 40px #ef444433">
             <div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:13px;color:#ef4444;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px">⚠️ Apagar Ficha</div>
             <div style="font-size:12px;color:#9ca3af;margin-bottom:16px;line-height:1.5">
-                ${dono ? `Ficha de <span style="color:#fbbf24;font-weight:700">${dono}</span>. ` : ''}Esta ação é <span style="color:#ef4444;font-weight:700">irreversível</span>. Para confirmar, digite o nome do personagem abaixo:
+                Esta ação é <span style="color:#ef4444;font-weight:700">irreversível</span>. Para confirmar, digite o nome do personagem abaixo:
             </div>
             <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Nome do Personagem</div>
             <div style="background:#111827;border:1px solid #374151;border-radius:8px;padding:8px 12px;margin-bottom:6px;font-family:Orbitron,sans-serif;font-size:13px;color:#fbbf24;letter-spacing:1px">${nome}</div>
@@ -152,7 +176,7 @@ function deleteCharacter(id, viewing) {
                     style="flex:1;padding:11px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer;letter-spacing:1px">
                     Cancelar
                 </button>
-                <button id="delete-char-confirm-btn" disabled onclick="window._confirmDeleteCharacter('${id}','${nome.replace(/'/g,"\\'")}', ${isViewing})"
+                <button id="delete-char-confirm-btn" disabled onclick="window._confirmDeleteCharacter('${id}','${nome.replace(/'/g,"\\'")}', false)"
                     style="flex:1;padding:11px;border-radius:10px;background:#7f1d1d;border:1px solid #ef4444;color:#f87171;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;letter-spacing:1px;opacity:0.4;cursor:not-allowed">
                     🗑️ Apagar
                 </button>
