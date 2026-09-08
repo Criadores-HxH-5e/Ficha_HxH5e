@@ -585,3 +585,39 @@ const SKILL_MAP = {
     'SAB': ['Lidar com Animais', 'Intuição', 'Medicina', 'Percepção', 'Sobrevivência'],
     'PRE': ['Atuação', 'Enganação', 'Intimidação', 'Persuasão']
 };
+
+// ── Inclinações Gerais Básicas (livro v2.0, p29-30) ────────────────────────────
+// O livro separa "Inclinações Gerais Básicas" (as únicas liberadas na CRIAÇÃO)
+// das "Inclinações Positivas/Negativas" gerais (compradas depois, com pontos).
+// As duas listas já estão na ordem certa dentro de SYSTEM_DB.inclinacoes, mas não
+// havia nenhuma marcação. Marcamos por nome aqui para não reescrever as 22 entradas.
+const GENERAL_INC_BASICAS = {
+    positivas: [
+        'Aliado', 'Contatos', 'Corpo de Gigante', 'Empatia com Animais', 'Fôlego',
+        'Inventor', 'Ligação com a Máfia', 'Sentidos Aguçados', 'Sorte Grande',
+        'Tempo de Vida Estendido (Anomalia)', 'Visão no Escuro'
+    ],
+    negativas: [
+        'Avareza', 'Azar Grande', 'Desatencioso', 'Dívida', 'Esquecido',
+        'Honestidade', 'Indeciso', 'Inimigo', 'Inveja', 'Perda Auditiva', 'Veracidade'
+    ]
+};
+
+(function marcarInclinacoesBasicas() {
+    ['positivas', 'negativas'].forEach(function (grupo) {
+        const lista = (SYSTEM_DB.inclinacoes && SYSTEM_DB.inclinacoes[grupo]) || [];
+        lista.forEach(function (inc) {
+            inc.basica = GENERAL_INC_BASICAS[grupo].indexOf(inc.nome) >= 0;
+        });
+    });
+})();
+
+// Diz se uma inclinação JÁ SALVA na ficha é básica.
+// A ficha guarda só { nome, custo }, sem a flag, e sub-opções viram "Pai: Opção"
+// (ex.: "Contatos: Informação rápida"), então comparamos pela raiz do nome.
+function isInclinacaoBasica(nome, tipo) {
+    const raiz = String(nome || '').split(':')[0].trim();
+    const grupo = (tipo === 'negative' || tipo === 'neg') ? 'negativas' : 'positivas';
+    return GENERAL_INC_BASICAS[grupo].indexOf(raiz) >= 0;
+}
+window.isInclinacaoBasica = isInclinacaoBasica;

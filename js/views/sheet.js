@@ -64,6 +64,8 @@
 
         function renderSheet(container) {
             const char = state.currentChar;
+            // Retroativo: personagem antigo com Aura Gigantesca recebe o bônus na 1ª abertura.
+            if (aplicarAuraGigantesca(char)) saveCharacter(char);
             const clsData = SYSTEM_DB.classes.find(c => c.id === char.class);
             const themeColor = clsData ? clsData.color : '#00ff9d';
             setThemeColor(themeColor);
@@ -631,6 +633,13 @@
                 const posIncs = (char.inclinations && char.inclinations.positive) || [];
                 const negIncs = (char.inclinations && char.inclinations.negative) || [];
                 if (posIncs.length > 0 || negIncs.length > 0) {
+                    // Sinaliza inclinações não-básicas vindas de fichas criadas antes desta regra.
+                    // Só aviso visual: nada é removido nem alterado no personagem.
+                    const _giNaoBasicas = posIncs.filter(i => !isInclinacaoBasica(i.nome, 'positive')).length
+                                        + negIncs.filter(i => !isInclinacaoBasica(i.nome, 'negative')).length;
+                    const _giLegadoAviso = _giNaoBasicas > 0
+                        ? `<p class="text-[10px] text-amber-400 uppercase tracking-widest">${_giNaoBasicas} não-básica(s) de criação anterior</p>`
+                        : `<p class="text-[10px] text-gray-500 uppercase tracking-widest">Positivas e Negativas</p>`;
                     function _ciLookup(nome, tipo) {
                         const list = tipo === 'pos' ? (SYSTEM_DB.inclinacoes && SYSTEM_DB.inclinacoes.positivas) : (SYSTEM_DB.inclinacoes && SYSTEM_DB.inclinacoes.negativas);
                         if (!list) return '';
@@ -642,7 +651,7 @@
                     }
                     const posHtml = posIncs.length > 0 ? `<div class="mb-2"><p class="text-[9px] font-black text-neon-green uppercase tracking-widest mb-1 flex items-center gap-1"><i data-lucide="thumbs-up" size="10"></i> Positivas</p><div class="space-y-1">${posIncs.map(inc => { const desc = _ciLookup(inc.nome, 'pos'); return `<div class="bg-gray-900 border border-gray-800 rounded-xl p-3" style="border-left:3px solid #00ff9d"><div class="flex justify-between items-start mb-0.5"><span class="text-xs font-bold text-neon-green">${inc.nome}</span><span class="text-[9px] bg-neon-green/10 text-neon-green border border-neon-green/20 px-1.5 rounded">${inc.custo} pts</span></div>${desc ? `<p class="text-[10px] text-gray-400 leading-relaxed mt-1">${desc}</p>` : ''}</div>`; }).join('')}</div></div>` : '';
                     const negHtml = negIncs.length > 0 ? `<div><p class="text-[9px] font-black text-neon-red uppercase tracking-widest mb-1 flex items-center gap-1"><i data-lucide="thumbs-down" size="10"></i> Negativas</p><div class="space-y-1">${negIncs.map(inc => { const desc = _ciLookup(inc.nome, 'neg'); return `<div class="bg-gray-900 border border-gray-800 rounded-xl p-3" style="border-left:3px solid #ff0055"><div class="flex justify-between items-start mb-0.5"><span class="text-xs font-bold text-neon-red">${inc.nome}</span><span class="text-[9px] bg-neon-red/10 text-neon-red border border-neon-red/20 px-1.5 rounded">+${inc.valor} pts</span></div>${desc ? `<p class="text-[10px] text-gray-400 leading-relaxed mt-1">${desc}</p>` : ''}</div>`; }).join('')}</div></div>` : '';
-                    generalIncHtml = `<div class="mt-2 border-t border-gray-800 pt-4"><div class="flex items-center justify-between mb-3"><div class="flex items-center gap-3"><div class="bg-gray-800 p-2 rounded text-[${themeColor}]"><i data-lucide="scale" size="20"></i></div><div><h3 class="font-bold text-white uppercase tracking-wider text-sm">Inclinações Gerais</h3><p class="text-[10px] text-gray-500 uppercase tracking-widest">Positivas e Negativas</p></div></div><button onclick="window._openGeneralIncModal()" class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[${themeColor}]/10 border border-[${themeColor}]/30 text-[${themeColor}] text-[10px] font-bold uppercase tracking-widest hover:bg-[${themeColor}]/20 transition-colors"><i data-lucide="edit-3" size="12"></i> Editar</button></div>${posHtml}${negHtml}</div>`;
+                    generalIncHtml = `<div class="mt-2 border-t border-gray-800 pt-4"><div class="flex items-center justify-between mb-3"><div class="flex items-center gap-3"><div class="bg-gray-800 p-2 rounded text-[${themeColor}]"><i data-lucide="scale" size="20"></i></div><div><h3 class="font-bold text-white uppercase tracking-wider text-sm">Inclinações Gerais</h3>${_giLegadoAviso}</div></div><button onclick="window._openGeneralIncModal()" class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[${themeColor}]/10 border border-[${themeColor}]/30 text-[${themeColor}] text-[10px] font-bold uppercase tracking-widest hover:bg-[${themeColor}]/20 transition-colors"><i data-lucide="edit-3" size="12"></i> Editar</button></div>${posHtml}${negHtml}</div>`;
                 }
                 const otherTrainings = char.skills.filter(s => SYSTEM_DB.otherSkills.includes(s)); let otherSkillsHtml = ''; if (otherTrainings.length > 0) { const isOpen = state.sheetOtherSkillsOpen; otherSkillsHtml = `<div class="mt-2 border-t border-gray-800 pt-4"><div onclick="toggleSheetAccordion()" class="flex items-center justify-between cursor-pointer group"><div class="flex items-center gap-3 mb-2"><div class="bg-gray-800 p-2 rounded text-[${themeColor}]"><i data-lucide="hammer" size="20"></i></div><div><h3 class="font-bold text-white uppercase tracking-wider text-sm">Outros Treinamentos</h3><p class="text-[10px] text-gray-500 uppercase tracking-widest">Equipamentos, Linguagens e Ferramentas</p></div></div><div class="transition-transform duration-300 ${isOpen ? 'rotate-180 text-white' : 'text-gray-600 group-hover:text-gray-400'}"><i data-lucide="chevron-down" size="20"></i></div></div><div class="accordion-content ${isOpen ? 'open' : ''}"><div class="flex flex-wrap gap-2 pt-2">${otherTrainings.map(s => `<div class="bg-gray-900 border border-gray-800 p-3 rounded-xl inline-flex items-center gap-2 w-auto pr-4"><i data-lucide="check-circle" size="14" style="color: ${themeColor}" class="shrink-0"></i><span class="text-xs font-bold whitespace-nowrap" style="color: ${themeColor}">${s}</span></div>`).join('')}</div></div></div>`; }
                 let combatIncHtml = '';
@@ -926,20 +935,41 @@
             state.tempChar.categoriaRoll = roll;
             selectNenType(cls);
         }
-        // ── Inclinações Gerais: a "1ª de graça" só pode ser uma inclinação BÁSICA (custo baixo) ──
-        // Antes, o sistema pegava sempre a inclinação de MAIOR custo selecionada como grátis
-        // (b.custo - a.custo), permitindo comprar itens caríssimos como Aura Gigantesca (custo 6)
-        // de graça já na criação, bastando cobrir o resto com negativas. Não existe campo de
-        // "básica"/"poderosa" nos dados — o próprio custo já separa bem (a maioria das inclinações
-        // utilitárias custa 1-2; as narrativamente mais fortes custam 3+), então usamos um teto de
-        // custo. Sem nenhuma básica selecionada, não há desconto (freeCost = 0) — o jogador precisa
-        // pagar tudo com negativas, incentivando pegar ao menos 1 básica se quiser o desconto.
-        const GENERAL_INC_BASIC_MAX_CUSTO = 3;
+        // ── Inclinações Gerais: a "1ª de graça" só pode ser uma inclinação BÁSICA ──
+        // Antes o sistema chutava "básica = custo <= 3", porque não havia marcação nos dados.
+        // Isso errava nos dois sentidos: Corpo de Gigante (básica, custo 5) nunca podia ser a
+        // grátis, e Habitat Natural / Memória Excepcional (não-básicas, custo 1) contavam como
+        // grátis. Agora a lista vem do livro, via isInclinacaoBasica (config.js).
+        // Sem nenhuma básica selecionada, não há desconto (freeCost = 0).
         function calcGeneralIncFreeCost(positiveList) {
-            const basics = (positiveList || []).filter(i => i.custo <= GENERAL_INC_BASIC_MAX_CUSTO);
+            const basics = (positiveList || []).filter(i => isInclinacaoBasica(i.nome, 'positive'));
             if (basics.length === 0) return 0;
             return Math.max(...basics.map(i => i.custo));
         }
+
+        // ── Aura Gigantesca: +30% de Aura Máxima ───────────────────────────────────
+        // A inclinação existia só como texto no config.js; nunca foi aplicada em lugar nenhum.
+        // A aura base é 100 e os ganhos de nível (auraP) já entram como pontos percentuais
+        // somados a essa base (nível 1 = +5 -> 105). Aura Gigantesca segue a mesma régua.
+        // Ex.: 100 (base) + 30 (Aura Gigantesca) + 5 (nível 1) = 135.
+        const AURA_GIGANTESCA_BONUS = 30;
+        function temAuraGigantesca(char) {
+            return ((((char || {}).inclinations) || {}).positive || [])
+                .some(i => i.nome === 'Aura Gigantesca');
+        }
+        // Aplica o bônus UMA ÚNICA VEZ por personagem, inclusive nos que já existem.
+        // O marcador auraGiganteAplicada impede aplicação dupla a cada render.
+        function aplicarAuraGigantesca(char) {
+            if (!char || !char.vitals) return false;
+            if (!temAuraGigantesca(char)) return false;
+            if (char.auraGiganteAplicada) return false;
+            char.vitals.auraMax = (char.vitals.auraMax || 100) + AURA_GIGANTESCA_BONUS;
+            char.vitals.aura = Math.min(char.vitals.auraMax, (char.vitals.aura || 0) + AURA_GIGANTESCA_BONUS);
+            char.auraGiganteAplicada = true;
+            return true;
+        }
+        window.aplicarAuraGigantesca = aplicarAuraGigantesca;
+
         // ── Popup de escolha de Equipamento do Antecedente ("etapa 4") ──────────────────────────
         // O array `equipamento` de um antecedente mistura itens fixos com alternativas em texto
         // livre ("A ou B", "Qualquer arma simples/Marcial", "Qualquer outro Kit"). Sem resolver isso
@@ -2118,7 +2148,7 @@
                                 if (giFilterText && posShown.length === 0 && negShown.length === 0) {
                                     return `<div style="text-align:center;color:#374151;font-style:italic;font-size:11px;padding:20px">Nenhuma inclinação encontrada para "${giFilterText}".</div>`;
                                 }
-                                return `${posShown.length ? `<div style="font-size:9px;font-weight:900;color:#00ff9d;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;display:flex;align-items:center;gap:6px">👍 Gerais Positivas <span style="font-size:8px;background:#00ff9d15;border:1px solid #00ff9d30;padding:2px 6px;border-radius:4px;font-weight:700">1ª Básica Grátis (custo ≤ ${GENERAL_INC_BASIC_MAX_CUSTO})</span></div>${posShown.map(renderPosInc).join('')}` : ''}
+                                return `${posShown.length ? `<div style="font-size:9px;font-weight:900;color:#00ff9d;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;display:flex;align-items:center;gap:6px">👍 Gerais Positivas <span style="font-size:8px;background:#00ff9d15;border:1px solid #00ff9d30;padding:2px 6px;border-radius:4px;font-weight:700">1ª Básica Grátis</span></div>${posShown.map(renderPosInc).join('')}` : ''}
                                 ${negShown.length ? `<div style="font-size:9px;font-weight:900;color:#ff4d6d;text-transform:uppercase;letter-spacing:2px;margin:12px 0 8px;display:flex;align-items:center;gap:6px">👎 Gerais Negativas</div>${negShown.map(renderNegInc).join('')}` : ''}`;
                             })()}
                         </div>
