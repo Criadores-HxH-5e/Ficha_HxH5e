@@ -1159,6 +1159,26 @@
             if (!state.isAdmin) return oficiais;
             return oficiais.concat(loadLocalWebhooks());
         }
+        // ── Lembrar a mesa escolhida entre sessões ────────────────────────────────
+        // state.selectedWebhook/defaultWebhook nascem zerados a cada carregamento, então o
+        // jogador precisava reescolher a mesa toda vez que abria o app. Guardamos a escolha
+        // pela URL (não pelo índice), para não apontar para a mesa errada quando a lista mudar.
+        const _WEBHOOK_ESCOLHIDO_KEY = 'hxhrpg_webhook_escolhido';
+        function salvarMesaEscolhida(idx) {
+            const wh = loadWebhooks()[idx];
+            try {
+                if (wh && wh.url) localStorage.setItem(_WEBHOOK_ESCOLHIDO_KEY, wh.url);
+                else localStorage.removeItem(_WEBHOOK_ESCOLHIDO_KEY);
+            } catch (e) {}
+        }
+        function restaurarMesaEscolhida() {
+            let url = null;
+            try { url = localStorage.getItem(_WEBHOOK_ESCOLHIDO_KEY); } catch (e) {}
+            if (!url) return;
+            const i = loadWebhooks().findIndex(function (w) { return w.url === url; });
+            if (i >= 0) { state.defaultWebhook = i; state.selectedWebhook = i; }
+        }
+
         function initWebhooks() {
             // A lista base agora vem do código; nada a semear no localStorage.
             // Remove a semente antiga para a Mesa Principal não aparecer duplicada.
@@ -1166,6 +1186,7 @@
             const oficiaisUrls = loadOfficialWebhooks().map(function (w) { return w.url; });
             const limpos = antigos.filter(function (w) { return oficiaisUrls.indexOf(w.url) === -1; });
             if (limpos.length !== antigos.length) saveWebhooks(limpos);
+            restaurarMesaEscolhida();
         }
         function addWebhook(name, url) {
             // Trava real: antes a checagem existia só no botão, então dava para chamar
@@ -1188,7 +1209,11 @@
             else if (state.defaultWebhook > idx) state.defaultWebhook--;
             render(true);
         }
-        function setDefaultWebhook(idx) { state.defaultWebhook = (state.defaultWebhook === idx) ? -1 : idx; render(true); }
+        function setDefaultWebhook(idx) {
+            state.defaultWebhook = (state.defaultWebhook === idx) ? -1 : idx;
+            salvarMesaEscolhida(state.defaultWebhook);
+            render(true);
+        }
 
         // ── Busca e ocultar da lista de mesas ──────────────────────────────────────
         // Feito direto no DOM, sem re-render: se chamasse render() a cada tecla o campo
@@ -1217,7 +1242,7 @@
         }
         window.filterWebhookList = filterWebhookList;
         window.toggleWebhookList = toggleWebhookList;
-        function setWebhook(idx) { state.selectedWebhook = idx; render(true); }
+        function setWebhook(idx) { state.selectedWebhook = idx; salvarMesaEscolhida(idx); render(true); }
         function setDadosSubTab(tab) { state.dadosSubTab = tab; render(true); }
         function getActiveWebhookUrl() {
             const list = loadWebhooks();
