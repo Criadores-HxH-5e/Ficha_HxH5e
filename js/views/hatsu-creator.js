@@ -660,98 +660,167 @@ function renderHatsuCreator(container) {
                 }
 
                 // eg4: Efeito Alternativo — pn:0, picker de efeito do modo alternativo
+                // ── eg4: Efeito Alternativo — criação de MODOS ────────────────────────────
+                // Regra do manual (p. "EFEITO ALTERNATIVO"): cada compra CLONA o hatsu raiz num
+                // modo novo. O modo adiciona um efeito escolhido E remove obrigatoriamente um
+                // efeito herdado da raiz — é a remoção que impede os modos de acumularem todo o
+                // poder do original. O eg4 em si custa 0 P.N (é só a declaração); quem paga é o
+                // efeito adicionado, com o custo dele. A remoção NÃO devolve P.N, e sobra some.
+                // Cada modo pode ainda desligar restrições herdadas, para se diferenciar mais.
+                // Chaves: cópia 0 sem sufixo ('eg4'), cópias extras com '#N' — mesmo padrão do rm_e2.
                 if (item.id === 'eg4') {
-                    const chosen = specialChoices['eg4'] || '';
-                    const allEgList = (window.HATSU_DB && window.HATSU_DB.efeitos_gerais) || [];
-                    function eg4Btn(e) {
-                        var active = chosen === e.nome;
+                    const totalModos = Math.max(1, (hb.eg||[]).filter(function(x){ return x === 'eg4'; }).length);
+                    const keyEg4 = function(base, i) { return i > 0 ? (base + '#' + i) : base; };
+                    const LETRAS = ['A','B','C','D','E','F','G','H'];
+
+                    // Catálogo completo, para traduzir os ids salvos em nomes exibíveis.
+                    const _todosEfeitos = [].concat((window.HATSU_DB && window.HATSU_DB.efeitos_gerais) || []);
+                    const _todasRestr = [];
+                    const _hdb = window.HATSU_DB || {};
+                    Object.keys(_hdb.categorias || {}).forEach(function(k){
+                        (_hdb.categorias[k].efeitos || []).forEach(function(e){ _todosEfeitos.push(e); });
+                        (_hdb.categorias[k].restricoes || []).forEach(function(r){ _todasRestr.push(r); });
+                    });
+                    Object.keys(_hdb.restricoes_gerais || {}).forEach(function(k){
+                        const grupo = _hdb.restricoes_gerais[k];
+                        if (Array.isArray(grupo)) grupo.forEach(function(r){ _todasRestr.push(r); });
+                    });
+                    const _acharEfeito = function(id){ return _todosEfeitos.find(function(e){ return e.id === id; }); };
+                    const _acharRestr = function(id){ return _todasRestr.find(function(r){ return r.id === id; }); };
+
+                    const efeitosDaRaiz = [].concat(hb.eg||[], hb.ec||[])
+                        .filter(function(id){ return id !== 'eg4'; })
+                        .map(_acharEfeito).filter(Boolean);
+                    const restricoesDaRaiz = [].concat(hb.rg||[], hb.rc||[])
+                        .map(_acharRestr).filter(Boolean);
+
+                    function eg4Btn(e, chave, escolhido) {
+                        var active = escolhido === e.nome;
                         var rq = checkReq(e.req);
                         var isBlocked = !rq.ok;
-                        var btnStyle = 'padding:4px 8px;border-radius:7px;font-size:8px;white-space:nowrap;transition:all .15s;font-weight:' + (active?'900':'600') + ';border:1.5px solid ';
-                        if (active) {
-                            btnStyle += color + ';background:' + color + '22;color:' + color + ';cursor:pointer';
-                        } else if (isBlocked) {
-                            btnStyle += '#ef444433;background:#0f1117;color:#6b728066;cursor:not-allowed;opacity:0.55';
-                        } else {
-                            btnStyle += '#1f2937;background:transparent;color:#9ca3af;cursor:pointer';
-                        }
+                        var st = 'padding:4px 8px;border-radius:7px;font-size:8px;white-space:nowrap;font-weight:' + (active?'900':'600') + ';border:1px solid ';
+                        if (active) st += color + ';background:' + color + '22;color:' + color + ';cursor:pointer';
+                        else if (isBlocked) st += '#ef444433;background:#0f1117;color:#6b728066;cursor:not-allowed;opacity:0.55';
+                        else st += '#1f2937;background:transparent;color:#9ca3af;cursor:pointer';
                         var onclick;
                         if (isBlocked) {
-                            var alertMsg = 'âŒ Requisito não atendido\\n\\n' + rq.reason + '\\n\\nReq: ' + e.req;
-                            onclick = 'event.stopPropagation();alert(\'' + alertMsg.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n') + '\')';
+                            var msg = 'Requisito não atendido\n\n' + rq.reason + '\n\nReq: ' + e.req;
+                            onclick = "event.stopPropagation();alert('" + msg.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n') + "')";
                         } else {
-                            onclick = 'event.stopPropagation();window._hSetSpecialChoice(\'eg4\',\'' + e.nome.replace(/'/g,"\\'") + '\')';
+                            onclick = "event.stopPropagation();window._hSetSpecialChoice('" + chave + "','" + e.nome.replace(/'/g,"\\'") + "')";
                         }
-                        return '<button onclick="' + onclick + '" style="' + btnStyle + '">'
-                            + (active ? '✓ ' : '') + e.nome + (isBlocked ? '🔒' : '') + '</button>';
+                        return '<button onclick="' + onclick + '" style="' + st + '">' + (active ? '✓ ' : '') + e.nome + (isBlocked ? ' 🔒' : '') + '</button>';
                     }
-
-                    // O modo alternativo enxerga as mesmas categorias que o Poder é Intenção,
-                    // com o mesmo teto por afinidade da tabela de Acesso a Categorias (p6).
-                    function eg4BtnComTeto(e, tetoNivel) {
+                    function eg4BtnTeto(e, teto, chave, escolhido) {
                         var nivelEf = window.nivelDoEfeito ? window.nivelDoEfeito(e) : 1;
-                        if (nivelEf > tetoNivel) {
-                            var msg = '🔒 Fora do seu acesso\\n\\nEste efeito é de nível ' + nivelEf
-                                + ' e sua afinidade com essa categoria libera até o nível ' + tetoNivel + '.'
-                                + '\\n\\nSuba de nível ou adicione uma Restrição Extrema (+2 níveis).';
+                        if (nivelEf > teto) {
+                            var msg = 'Fora do seu acesso\n\nEste efeito é de nível ' + nivelEf
+                                + ' e sua afinidade com essa categoria libera até o nível ' + teto + '.'
+                                + '\n\nSuba de nível ou adicione uma Restrição Extrema (+2 níveis).';
                             var st = 'padding:4px 8px;border-radius:7px;font-size:8px;white-space:nowrap;font-weight:600;border:1px solid #ef444433;background:#0f1117;color:#6b728066;cursor:not-allowed;opacity:0.55';
-                            return '<button onclick="event.stopPropagation();alert(\'' + msg.replace(/'/g, "\\'") + '\')" style="' + st + '">' + e.nome + ' 🔒</button>';
+                            return '<button onclick="event.stopPropagation();alert(\'' + msg.replace(/'/g,"\\'").replace(/\n/g,'\\n') + '\')" style="' + st + '">' + e.nome + ' 🔒</button>';
                         }
-                        return eg4Btn(e);
+                        return eg4Btn(e, chave, escolhido);
                     }
 
-                    const eg4Cats = (window.HATSU_DB && window.HATSU_DB.categorias) || {};
-                    const eg4Ordem = ['INTENSIFICAÇÃO','TRANSMUTAÇÃO','MATERIALIZAÇÃO','EMISSÃO','MANIPULAÇÃO'];
-                    let eg4CatsHtml = '';
-                    const eg4Todos = allEgList.slice();
-                    eg4Ordem.forEach(function (nomeCat) {
-                        const cat = eg4Cats[nomeCat];
-                        if (!cat || !cat.efeitos) return;
-                        const teto = window.acessoMaxPorCategoria
-                            ? window.acessoMaxPorCategoria(char.class, charLevel, hb, nomeCat) : 0;
-                        const propria = nomeCat === char.class;
-                        const af = propria ? 100 : (((window.CATEGORY_AFFINITY || {})[char.class] || {})[nomeCat] || 0);
-                        const rotulo = propria ? '⚡ ' + nomeCat + ' (sua categoria)' : '◈ ' + nomeCat + ' — ' + af + '%';
-                        const situacao = teto > 0 ? 'até nível ' + teto : 'sem acesso';
-                        cat.efeitos.forEach(function (e) { eg4Todos.push(e); });
-                        eg4CatsHtml += '<div style="font-size:7px;font-weight:700;color:' + (propria ? color : '#6b7280') + ';margin:6px 0 2px;text-transform:uppercase;letter-spacing:1px">'
-                            + rotulo + ' <span style="color:#4b5563">(' + situacao + ')</span></div>'
-                            + '<div style="display:flex;flex-wrap:wrap;gap:4px">'
-                            + cat.efeitos.map(function (e) { return eg4BtnComTeto(e, teto); }).join('')
+                    // Catálogo de efeitos disponíveis, com o mesmo teto por afinidade do eg6.
+                    function eg4Catalogo(chave, escolhido) {
+                        const gerais = (window.HATSU_DB && window.HATSU_DB.efeitos_gerais) || [];
+                        const cats = (window.HATSU_DB && window.HATSU_DB.categorias) || {};
+                        const ordem = ['INTENSIFICAÇÃO','TRANSMUTAÇÃO','MATERIALIZAÇÃO','EMISSÃO','MANIPULAÇÃO'];
+                        let html = '<div style="font-size:7px;font-weight:700;color:#9ca3af;margin:2px 0;text-transform:uppercase;letter-spacing:1px">🌐 Efeitos Gerais</div>'
+                            + '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">'
+                            + gerais.filter(function(e){ return e.id !== 'eg4' && e.id !== 'eg6'; })
+                                    .map(function(e){ return eg4Btn(e, chave, escolhido); }).join('')
                             + '</div>';
-                    });
+                        ordem.forEach(function (nomeCat) {
+                            const cat = cats[nomeCat];
+                            if (!cat || !cat.efeitos) return;
+                            const teto = window.acessoMaxPorCategoria
+                                ? window.acessoMaxPorCategoria(char.class, charLevel, hb, nomeCat) : 0;
+                            const propria = nomeCat === char.class;
+                            const af = propria ? 100 : (((window.CATEGORY_AFFINITY || {})[char.class] || {})[nomeCat] || 0);
+                            html += '<div style="font-size:7px;font-weight:700;color:' + (propria ? color : '#6b7280') + ';margin:6px 0 2px;text-transform:uppercase;letter-spacing:1px">'
+                                + (propria ? '⚡ ' + nomeCat + ' (sua categoria)' : '◈ ' + nomeCat + ' — ' + af + '%')
+                                + ' <span style="color:#4b5563">(' + (teto > 0 ? 'até nível ' + teto : 'sem acesso') + ')</span></div>'
+                                + '<div style="display:flex;flex-wrap:wrap;gap:4px">'
+                                + cat.efeitos.map(function(e){ return eg4BtnTeto(e, teto, chave, escolhido); }).join('')
+                                + '</div>';
+                        });
+                        const podeEsp = ['MANIPULAÇÃO','MATERIALIZAÇÃO'].indexOf(char.class) >= 0
+                            && window.checkEspecializacaoAccess && window.checkEspecializacaoAccess(hb).ok;
+                        if (podeEsp && cats['ESPECIALIZAÇÃO'] && cats['ESPECIALIZAÇÃO'].efeitos) {
+                            html += '<div style="font-size:7px;font-weight:700;color:#c084fc;margin:6px 0 2px;text-transform:uppercase;letter-spacing:1px">✦ ESPECIALIZAÇÃO — 1% <span style="color:#4b5563">(até nível 3)</span></div>'
+                                + '<div style="display:flex;flex-wrap:wrap;gap:4px">'
+                                + cats['ESPECIALIZAÇÃO'].efeitos.map(function(e){ return eg4BtnTeto(e, 3, chave, escolhido); }).join('')
+                                + '</div>';
+                        }
+                        return html;
+                    }
 
-                    const eg4PodeEsp = ['MANIPULAÇÃO','MATERIALIZAÇÃO'].indexOf(char.class) >= 0
-                        && window.checkEspecializacaoAccess
-                        && window.checkEspecializacaoAccess(hb).ok;
-                    if (eg4PodeEsp && eg4Cats['ESPECIALIZAÇÃO'] && eg4Cats['ESPECIALIZAÇÃO'].efeitos) {
-                        eg4Cats['ESPECIALIZAÇÃO'].efeitos.forEach(function (e) { eg4Todos.push(e); });
-                        eg4CatsHtml += '<div style="font-size:7px;font-weight:700;color:#c084fc;margin:6px 0 2px;text-transform:uppercase;letter-spacing:1px">✦ ESPECIALIZAÇÃO — 1% <span style="color:#4b5563">(até nível 3)</span></div>'
-                            + '<div style="display:flex;flex-wrap:wrap;gap:4px">'
-                            + eg4Cats['ESPECIALIZAÇÃO'].efeitos.map(function (e) { return eg4BtnComTeto(e, 3); }).join('')
+                    let blocosModos = '';
+                    for (let _m = 0; _m < totalModos; _m++) {
+                        const letra = LETRAS[_m + 1] || ('#' + (_m + 2));
+                        const kAdd = keyEg4('eg4', _m);
+                        const kRem = keyEg4('eg4_remove', _m);
+                        const kNome = keyEg4('eg4_nome', _m);
+                        const kRestr = keyEg4('eg4_restr_off', _m);
+                        const addEscolhido = specialChoices[kAdd] || '';
+                        const remEscolhido = specialChoices[kRem] || '';
+                        const nomeModo = specialChoices[kNome] || '';
+                        const restrOff = Array.isArray(specialChoices[kRestr]) ? specialChoices[kRestr] : [];
+
+                        const removeBtns = efeitosDaRaiz.length
+                            ? efeitosDaRaiz.map(function(e){
+                                var sel = remEscolhido === e.nome;
+                                var st = 'padding:4px 8px;border-radius:7px;font-size:8px;white-space:nowrap;font-weight:' + (sel?'900':'600')
+                                    + ';border:1px solid ' + (sel ? '#ef4444;background:#ef444422;color:#f87171' : '#1f2937;background:transparent;color:#9ca3af') + ';cursor:pointer';
+                                return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\'' + kRem + '\',\'' + e.nome.replace(/'/g,"\\'") + '\')" style="' + st + '">'
+                                    + (sel ? '✕ ' : '') + e.nome + '</button>';
+                              }).join('')
+                            : '<div style="font-size:8px;color:#f87171">Escolha os efeitos do modo raiz antes de criar um modo.</div>';
+
+                        const restrBtns = restricoesDaRaiz.length
+                            ? restricoesDaRaiz.map(function(r){
+                                var desligada = restrOff.indexOf(r.nome) >= 0;
+                                var st = 'padding:4px 8px;border-radius:7px;font-size:8px;white-space:nowrap;font-weight:600;border:1px solid '
+                                    + (desligada ? '#374151;background:#0f1117;color:#4b5563;text-decoration:line-through' : '#f9731655;background:#f9731615;color:#fb923c') + ';cursor:pointer';
+                                return '<button onclick="event.stopPropagation();window._hToggleModoRestricao(\'' + kRestr + '\',\'' + r.nome.replace(/'/g,"\\'") + '\')" style="' + st + '">' + r.nome + '</button>';
+                              }).join('')
+                            : '<div style="font-size:8px;color:#6b7280">Nenhuma restrição no modo raiz.</div>';
+
+                        const addObj = addEscolhido ? _todosEfeitos.find(function(e){ return e.nome === addEscolhido; }) : null;
+                        const resumo = (addEscolhido && remEscolhido)
+                            ? '<div style="margin-top:6px;background:#060d1a;border:1px solid ' + color + '33;border-radius:8px;padding:8px">'
+                                + '<div style="font-size:8px;color:#4ade80;font-weight:700">+ ' + addEscolhido + (addObj ? ' (' + (addObj.pn||0) + ' P.N)' : '') + '</div>'
+                                + '<div style="font-size:8px;color:#f87171;font-weight:700;margin-top:2px">− ' + remEscolhido + ' <span style="color:#4b5563;font-weight:400">(sem devolução de P.N)</span></div>'
+                                + '</div>'
+                            : '<div style="font-size:8px;color:#f87171;margin-top:4px">⚠ Escolha 1 efeito para ADICIONAR e 1 para REMOVER neste modo.</div>';
+
+                        blocosModos += '<div style="' + (_m > 0 ? ('margin-top:14px;padding-top:12px;border-top:1px dashed ' + color + '33;') : '') + '">'
+                            + '<div style="font-size:8px;font-weight:900;color:' + color + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">🔀 Modo ' + letra + '</div>'
+                            + '<input type="text" value="' + String(nomeModo).replace(/"/g,'&quot;') + '" placeholder="Nome do modo (ex.: Chi)" '
+                                + 'onclick="event.stopPropagation()" onchange="window._hSetSpecialText(\'' + kNome + '\', this.value)" '
+                                + 'style="width:100%;box-sizing:border-box;background:#111827;border:1px solid #374151;border-radius:8px;padding:6px 10px;color:#fff;font-size:9px;margin-bottom:8px;outline:none" />'
+                            + '<div style="font-size:7px;font-weight:700;color:#4ade80;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">1. Adicionar (paga o P.N do efeito)</div>'
+                            + eg4Catalogo(kAdd, addEscolhido)
+                            + '<div style="font-size:7px;font-weight:700;color:#f87171;text-transform:uppercase;letter-spacing:1px;margin:8px 0 3px">2. Remover da raiz, só neste modo</div>'
+                            + '<div style="display:flex;flex-wrap:wrap;gap:4px">' + removeBtns + '</div>'
+                            + '<div style="font-size:7px;font-weight:700;color:#fb923c;text-transform:uppercase;letter-spacing:1px;margin:8px 0 3px">3. Restrições — clique para desligar neste modo</div>'
+                            + '<div style="display:flex;flex-wrap:wrap;gap:4px">' + restrBtns + '</div>'
+                            + resumo
                             + '</div>';
                     }
 
-                    const eg4Buttons = '<div style="font-size:7px;font-weight:700;color:#9ca3af;margin:2px 0;text-transform:uppercase;letter-spacing:1px">🌐 Efeitos Gerais</div>'
-                        + '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">'
-                        + allEgList.filter(function(e){ return e.id !== 'eg4' && e.id !== 'eg6'; }).map(eg4Btn).join('')
-                        + '</div>'
-                        + eg4CatsHtml;
-                    const chosenEff4 = chosen ? eg4Todos.find(function(e){ return e.nome === chosen; }) : null;
-                    const chosenPanel4 = chosenEff4
-                        ? '<div style="margin-top:6px;background:#060d1a;border:1px solid '+ color +'33;border-radius:8px;padding:8px">'
-                            + '<div style="font-size:8px;font-weight:900;color:'+ color +';margin-bottom:3px">🔀 '+ chosenEff4.nome +'</div>'
-                            + '<div style="font-size:8px;color:#9ca3af;line-height:1.5;margin-bottom:4px">'+ chosenEff4.desc +'</div>'
-                            + '<div style="font-size:7px;color:#4b5563;font-style:italic">Req: '+ chosenEff4.req +'</div>'
-                            + '</div>'
-                        : '<div style="font-size:8px;color:#f87171;margin-top:2px">⚠ Selecione o efeito do modo alternativo</div>';
-                    specialHtml = '<div style="margin-top:8px;background:#0a0f1a;border:1px solid '+ color +'33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
-                        + '<div style="font-size:8px;font-weight:900;color:'+ color +';text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">🔀 Efeito Alternativo — Modo B</div>'
-                        + '<div style="font-size:8px;color:#6b7280;margin-bottom:8px">Selecione o efeito que compõe o modo alternativo do Hatsu:</div>'
-                        + '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">'
-                        + eg4Buttons
-                        + '</div>'
-                        + chosenPanel4
+                    const avisoModos = totalModos >= 3
+                        ? '<div style="background:#f9731615;border:1px solid #f9731655;border-radius:8px;padding:8px;margin-bottom:8px;font-size:8px;color:#fb923c;font-weight:700">⚠ Cuidado ao criar modos demais: diluir os P.N pode deixar todos os modos fracos.</div>'
+                        : '';
+
+                    specialHtml = '<div style="margin-top:8px;background:#0a0f1a;border:1px solid ' + color + '33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
+                        + '<div style="font-size:8px;font-weight:900;color:' + color + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">🔀 Efeito Alternativo — Modos</div>'
+                        + '<div style="font-size:8px;color:#6b7280;margin-bottom:8px">Cada compra clona o Modo A (raiz) num modo novo. O modo ganha um efeito e perde um da raiz. Restrições também podem ser desligadas por modo.</div>'
+                        + avisoModos
+                        + blocosModos
                         + '</div>';
                 }
 
@@ -2214,6 +2283,17 @@ window._hSetSpecialChoice = function(id, val) {
     // rev.: não bloqueia mais — apenas avisa se ultrapassar o limite de Grau de Potência do nível
     // (afeta principalmente eg1/eg9, que aplicam bônus em Alcance/Área)
     window._hCheckGrauLimiteENotify(hb, _beforeSC);
+    renderHatsuInPlace();
+};
+// Liga/desliga uma restrição herdada dentro de um modo alternativo.
+// Guarda a lista de restrições DESLIGADAS naquele modo (por nome).
+window._hToggleModoRestricao = function(chave, nomeRestricao) {
+    const hb = state.hatsuBuilder; if (!hb) return;
+    if (!hb.specialChoices) hb.specialChoices = {};
+    const atual = Array.isArray(hb.specialChoices[chave]) ? hb.specialChoices[chave].slice() : [];
+    const i = atual.indexOf(nomeRestricao);
+    if (i >= 0) atual.splice(i, 1); else atual.push(nomeRestricao);
+    hb.specialChoices[chave] = atual;
     renderHatsuInPlace();
 };
 window._hSetSpecialText = function(id, val) {
