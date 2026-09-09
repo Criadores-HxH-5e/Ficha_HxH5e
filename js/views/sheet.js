@@ -712,7 +712,7 @@
                             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
                                 <div style="flex:1;min-width:0">
                                     <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-                                        ${isDefault ? '<span style="font-size:9px;background:#92400e;color:#fbbf24;border-radius:4px;padding:2px 6px;font-weight:900;text-transform:uppercase;letter-spacing:.05em">â­ Padrão</span>' : ''}
+                                        ${isDefault ? '<span style="font-size:9px;background:#92400e;color:#fbbf24;border-radius:4px;padding:2px 6px;font-weight:900;text-transform:uppercase;letter-spacing:.05em">⭐ Padrão</span>' : ''}
                                         <span style="font-weight:900;color:#fff;font-size:12px">${w.name}</span>
                                     </div>
                                     ${state.isAdmin
@@ -721,7 +721,7 @@
                                 </div>
                                 <div style="display:flex;gap:6px;flex-shrink:0">
                                     ${state.isAdmin
-                                        ? `<button onclick="setDefaultWebhook(${i})" title="${isDefault ? 'Remover padrão' : 'Marcar como padrão'}" style="padding:6px 8px;border-radius:8px;border:2px solid ${isDefault ? '#f59e0b' : '#374151'};background:${isDefault ? '#92400e' : 'transparent'};color:${isDefault ? '#fbbf24' : '#6b7280'};cursor:pointer;font-size:13px;line-height:1">â­</button>`
+                                        ? `<button onclick="setDefaultWebhook(${i})" title="${isDefault ? 'Remover padrão' : 'Marcar como padrão'}" style="padding:6px 8px;border-radius:8px;border:2px solid ${isDefault ? '#f59e0b' : '#374151'};background:${isDefault ? '#92400e' : 'transparent'};color:${isDefault ? '#fbbf24' : '#6b7280'};cursor:pointer;font-size:13px;line-height:1">⭐</button>`
                                         : `<button onclick="setDefaultWebhook(${i})" style="padding:6px 12px;border-radius:8px;border:2px solid ${isDefault ? '#f59e0b' : '#374151'};background:${isDefault ? '#92400e' : 'transparent'};color:${isDefault ? '#fbbf24' : '#9ca3af'};cursor:pointer;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.1em;font-family:'Orbitron',sans-serif;white-space:nowrap">${isDefault ? 'Selecionada' : 'Selecionar'}</button>`}
                                    ${state.isAdmin ? `<button onclick="deleteWebhook(${i})" title="Apagar webhook" style="padding:6px 8px;border-radius:8px;border:2px solid #7f1d1d;background:transparent;color:#f87171;cursor:pointer;font-size:13px;line-height:1">🗑️</button>` : ''}
                                 </div>

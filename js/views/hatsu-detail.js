@@ -334,6 +334,17 @@ window._hCalcGrauVariavel = function(idx, restrId) {
         + (over ? '<span style="color:#f87171;font-weight:700">⚠ Excede o limite em ' + (total - grauMax) + '</span>' : '<span style="color:#4ade80;font-weight:700">✓ Dentro do limite</span>');
 };
 
+// Liga/desliga o Modo Alternativo do Hatsu (eg4). Guardado no próprio Hatsu, dentro
+// do JSONB do personagem — nenhuma alteração de banco necessária.
+window._hToggleModoAlternativo = function(idx) {
+    const char = state.currentChar;
+    const h = (char.hatsus || [])[idx];
+    if (!h) return;
+    h.modoAlternativoAtivo = !h.modoAlternativoAtivo;
+    saveCharacter(char);
+    render(true);
+};
+
 // ── Setters da Ficha do Constructo (h.constructo) ────────────────────────────
 window._hSetConstructoField = function(idx, field, value) {
     const char = state.currentChar;
@@ -549,11 +560,20 @@ function renderHatsuDetail(container) {
     // Injeta efeitos escolhidos dentro de eg4 (Efeito Alternativo) e eg6 (Poder é Intenção)
     // sem duplicar caso o usuário também os tenha selecionado manualmente
     const _WRAPPER_META = {
-        'eg4': { label:'🎯 Efeito Alternativo' },
+        'eg4': { label:'🔀 Modo Alternativo' },
         'eg6': { label:'🎯 Poder é Intenção'   },
     };
+    // ── Modo A (raiz) x Modo B (alternativo) ──────────────────────────────────
+    // Antes, o efeito escolhido no Efeito Alternativo era sempre somado aos demais,
+    // então os dois modos ficavam misturados: o Hatsu valia como se as duas versões
+    // estivessem ativas ao mesmo tempo. Agora existe um interruptor: o efeito do modo
+    // alternativo só entra na conta (dano, TR, custo de aura) quando o Modo B está ligado.
+    const _temEg4 = (h.efeitos || []).includes('eg4');
+    const _eg4Escolhido = (h.specialChoices || {})['eg4'] || '';
+    const _modoB = _temEg4 && !!h.modoAlternativoAtivo;
     Object.keys(_WRAPPER_META).forEach(function(wid) {
         if (!(h.efeitos||[]).includes(wid)) return;
+        if (wid === 'eg4' && !_modoB) return; // modo A: o alternativo fica desligado
         const pickedName = (h.specialChoices||{})[wid];
         if (!pickedName) return;
         const picked = allEDB.find(function(e){ return e.nome === pickedName; });
@@ -1798,6 +1818,23 @@ function renderHatsuDetail(container) {
           }).join('')
         : `<div style="text-align:center;color:#374151;font-style:italic;font-size:11px;padding:20px">Nenhum efeito selecionado.</div>`;
 
+    // ── Interruptor Modo A / Modo B ───────────────────────────────────────────────
+    // Só aparece em Hatsus que compraram o Efeito Alternativo (eg4) e já escolheram o
+    // efeito do modo B. Trocar de modo recalcula dano, TR e custo de aura, porque o
+    // efeito alternativo entra ou sai de efeitosSel lá em cima.
+    const _switchModoHtml = (_temEg4 && _eg4Escolhido)
+        ? `<div style="display:flex;gap:4px;background:#0d1117;border:1px solid ${tc}33;border-radius:10px;padding:4px;margin-bottom:12px">
+                <button onclick="event.stopPropagation();${_modoB ? `window._hToggleModoAlternativo(${idx})` : ''}"
+                    style="flex:1;padding:9px 6px;border-radius:8px;border:none;cursor:${_modoB ? 'pointer' : 'default'};font-family:'Orbitron',sans-serif;font-weight:900;font-size:8px;text-transform:uppercase;letter-spacing:1px;background:${!_modoB ? tc : 'transparent'};color:${!_modoB ? '#000' : '#6b7280'}">
+                    Modo A — Raiz
+                </button>
+                <button onclick="event.stopPropagation();${!_modoB ? `window._hToggleModoAlternativo(${idx})` : ''}"
+                    style="flex:1;padding:9px 6px;border-radius:8px;border:none;cursor:${!_modoB ? 'pointer' : 'default'};font-family:'Orbitron',sans-serif;font-weight:900;font-size:8px;text-transform:uppercase;letter-spacing:1px;background:${_modoB ? tc : 'transparent'};color:${_modoB ? '#000' : '#6b7280'}">
+                    Modo B — ${_eg4Escolhido}
+                </button>
+            </div>`
+        : '';
+
     // ── Seção 5 Graus do 1º Hatsu ─────────────────────────────────────────────
    const _PH_LABELS = {
         acerto:    { icon:'⚔️', label:'Acerto',           desc:'+1 ataque' },
@@ -1974,6 +2011,7 @@ function renderHatsuDetail(container) {
 
             <!-- Efeitos -->
             <div style="margin-bottom:24px">
+                ${_switchModoHtml}
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
                     <span style="font-size:14px">⚡</span>
                     <span style="font-size:10px;font-weight:900;color:#e5e7eb;text-transform:uppercase;letter-spacing:2px">Efeitos</span>
