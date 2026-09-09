@@ -77,8 +77,9 @@
       "PowerShell(git apply *)",
       "PowerShell(node --check js/data/config.js)",
       "PowerShell(git add *)",
+      "PowerShell(git checkout *)",
       "PowerShell(git pull *)",
-      "PowerShell(git checkout *)"
+      "PowerShell(node --check js/views/sheet.js)"
     ]
   }
 }
