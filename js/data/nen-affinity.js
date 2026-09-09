@@ -509,3 +509,52 @@ window.calcPNDisponivelParaHatsu = function(char, editingIdx) {
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  TRANSMUTACAO_DB — subtipos de Transmutação Elemental e Versátil
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+
+
+// ── Acesso a efeitos de OUTRAS categorias (Manual de Hatsus, p6) ──────────────
+// A tabela "Acesso a Categorias" já existe em calcCategoryAccess. Estas funções
+// só a colocam para trabalhar nos pickers de efeito (eg6 e rm_e8).
+
+// Nível do efeito, lido do próprio req ("Nível 3", "Nível 5 SAB 4+"...).
+window.nivelDoEfeito = function (e) {
+    const m = String((e && e.req) || '').match(/N[íi]vel\s+(\d+)/i);
+    return m ? parseInt(m[1]) : 1;
+};
+
+// Efeito "sem pré-requisito": o req não exige nada além do nível.
+// Ex.: "Nível 2" passa; "Nível 3 SAB 4+" ou "Nível 5, Anticoagulante" não.
+window.efeitoSemPreRequisito = function (e) {
+    const resto = String((e && e.req) || '')
+        .replace(/N[íi]vel\s+\d+/ig, '')
+        .replace(/[\s,;.:•+\-\/()]/g, '');
+    return resto.length === 0;
+};
+
+// Restrições Extremas valem +2 níveis na tabela de acesso (NOTA 1 do manual).
+window.contarRestricoesExtremas = function (hb) {
+    if (!hb) return 0;
+    const extremasIds = [];
+    const rg = window.HATSU_DB && window.HATSU_DB.restricoes_gerais;
+    if (rg) (rg.extremas || []).forEach(function (r) { extremasIds.push(r.id); });
+    const cats = (window.HATSU_DB && window.HATSU_DB.categorias) || {};
+    Object.keys(cats).forEach(function (k) {
+        (cats[k].restricoes || []).forEach(function (r) {
+            if (r.peso === 'extrema') extremasIds.push(r.id);
+        });
+    });
+    const sel = [].concat(hb.rg || [], hb.rc || []);
+    return sel.filter(function (id) { return extremasIds.indexOf(id) >= 0; }).length;
+};
+
+// Nível máximo de efeito acessível numa categoria. 0 = sem acesso nenhum.
+// Especialização NÃO passa por aqui: ela tem regra própria (pirâmide de restrições).
+window.acessoMaxPorCategoria = function (charClass, charLevel, hb, categoria) {
+    if (!window.calcCategoryAccess) return 0;
+    const acesso = window.calcCategoryAccess(parseInt(charLevel) || 0, window.contarRestricoesExtremas(hb));
+    if (categoria === charClass) return acesso.pct100;
+    const af = ((window.CATEGORY_AFFINITY || {})[charClass] || {})[categoria];
+    if (af === 80) return acesso.pct80;
+    if (af === 60) return acesso.pct60;
+    if (af === 40) return acesso.pct40;
+    return 0;
+};

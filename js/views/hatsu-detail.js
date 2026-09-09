@@ -334,8 +334,19 @@ window._hCalcGrauVariavel = function(idx, restrId) {
         + (over ? '<span style="color:#f87171;font-weight:700">⚠ Excede o limite em ' + (total - grauMax) + '</span>' : '<span style="color:#4ade80;font-weight:700">✓ Dentro do limite</span>');
 };
 
+// Liga/desliga o Modo Alternativo do Hatsu (eg4). Guardado no próprio Hatsu, dentro
+// do JSONB do personagem — nenhuma alteração de banco necessária.
+window._hSetModoAtivo = function(idx, modoIdx) {
+    const char = state.currentChar;
+    const h = (char.hatsus || [])[idx];
+    if (!h) return;
+    h.modoAtivo = parseInt(modoIdx) || 0;
+    saveCharacter(char);
+    render(true);
+};
+
 // ── Constructos: de UM para VÁRIOS ───────────────────────────────────────────
-// Antes existia só cst (objeto único). O criador já permitia comprar
+// Antes existia só h.constructo (objeto único). O criador já permitia comprar
 // Golem de Aura mais de uma vez e pedia material/característica de cada cópia,
 // mas a ficha só tinha lugar para guardar UMA — então as duas cópias caíam no
 // mesmo card e os PV se somavam. Agora cada cópia tem a sua ficha em
@@ -358,7 +369,6 @@ function _hCst(h, c) {
 }
 window._hCstList = _hCstList;
 window._hCst = _hCst;
-
 
 // ── Setters da Ficha do Constructo (h.constructos[c]) ────────────────────────────
 window._hSetConstructoField = function(idx, c, field, value) {
@@ -580,11 +590,58 @@ function renderHatsuDetail(container) {
     // Injeta efeitos escolhidos dentro de eg4 (Efeito Alternativo) e eg6 (Poder é Intenção)
     // sem duplicar caso o usuário também os tenha selecionado manualmente
     const _WRAPPER_META = {
-        'eg4': { label:'🎯 Efeito Alternativo' },
+        'eg4': { label:'🔀 Modo Alternativo' },
         'eg6': { label:'🎯 Poder é Intenção'   },
     };
+    // ── MODOS do Efeito Alternativo ───────────────────────────────────────────
+    // Regra do manual: cada compra de eg4 CLONA o Modo A (raiz) num modo novo, que
+    // adiciona um efeito e remove obrigatoriamente um efeito herdado da raiz. Modos
+    // nunca clonam uns aos outros — todos partem do Modo A. Restrições herdadas podem
+    // ser desligadas por modo. Nada disso é somado ao mesmo tempo: a tela mostra UM
+    // modo de cada vez, e dano, TR e custo de aura são recalculados para aquele modo.
+    const _sc = h.specialChoices || {};
+    const _qtdEg4 = (h.efeitos || []).filter(function(id){ return id === 'eg4'; }).length;
+    const _kEg4 = function(base, i) { return i > 0 ? (base + '#' + i) : base; };
+    const _LETRAS = ['A','B','C','D','E','F','G','H'];
+    // Modo 0 = raiz. Os demais vêm das compras de eg4.
+    const _modos = [{ letra: 'A', nome: _sc['eg4_nome_raiz'] || '', raiz: true }];
+    for (let _i = 0; _i < _qtdEg4; _i++) {
+        _modos.push({
+            letra: _LETRAS[_i + 1] || ('#' + (_i + 2)),
+            nome: _sc[_kEg4('eg4_nome', _i)] || '',
+            adicionado: _sc[_kEg4('eg4', _i)] || '',
+            removido: _sc[_kEg4('eg4_remove', _i)] || '',
+            restrOff: Array.isArray(_sc[_kEg4('eg4_restr_off', _i)]) ? _sc[_kEg4('eg4_restr_off', _i)] : []
+        });
+    }
+    let _modoIdx = parseInt(h.modoAtivo) || 0;
+    if (_modoIdx >= _modos.length) _modoIdx = 0;
+    const _modo = _modos[_modoIdx];
+    const _temModos = _modos.length > 1;
+
+    // Aplica o modo ativo: tira o efeito removido, tira as restrições desligadas.
+    if (_temModos && !_modo.raiz) {
+        if (_modo.removido) {
+            const _iRem = efeitosSel.findIndex(function(e){ return e.nome === _modo.removido; });
+            if (_iRem >= 0) efeitosSel.splice(_iRem, 1);
+        }
+        (_modo.restrOff || []).forEach(function(nomeR){
+            const _iR = restricoesSel.findIndex(function(r){ return r.nome === nomeR; });
+            if (_iR >= 0) restricoesSel.splice(_iR, 1);
+        });
+    }
+
     Object.keys(_WRAPPER_META).forEach(function(wid) {
         if (!(h.efeitos||[]).includes(wid)) return;
+        // O efeito adicionado por eg4 só entra no modo que o comprou.
+        if (wid === 'eg4') {
+            if (_modo.raiz || !_modo.adicionado) return;
+            const addObj = allEDB.find(function(e){ return e.nome === _modo.adicionado; });
+            if (addObj && !efeitosSel.find(function(e){ return e.id === addObj.id; })) {
+                efeitosSel.push(Object.assign({}, addObj, { _wrapper: 'eg4', _wrapperLabel: _WRAPPER_META.eg4.label }));
+            }
+            return;
+        }
         const pickedName = (h.specialChoices||{})[wid];
         if (!pickedName) return;
         const picked = allEDB.find(function(e){ return e.nome === pickedName; });
@@ -1845,6 +1902,26 @@ function renderHatsuDetail(container) {
           }).join('')
         : `<div style="text-align:center;color:#374151;font-style:italic;font-size:11px;padding:20px">Nenhum efeito selecionado.</div>`;
 
+    // ── Interruptor Modo A / Modo B ───────────────────────────────────────────────
+    // Só aparece em Hatsus que compraram o Efeito Alternativo (eg4) e já escolheram o
+    // efeito do modo B. Trocar de modo recalcula dano, TR e custo de aura, porque o
+    // efeito alternativo entra ou sai de efeitosSel lá em cima.
+    const _switchModoHtml = _temModos
+        ? `<div style="margin-bottom:12px">
+                <div style="display:flex;gap:4px;background:#0d1117;border:1px solid ${tc}33;border-radius:10px;padding:4px;flex-wrap:wrap">
+                    ${_modos.map((m, i) => `<button onclick="event.stopPropagation();window._hSetModoAtivo(${idx},${i})"
+                        style="flex:1;min-width:70px;padding:9px 6px;border-radius:8px;border:none;cursor:pointer;font-family:'Orbitron',sans-serif;font-weight:900;font-size:8px;text-transform:uppercase;letter-spacing:1px;background:${i === _modoIdx ? tc : 'transparent'};color:${i === _modoIdx ? '#000' : '#6b7280'}">
+                        Modo ${m.letra}${m.nome ? ` — ${m.nome}` : (m.raiz ? ' — Raiz' : '')}
+                    </button>`).join('')}
+                </div>
+                ${!_modo.raiz ? `<div style="margin-top:6px;background:#060d1a;border:1px solid ${tc}33;border-radius:8px;padding:8px;font-size:8px;line-height:1.6">
+                    ${_modo.adicionado ? `<div style="color:#4ade80;font-weight:700">+ ${_modo.adicionado}</div>` : ''}
+                    ${_modo.removido ? `<div style="color:#f87171;font-weight:700">− ${_modo.removido}</div>` : ''}
+                    ${(_modo.restrOff || []).length ? `<div style="color:#fb923c;font-weight:700;margin-top:2px">Restrições desligadas: ${_modo.restrOff.join(', ')}</div>` : ''}
+                </div>` : ''}
+            </div>`
+        : '';
+
     // ── Seção 5 Graus do 1º Hatsu ─────────────────────────────────────────────
    const _PH_LABELS = {
         acerto:    { icon:'⚔️', label:'Acerto',           desc:'+1 ataque' },
@@ -2021,6 +2098,7 @@ function renderHatsuDetail(container) {
 
             <!-- Efeitos -->
             <div style="margin-bottom:24px">
+                ${_switchModoHtml}
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
                     <span style="font-size:14px">⚡</span>
                     <span style="font-size:10px;font-weight:900;color:#e5e7eb;text-transform:uppercase;letter-spacing:2px">Efeitos</span>

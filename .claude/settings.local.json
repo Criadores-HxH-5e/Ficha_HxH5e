@@ -79,9 +79,9 @@
       "PowerShell(git add *)",
       "PowerShell(git pull *)",
       "PowerShell(git checkout *)",
+      "PowerShell(git rm *)"
       "PowerShell(node --check js/views/hatsu-detail.js)",
       "PowerShell(node --check js/init.js)",
-      "PowerShell(node --check js/views/sheet.js)",
       "PowerShell(node --check js/views/hatsu-creator.js)"
       "PowerShell(node --check js/views/sheet.js)"
     ]
