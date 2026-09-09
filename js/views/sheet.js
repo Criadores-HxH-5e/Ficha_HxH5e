@@ -1372,11 +1372,13 @@
         // Ataque básico do Constructo (Ficha do Constructo): sem efeito de dano próprio,
         // o manual usa 1d6 + atributo (normalmente FOR/DES), mas o jogador pode escolher
         // qual atributo do constructo entra na rolagem (guardado em h.constructo.atributoAtaque).
-        window.rollConstructoAtaque = function(idx) {
+        window.rollConstructoAtaque = function(idx, cIdx) {
             const char = state.currentChar;
             const h = (char.hatsus || [])[idx];
-            if (!h || !h.constructo) return;
-            const cst = h.constructo;
+            if (!h) return;
+            // cIdx = qual cópia do constructo está atacando (0 = a primeira).
+            const cst = window._hCst ? window._hCst(h, parseInt(cIdx) || 0) : h.constructo;
+            if (!cst) return;
             const atributos = Object.assign({ FOR: 0, DES: 0, CON: 0, INT: 0, SAB: 0, PRE: 0 }, cst.atributos || {});
             const attrKey = (cst.atributoAtaque && atributos.hasOwnProperty(cst.atributoAtaque))
                 ? cst.atributoAtaque
