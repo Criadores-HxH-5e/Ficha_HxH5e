@@ -76,7 +76,10 @@
       "Bash(git commit -m 'fix\\(inclinacoes\\): marca inclinacoes basicas do livro, restringe criacao *)",
       "PowerShell(git apply *)",
       "PowerShell(node --check js/data/config.js)",
-      "PowerShell(git add *)"
+      "PowerShell(git add *)",
+      "PowerShell(git checkout *)",
+      "PowerShell(git pull *)",
+      "PowerShell(node --check js/views/sheet.js)"
     ]
   }
 }
