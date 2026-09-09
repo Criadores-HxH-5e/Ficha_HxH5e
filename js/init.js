@@ -493,11 +493,12 @@ function closeHatsuCreator() {
         // pontos é o modificador de INT do USUÁRIO (não do constructo) — mesma regra já usada
         // pelos botões +/- antigos (rev. Manual: "atributos do Constructo vêm do bônus de
         // Inteligência do Materializador").
-        window._showConstructoAttrModal = function(char, hatsuIdx) {
+        window._showConstructoAttrModal = function(char, hatsuIdx, cIdx) {
+            // cIdx = qual cópia do constructo está sendo editada (0 = a primeira).
+            cIdx = parseInt(cIdx) || 0;
             const h = char.hatsus[hatsuIdx];
             if (!h) return;
-            if (!h.constructo) h.constructo = {};
-            const cst = h.constructo;
+            const cst = window._hCst ? window._hCst(h, cIdx) : (h.constructo = h.constructo || {});
             const hatsuClasse = h.classe || char.class || '';
             const catDB = (window.HATSU_DB && window.HATSU_DB.categorias[hatsuClasse]) || {};
             const tc = catDB.cor || '#00ff88';
@@ -579,10 +580,12 @@ function closeHatsuCreator() {
                 const total = Object.values(alloc).reduce((s, v) => s + v, 0);
                 if (total !== TOTAL) return;
                 if (!confirm("Após concluir a construção do constructo, os atributos só poderão ser editados ao receber mais P.N para editar o Hatsu (ou seja, ao subir de nível). Tem certeza que deseja concluir?")) return;
-                if (!char.hatsus[hatsuIdx].constructo) char.hatsus[hatsuIdx].constructo = {};
-                char.hatsus[hatsuIdx].constructo.atributos = Object.assign({}, alloc);
-                char.hatsus[hatsuIdx].constructo.atributosConcluidos = true;
-                char.hatsus[hatsuIdx].constructo.atributosConcluidosNivel = char.level;
+                const alvo = window._hCst
+                    ? window._hCst(char.hatsus[hatsuIdx], cIdx)
+                    : (char.hatsus[hatsuIdx].constructo = char.hatsus[hatsuIdx].constructo || {});
+                alvo.atributos = Object.assign({}, alloc);
+                alvo.atributosConcluidos = true;
+                alvo.atributosConcluidosNivel = char.level;
                 saveCharacter(char);
                 overlay.remove();
                 render(true);
@@ -592,9 +595,9 @@ function closeHatsuCreator() {
             rebuild();
         };
 
-        window._openConstructoAttrModal = function(hatsuIdx) {
+        window._openConstructoAttrModal = function(hatsuIdx, cIdx) {
             const char = state.currentChar;
-            window._showConstructoAttrModal(char, hatsuIdx);
+            window._showConstructoAttrModal(char, hatsuIdx, parseInt(cIdx) || 0);
         };
 
         // ── Editar Traços Raciais (ficha já criada) ───────────────────────────────────────────

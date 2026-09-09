@@ -334,40 +334,67 @@ window._hCalcGrauVariavel = function(idx, restrId) {
         + (over ? '<span style="color:#f87171;font-weight:700">⚠ Excede o limite em ' + (total - grauMax) + '</span>' : '<span style="color:#4ade80;font-weight:700">✓ Dentro do limite</span>');
 };
 
-// ── Setters da Ficha do Constructo (h.constructo) ────────────────────────────
-window._hSetConstructoField = function(idx, field, value) {
+// ── Constructos: de UM para VÁRIOS ───────────────────────────────────────────
+// Antes existia só cst (objeto único). O criador já permitia comprar
+// Golem de Aura mais de uma vez e pedia material/característica de cada cópia,
+// mas a ficha só tinha lugar para guardar UMA — então as duas cópias caíam no
+// mesmo card e os PV se somavam. Agora cada cópia tem a sua ficha em
+// h.constructos[]. A migração é automática na primeira leitura e não exige
+// nenhuma alteração no Supabase, porque o personagem é um JSONB inteiro.
+function _hCstList(h) {
+    if (!h) return [];
+    if (!Array.isArray(h.constructos)) {
+        h.constructos = h.constructo ? [h.constructo] : [];
+    }
+    return h.constructos;
+}
+function _hCst(h, c) {
+    const lista = _hCstList(h);
+    const i = parseInt(c) || 0;
+    while (lista.length <= i) lista.push({});
+    // h.constructo continua apontando para a 1ª cópia, para não quebrar código antigo.
+    h.constructo = lista[0];
+    return lista[i];
+}
+window._hCstList = _hCstList;
+window._hCst = _hCst;
+
+
+// ── Setters da Ficha do Constructo (h.constructos[c]) ────────────────────────────
+window._hSetConstructoField = function(idx, c, field, value) {
     const char = state.currentChar;
     const h = (char.hatsus || [])[idx];
     if (!h) return;
-    if (!h.constructo) h.constructo = {};
-    h.constructo[field] = value;
+    const cst = _hCst(h, c);
+    cst[field] = value;
     saveCharacter(char);
     renderHatsuInPlace();
 };
 // Igual a uploadCharacterImage (sheet.js): lê o arquivo como data URL e guarda direto no personagem,
 // sem depender de nenhum bucket/storage externo.
-window._hUploadConstructoImage = function(idx, input) {
+window._hUploadConstructoImage = function(idx, c, input) {
     if (!input.files || !input.files[0]) return;
     const reader = new FileReader();
     reader.onload = function(e) {
         const char = state.currentChar;
         const h = (char.hatsus || [])[idx];
         if (!h) return;
-        if (!h.constructo) h.constructo = {};
-        h.constructo.imagemUrl = e.target.result;
-        h.constructo.imagePosition = { x: 50, y: 50 };
+        const cst = _hCst(h, c);
+        cst.imagemUrl = e.target.result;
+        cst.imagePosition = { x: 50, y: 50 };
         saveCharacter(char);
         renderHatsuInPlace();
     };
     reader.readAsDataURL(input.files[0]);
 };
 // Mesmo modal de arrastar/clicar de window._openImagePositionModal (sheet.js), mas grava em
-// h.constructo.imagePosition em vez de char.imagePosition.
-window._hOpenConstructoImagePositionModal = function(idx) {
+// cst.imagePosition em vez de char.imagePosition.
+window._hOpenConstructoImagePositionModal = function(idx, c) {
     const char = state.currentChar;
     const h = (char.hatsus || [])[idx];
-    if (!h || !h.constructo || !h.constructo.imagemUrl) return;
-    const cst = h.constructo;
+    const cst = h ? _hCst(h, c) : null;
+        if (!h || !cst || !cst.imagemUrl) return;
+    
     const tc = getComputedStyle(document.documentElement).getPropertyValue('--theme-color-hex').trim() || '#00ff9d';
     const initial = cst.imagePosition || { x: 50, y: 50 };
     const draft = { x: initial.x, y: initial.y };
@@ -429,13 +456,13 @@ window._hOpenConstructoImagePositionModal = function(idx) {
         renderHatsuInPlace();
     };
 };
-window._hSetConstructoAttr = function(idx, attr, delta) {
+window._hSetConstructoAttr = function(idx, c, attr, delta) {
     const char = state.currentChar;
     const h = (char.hatsus || [])[idx];
     if (!h) return;
-    if (!h.constructo) h.constructo = {};
-    if (!h.constructo.atributos) h.constructo.atributos = { FOR: 0, DES: 0, CON: 0, INT: 0, SAB: 0, PRE: 0 };
-    const atuais = h.constructo.atributos;
+    const cst = _hCst(h, c);
+    if (!cst.atributos) cst.atributos = { FOR: 0, DES: 0, CON: 0, INT: 0, SAB: 0, PRE: 0 };
+    const atuais = cst.atributos;
     const intMod = getMod((char.attributes.INT || {}).value || 10);
     const maxPontos = Math.max(0, intMod);
     const usados = Object.values(atuais).reduce((a, b) => a + (parseInt(b) || 0), 0);
@@ -446,62 +473,66 @@ window._hSetConstructoAttr = function(idx, attr, delta) {
     saveCharacter(char);
     renderHatsuInPlace();
 };
-window._hAddConstructoCaracteristica = function(idx) {
+window._hAddConstructoCaracteristica = function(idx, c) {
     const char = state.currentChar;
     const h = (char.hatsus || [])[idx];
     if (!h) return;
-    if (!h.constructo) h.constructo = {};
-    if (!h.constructo.caracteristicas) h.constructo.caracteristicas = [];
+    const cst = _hCst(h, c);
+    if (!cst.caracteristicas) cst.caracteristicas = [];
     const nomes = (window.CARACTERISTICAS_INVOCACAO || []).map(c => c.nome);
-    h.constructo.caracteristicas.push(nomes[0] || '');
+    cst.caracteristicas.push(nomes[0] || '');
     saveCharacter(char);
     renderHatsuInPlace();
 };
-window._hSetConstructoCaracteristica = function(idx, i, nome) {
+window._hSetConstructoCaracteristica = function(idx, c, i, nome) {
     const char = state.currentChar;
     const h = (char.hatsus || [])[idx];
-    if (!h || !h.constructo || !h.constructo.caracteristicas) return;
-    h.constructo.caracteristicas[i] = nome;
+    const cst = h ? _hCst(h, c) : null;
+        if (!h || !cst || !cst.caracteristicas) return;
+    cst.caracteristicas[i] = nome;
     saveCharacter(char);
     renderHatsuInPlace();
 };
-window._hRemoveConstructoCaracteristica = function(idx, i) {
+window._hRemoveConstructoCaracteristica = function(idx, c, i) {
     const char = state.currentChar;
     const h = (char.hatsus || [])[idx];
-    if (!h || !h.constructo || !h.constructo.caracteristicas) return;
-    h.constructo.caracteristicas.splice(i, 1);
+    const cst = h ? _hCst(h, c) : null;
+        if (!h || !cst || !cst.caracteristicas) return;
+    cst.caracteristicas.splice(i, 1);
     saveCharacter(char);
     renderHatsuInPlace();
 };
-window._hAddConstructoPericia = function(idx) {
+window._hAddConstructoPericia = function(idx, c) {
     const char = state.currentChar;
     const h = (char.hatsus || [])[idx];
     if (!h) return;
-    if (!h.constructo) h.constructo = {};
-    if (!h.constructo.pericias) h.constructo.pericias = [];
+    const cst = _hCst(h, c);
+    if (!cst.pericias) cst.pericias = [];
     const slots = (window.CONSTRUCTO_DB || {}).PERICIA_SLOTS || 5;
-    if (h.constructo.pericias.length >= slots) return;
-    h.constructo.pericias.push({ tipo: 'tr', valor: 'FOR' });
+    if (cst.pericias.length >= slots) return;
+    cst.pericias.push({ tipo: 'tr', valor: 'FOR' });
     saveCharacter(char);
     renderHatsuInPlace();
 };
-window._hSetConstructoPericia = function(idx, i, field, value) {
+window._hSetConstructoPericia = function(idx, c, i, field, value) {
     const char = state.currentChar;
     const h = (char.hatsus || [])[idx];
-    if (!h || !h.constructo || !h.constructo.pericias || !h.constructo.pericias[i]) return;
-    h.constructo.pericias[i][field] = value;
+    const cst = h ? _hCst(h, c) : null;
+        if (!h || !cst || !cst.pericias || !cst.pericias[i]) return;
+    cst.pericias[i][field] = value;
     if (field === 'tipo') {
         const tipoDef = ((window.CONSTRUCTO_DB || {}).PERICIA_TIPOS || []).find(t => t.id === value);
-        h.constructo.pericias[i].valor = tipoDef ? tipoDef.valores[0] : '';
+        cst.pericias[i].valor = tipoDef ? tipoDef.valores[0] : '';
     }
     saveCharacter(char);
     renderHatsuInPlace();
 };
-window._hRemoveConstructoPericia = function(idx, i) {
+window._hRemoveConstructoPericia = function(idx, c, i) {
     const char = state.currentChar;
     const h = (char.hatsus || [])[idx];
-    if (!h || !h.constructo || !h.constructo.pericias) return;
-    h.constructo.pericias.splice(i, 1);
+    const cst = h ? _hCst(h, c) : null;
+        if (!h || !cst || !cst.pericias) return;
+    cst.pericias.splice(i, 1);
     saveCharacter(char);
     renderHatsuInPlace();
 };
@@ -1198,12 +1229,24 @@ function renderHatsuDetail(container) {
     const hasConstructo = constructEffectIds.length > 0;
     let constructoCardHtml = '';
     if (hasConstructo) {
-        if (!h.constructo) h.constructo = {};
-        const cst = h.constructo;
+        // Uma ficha por cópia de Golem de Aura. Cada rm_e2 comprado vale um constructo
+        // próprio; os demais efeitos de constructo (rm_e3 etc.) reforçam a primeira ficha,
+        // que é a "principal". Sem isso, os PV de todas as cópias somavam num card só.
+        const _copiasRm2 = constructEffectIds.filter(id => id === 'rm_e2').length;
+        const _totalCopias = Math.max(1, _copiasRm2);
+        const _outrosEfeitos = constructEffectIds.filter(id => id !== 'rm_e2');
+        function _efeitosDaCopia(c) {
+            const rm2 = _copiasRm2 > 0 ? ['rm_e2'] : [];
+            return c === 0 ? [].concat(rm2, _outrosEfeitos) : rm2;
+        }
+        for (let _c = 0; _c < _totalCopias; _c++) {
+        const cst = _hCst(h, _c);
+        
         const escAttr = (s) => String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         const intMod = getMod((char.attributes.INT || {}).value || 10);
         const intPontosTotal = Math.max(0, intMod);
 
+        const constructEffectIds = _efeitosDaCopia(_c);
         const atributosDist = Object.assign({ FOR: 0, DES: 0, CON: 0, INT: 0, SAB: 0, PRE: 0 }, cst.atributos || {});
         const intUsados = Object.values(atributosDist).reduce((a, b) => a + (parseInt(b) || 0), 0);
         // Trava pós-conclusão (mesmo padrão dos "5 Graus do 1º Hatsu") — destrava sozinha quando o
@@ -1219,7 +1262,10 @@ function renderHatsuDetail(container) {
         // escolhidas aqui. Cada cópia de Golem de Aura (rm_e2) tem sua própria Característica de
         // Invocação — cópia 0 na chave sem sufixo, cópias extras em 'rm_e2_carac#1', '#2', etc.
         const _rm2CopiesForCarac = constructEffectIds.filter(id => id === 'rm_e2').length;
-        const _rm2CaracsAll = Array.from({ length: _rm2CopiesForCarac }, (_, i) => (h.specialChoices || {})[i > 0 ? `rm_e2_carac#${i}` : 'rm_e2_carac']).filter(Boolean);
+        // Cada cópia usa APENAS a sua própria Característica de Invocação.
+        const _rm2CaracsAll = _rm2CopiesForCarac > 0
+            ? [(h.specialChoices || {})[_c > 0 ? `rm_e2_carac#${_c}` : 'rm_e2_carac']].filter(Boolean)
+            : [];
         const caracJaEscolhidas = [..._rm2CaracsAll, (h.specialChoices || {})['rm_e3']].filter(Boolean);
         const caracExtras = cst.caracteristicas || [];
         const todasCaracteristicas = [...caracJaEscolhidas, ...caracExtras];
@@ -1276,9 +1322,9 @@ function renderHatsuDetail(container) {
         // NOTA: "Ficha do Constructo" (nome/imagem/atributos/PV/CA/ataque) ainda é 1 bloco só por
         // Hatsu, mesmo com 2+ cópias de Golem de Aura — por isso usamos aqui sempre o material da
         // cópia 0. Ter 2 Golems com PV/CA/atributos DE VERDADE independentes exigiria transformar
-        // h.constructo num array (1 ficha por cópia) — fora do escopo desta correção, que resolveu
+        // cst num array (1 ficha por cópia) — fora do escopo desta correção, que resolveu
         // só o material/característica de cada cópia ficarem sobrescrevendo um ao outro.
-        const materialEscolhido = (h.specialChoices || {})['rm_e2'] || '';
+        const materialEscolhido = (h.specialChoices || {})[_c > 0 ? `rm_e2#${_c}` : 'rm_e2'] || '';
         const usaMaterial = cst.tipoCA === 'material' || (cst.tipoCA !== 'organico' && !!materialEscolhido);
         const caBaseMaterial = usaMaterial ? (CDB.CA_POR_MATERIAL || {})[materialEscolhido] : undefined;
         const caBaseNum = (caBaseMaterial !== undefined) ? caBaseMaterial : (13 + intMod);
@@ -1300,13 +1346,13 @@ function renderHatsuDetail(container) {
 
         if (!window._HATSU_STAT_INFO) window._HATSU_STAT_INFO = {};
         if (!window._HATSU_STAT_INFO[idx]) window._HATSU_STAT_INFO[idx] = {};
-        window._HATSU_STAT_INFO[idx].constructoPv = [
+        window._HATSU_STAT_INFO[idx]['constructoPv' + (_c > 0 ? _c : '')] = [
             { l: `Base (${tamanho}, ${durabilidadeEfetiva === 'resistente' ? 'Resistente' : 'Frágil'})`, v: pvBase, c: '#9ca3af' },
             ...pvFontes.map(f => ({ l: `+${f.bonus} PV`, v: f.nome, c: '#4ade80' })),
             ...(robustezBonus ? [{ l: `+${robustezBonus} PV`, v: 'Robustez', c: '#f87171' }] : []),
             { l: '→ Total', v: pvTotal, c: '#4ade80', b: true },
         ];
-        window._HATSU_STAT_INFO[idx].constructoCa = [
+        window._HATSU_STAT_INFO[idx]['constructoCa' + (_c > 0 ? _c : '')] = [
             { l: usaMaterial ? `Base (material: ${materialEscolhido || '—'})` : `Base (13 + INT ${intMod >= 0 ? '+' : ''}${intMod})`, v: caBaseNum === null ? '—' : caBaseNum, c: '#9ca3af' },
             ...caFontes.map(f => ({ l: `+${f.bonus} CA`, v: f.nome, c: '#60a5fa' })),
             ...(caBaseNum !== null && caConBonus !== 0 ? [{ l: `${caConBonus >= 0 ? '+' : ''}${caConBonus} CA`, v: 'CON do Constructo', c: '#a78bfa' }] : []),
@@ -1316,34 +1362,34 @@ function renderHatsuDetail(container) {
         const _periciaTipos = CDB.PERICIA_TIPOS || [];
         const _periciaSlots = CDB.PERICIA_SLOTS || 5;
 
-        constructoCardHtml = `<div style="background:#0d1117;border:1px solid ${tc}33;border-radius:12px;padding:14px;margin-bottom:20px">
+        constructoCardHtml += `<div style="background:#0d1117;border:1px solid ${tc}33;border-radius:12px;padding:14px;margin-bottom:20px">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
                 <span style="font-size:14px">🐣</span>
-                <span style="font-size:10px;font-weight:900;color:#e5e7eb;text-transform:uppercase;letter-spacing:2px">Ficha do Constructo</span>
+                <span style="font-size:10px;font-weight:900;color:#e5e7eb;text-transform:uppercase;letter-spacing:2px">Ficha do Constructo${_totalCopias > 1 ? ` #${_c + 1}` : ''}</span>
             </div>
 
             <div style="display:flex;gap:10px;margin-bottom:12px;align-items:flex-start">
-                <div onclick="event.stopPropagation();document.getElementById('constructo-img-${idx}').click()" title="Clique para enviar uma imagem" style="width:56px;height:56px;border-radius:10px;border:1px ${cst.imagemUrl ? 'solid ' + tc + '44' : 'dashed #374151'};display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;cursor:pointer;position:relative;overflow:hidden;background-color:#0a0f1a;${cst.imagemUrl ? `background-image:url('${escAttr(cst.imagemUrl)}');background-size:cover;background-position:${(cst.imagePosition||{x:50,y:50}).x}% ${(cst.imagePosition||{x:50,y:50}).y}%;` : ''}">
-                    <input type="file" id="constructo-img-${idx}" accept="image/*" style="display:none" onchange="event.stopPropagation();window._hUploadConstructoImage(${idx},this)">
+                <div onclick="event.stopPropagation();document.getElementById('constructo-img-${idx}-${_c}').click()" title="Clique para enviar uma imagem" style="width:56px;height:56px;border-radius:10px;border:1px ${cst.imagemUrl ? 'solid ' + tc + '44' : 'dashed #374151'};display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;cursor:pointer;position:relative;overflow:hidden;background-color:#0a0f1a;${cst.imagemUrl ? `background-image:url('${escAttr(cst.imagemUrl)}');background-size:cover;background-position:${(cst.imagePosition||{x:50,y:50}).x}% ${(cst.imagePosition||{x:50,y:50}).y}%;` : ''}">
+                    <input type="file" id="constructo-img-${idx}-${_c}" accept="image/*" style="display:none" onchange="event.stopPropagation();window._hUploadConstructoImage(${idx},${_c},this)">
                     ${!cst.imagemUrl ? '🐣' : ''}
-                    ${cst.imagemUrl ? `<button onclick="event.stopPropagation();window._hOpenConstructoImagePositionModal(${idx})" title="Ajustar posição da imagem" style="position:absolute;bottom:2px;right:2px;background:#000000aa;border:1px solid #ffffff33;border-radius:5px;width:16px;height:16px;color:#fff;font-size:8px;cursor:pointer;padding:0;line-height:16px">✥</button>` : ''}
+                    ${cst.imagemUrl ? `<button onclick="event.stopPropagation();window._hOpenConstructoImagePositionModal(${idx},${_c})" title="Ajustar posição da imagem" style="position:absolute;bottom:2px;right:2px;background:#000000aa;border:1px solid #ffffff33;border-radius:5px;width:16px;height:16px;color:#fff;font-size:8px;cursor:pointer;padding:0;line-height:16px">✥</button>` : ''}
                 </div>
                 <div style="flex:1;display:flex;flex-direction:column;gap:6px;min-width:0">
-                    <input type="text" value="${escAttr(cst.nome)}" placeholder="Nome do constructo..." onchange="window._hSetConstructoField(${idx},'nome',this.value)" style="width:100%;box-sizing:border-box;background:#111827;border:1px solid #374151;border-radius:8px;padding:6px 8px;color:#fff;font-size:11px;font-weight:700">
+                    <input type="text" value="${escAttr(cst.nome)}" placeholder="Nome do constructo..." onchange="window._hSetConstructoField(${idx},${_c},'nome',this.value)" style="width:100%;box-sizing:border-box;background:#111827;border:1px solid #374151;border-radius:8px;padding:6px 8px;color:#fff;font-size:11px;font-weight:700">
                     <div style="display:flex;gap:4px;align-items:center">
-                        <button onclick="event.stopPropagation();document.getElementById('constructo-img-${idx}').click()" style="flex-shrink:0;background:${tc}18;border:1px solid ${tc}44;color:${tc};border-radius:6px;padding:5px 8px;font-size:8px;font-weight:900;cursor:pointer;white-space:nowrap">📤 Enviar</button>
-                        <input type="text" value="${escAttr(cst.imagemUrl)}" placeholder="ou cole uma URL de imagem..." onchange="window._hSetConstructoField(${idx},'imagemUrl',this.value)" style="flex:1;min-width:0;box-sizing:border-box;background:#111827;border:1px solid #374151;border-radius:8px;padding:6px 8px;color:#9ca3af;font-size:9px">
+                        <button onclick="event.stopPropagation();document.getElementById('constructo-img-${idx}-${_c}').click()" style="flex-shrink:0;background:${tc}18;border:1px solid ${tc}44;color:${tc};border-radius:6px;padding:5px 8px;font-size:8px;font-weight:900;cursor:pointer;white-space:nowrap">📤 Enviar</button>
+                        <input type="text" value="${escAttr(cst.imagemUrl)}" placeholder="ou cole uma URL de imagem..." onchange="window._hSetConstructoField(${idx},${_c},'imagemUrl',this.value)" style="flex:1;min-width:0;box-sizing:border-box;background:#111827;border:1px solid #374151;border-radius:8px;padding:6px 8px;color:#9ca3af;font-size:9px">
                     </div>
                 </div>
             </div>
 
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
                 <div style="background:#0a0f1a;border:1px solid #1f2937;border-radius:10px;padding:10px;text-align:center">
-                    <div style="font-size:8px;color:#4b5563;text-transform:uppercase;font-weight:700;margin-bottom:2px">PV <button onclick="event.stopPropagation();window._hShowStatInfo(${idx},'constructoPv',this)" style="background:transparent;border:1px solid #374151;border-radius:50%;width:14px;height:14px;font-size:8px;color:#6b7280;cursor:pointer;padding:0;line-height:14px">ⓘ</button></div>
+                    <div style="font-size:8px;color:#4b5563;text-transform:uppercase;font-weight:700;margin-bottom:2px">PV <button onclick="event.stopPropagation();window._hShowStatInfo(${idx},'constructoPv${_c > 0 ? _c : ''}',this)" style="background:transparent;border:1px solid #374151;border-radius:50%;width:14px;height:14px;font-size:8px;color:#6b7280;cursor:pointer;padding:0;line-height:14px">ⓘ</button></div>
                     <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:20px;color:#4ade80">${pvTotal}</div>
                 </div>
                 <div style="background:#0a0f1a;border:1px solid #1f2937;border-radius:10px;padding:10px;text-align:center">
-                    <div style="font-size:8px;color:#4b5563;text-transform:uppercase;font-weight:700;margin-bottom:2px">CA <button onclick="event.stopPropagation();window._hShowStatInfo(${idx},'constructoCa',this)" style="background:transparent;border:1px solid #374151;border-radius:50%;width:14px;height:14px;font-size:8px;color:#6b7280;cursor:pointer;padding:0;line-height:14px">ⓘ</button></div>
+                    <div style="font-size:8px;color:#4b5563;text-transform:uppercase;font-weight:700;margin-bottom:2px">CA <button onclick="event.stopPropagation();window._hShowStatInfo(${idx},'constructoCa${_c > 0 ? _c : ''}',this)" style="background:transparent;border:1px solid #374151;border-radius:50%;width:14px;height:14px;font-size:8px;color:#6b7280;cursor:pointer;padding:0;line-height:14px">ⓘ</button></div>
                     <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:20px;color:#60a5fa">${caTotal === null ? '—' : caTotal}</div>
                 </div>
             </div>
@@ -1355,7 +1401,7 @@ function renderHatsuDetail(container) {
                         ${['', 'fragil', 'resistente'].map(v => {
                             const active = (cst.durabilidade || '') === v;
                             const label = v === '' ? 'Auto' : v === 'fragil' ? 'Frágil' : 'Resistente';
-                            return `<button onclick="window._hSetConstructoField(${idx},'durabilidade','${v}')" style="flex:1;padding:5px 2px;border-radius:7px;font-size:8px;font-weight:900;cursor:pointer;border:1.5px solid ${active ? tc : '#1f2937'};background:${active ? tc + '22' : 'transparent'};color:${active ? tc : '#6b7280'}">${label}</button>`;
+                            return `<button onclick="window._hSetConstructoField(${idx},${_c},'durabilidade','${v}')" style="flex:1;padding:5px 2px;border-radius:7px;font-size:8px;font-weight:900;cursor:pointer;border:1.5px solid ${active ? tc : '#1f2937'};background:${active ? tc + '22' : 'transparent'};color:${active ? tc : '#6b7280'}">${label}</button>`;
                         }).join('')}
                     </div>
                 </div>
@@ -1365,7 +1411,7 @@ function renderHatsuDetail(container) {
                         ${['', 'organico', 'material'].map(v => {
                             const active = (cst.tipoCA || '') === v;
                             const label = v === '' ? 'Auto' : v === 'organico' ? 'Orgânico' : 'Material';
-                            return `<button onclick="window._hSetConstructoField(${idx},'tipoCA','${v}')" style="flex:1;padding:5px 2px;border-radius:7px;font-size:8px;font-weight:900;cursor:pointer;border:1.5px solid ${active ? tc : '#1f2937'};background:${active ? tc + '22' : 'transparent'};color:${active ? tc : '#6b7280'}">${label}</button>`;
+                            return `<button onclick="window._hSetConstructoField(${idx},${_c},'tipoCA','${v}')" style="flex:1;padding:5px 2px;border-radius:7px;font-size:8px;font-weight:900;cursor:pointer;border:1.5px solid ${active ? tc : '#1f2937'};background:${active ? tc + '22' : 'transparent'};color:${active ? tc : '#6b7280'}">${label}</button>`;
                         }).join('')}
                     </div>
                 </div>
@@ -1387,8 +1433,8 @@ function renderHatsuDetail(container) {
                     `).join('')}
                 </div>
                 ${atributosLocked
-                    ? (state.isAdmin ? `<button onclick="window._openConstructoAttrModal(${idx})" style="width:100%;padding:6px;border-radius:8px;background:#f9731622;border:1px solid #f9731655;color:#fb923c;font-size:9px;font-weight:900;cursor:pointer;text-transform:uppercase">⚙️ Editar (Admin)</button>` : '')
-                    : `<button onclick="window._openConstructoAttrModal(${idx})" style="width:100%;padding:6px;border-radius:8px;background:${tc}22;border:1px solid ${tc}55;color:${tc};font-size:9px;font-weight:900;cursor:pointer;text-transform:uppercase">🪨 ${cst.atributosConcluidos ? 'Redistribuir' : 'Distribuir'} Atributos</button>`}
+                    ? (state.isAdmin ? `<button onclick="window._openConstructoAttrModal(${idx},${_c})" style="width:100%;padding:6px;border-radius:8px;background:#f9731622;border:1px solid #f9731655;color:#fb923c;font-size:9px;font-weight:900;cursor:pointer;text-transform:uppercase">⚙️ Editar (Admin)</button>` : '')
+                    : `<button onclick="window._openConstructoAttrModal(${idx},${_c})" style="width:100%;padding:6px;border-radius:8px;background:${tc}22;border:1px solid ${tc}55;color:${tc};font-size:9px;font-weight:900;cursor:pointer;text-transform:uppercase">🪨 ${cst.atributosConcluidos ? 'Redistribuir' : 'Distribuir'} Atributos</button>`}
             </div>
 
             <div style="margin-bottom:12px">
@@ -1396,13 +1442,13 @@ function renderHatsuDetail(container) {
                 ${caracJaEscolhidas.length > 0 ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">${caracJaEscolhidas.map(n => `<span style="font-size:8px;font-weight:700;padding:3px 8px;border-radius:6px;background:${tc}18;color:${tc}">${n}</span>`).join('')}</div>` : ''}
                 ${caracExtras.map((n, i) => `
                     <div style="display:flex;gap:4px;margin-bottom:4px;align-items:center">
-                        <select onchange="window._hSetConstructoCaracteristica(${idx},${i},this.value)" style="flex:1;background:#111827;border:1px solid #374151;border-radius:6px;padding:4px 6px;color:#d1d5db;font-size:9px">
+                        <select onchange="window._hSetConstructoCaracteristica(${idx},${_c},${i},this.value)" style="flex:1;background:#111827;border:1px solid #374151;border-radius:6px;padding:4px 6px;color:#d1d5db;font-size:9px">
                             ${(window.CARACTERISTICAS_INVOCACAO || []).map(c => `<option value="${c.nome}" ${c.nome === n ? 'selected' : ''}>${c.icon} ${c.nome}</option>`).join('')}
                         </select>
-                        <button onclick="window._hRemoveConstructoCaracteristica(${idx},${i})" style="background:#ef444422;border:1px solid #ef444455;color:#f87171;border-radius:6px;padding:4px 8px;font-size:9px;cursor:pointer">×</button>
+                        <button onclick="window._hRemoveConstructoCaracteristica(${idx},${_c},${i})" style="background:#ef444422;border:1px solid #ef444455;color:#f87171;border-radius:6px;padding:4px 8px;font-size:9px;cursor:pointer">×</button>
                     </div>
                 `).join('')}
-                ${slotsLivres > caracExtras.length ? `<button onclick="window._hAddConstructoCaracteristica(${idx})" style="width:100%;padding:6px;border-radius:8px;background:transparent;border:1px dashed #374151;color:#6b7280;font-size:9px;font-weight:700;cursor:pointer">+ Adicionar Característica (${slotsLivres - caracExtras.length} livre${slotsLivres - caracExtras.length > 1 ? 's' : ''})</button>` : ''}
+                ${slotsLivres > caracExtras.length ? `<button onclick="window._hAddConstructoCaracteristica(${idx},${_c})" style="width:100%;padding:6px;border-radius:8px;background:transparent;border:1px dashed #374151;color:#6b7280;font-size:9px;font-weight:700;cursor:pointer">+ Adicionar Característica (${slotsLivres - caracExtras.length} livre${slotsLivres - caracExtras.length > 1 ? 's' : ''})</button>` : ''}
             </div>
 
             <div style="margin-bottom:12px">
@@ -1410,16 +1456,16 @@ function renderHatsuDetail(container) {
                 ${(cst.pericias || []).map((p, i) => {
                     const tipoDef = _periciaTipos.find(t => t.id === p.tipo) || _periciaTipos[0] || { valores: [] };
                     return `<div style="display:flex;gap:4px;margin-bottom:4px">
-                        <select onchange="window._hSetConstructoPericia(${idx},${i},'tipo',this.value)" style="background:#111827;border:1px solid #374151;border-radius:6px;padding:4px 6px;color:#d1d5db;font-size:9px">
+                        <select onchange="window._hSetConstructoPericia(${idx},${_c},${i},'tipo',this.value)" style="background:#111827;border:1px solid #374151;border-radius:6px;padding:4px 6px;color:#d1d5db;font-size:9px">
                             ${_periciaTipos.map(t => `<option value="${t.id}" ${t.id === p.tipo ? 'selected' : ''}>${t.label}</option>`).join('')}
                         </select>
-                        <select onchange="window._hSetConstructoPericia(${idx},${i},'valor',this.value)" style="flex:1;background:#111827;border:1px solid #374151;border-radius:6px;padding:4px 6px;color:#d1d5db;font-size:9px">
+                        <select onchange="window._hSetConstructoPericia(${idx},${_c},${i},'valor',this.value)" style="flex:1;background:#111827;border:1px solid #374151;border-radius:6px;padding:4px 6px;color:#d1d5db;font-size:9px">
                             ${tipoDef.valores.map(v => `<option value="${v}" ${v === p.valor ? 'selected' : ''}>${v}</option>`).join('')}
                         </select>
-                        <button onclick="window._hRemoveConstructoPericia(${idx},${i})" style="background:#ef444422;border:1px solid #ef444455;color:#f87171;border-radius:6px;padding:4px 8px;font-size:9px;cursor:pointer">×</button>
+                        <button onclick="window._hRemoveConstructoPericia(${idx},${_c},${i})" style="background:#ef444422;border:1px solid #ef444455;color:#f87171;border-radius:6px;padding:4px 8px;font-size:9px;cursor:pointer">×</button>
                     </div>`;
                 }).join('')}
-                ${(cst.pericias || []).length < _periciaSlots ? `<button onclick="window._hAddConstructoPericia(${idx})" style="width:100%;padding:6px;border-radius:8px;background:transparent;border:1px dashed #374151;color:#6b7280;font-size:9px;font-weight:700;cursor:pointer">+ Adicionar Perícia</button>` : ''}
+                ${(cst.pericias || []).length < _periciaSlots ? `<button onclick="window._hAddConstructoPericia(${idx},${_c})" style="width:100%;padding:6px;border-radius:8px;background:transparent;border:1px dashed #374151;color:#6b7280;font-size:9px;font-weight:700;cursor:pointer">+ Adicionar Perícia</button>` : ''}
             </div>
 
             <details style="margin-bottom:12px">
@@ -1432,20 +1478,21 @@ function renderHatsuDetail(container) {
                 </div>
             </details>
 
-            <textarea placeholder="Notas (ações customizadas, roleplay...)" onchange="window._hSetConstructoField(${idx},'notas',this.value)" style="width:100%;box-sizing:border-box;background:#111827;border:1px solid #374151;border-radius:8px;padding:6px 8px;color:#9ca3af;font-size:9px;min-height:44px;resize:vertical;margin-bottom:12px">${escAttr(cst.notas)}</textarea>
+            <textarea placeholder="Notas (ações customizadas, roleplay...)" onchange="window._hSetConstructoField(${idx},${_c},'notas',this.value)" style="width:100%;box-sizing:border-box;background:#111827;border:1px solid #374151;border-radius:8px;padding:6px 8px;color:#9ca3af;font-size:9px;min-height:44px;resize:vertical;margin-bottom:12px">${escAttr(cst.notas)}</textarea>
 
             <div style="margin-bottom:8px">
                 <div style="font-size:7px;color:#374151;text-transform:uppercase;font-weight:700;margin-bottom:4px">Atributo usado no Ataque</div>
                 <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:3px">
                     ${['FOR', 'DES', 'CON', 'INT', 'SAB', 'PRE'].map(attr => {
                         const active = attrAtaqueEfetivo === attr;
-                        return `<button onclick="window._hSetConstructoField(${idx},'atributoAtaque','${attr}')" style="padding:5px 2px;border-radius:7px;font-size:8px;font-weight:900;cursor:pointer;border:1.5px solid ${active ? tc : '#1f2937'};background:${active ? tc + '22' : 'transparent'};color:${active ? tc : '#6b7280'}">${attr}</button>`;
+                        return `<button onclick="window._hSetConstructoField(${idx},${_c},'atributoAtaque','${attr}')" style="padding:5px 2px;border-radius:7px;font-size:8px;font-weight:900;cursor:pointer;border:1.5px solid ${active ? tc : '#1f2937'};background:${active ? tc + '22' : 'transparent'};color:${active ? tc : '#6b7280'}">${attr}</button>`;
                     }).join('')}
                 </div>
             </div>
 
-            <button onclick="event.stopPropagation();window.rollConstructoAtaque(${idx})" style="width:100%;padding:10px;border-radius:10px;background:${tc}22;border:1px solid ${tc}66;color:${tc};font-family:'Orbitron',sans-serif;font-weight:900;font-size:10px;cursor:pointer;text-transform:uppercase;letter-spacing:1px">⚔️ Ataque do Constructo (1d6 ${atributosDist[attrAtaqueEfetivo] >= 0 ? '+' : ''}${atributosDist[attrAtaqueEfetivo]} ${attrAtaqueEfetivo})</button>
+            <button onclick="event.stopPropagation();window.rollConstructoAtaque(${idx},${_c})" style="width:100%;padding:10px;border-radius:10px;background:${tc}22;border:1px solid ${tc}66;color:${tc};font-family:'Orbitron',sans-serif;font-weight:900;font-size:10px;cursor:pointer;text-transform:uppercase;letter-spacing:1px">⚔️ Ataque do Constructo (1d6 ${atributosDist[attrAtaqueEfetivo] >= 0 ? '+' : ''}${atributosDist[attrAtaqueEfetivo]} ${attrAtaqueEfetivo})</button>
         </div>`;
+        }
     }
     // ── Fim Ficha do Constructo ─────────────────────────────────────────────────
 
