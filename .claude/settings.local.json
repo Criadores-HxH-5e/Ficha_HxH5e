@@ -67,7 +67,16 @@
       "Bash(node -c js/init.js)",
       "Bash(node -c js/data/nen-affinity.js)",
       "Bash(node -e ' *)",
-      "Bash(node -c js/views/sheet.js)"
+      "Bash(node -c js/views/sheet.js)",
+      "PowerShell(winget install *)",
+      "PowerShell(git push *)",
+      "PowerShell(node --check js/data/config.js js/views/creator.js js/views/sheet.js)",
+      "Bash(node *)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'fix\\(inclinacoes\\): marca inclinacoes basicas do livro, restringe criacao *)",
+      "PowerShell(git apply *)",
+      "PowerShell(node --check js/data/config.js)",
+      "PowerShell(git add *)"
     ]
   }
 }

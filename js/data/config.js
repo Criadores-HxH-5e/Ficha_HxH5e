@@ -621,3 +621,47 @@ function isInclinacaoBasica(nome, tipo) {
     return GENERAL_INC_BASICAS[grupo].indexOf(raiz) >= 0;
 }
 window.isInclinacaoBasica = isInclinacaoBasica;
+
+
+// ── Mesas oficiais para envio de rolagens no Discord ──────────────────────────
+// Esta lista é publicada junto com o app, então TODOS os usuários enxergam as
+// mesmas mesas e podem selecionar entre elas. Antes, os webhooks viviam só no
+// localStorage de cada navegador: o que o admin cadastrava nunca chegava aos
+// jogadores. Para cadastrar uma mesa nova, adicione uma linha aqui e faça deploy.
+//
+// ATENÇÃO: a ficha roda inteira no navegador, então estas URLs são baixadas pelo
+// computador de quem usa o app. A interface não as exibe para jogadores, mas quem
+// abrir o código-fonte consegue lê-las. Não use webhook de canal sensível.
+//
+// CAMPO threadId (opcional): use quando o canal do webhook for um FÓRUM ou quando
+// as rolagens devem cair sempre no mesmo tópico. O Discord exige thread_id (ou
+// thread_name) para canais de fórum; sem isso a requisição falha com o erro 220001.
+// O thread_id é anexado à URL automaticamente em getActiveWebhookUrl (sheet.js).
+const WEBHOOKS_OFICIAIS = [
+    {
+        name: 'Quem Brinca com Fogo',
+        url: 'https://discord.com/api/webhooks/1488630085023170671/n6afq3FqpQP_H-fPUMmWbfHufnp3LLqhlYk4zrSm9caYWz1k8JXUjF6rD8KnUz9-CwrK'
+    },
+    {
+        name: 'Quem Brinca com Fogo 2',
+        url: 'https://discord.com/api/webhooks/1542141365297877072/P-InNfaWPZVmJPceuayF7_f9qKKNyROcu5vgVaPX1lPU5_PfbGa-oJV_K2FV9gAiGK_R'
+    },
+    {
+        name: 'Rolagens na Torre',
+        url: 'https://discord.com/api/webhooks/1517576982920036492/T56OqA_jy7sOXSuzhZGM0fLJVRsbSkLUnGNCWI7bmCXL4Eirgk5ulILu-jxv_xFBmKoq'
+    },
+    {
+        // ATENÇÃO, CONFERIR: o tópico "Ringue Celestial" foi associado ao webhook
+        // "HxH App" (rolagens-na-torre) por dedução. O thread_id SÓ funciona se o
+        // tópico estiver dentro do canal ao qual esse webhook pertence. Se as
+        // rolagens não chegarem, troque a url abaixo pela do webhook correto.
+        name: 'Ringue Celestial',
+        url: 'https://discord.com/api/webhooks/1517576982920036492/T56OqA_jy7sOXSuzhZGM0fLJVRsbSkLUnGNCWI7bmCXL4Eirgk5ulILu-jxv_xFBmKoq',
+        threadId: '1484207107413774467'
+    },
+    {
+        name: 'Monstros (playtest)',
+        url: 'https://discord.com/api/webhooks/1431037740048191679/pK6WsL3wqSwMU2Ky7Xc69ah0R6nTvl5qKZJUSmE21Q6Vn3ZfirWqrFShN3c0_llr88jH'
+    }
+];
+window.WEBHOOKS_OFICIAIS = WEBHOOKS_OFICIAIS;

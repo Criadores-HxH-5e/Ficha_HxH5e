@@ -1,0 +1,220 @@
+diff --git a/js/data/config.js b/js/data/config.js
+index 84b5fd3..dc9059b 100644
+--- a/js/data/config.js
++++ b/js/data/config.js
+@@ -621,3 +621,47 @@ function isInclinacaoBasica(nome, tipo) {
+     return GENERAL_INC_BASICAS[grupo].indexOf(raiz) >= 0;
+ }
+ window.isInclinacaoBasica = isInclinacaoBasica;
++
++
++// ── Mesas oficiais para envio de rolagens no Discord ──────────────────────────
++// Esta lista é publicada junto com o app, então TODOS os usuários enxergam as
++// mesmas mesas e podem selecionar entre elas. Antes, os webhooks viviam só no
++// localStorage de cada navegador: o que o admin cadastrava nunca chegava aos
++// jogadores. Para cadastrar uma mesa nova, adicione uma linha aqui e faça deploy.
++//
++// ATENÇÃO: a ficha roda inteira no navegador, então estas URLs são baixadas pelo
++// computador de quem usa o app. A interface não as exibe para jogadores, mas quem
++// abrir o código-fonte consegue lê-las. Não use webhook de canal sensível.
++//
++// CAMPO threadId (opcional): use quando o canal do webhook for um FÓRUM ou quando
++// as rolagens devem cair sempre no mesmo tópico. O Discord exige thread_id (ou
++// thread_name) para canais de fórum; sem isso a requisição falha com o erro 220001.
++// O thread_id é anexado à URL automaticamente em getActiveWebhookUrl (sheet.js).
++const WEBHOOKS_OFICIAIS = [
++    {
++        name: 'Quem Brinca com Fogo',
++        url: 'https://discord.com/api/webhooks/1488630085023170671/n6afq3FqpQP_H-fPUMmWbfHufnp3LLqhlYk4zrSm9caYWz1k8JXUjF6rD8KnUz9-CwrK'
++    },
++    {
++        name: 'Quem Brinca com Fogo 2',
++        url: 'https://discord.com/api/webhooks/1542141365297877072/P-InNfaWPZVmJPceuayF7_f9qKKNyROcu5vgVaPX1lPU5_PfbGa-oJV_K2FV9gAiGK_R'
++    },
++    {
++        name: 'Rolagens na Torre',
++        url: 'https://discord.com/api/webhooks/1517576982920036492/T56OqA_jy7sOXSuzhZGM0fLJVRsbSkLUnGNCWI7bmCXL4Eirgk5ulILu-jxv_xFBmKoq'
++    },
++    {
++        // ATENÇÃO, CONFERIR: o tópico "Ringue Celestial" foi associado ao webhook
++        // "HxH App" (rolagens-na-torre) por dedução. O thread_id SÓ funciona se o
++        // tópico estiver dentro do canal ao qual esse webhook pertence. Se as
++        // rolagens não chegarem, troque a url abaixo pela do webhook correto.
++        name: 'Ringue Celestial',
++        url: 'https://discord.com/api/webhooks/1517576982920036492/T56OqA_jy7sOXSuzhZGM0fLJVRsbSkLUnGNCWI7bmCXL4Eirgk5ulILu-jxv_xFBmKoq',
++        threadId: '1484207107413774467'
++    },
++    {
++        name: 'Monstros (playtest)',
++        url: 'https://discord.com/api/webhooks/1431037740048191679/pK6WsL3wqSwMU2Ky7Xc69ah0R6nTvl5qKZJUSmE21Q6Vn3ZfirWqrFShN3c0_llr88jH'
++    }
++];
++window.WEBHOOKS_OFICIAIS = WEBHOOKS_OFICIAIS;
+diff --git a/js/views/sheet.js b/js/views/sheet.js
+index 225802a..a80f64b 100644
+--- a/js/views/sheet.js
++++ b/js/views/sheet.js
+@@ -708,17 +708,21 @@
+                     ? `<div style="text-align:center;color:#4b5563;font-style:italic;padding:32px 0;border:2px dashed #1f2937;border-radius:12px;font-size:11px">Nenhum webhook cadastrado.<br><span style="font-size:10px;color:#374151">Adicione um abaixo.</span></div>`
+                     : _whs.map((w, i) => {
+                         const isDefault = _defWh === i;
+-                        return `<div style="background:#111827;border:2px solid ${isDefault ? '#f59e0b' : '#1f2937'};border-radius:12px;padding:12px 14px;margin-bottom:8px;position:relative">
++                        return `<div data-wh-name="${w.name}" style="background:#111827;border:2px solid ${isDefault ? '#f59e0b' : '#1f2937'};border-radius:12px;padding:12px 14px;margin-bottom:8px;position:relative">
+                             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+                                 <div style="flex:1;min-width:0">
+                                     <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+                                         ${isDefault ? '<span style="font-size:9px;background:#92400e;color:#fbbf24;border-radius:4px;padding:2px 6px;font-weight:900;text-transform:uppercase;letter-spacing:.05em">â­ Padrão</span>' : ''}
+                                         <span style="font-weight:900;color:#fff;font-size:12px">${w.name}</span>
+                                     </div>
+-                                    <div style="font-size:9px;color:#4b5563;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px">${w.url.replace(/^https:\/\/discord\.com\/api\/webhooks\//, 'discord.com/…/')}</div>
++                                    ${state.isAdmin
++                                        ? `<div style="font-size:9px;color:#4b5563;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px">${w.url.replace(/^https:\/\/discord\.com\/api\/webhooks\//, 'discord.com/…/')}</div>`
++                                        : `<div style="font-size:9px;color:#4b5563">${isDefault ? 'Rolagens vão para esta mesa.' : 'Toque em Selecionar para usar esta mesa.'}</div>`}
+                                 </div>
+                                 <div style="display:flex;gap:6px;flex-shrink:0">
+-                                    <button onclick="setDefaultWebhook(${i})" title="${isDefault ? 'Remover padrão' : 'Marcar como padrão'}" style="padding:6px 8px;border-radius:8px;border:2px solid ${isDefault ? '#f59e0b' : '#374151'};background:${isDefault ? '#92400e' : 'transparent'};color:${isDefault ? '#fbbf24' : '#6b7280'};cursor:pointer;font-size:13px;line-height:1">â­</button>
++                                    ${state.isAdmin
++                                        ? `<button onclick="setDefaultWebhook(${i})" title="${isDefault ? 'Remover padrão' : 'Marcar como padrão'}" style="padding:6px 8px;border-radius:8px;border:2px solid ${isDefault ? '#f59e0b' : '#374151'};background:${isDefault ? '#92400e' : 'transparent'};color:${isDefault ? '#fbbf24' : '#6b7280'};cursor:pointer;font-size:13px;line-height:1">â­</button>`
++                                        : `<button onclick="setDefaultWebhook(${i})" style="padding:6px 12px;border-radius:8px;border:2px solid ${isDefault ? '#f59e0b' : '#374151'};background:${isDefault ? '#92400e' : 'transparent'};color:${isDefault ? '#fbbf24' : '#9ca3af'};cursor:pointer;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.1em;font-family:'Orbitron',sans-serif;white-space:nowrap">${isDefault ? 'Selecionada' : 'Selecionar'}</button>`}
+                                    ${state.isAdmin ? `<button onclick="deleteWebhook(${i})" title="Apagar webhook" style="padding:6px 8px;border-radius:8px;border:2px solid #7f1d1d;background:transparent;color:#f87171;cursor:pointer;font-size:13px;line-height:1">🗑️</button>` : ''}
+                                 </div>
+                             </div>
+@@ -735,9 +739,17 @@
+                     <input id="wh-name-input" placeholder="Nome (ex: Mesa Principal)" style="width:100%;background:#111827;border:1px solid #374151;border-radius:8px;padding:9px 12px;color:#fff;font-size:11px;margin-bottom:8px;box-sizing:border-box;outline:none" />
+                     <input id="wh-url-input" placeholder="https://discord.com/api/webhooks/..." style="width:100%;background:#111827;border:1px solid #374151;border-radius:8px;padding:9px 12px;color:#fff;font-size:10px;font-family:monospace;margin-bottom:10px;box-sizing:border-box;outline:none" />
+                     <button onclick="addWebhook(document.getElementById('wh-name-input').value, document.getElementById('wh-url-input').value)" style="width:100%;padding:10px;border-radius:9px;background:#1d4ed8;border:none;color:#fff;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.1em;cursor:pointer;font-family:'Orbitron',sans-serif">Adicionar</button>
+-                </div>` : `<div style="background:#0d1117;border:2px dashed #1f2937;border-radius:12px;padding:12px;margin-top:12px;text-align:center"><div style="font-size:9px;color:#4b5563;font-style:italic">Somente administradores podem adicionar webhooks.</div></div>`;
++                </div>` : `<div style="background:#0d1117;border:2px dashed #1f2937;border-radius:12px;padding:12px;margin-top:12px;text-align:center"><div style="font-size:9px;color:#4b5563;font-style:italic">As mesas são definidas pela administração. Escolha acima para onde suas rolagens vão.</div></div>`;
+ 
+-                const _discordHtml = `${_statusHtml}${_webhookListHtml}${_addFormHtml}`;
++                // Barra de busca + botão de ocultar. Só faz sentido com várias mesas.
++                const _searchHtml = _whs.length > 1 ? `<div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
++                    <input id="wh-search-input" oninput="filterWebhookList(this.value)" placeholder="Buscar mesa..." style="flex:1;background:#111827;border:1px solid #374151;border-radius:8px;padding:8px 12px;color:#fff;font-size:11px;box-sizing:border-box;outline:none" />
++                    <button id="wh-toggle-btn" onclick="toggleWebhookList()" style="padding:8px 12px;border-radius:8px;border:2px solid #374151;background:transparent;color:#9ca3af;cursor:pointer;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.1em;font-family:'Orbitron',sans-serif;white-space:nowrap">Ocultar</button>
++                </div>` : '';
++
++                const _semResultadoHtml = `<div id="wh-sem-resultado" style="display:none;text-align:center;color:#4b5563;font-style:italic;padding:24px 0;font-size:11px">Nenhuma mesa encontrada.</div>`;
++
++                const _discordHtml = `${_statusHtml}${_searchHtml}<div id="wh-lista-box">${_webhookListHtml}${_semResultadoHtml}</div>${_addFormHtml}`;
+ 
+                 tabContent = `<div class="p-4 h-full flex flex-col">
+                     <div style="display:flex;gap:4px;margin-bottom:16px;background:#111827;border-radius:10px;padding:3px;flex-shrink:0">
+@@ -1109,24 +1121,58 @@
+         function toggleCreatorSkill(skill, type = 'main') { const list = type === 'main' ? state.tempChar.skills : state.tempChar.otherSkills; const bgSkillsText = state.tempChar.background ? SYSTEM_DB.antecedentes.find(b => b.nome === state.tempChar.background).proficiencias : ""; const isBgSkill = type === 'main' && bgSkillsText.includes(skill); let limit = type === 'main' ? 5 : 4; if (type === 'other') { if (bgSkillsText.includes("Kit") || bgSkillsText.includes("Ferramenta")) { limit = 5; } } const idx = list.indexOf(skill); if (idx >= 0) { list.splice(idx, 1); } else { if (!isBgSkill) { const currentManualCount = list.filter(s => !bgSkillsText.includes(s)).length; if (currentManualCount >= limit) { alert(`Limite de ${limit} escolhas manuais atingido.`); return; } } list.push(skill); } render(true); }
+         // ── Gerenciamento de Webhooks do Discord ─────────────────────────────
+         const _WEBHOOKS_KEY = 'hxhrpg_webhooks';
+-        function loadWebhooks() { try { return JSON.parse(localStorage.getItem(_WEBHOOKS_KEY) || '[]'); } catch { return []; } }
+-        function saveWebhooks(list) { localStorage.setItem(_WEBHOOKS_KEY, JSON.stringify(list)); }
++
++        // ── Webhooks: mesas oficiais + extras locais do admin ──────────────────────
++        // Antes, a lista inteira vinha do localStorage, ou seja, cada navegador tinha a
++        // sua. O que o admin cadastrava nunca chegava aos jogadores. Agora as mesas
++        // oficiais vêm de WEBHOOKS_OFICIAIS (config.js), publicadas para todo mundo, e o
++        // localStorage guarda só os extras que o admin cadastra para testar na máquina
++        // dele. Extras nunca aparecem para jogador.
++        function loadOfficialWebhooks() {
++            return ((window.WEBHOOKS_OFICIAIS) || []).map(function (w) {
++                return { name: w.name, url: w.url, threadId: w.threadId || null, oficial: true };
++            });
++        }
++        function loadLocalWebhooks() {
++            try {
++                const raw = JSON.parse(localStorage.getItem(_WEBHOOKS_KEY) || '[]');
++                return raw.map(function (w) { return { name: w.name, url: w.url, oficial: false }; });
++            } catch { return []; }
++        }
++        function saveWebhooks(list) {
++            // Só os extras locais são gravados; as oficiais moram no código.
++            const locais = (list || []).filter(function (w) { return !w.oficial; })
++                .map(function (w) { return { name: w.name, url: w.url }; });
++            localStorage.setItem(_WEBHOOKS_KEY, JSON.stringify(locais));
++        }
++        function loadWebhooks() {
++            const oficiais = loadOfficialWebhooks();
++            // Jogador enxerga apenas as mesas oficiais.
++            if (!state.isAdmin) return oficiais;
++            return oficiais.concat(loadLocalWebhooks());
++        }
+         function initWebhooks() {
+-            // Migra o webhook original caso ainda não haja nada salvo
+-            if (!localStorage.getItem(_WEBHOOKS_KEY)) {
+-                saveWebhooks([{ name: 'Mesa Principal', url: 'https://discord.com/api/webhooks/1488630085023170671/n6afq3FqpQP_H-fPUMmWbfHufnp3LLqhlYk4zrSm9caYWz1k8JXUjF6rD8KnUz9-CwrK' }]);
+-            }
++            // A lista base agora vem do código; nada a semear no localStorage.
++            // Remove a semente antiga para a Mesa Principal não aparecer duplicada.
++            const antigos = loadLocalWebhooks();
++            const oficiaisUrls = loadOfficialWebhooks().map(function (w) { return w.url; });
++            const limpos = antigos.filter(function (w) { return oficiaisUrls.indexOf(w.url) === -1; });
++            if (limpos.length !== antigos.length) saveWebhooks(limpos);
+         }
+         function addWebhook(name, url) {
++            // Trava real: antes a checagem existia só no botão, então dava para chamar
++            // esta função pelo console do navegador mesmo sem ser admin.
++            if (!state.isAdmin) return;
+             name = (name || '').trim(); url = (url || '').trim();
+             if (!name || !url) return;
+-            const list = loadWebhooks();
+-            list.push({ name, url });
+-            saveWebhooks(list);
++            saveWebhooks(loadLocalWebhooks().concat([{ name, url, oficial: false }]));
+             render(true);
+         }
+         function deleteWebhook(idx) {
++            if (!state.isAdmin) return;
+             const list = loadWebhooks();
++            // Mesa oficial não se apaga pela interface: ela mora no config.js.
++            if (!list[idx] || list[idx].oficial) return;
+             list.splice(idx, 1);
+             saveWebhooks(list);
+             if (state.selectedWebhook >= list.length) state.selectedWebhook = Math.max(0, list.length - 1);
+@@ -1135,13 +1181,49 @@
+             render(true);
+         }
+         function setDefaultWebhook(idx) { state.defaultWebhook = (state.defaultWebhook === idx) ? -1 : idx; render(true); }
++
++        // ── Busca e ocultar da lista de mesas ──────────────────────────────────────
++        // Feito direto no DOM, sem re-render: se chamasse render() a cada tecla o campo
++        // de busca perderia o foco e o texto digitado.
++        function _whNorm(s) {
++            return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
++        }
++        function filterWebhookList(termo) {
++            const alvo = _whNorm(termo);
++            let visiveis = 0;
++            document.querySelectorAll('[data-wh-name]').forEach(function (el) {
++                const bate = _whNorm(el.getAttribute('data-wh-name')).indexOf(alvo) >= 0;
++                el.style.display = bate ? '' : 'none';
++                if (bate) visiveis++;
++            });
++            const vazio = document.getElementById('wh-sem-resultado');
++            if (vazio) vazio.style.display = visiveis === 0 ? 'block' : 'none';
++        }
++        function toggleWebhookList() {
++            const box = document.getElementById('wh-lista-box');
++            const btn = document.getElementById('wh-toggle-btn');
++            if (!box) return;
++            const estaOculto = box.style.display === 'none';
++            box.style.display = estaOculto ? '' : 'none';
++            if (btn) btn.textContent = estaOculto ? 'Ocultar' : 'Mostrar';
++        }
++        window.filterWebhookList = filterWebhookList;
++        window.toggleWebhookList = toggleWebhookList;
+         function setWebhook(idx) { state.selectedWebhook = idx; render(true); }
+         function setDadosSubTab(tab) { state.dadosSubTab = tab; render(true); }
+         function getActiveWebhookUrl() {
+             const list = loadWebhooks();
+             if (!list.length) return null;
+             const idx = state.defaultWebhook >= 0 ? state.defaultWebhook : (state.selectedWebhook < list.length ? state.selectedWebhook : 0);
+-            return list[idx]?.url || list[0].url;
++            const wh = list[idx] || list[0];
++            if (!wh || !wh.url) return null;
++            // Canal de fórum, ou tópico fixo: o Discord exige thread_id na query string,
++            // senão a requisição falha (erro 220001). Todos os pontos de envio passam
++            // por aqui, então basta anexar neste lugar.
++            if (wh.threadId) {
++                return wh.url + (wh.url.indexOf('?') >= 0 ? '&' : '?') + 'thread_id=' + encodeURIComponent(wh.threadId);
++            }
++            return wh.url;
+         }
+         // ─────────────────────────────────────────────────────────────────────
+         function rollDiceExpr(expr) {
