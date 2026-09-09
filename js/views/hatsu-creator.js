@@ -2141,6 +2141,8 @@ window._hNext = function() {
             // só no objeto antigo e eram apagados silenciosamente por essa substituição total. Preserva.
             const oldHatsu = char.hatsus[hb.editingIdx] || {};
             if (oldHatsu.constructo !== undefined) hatsuData.constructo = oldHatsu.constructo;
+            // Preserva também as fichas das cópias extras ao editar o Hatsu.
+            if (oldHatsu.constructos !== undefined) hatsuData.constructos = oldHatsu.constructos;
             if (oldHatsu.primeiroHatsuGraus !== undefined) hatsuData.primeiroHatsuGraus = oldHatsu.primeiroHatsuGraus;
             if (oldHatsu.bonusGraus !== undefined) hatsuData.bonusGraus = oldHatsu.bonusGraus;
             char.hatsus[hb.editingIdx] = hatsuData;
