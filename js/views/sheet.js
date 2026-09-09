@@ -630,8 +630,16 @@
                     const tData = raceData.caracteristicas.find(c => c.nome === baseTraitName); 
                     return `<div class="bg-gray-900 border border-gray-800 p-3 rounded-xl border-l-2 border-l-[${themeColor}]"><h4 class="font-bold text-white text-xs mb-1">${tName}</h4><p class="text-[10px] text-gray-400 leading-relaxed">${tData ? (tData.efeito || tData.mecanica) : 'Descrição não encontrada.'}</p></div>`; }).join(''); } } else { const fixedFeatures = [...(raceData.caracteristicas || [])]; if (fixedFeatures.length > 0) { traitsHtml += fixedFeatures.map(f => `<div class="bg-gray-900 border border-gray-800 p-3 rounded-xl border-l-2 border-l-[${themeColor}]"><h4 class="font-bold text-white text-xs mb-1">${f.nome}</h4><p class="text-[10px] text-gray-400 leading-relaxed">${f.efeito || f.mecanica || ''}</p></div>`).join(''); } if (char.raceFeatureChoice) { const chosenFeature = (raceData.opcoes_caracteristica || []).find(f => f.nome === char.raceFeatureChoice); traitsHtml += `<div class="bg-gray-900 border border-gray-800 p-3 rounded-xl border-l-4 border-l-[${themeColor}]"><h4 class="font-bold text-[${themeColor}] text-xs mb-1">${char.raceFeatureChoice}</h4><p class="text-[10px] text-gray-400 leading-relaxed">${chosenFeature ? (chosenFeature.efeito || chosenFeature.mecanica) : 'Descrição não encontrada.'}</p></div>`; } } traitsHtml += `</div>`; let bgHtml = ''; if (bgData && char.backgroundFeature) { const feature = bgData.caracteristicas.find(f => f.nome === char.backgroundFeature); bgHtml = `<div class="flex items-center gap-3 mb-2 border-t border-gray-800 pt-4"><div class="bg-gray-800 p-2 rounded text-[${themeColor}]"><i data-lucide="book-open" size="20"></i></div><div><h3 class="font-bold text-white uppercase tracking-wider text-sm">${char.background}</h3><p class="text-[10px] text-gray-500 uppercase tracking-widest">Antecedente</p></div></div><div class="space-y-2 mb-6"><div class="bg-gray-900 border border-gray-800 p-3 rounded-xl border-l-4 border-l-[${themeColor}]"><h4 class="font-bold text-[${themeColor}] text-xs mb-1">${feature.nome}</h4><p class="text-[10px] text-gray-400 leading-relaxed">${feature.efeito}</p></div></div>`; }
                 let generalIncHtml = '';
-                const posIncs = (char.inclinations && char.inclinations.positive) || [];
-                const negIncs = (char.inclinations && char.inclinations.negative) || [];
+                // Gerais compradas com pontos entram na mesma lista visual das positivas,
+                // marcadas para o jogador saber que não vieram da criação.
+                const posPontos = (char.generalIncByPoints || []).map(function (i) {
+                    return { nome: i.nome, custo: i.custo, porPontos: true };
+                });
+                const posIncs = (((char.inclinations && char.inclinations.positive) || []).concat(posPontos));
+                const negPontos = (char.generalNegByPoints || []).map(function (i) {
+                    return { nome: i.nome, valor: i.valor, porPontos: true };
+                });
+                const negIncs = (((char.inclinations && char.inclinations.negative) || []).concat(negPontos));
                 if (posIncs.length > 0 || negIncs.length > 0) {
                     // Sinaliza inclinações não-básicas vindas de fichas criadas antes desta regra.
                     // Só aviso visual: nada é removido nem alterado no personagem.
@@ -649,8 +657,8 @@
                         if (parts.length >= 2) { const parent = list.find(i => i.nome === parts[0].trim() && i.hasOptions); if (parent) { const opt = parent.options && parent.options.find(o => o.label === parts[1].trim()); if (opt) return opt.desc || parent.desc || ''; } }
                         return '';
                     }
-                    const posHtml = posIncs.length > 0 ? `<div class="mb-2"><p class="text-[9px] font-black text-neon-green uppercase tracking-widest mb-1 flex items-center gap-1"><i data-lucide="thumbs-up" size="10"></i> Positivas</p><div class="space-y-1">${posIncs.map(inc => { const desc = _ciLookup(inc.nome, 'pos'); return `<div class="bg-gray-900 border border-gray-800 rounded-xl p-3" style="border-left:3px solid #00ff9d"><div class="flex justify-between items-start mb-0.5"><span class="text-xs font-bold text-neon-green">${inc.nome}</span><span class="text-[9px] bg-neon-green/10 text-neon-green border border-neon-green/20 px-1.5 rounded">${inc.custo} pts</span></div>${desc ? `<p class="text-[10px] text-gray-400 leading-relaxed mt-1">${desc}</p>` : ''}</div>`; }).join('')}</div></div>` : '';
-                    const negHtml = negIncs.length > 0 ? `<div><p class="text-[9px] font-black text-neon-red uppercase tracking-widest mb-1 flex items-center gap-1"><i data-lucide="thumbs-down" size="10"></i> Negativas</p><div class="space-y-1">${negIncs.map(inc => { const desc = _ciLookup(inc.nome, 'neg'); return `<div class="bg-gray-900 border border-gray-800 rounded-xl p-3" style="border-left:3px solid #ff0055"><div class="flex justify-between items-start mb-0.5"><span class="text-xs font-bold text-neon-red">${inc.nome}</span><span class="text-[9px] bg-neon-red/10 text-neon-red border border-neon-red/20 px-1.5 rounded">+${inc.valor} pts</span></div>${desc ? `<p class="text-[10px] text-gray-400 leading-relaxed mt-1">${desc}</p>` : ''}</div>`; }).join('')}</div></div>` : '';
+                    const posHtml = posIncs.length > 0 ? `<div class="mb-2"><p class="text-[9px] font-black text-neon-green uppercase tracking-widest mb-1 flex items-center gap-1"><i data-lucide="thumbs-up" size="10"></i> Positivas</p><div class="space-y-1">${posIncs.map(inc => { const desc = _ciLookup(inc.nome, 'pos'); return `<div class="bg-gray-900 border border-gray-800 rounded-xl p-3" style="border-left:3px solid #00ff9d"><div class="flex justify-between items-start mb-0.5"><span class="text-xs font-bold text-neon-green">${inc.nome}</span><span class="text-[9px] bg-neon-green/10 text-neon-green border border-neon-green/20 px-1.5 rounded">${inc.custo} pts</span>${inc.porPontos ? '<span style=\'font-size:9px;background:#f9731620;color:#fb923c;border:1px solid #f9731640;padding:2px 6px;border-radius:5px;margin-left:4px\'>por pontos</span>' : ''}</div>${desc ? `<p class="text-[10px] text-gray-400 leading-relaxed mt-1">${desc}</p>` : ''}</div>`; }).join('')}</div></div>` : '';
+                    const negHtml = negIncs.length > 0 ? `<div><p class="text-[9px] font-black text-neon-red uppercase tracking-widest mb-1 flex items-center gap-1"><i data-lucide="thumbs-down" size="10"></i> Negativas</p><div class="space-y-1">${negIncs.map(inc => { const desc = _ciLookup(inc.nome, 'neg'); return `<div class="bg-gray-900 border border-gray-800 rounded-xl p-3" style="border-left:3px solid #ff0055"><div class="flex justify-between items-start mb-0.5"><span class="text-xs font-bold text-neon-red">${inc.nome}</span><span class="text-[9px] bg-neon-red/10 text-neon-red border border-neon-red/20 px-1.5 rounded">+${inc.valor} pts</span>${inc.porPontos ? '<span style=\'font-size:9px;background:#f9731620;color:#fb923c;border:1px solid #f9731640;padding:2px 6px;border-radius:5px;margin-left:4px\'>por pontos</span>' : ''}</div>${desc ? `<p class="text-[10px] text-gray-400 leading-relaxed mt-1">${desc}</p>` : ''}</div>`; }).join('')}</div></div>` : '';
                     generalIncHtml = `<div class="mt-2 border-t border-gray-800 pt-4"><div class="flex items-center justify-between mb-3"><div class="flex items-center gap-3"><div class="bg-gray-800 p-2 rounded text-[${themeColor}]"><i data-lucide="scale" size="20"></i></div><div><h3 class="font-bold text-white uppercase tracking-wider text-sm">Inclinações Gerais</h3>${_giLegadoAviso}</div></div><button onclick="window._openGeneralIncModal()" class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[${themeColor}]/10 border border-[${themeColor}]/30 text-[${themeColor}] text-[10px] font-bold uppercase tracking-widest hover:bg-[${themeColor}]/20 transition-colors"><i data-lucide="edit-3" size="12"></i> Editar</button></div>${posHtml}${negHtml}</div>`;
                 }
                 const otherTrainings = char.skills.filter(s => SYSTEM_DB.otherSkills.includes(s)); let otherSkillsHtml = ''; if (otherTrainings.length > 0) { const isOpen = state.sheetOtherSkillsOpen; otherSkillsHtml = `<div class="mt-2 border-t border-gray-800 pt-4"><div onclick="toggleSheetAccordion()" class="flex items-center justify-between cursor-pointer group"><div class="flex items-center gap-3 mb-2"><div class="bg-gray-800 p-2 rounded text-[${themeColor}]"><i data-lucide="hammer" size="20"></i></div><div><h3 class="font-bold text-white uppercase tracking-wider text-sm">Outros Treinamentos</h3><p class="text-[10px] text-gray-500 uppercase tracking-widest">Equipamentos, Linguagens e Ferramentas</p></div></div><div class="transition-transform duration-300 ${isOpen ? 'rotate-180 text-white' : 'text-gray-600 group-hover:text-gray-400'}"><i data-lucide="chevron-down" size="20"></i></div></div><div class="accordion-content ${isOpen ? 'open' : ''}"><div class="flex flex-wrap gap-2 pt-2">${otherTrainings.map(s => `<div class="bg-gray-900 border border-gray-800 p-3 rounded-xl inline-flex items-center gap-2 w-auto pr-4"><i data-lucide="check-circle" size="14" style="color: ${themeColor}" class="shrink-0"></i><span class="text-xs font-bold whitespace-nowrap" style="color: ${themeColor}">${s}</span></div>`).join('')}</div></div></div>`; }
@@ -1151,6 +1159,26 @@
             if (!state.isAdmin) return oficiais;
             return oficiais.concat(loadLocalWebhooks());
         }
+        // ── Lembrar a mesa escolhida entre sessões ────────────────────────────────
+        // state.selectedWebhook/defaultWebhook nascem zerados a cada carregamento, então o
+        // jogador precisava reescolher a mesa toda vez que abria o app. Guardamos a escolha
+        // pela URL (não pelo índice), para não apontar para a mesa errada quando a lista mudar.
+        const _WEBHOOK_ESCOLHIDO_KEY = 'hxhrpg_webhook_escolhido';
+        function salvarMesaEscolhida(idx) {
+            const wh = loadWebhooks()[idx];
+            try {
+                if (wh && wh.url) localStorage.setItem(_WEBHOOK_ESCOLHIDO_KEY, wh.url);
+                else localStorage.removeItem(_WEBHOOK_ESCOLHIDO_KEY);
+            } catch (e) {}
+        }
+        function restaurarMesaEscolhida() {
+            let url = null;
+            try { url = localStorage.getItem(_WEBHOOK_ESCOLHIDO_KEY); } catch (e) {}
+            if (!url) return;
+            const i = loadWebhooks().findIndex(function (w) { return w.url === url; });
+            if (i >= 0) { state.defaultWebhook = i; state.selectedWebhook = i; }
+        }
+
         function initWebhooks() {
             // A lista base agora vem do código; nada a semear no localStorage.
             // Remove a semente antiga para a Mesa Principal não aparecer duplicada.
@@ -1158,6 +1186,7 @@
             const oficiaisUrls = loadOfficialWebhooks().map(function (w) { return w.url; });
             const limpos = antigos.filter(function (w) { return oficiaisUrls.indexOf(w.url) === -1; });
             if (limpos.length !== antigos.length) saveWebhooks(limpos);
+            restaurarMesaEscolhida();
         }
         function addWebhook(name, url) {
             // Trava real: antes a checagem existia só no botão, então dava para chamar
@@ -1180,7 +1209,11 @@
             else if (state.defaultWebhook > idx) state.defaultWebhook--;
             render(true);
         }
-        function setDefaultWebhook(idx) { state.defaultWebhook = (state.defaultWebhook === idx) ? -1 : idx; render(true); }
+        function setDefaultWebhook(idx) {
+            state.defaultWebhook = (state.defaultWebhook === idx) ? -1 : idx;
+            salvarMesaEscolhida(state.defaultWebhook);
+            render(true);
+        }
 
         // ── Busca e ocultar da lista de mesas ──────────────────────────────────────
         // Feito direto no DOM, sem re-render: se chamasse render() a cada tecla o campo
@@ -1209,7 +1242,7 @@
         }
         window.filterWebhookList = filterWebhookList;
         window.toggleWebhookList = toggleWebhookList;
-        function setWebhook(idx) { state.selectedWebhook = idx; render(true); }
+        function setWebhook(idx) { state.selectedWebhook = idx; salvarMesaEscolhida(idx); render(true); }
         function setDadosSubTab(tab) { state.dadosSubTab = tab; render(true); }
         function getActiveWebhookUrl() {
             const list = loadWebhooks();
@@ -2097,7 +2130,7 @@
                 if (ciGained > 0) {
                     // Perguntar sobre inclinações antes de continuar
                     setTimeout(() => {
-                        if (confirm(`Você ganhou ${ciGained} ponto(s) de Inclinação de Combate! Deseja distribuir agora?`)) {
+                        if (confirm(`Você ganhou ${ciGained} ponto(s) de Inclinação! Pode gastar em Combate, em Gerais, ou guardar para depois. Deseja distribuir agora?`)) {
                             state.activeTab = 'TRACOS';
                             render(true);
                             setTimeout(() => window._openCombatIncModal(), 300);
@@ -2274,12 +2307,139 @@
             Object.entries(char.combatInclinationAttrApplied || {}).forEach(([id, val]) => {
                 if (typeof val === 'string') draftChoices[id] = val;
             });
-            const totalPts = getCIPointsForLevel(char.level);
+            const basePts = getCIPointsForLevel(char.level);
 
-            function getSpent() { return Object.values(draft).reduce((a, b) => a + b, 0); }
+            // ── Aba GERAIS: inclinações não-básicas compradas com os MESMOS pontos ──────
+            // O livro concede "Inclinações de Combate/Gerais" nos níveis 2, 4, 7 e 11, com
+            // um único bolo de pontos. Antes, só Combate consumia esses pontos e as Gerais
+            // não-básicas ficavam livres na criação. Agora as duas abas dividem o orçamento.
+            // Guardadas em char.generalIncByPoints, separado de char.inclinations, para não
+            // misturar com a conta de compensação por negativas usada na criação.
+            let ciTab = 'COMBATE';
+            const draftGerais = JSON.parse(JSON.stringify(char.generalIncByPoints || []));
+            const draftGeraisNeg = JSON.parse(JSON.stringify(char.generalNegByPoints || []));
+            const jaNaCriacao = (((char.inclinations || {}).positive) || []).map(function (i) { return i.nome; });
+            const jaNaCriacaoNeg = (((char.inclinations || {}).negative) || []).map(function (i) { return i.nome; });
+
+            // Teto de compensação do livro (p29): "Essa compensação pode chegar até um
+            // máximo de 10 pontos totais." O teto é do personagem, não de cada etapa, então
+            // as negativas da criação e as pegas com pontos dividem o mesmo limite de 10.
+            const NEG_COMP_MAX = 10;
+            const negCriacaoVal = (((char.inclinations || {}).negative) || [])
+                .reduce(function (a, i) { return a + (i.valor || 0); }, 0);
+            function getNegPontosVal() { return draftGeraisNeg.reduce(function (a, i) { return a + (i.valor || 0); }, 0); }
+            function getNegTotalVal() { return negCriacaoVal + getNegPontosVal(); }
+            function getTotalPts() { return basePts + getNegPontosVal(); }
+
+            function geraisCompraveis() {
+                const out = [];
+                ((SYSTEM_DB.inclinacoes && SYSTEM_DB.inclinacoes.positivas) || []).forEach(function (inc) {
+                    if (inc.basica) return; // básicas são da criação, não se compram com pontos
+                    if (inc.hasOptions) {
+                        (inc.options || []).forEach(function (opt) {
+                            out.push({ nome: inc.nome + ': ' + opt.label, custo: opt.custo, desc: opt.desc || '' });
+                        });
+                    } else {
+                        out.push({ nome: inc.nome, custo: inc.custo, desc: inc.desc || '' });
+                    }
+                });
+                return out;
+            }
+            function negativasDisponiveis() {
+                const out = [];
+                ((SYSTEM_DB.inclinacoes && SYSTEM_DB.inclinacoes.negativas) || []).forEach(function (inc) {
+                    if (inc.basica) return; // básicas são da criação
+                    if (inc.hasOptions) {
+                        (inc.options || []).forEach(function (opt) {
+                            out.push({ nome: inc.nome + ': ' + opt.label, valor: opt.valor, desc: opt.desc || '' });
+                        });
+                    } else {
+                        out.push({ nome: inc.nome, valor: inc.valor, desc: inc.desc || '' });
+                    }
+                });
+                return out;
+            }
+            function getGeraisSpent() { return draftGerais.reduce(function (a, i) { return a + (i.custo || 0); }, 0); }
+            function getCombatSpent() { return Object.values(draft).reduce(function (a, b) { return a + b; }, 0); }
+            function getSpent() { return getCombatSpent() + getGeraisSpent(); }
+
+            window._ciSetTab = function (tab) {
+                ciTab = tab;
+                document.getElementById('ci-modal-overlay')?.remove();
+                document.body.insertAdjacentHTML('beforeend', buildModalHtml());
+            };
+            window._ciToggleNeg = function (nome, valor) {
+                const idx = draftGeraisNeg.findIndex(function (i) { return i.nome === nome; });
+                if (idx > -1) {
+                    // Tirar uma negativa devolve pontos ao bolo. Se isso deixaria o gasto
+                    // acima do orçamento, bloqueia: o jogador precisa desfazer a compra antes.
+                    const valorSaindo = draftGeraisNeg[idx].valor || 0;
+                    if (getSpent() > getTotalPts() - valorSaindo) return;
+                    draftGeraisNeg.splice(idx, 1);
+                } else {
+                    if (getNegTotalVal() + valor > NEG_COMP_MAX) return; // teto de 10 do livro
+                    draftGeraisNeg.push({ nome: nome, valor: valor });
+                }
+                document.getElementById('ci-modal-overlay')?.remove();
+                document.body.insertAdjacentHTML('beforeend', buildModalHtml());
+            };
+            window._ciToggleGeral = function (nome, custo) {
+                const idx = draftGerais.findIndex(function (i) { return i.nome === nome; });
+                if (idx > -1) {
+                    draftGerais.splice(idx, 1);
+                } else {
+                    // Custo cheio do livro, sem conversão. Sem pontos suficientes, não compra.
+                    if (getTotalPts() - getSpent() < custo) return;
+                    draftGerais.push({ nome: nome, custo: custo });
+                }
+                document.getElementById('ci-modal-overlay')?.remove();
+                document.body.insertAdjacentHTML('beforeend', buildModalHtml());
+            };
+
+            function buildGeraisListHtml(avail) {
+                return geraisCompraveis().map(function (g) {
+                    const sel = draftGerais.some(function (i) { return i.nome === g.nome; });
+                    const jaTem = jaNaCriacao.indexOf(g.nome) > -1;
+                    const podeComprar = sel || jaTem || avail >= g.custo;
+                    const cor = jaTem ? '#4b5563' : (sel ? '#00ff9d' : (podeComprar ? '#fff' : '#4b5563'));
+                    const borda = sel ? '#00ff9d88' : '#1f2937';
+                    const clique = jaTem ? '' : ' onclick="window._ciToggleGeral(\'' + g.nome.replace(/'/g, "\\'") + '\',' + g.custo + ')"';
+                    const etiqueta = jaTem
+                        ? '<span style="font-size:9px;background:#1f2937;color:#6b7280;padding:2px 6px;border-radius:5px">já possui</span>'
+                        : '<span style="font-size:9px;background:#00000080;border:1px solid #374151;padding:2px 6px;border-radius:5px;color:' + (podeComprar ? '#9ca3af' : '#4b5563') + '">' + g.custo + ' pt</span>';
+                    return '<div' + clique + ' style="background:#111827;border:1px solid ' + borda + ';border-radius:12px;padding:10px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:' + (jaTem ? 'default' : (podeComprar ? 'pointer' : 'not-allowed')) + ';opacity:' + (podeComprar ? '1' : '.5') + '">'
+                        + '<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:700;color:' + cor + ';margin-bottom:2px">' + g.nome + '</div>'
+                        + '<div style="font-size:10px;color:#6b7280;line-height:1.35">' + (g.desc || '') + '</div></div>'
+                        + '<div style="flex-shrink:0">' + etiqueta + '</div></div>';
+                }).join('');
+            }
+
+            function buildNegListHtml() {
+                const restanteCap = NEG_COMP_MAX - getNegTotalVal();
+                const cabecalho = '<div style="background:#0a0f1a;border:1px solid #ff005530;border-radius:8px;padding:8px 12px;margin:14px 0 8px;font-size:10px;color:#ff4d6d;font-weight:700">'
+                    + 'Negativas dão pontos. Teto de compensação: ' + getNegTotalVal() + ' / ' + NEG_COMP_MAX
+                    + (negCriacaoVal > 0 ? ' <span style="color:#6b7280;font-weight:400">(' + negCriacaoVal + ' já vindos da criação)</span>' : '')
+                    + '</div>';
+                const itens = negativasDisponiveis().map(function (n) {
+                    const sel = draftGeraisNeg.some(function (i) { return i.nome === n.nome; });
+                    const jaTem = jaNaCriacaoNeg.indexOf(n.nome) > -1;
+                    const cabeNoCap = sel || jaTem || n.valor <= restanteCap;
+                    const cor = jaTem ? '#4b5563' : (sel ? '#ff4d6d' : (cabeNoCap ? '#fff' : '#4b5563'));
+                    const clique = jaTem ? '' : ' onclick="window._ciToggleNeg(\'' + n.nome.replace(/'/g, "\\'") + '\',' + n.valor + ')"';
+                    const etiqueta = jaTem
+                        ? '<span style="font-size:9px;background:#1f2937;color:#6b7280;padding:2px 6px;border-radius:5px">já possui</span>'
+                        : '<span style="font-size:9px;background:#00000080;border:1px solid #374151;padding:2px 6px;border-radius:5px;color:' + (cabeNoCap ? '#ff4d6d' : '#4b5563') + '">+' + n.valor + ' pt</span>';
+                    return '<div' + clique + ' style="background:#111827;border:1px solid ' + (sel ? '#ff005588' : '#1f2937') + ';border-radius:12px;padding:10px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:' + (jaTem ? 'default' : (cabeNoCap ? 'pointer' : 'not-allowed')) + ';opacity:' + (cabeNoCap ? '1' : '.5') + '">'
+                        + '<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:700;color:' + cor + ';margin-bottom:2px">' + n.nome + '</div>'
+                        + '<div style="font-size:10px;color:#6b7280;line-height:1.35">' + (n.desc || '') + '</div></div>'
+                        + '<div style="flex-shrink:0">' + etiqueta + '</div></div>';
+                }).join('');
+                return cabecalho + itens;
+            }
 
             function buildModalHtml() {
                 const spent = getSpent();
+                const totalPts = getTotalPts();
                 const avail = totalPts - spent;
                 const incsHtml = window.COMBAT_INCLINATIONS_DB.map(inc => {
                     const cur = draft[inc.id] || 0;
@@ -2323,8 +2483,8 @@
                     <div style="background:#0d1117;border:2px solid #f97316;border-radius:20px;padding:20px;width:100%;max-width:420px;box-shadow:0 0 60px #f9741644;margin:auto">
                         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
                             <div>
-                                <div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:13px;color:#f97316;text-transform:uppercase;letter-spacing:2px">Inclinações de Combate</div>
-                                <div style="font-size:10px;color:#6b7280;margin-top:2px">Disponível a partir do Nível 2</div>
+                                <div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:13px;color:#f97316;text-transform:uppercase;letter-spacing:2px">Pontos de Inclinação</div>
+                                <div style="font-size:10px;color:#6b7280;margin-top:2px">Combate ou Gerais — mesmo bolo de pontos</div>
                             </div>
                             <button onclick="document.getElementById('ci-modal-overlay').remove()" style="background:none;border:none;color:#6b7280;cursor:pointer;font-size:20px;line-height:1">×</button>
                         </div>
@@ -2333,7 +2493,11 @@
                             <span style="font-family:Orbitron,sans-serif;font-weight:900;font-size:16px;color:${getSpent() <= totalPts ? '#f97316' : '#ef4444'}">${getSpent()} <span style="color:#6b7280;font-size:11px">/ ${totalPts}</span></span>
                         </div>
                         ${avail > 0 ? `<div style="background:#f9731615;border:1px solid #f9731630;border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:10px;font-weight:700;color:#f97316">⚡ ${avail} ponto(s) disponível(is) para investir</div>` : ''}
-                        <div style="max-height:55vh;overflow-y:auto;padding-right:4px">${incsHtml}</div>
+                        <div style="display:flex;gap:4px;margin-bottom:12px;background:#111827;border-radius:10px;padding:3px">
+                            <button onclick="window._ciSetTab('COMBATE')" style="flex:1;padding:8px;border-radius:8px;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.1em;cursor:pointer;font-family:Orbitron,sans-serif;border:none;background:${ciTab === 'COMBATE' ? '#f97316' : 'transparent'};color:${ciTab === 'COMBATE' ? '#000' : '#6b7280'}">Combate</button>
+                            <button onclick="window._ciSetTab('GERAIS')" style="flex:1;padding:8px;border-radius:8px;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.1em;cursor:pointer;font-family:Orbitron,sans-serif;border:none;background:${ciTab === 'GERAIS' ? '#00ff9d' : 'transparent'};color:${ciTab === 'GERAIS' ? '#000' : '#6b7280'}">Gerais</button>
+                        </div>
+                        <div style="max-height:50vh;overflow-y:auto;padding-right:4px">${ciTab === 'COMBATE' ? incsHtml : (buildGeraisListHtml(avail) + buildNegListHtml())}</div>
                         <div style="display:flex;gap:8px;margin-top:14px">
                             <button onclick="document.getElementById('ci-modal-overlay').remove()" style="flex:1;padding:11px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer;letter-spacing:1px">Cancelar</button>
                             <button onclick="window._ciSave()" style="flex:2;padding:11px;border-radius:10px;background:#f97316;border:none;color:#000;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer;letter-spacing:1px;box-shadow:0 0 20px #f9731655">✓ Salvar</button>
@@ -2345,7 +2509,7 @@
             window._ciSetTier = function(id, tierNum) {
                 if (tierNum < 0) return;
                 const cur = draft[id] || 0;
-                if (tierNum > cur && (totalPts - getSpent()) <= 0) return;
+                if (tierNum > cur && (getTotalPts() - getSpent()) <= 0) return;
                 if (tierNum > 3) return;
                 draft[id] = tierNum;
                 if (tierNum < 3) delete draftChoices[id]; // saiu do tier de bônus — esquece a escolha
@@ -2415,6 +2579,10 @@
 
                 char.combatInclinations = JSON.parse(JSON.stringify(draft));
                 char.combatInclinationAttrApplied = appliedAfter;
+                // Gerais compradas com pontos ficam em campo próprio; nenhuma migração de
+                // SQL é necessária porque o personagem inteiro é um JSONB no Supabase.
+                char.generalIncByPoints = JSON.parse(JSON.stringify(draftGerais));
+                char.generalNegByPoints = JSON.parse(JSON.stringify(draftGeraisNeg));
                 saveCharacter(char);
                 document.getElementById('ci-modal-overlay')?.remove();
                 render(true);
