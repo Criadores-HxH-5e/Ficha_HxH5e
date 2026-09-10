@@ -25,6 +25,7 @@ window.DANO_GRAU_MAP = {
     'rg_l7':  1,  // "Diálogo" → +1 Grau/Passo Dano
     'rg_l11': 1,  // Limitação de Alvos → +1 Grau/Passo (rev. Manual 2.0: era +1 dado)
     'rg_l16': 1,  // Tempo de Carregamento → +1 Grau/Passo (rev. Manual 2.0: era +1 dado)
+    'rg_l17': 1,  // Condição Levemente Hostil → +1 Grau/Passo (só se escolheu "+1 Contra o Alvo" + sub-escolha "Dano")
     'rg_m1':  2,  // Alvo Único em Combate → +2 Grau/Passo Dano
     'rg_m13': 2,  // Zetsu Protetivo → +2 Grau/Passo (inclui dano)
     'rg_p9':  3,  // Perda de Membros → +3 grau de potência
@@ -171,6 +172,7 @@ window.calcGrausPotenciaPorCaracteristica = function(h, charLevel) {
             else if (id === 'rg_v2' && !choiceIncludes(id, 'dano') && !choiceIncludes(id, 'cura')) { /* escolheu Duração — ver DURACAO_GRAU_MAP */ }
             else if (id === 'rg_p5' && (!bc[id] || choiceIncludes(id, 'margem') || choiceIncludes(id, 'crítico'))) { /* escolheu Margem de Crítico, ou ainda não escolheu */ }
             else if (id === 'rg_l1' && choiceIncludes(id, 'acerto')) { /* escolheu Acerto — ver ACERTO_GRAU_MAP, não conta em dano */ }
+            else if (id === 'rg_l17' && !(choiceIncludes(id, '+1') && (sc[id]||'').toLowerCase() === 'dano')) { /* rg_l17: só conta em dano se escolheu "+1 Contra o Alvo" + sub-escolha "Dano" (senão é Acerto, ou é o debuff "-1 do Alvo", não rastreado) */ }
             else totals.dano += g;
         }
         // Alcance / Área: rg_l9 e rg_l10 usam specialChoices (picker dedicado 'Alcance'/'Área' em
@@ -199,6 +201,10 @@ window.calcGrausPotenciaPorCaracteristica = function(h, charLevel) {
         }
         // Condicionais de acerto (rg_l1 / rg_l13 escolhem entre acerto e outra característica)
         if ((id === 'rg_l1' || id === 'rg_l13') && choiceIncludes(id, 'acerto')) totals.acerto += 1;
+        // rg_l17: escolheu "+1 Contra o Alvo" + sub-escolha "Acerto" (specialChoices, ver ALCANCE_AREA_IDS-like picker)
+        if (id === 'rg_l17' && choiceIncludes(id, '+1') && (sc[id]||'').toLowerCase() === 'acerto') totals.acerto += 1;
+        // rg_l18: escolheu "Jogadas de Acerto" (a alternativa "Reações Defensivas" não tem total rastreado)
+        if (id === 'rg_l18' && choiceIncludes(id, 'acerto')) totals.acerto += 1;
         // CD do TR (sem ambiguidade de escolha)
         if (window.CD_GRAU_MAP[id]) totals.cd += window.CD_GRAU_MAP[id];
 
@@ -730,6 +736,14 @@ function renderHatsuDetail(container) {
             const bc = (h.beneficioChoices||{})['rg_l1'] || '';
             if (bc.toLowerCase().includes('acerto')) return;
         }
+        // rg_l17: Condição Levemente Hostil — bnf usa "Acerto/Dano" (2ª escolha em specialChoices);
+        // só conta aqui se escolheu a opção "+1 Contra o Alvo" (a de "-1 do Alvo" é um debuff no
+        // alvo, não rastreado nos totais do usuário) E a 2ª escolha foi "Dano".
+        if (item.id === 'rg_l17') {
+            const bc = (h.beneficioChoices||{})['rg_l17'] || '';
+            const sc = (h.specialChoices||{})['rg_l17'] || '';
+            if (!bc.includes('+1') || sc.toLowerCase() !== 'dano') return;
+        }
         totalGraus += g;
         grauSources.push({ nome: item.nome, graus: g });
     });
@@ -1056,6 +1070,26 @@ function renderHatsuDetail(container) {
             if (bc.toLowerCase().includes('acerto')) {
                 acertoBonus += 2;
                 acertoBonusSources.push({ nome: item.nome, bonus: 2 });
+            }
+        }
+        // Condicionais: rg_l17 (Condição Levemente Hostil) — +1 Acerto/Dano contra o alvo, com
+        // 2ª escolha (Acerto ou Dano) em specialChoices; a opção "-1 do Alvo" é um debuff no
+        // alvo (não rastreado nos totais do usuário).
+        if (item.id === 'rg_l17') {
+            const bc = (h.beneficioChoices||{})['rg_l17'] || '';
+            const sc = (h.specialChoices||{})['rg_l17'] || '';
+            if (bc.includes('+1') && sc.toLowerCase() === 'acerto') {
+                acertoBonus += 1;
+                acertoBonusSources.push({ nome: item.nome, bonus: 1 });
+            }
+        }
+        // Condicionais: rg_l18 (Mãos Livres) — +1 em Jogadas de Acerto ou +1 em Reações Defensivas
+        // (Reações Defensivas não tem contrapartida rastreada nos totais, então só conta se escolheu Acerto).
+        if (item.id === 'rg_l18') {
+            const bc = (h.beneficioChoices||{})['rg_l18'] || '';
+            if (bc.toLowerCase().includes('acerto')) {
+                acertoBonus += 1;
+                acertoBonusSources.push({ nome: item.nome, bonus: 1 });
             }
         }
         // Segredo Mortal: vantagem em acerto
@@ -1804,6 +1838,7 @@ function renderHatsuDetail(container) {
                 specialDetail = (sc.rg_e5 ? `<div style="margin-top:6px;font-size:9px;color:#fb923c;padding:6px 10px;background:#fb923c11;border-radius:6px;border:1px solid #fb923c33;font-style:italic">"${sc.rg_e5}"</div>` : '') + _statusJuramento;
             }
             if ((r.id === 'rg_l9' || r.id === 'rg_l10') && sc[r.id]) specialDetail = `<div style="margin-top:6px;font-size:8px;font-weight:700;color:#60a5fa;padding:2px 7px;background:#60a5fa18;border-radius:5px">${sc[r.id] === 'Área' ? '🔵 Área' : '📐 Alcance'}</div>`;
+            if (r.id === 'rg_l17' && sc.rg_l17) specialDetail = `<div style="margin-top:6px;font-size:8px;font-weight:700;color:#f87171;padding:2px 7px;background:#f8717118;border-radius:5px">⚔️ Aplicado em: ${sc.rg_l17}</div>`;
             if (r.id === 'rg_v10' && sc.rg_v10 && typeof sc.rg_v10 === 'object' && sc.rg_v10.rodadas) {
                 specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:#c084fc;padding:4px 8px;background:#c084fc18;border-radius:6px">⚡ +${sc.rg_v10.rodadas} grau(s) em ${sc.rg_v10.tipo||'?'} — ${sc.rg_v10.rodadas} rod. de Zetsu por falha</div>`;
             }

@@ -186,6 +186,27 @@ function renderHatsuCreator(container) {
                     + (aaVal ? '<div style="font-size:8px;color:' + p.bs + ';margin-top:4px">✓ ' + aaVal + '</div>' : '<div style="font-size:8px;color:#f87171;margin-top:4px">⚠ Escolha alcance ou área</div>')
                     + '</div>';
             }
+            // Special: rg_l17 (Condição Levemente Hostil) — bnf usa "Acerto/Dano", ambíguo por si só;
+            // após escolher a favor/contra o alvo (choiceHtml acima), pede uma 2ª escolha: Acerto ou Dano.
+            if (sel && item.id === 'rg_l17') {
+                var l17Top = choiceKey || '';
+                if (l17Top) {
+                    var l17Val = (hb && hb.specialChoices && hb.specialChoices['rg_l17']) || '';
+                    specialInputHtml += '<div style="margin-top:8px" onclick="event.stopPropagation()">'
+                        + '<div style="font-size:8px;font-weight:700;color:' + p.bs + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">⚔️ Aplicar em:</div>'
+                        + '<div style="display:flex;gap:6px">'
+                        + ['Acerto','Dano'].map(function(o) {
+                            var active = l17Val === o;
+                            return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\'rg_l17\',\'' + o + '\')" '
+                                + 'style="flex:1;padding:7px;border-radius:8px;font-size:9px;font-weight:900;cursor:pointer;border:1.5px solid '
+                                + (active ? p.bs : '#1f2937') + ';background:' + (active ? p.bs + '22' : 'transparent')
+                                + ';color:' + (active ? p.bs : '#9ca3af') + '">' + o + '</button>';
+                        }).join('')
+                        + '</div>'
+                        + (l17Val ? '<div style="font-size:8px;color:' + p.bs + ';margin-top:4px">✓ ' + l17Val + '</div>' : '<div style="font-size:8px;color:#f87171;margin-top:4px">⚠ Escolha Acerto ou Dano</div>')
+                        + '</div>';
+                }
+            }
             if (sel && item.id === 'rg_p8') {
                 var currentVal = (hb && hb.specialChoices && hb.specialChoices['rg_p8']) || '';
                 specialInputHtml = '<div style="margin-top:8px" onclick="event.stopPropagation()">'
@@ -1439,7 +1460,9 @@ function renderHatsuCreator(container) {
             // Linha "Extra ⚡": só aparece com Restrição Extrema Pura ativa — compra cópias adicionais
             // além do limite de 1-por-nível, usando o P.N da extrema. As duas linhas somam no mesmo total.
             const canAddRepetivel = showRepetivelBadge && !repetivelNesteNivel && (!item.maxUsos || totalCopies < item.maxUsos) && pnLeft >= item.pn;
-            const canRemoveRepetivel = showRepetivelBadge && repetivelCompradoNesteNivel;
+            // NPCs podem desfazer a última cópia comprada mesmo que não tenha sido neste nível
+            // (ficha montada livremente pelo mestre, sem seguir a progressão 1-por-nível).
+            const canRemoveRepetivel = showRepetivelBadge && (char.isNPC ? repetivelTracked > 0 : repetivelCompradoNesteNivel);
             const repetivelControlsHtml = showRepetivelBadge ? `
                 <div style="margin-top:6px" onclick="event.stopPropagation()">
                     <div style="display:flex;align-items:center;gap:6px">
@@ -2933,7 +2956,9 @@ function _hClampSpecialArray(hb, id, tipo) {
     if (sc.length > total) sc.length = total;
 }
 
-// Desfaz a cópia de um efeito repetível comprada NESTE nível (não mexe em cópias de níveis anteriores)
+// Desfaz a cópia de um efeito repetível comprada NESTE nível (não mexe em cópias de níveis anteriores).
+// Personagens marcados como NPC não seguem a progressão por nível (ficha montada livremente pelo
+// mestre), então pra eles desfaz a ÚLTIMA cópia comprada, não importa em qual nível foi registrada.
 window._hRemoveRepetivelE = function(id, tipo) {
     const hb = state.hatsuBuilder; if (!hb) return;
     const arr = tipo === 'eg' ? hb.eg : hb.ec;
@@ -2941,7 +2966,7 @@ window._hRemoveRepetivelE = function(id, tipo) {
     const charLevelNow = parseInt(char.level) || 0;
     hb.efeitoNiveis = hb.efeitoNiveis || {};
     const niveisComprados = hb.efeitoNiveis[id] || [];
-    const lastIdx = niveisComprados.lastIndexOf(charLevelNow);
+    const lastIdx = char.isNPC ? niveisComprados.length - 1 : niveisComprados.lastIndexOf(charLevelNow);
     if (lastIdx === -1) return; // nada comprado neste nível para desfazer
     niveisComprados.splice(lastIdx, 1);
     const removeIdx = arr.lastIndexOf(id);
