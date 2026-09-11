@@ -651,12 +651,12 @@ const WEBHOOKS_OFICIAIS = [
         url: 'https://discord.com/api/webhooks/1517576982920036492/T56OqA_jy7sOXSuzhZGM0fLJVRsbSkLUnGNCWI7bmCXL4Eirgk5ulILu-jxv_xFBmKoq'
     },
     {
-        // ATENÇÃO, CONFERIR: o tópico "Ringue Celestial" foi associado ao webhook
-        // "HxH App" (rolagens-na-torre) por dedução. O thread_id SÓ funciona se o
-        // tópico estiver dentro do canal ao qual esse webhook pertence. Se as
-        // rolagens não chegarem, troque a url abaixo pela do webhook correto.
+        // Webhook criado no CANAL DE FÓRUM (HxH5e-APP, canal 1462872993494732810).
+        // Webhook pertence sempre ao canal, nunca ao tópico: para a mensagem cair no
+        // post certo, o Discord exige thread_id na query string — anexado em
+        // getActiveWebhookUrl (sheet.js). Sem isso a requisição falha com o erro 220001.
         name: 'Ringue Celestial',
-        url: 'https://discord.com/api/webhooks/1517576982920036492/T56OqA_jy7sOXSuzhZGM0fLJVRsbSkLUnGNCWI7bmCXL4Eirgk5ulILu-jxv_xFBmKoq',
+        url: 'https://discord.com/api/webhooks/1490769405481848912/3TTQJictYxlzvafjvo3k0bUuBCKFoEPjeEXMofCGhdv-ijILoRW26qjo4LuULUNPkxkr',
         threadId: '1484207107413774467'
     },
     {

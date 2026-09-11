@@ -2499,7 +2499,7 @@
                         </div>
                         <div style="max-height:50vh;overflow-y:auto;padding-right:4px">${ciTab === 'COMBATE' ? incsHtml : (buildGeraisListHtml(avail) + buildNegListHtml())}</div>
                         <div style="display:flex;gap:8px;margin-top:14px">
-                            <button onclick="document.getElementById('ci-modal-overlay').remove()" style="flex:1;padding:11px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer;letter-spacing:1px">Cancelar</button>
+                            <button onclick="document.getElementById('ci-modal-overlay').remove()" title="Fecha sem gastar: os pontos ficam guardados para um item mais caro depois" style="flex:1;padding:11px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer;letter-spacing:1px">Acumular Pontos</button>
                             <button onclick="window._ciSave()" style="flex:2;padding:11px;border-radius:10px;background:#f97316;border:none;color:#000;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer;letter-spacing:1px;box-shadow:0 0 20px #f9731655">✓ Salvar</button>
                         </div>
                     </div>

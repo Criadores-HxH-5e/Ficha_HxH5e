@@ -845,6 +845,33 @@ function renderHatsuCreator(container) {
                         + '</div>';
                 }
 
+                // ── Efeitos com GRAU DE ESCOLHA (Aumento de Atributo, Intensificação) ──────
+                // Aumentar um atributo melhora acerto, CD do TR e o dano ao mesmo tempo, e o teto
+                // é por característica — então o jogador precisa declarar onde o grau conta.
+                // Sem escolha, o grau não é aplicado em lugar nenhum (e a tela avisa).
+                if ((window.GRAU_ESCOLHIDO_EFEITOS || {})[item.id]) {
+                    const _ge = window.GRAU_ESCOLHIDO_EFEITOS[item.id];
+                    const _geChosen = specialChoices[item.id] || '';
+                    const _geIcons = { 'Acerto': '⚔️', 'CD do TR': '🎯', 'Dano/Cura': '🔥', 'Redução de Custo': '💨' };
+                    specialHtml = '<div style="margin-top:8px;background:#0a0f1a;border:1px solid ' + color + '33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
+                        + '<div style="font-size:8px;font-weight:900;color:' + color + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">⚖ Aplicar o Grau em:</div>'
+                        + '<div style="font-size:8px;color:#6b7280;margin-bottom:8px">Este efeito concede ' + _ge.graus + ' Grau/Passo. Escolha a característica — é ela que consome o teto do seu nível.</div>'
+                        + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
+                        + _ge.opcoes.map(function (o) {
+                            var active = _geChosen === o;
+                            return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\'' + item.id + '\',\'' + o + '\')" '
+                                + 'style="flex:1;min-width:82px;padding:7px;border-radius:8px;font-size:9px;font-weight:900;cursor:pointer;border:1.5px solid '
+                                + (active ? color : '#1f2937') + ';background:' + (active ? color + '22' : 'transparent')
+                                + ';color:' + (active ? color : '#9ca3af') + ';transition:all .15s">'
+                                + (_geIcons[o] || '') + ' ' + o + '</button>';
+                        }).join('')
+                        + '</div>'
+                        + (_geChosen
+                            ? '<div style="font-size:8px;color:' + color + ';margin-top:5px">✓ +' + _ge.graus + ' Grau/Passo em ' + _geChosen + '</div>'
+                            : '<div style="font-size:8px;color:#f87171;margin-top:5px">⚠ Sem escolha, o grau não é aplicado.</div>')
+                        + '</div>';
+                }
+
                 // eg1: Aumento de Alcance — ask if it's alcance or área
                 if (item.id === 'eg1') {
                     const chosen = specialChoices['eg1'] || '';
