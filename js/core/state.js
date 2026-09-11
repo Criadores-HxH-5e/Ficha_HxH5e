@@ -32,6 +32,7 @@ const state = {
     authorized: false,
     attackModal: null,
     pendingRoll: null,
+    pendingRollImage: '', // imagem/gif (data: URI de upload ou URL http(s) colada) anexada à próxima rolagem enviada ao Discord
     selectedWebhook: 0,
     defaultWebhook: -1,
     dadosSubTab: 'HISTORICO',

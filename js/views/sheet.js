@@ -1365,19 +1365,22 @@
 
             const renNote = useRen ? `\n💪 **REN ativado** — +${renGraus} Grau${renGraus>1?'s':''} de dano${renUsedFree ? ' (1º grátis no dia)' : ''}` : '';
             const content = `⚡ **${char.name}** usou **${rs.nome}**${modeLabel}${attackLine}\nDano: [${dmgResult.rolls.join('+')}]${allModStr} = **${total}** (${formula})${extrasText}${renNote}`;
-            fetch(getActiveWebhookUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content }) }).catch(() => {});
+            sendRollToDiscord(content, state.pendingRollImage);
+            state.pendingRollImage = '';
             if (state.activeTab !== 'DADOS') state.unreadRolls = true;
             if (window._showXpToast) window._showXpToast(`🎲 ${rs.nome}: ${total} de dano enviado ao Discord!`);
             // Corrige bug pré-existente: esta função nunca fechava o modal de modo de rolagem (nem o
             // novo prompt de REN) porque nunca chamava render() — diferente de rollDice/rollSkill/rollAttack.
             render(true);
         }
-        // Manda a rolagem do constructo pro Discord, anexando a imagem de verdade quando ela foi
-        // enviada por upload (guardada como data: URI local): o Discord não aceita data: URI em
-        // embed.image.url (precisa ser http/https), então nesse caso sobe o arquivo via multipart
-        // (payload_json + files[0]) e referencia via attachment://. Se já for uma URL http(s) normal
-        // (colada pelo jogador), manda direto no embed sem precisar reenviar o arquivo.
-        function sendConstructoRollToDiscord(content, imagemUrl) {
+        // Manda uma rolagem pro Discord, anexando a imagem/gif de verdade quando ela foi enviada por
+        // upload (guardada como data: URI local): o Discord não aceita data: URI em embed.image.url
+        // (precisa ser http/https), então nesse caso sobe o arquivo via multipart (payload_json +
+        // files[0]) e referencia via attachment://. Se já for uma URL http(s) normal (colada pelo
+        // jogador, ex. link de GIF), manda direto no embed sem precisar reenviar o arquivo.
+        // Usada tanto pelo ataque do constructo (cst.imagemUrl) quanto pelo anexo opcional de
+        // imagem/gif nas rolagens de ataque (state.pendingRollImage, ver renderRollModeModalHtml).
+        function sendRollToDiscord(content, imagemUrl) {
             const url = getActiveWebhookUrl();
             if (!url) return;
             if (imagemUrl && /^data:image\//i.test(imagemUrl)) {
@@ -1386,7 +1389,7 @@
                     .then(blob => {
                         if (blob.size > 8 * 1024 * 1024) throw new Error('imagem muito grande');
                         const ext = (blob.type.split('/')[1] || 'png').split('+')[0];
-                        const filename = `constructo.${ext}`;
+                        const filename = `rolagem.${ext}`;
                         const form = new FormData();
                         form.append('payload_json', JSON.stringify({ content, embeds: [{ image: { url: `attachment://${filename}` } }] }));
                         form.append('files[0]', blob, filename);
@@ -1425,7 +1428,7 @@
             if (char.history.length > 50) char.history.shift();
             saveCharacter(char);
             const content = `🐣 **${nome}** ataca!\nDano: [${roll.rolls.join('+')}] ${attrMod >= 0 ? '+' : ''}${attrMod} = **${total}** (1d6 + ${attrKey})`;
-            sendConstructoRollToDiscord(content, cst.imagemUrl);
+            sendRollToDiscord(content, cst.imagemUrl);
             if (state.activeTab !== 'DADOS') state.unreadRolls = true;
             if (window._showXpToast) window._showXpToast(`🎲 ${nome}: ${total} de dano enviado ao Discord!`);
             render(true);
@@ -1441,6 +1444,7 @@
         }
         function openRollModeModal(type, a1, a2, a3) {
             state.pendingRoll = { type, a1, a2, a3 };
+            state.pendingRollImage = '';
             render(true);
         }
         function executePendingRoll(mode) {
@@ -1453,7 +1457,23 @@
             else if (pr.type === 'attack') maybeAskRenThenRollAttack(pr.a1, pr.a2, pr.a3, mode);
             else if (pr.type === 'hatsu')  maybeAskRenThenRoll(mode);
         }
-        function cancelPendingRoll() { state.pendingRoll = null; render(true); }
+        function cancelPendingRoll() { state.pendingRoll = null; state.pendingRollImage = ''; render(true); }
+        // Anexo opcional de imagem/gif na rolagem de ataque (ver renderRollModeModalHtml). O input de
+        // URL atualiza o estado sem re-render (pra não perder o foco/cursor a cada tecla); a preview
+        // e o upload de arquivo re-renderizam normalmente, pois só acontecem uma vez.
+        window._hUploadPendingRollImage = function(input) {
+            if (!input.files || !input.files[0]) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                state.pendingRollImage = e.target.result;
+                render(true);
+            };
+            reader.readAsDataURL(input.files[0]);
+        };
+        window._hClearPendingRollImage = function() {
+            state.pendingRollImage = '';
+            render(true);
+        };
         // Zetsu (Suprimir) dá bônus de Furtividade: nível 1/2 → +3, nível 3 (Maestria) → +6.
         // Se a Aprimoramento (Opção 2 — P.N extra pós-Maestria) estiver escolhida, o bônus sobe +1 por P.N investido.
         function getZetsuFurtividadeBonus(char) {
@@ -1621,6 +1641,7 @@
         }
         function renderRollModeModalHtml() {
             if (!state.pendingRoll) return '';
+            const pr = state.pendingRoll;
            const MODES = [
                 { id: 'NORMAL',      label: 'Normal',      icon: '🎲', desc: '1d20',       bg: '#1f2937', col: '#9ca3af' },
                 { id: 'VANTAGEM',    label: 'Vantagem',    icon: '⬆️', desc: '2d20 maior',  bg: '#14532d', col: '#4ade80' },
@@ -1637,10 +1658,29 @@
                         ${_mwhs.map((w, i) => `<button onclick="setWebhook(${i})" style="padding:6px 12px;border-radius:8px;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:1px;cursor:pointer;font-family:'Orbitron',sans-serif;transition:all .15s;${state.selectedWebhook === i ? 'background:#1d4ed8;border:2px solid #3b82f6;color:#93c5fd;' : 'background:#111827;border:2px solid #374151;color:#6b7280;'}">${w.name}</button>`).join('')}
                     </div>
                 </div>` : '';
+            // Anexo de imagem/gif: só faz sentido em rolagens de ataque (arma ou Hatsu), onde o
+            // resultado vira uma mensagem de combate no Discord — dano puro/perícia não tem esse anexo.
+            const _showImageAttach = pr.type === 'attack' || pr.type === 'hatsu';
+            const _imgVal = state.pendingRollImage || '';
+            const _isDataImg = /^data:image\//i.test(_imgVal);
+            const _imageAttachHtml = _showImageAttach ? `
+                <div style="margin-bottom:14px">
+                    <div style="font-size:9px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;text-align:center">🖼️ Imagem/GIF (opcional)</div>
+                    <div style="display:flex;gap:6px;align-items:center">
+                        <input id="pending-roll-image-input" type="text" value="${_isDataImg ? '' : _imgVal.replace(/"/g, '&quot;')}" placeholder="Cole um link (ex: GIF do Tenor/Giphy)..." oninput="state.pendingRollImage=this.value" onchange="render(true)" style="flex:1;min-width:0;background:#111827;border:1px solid #374151;border-radius:8px;padding:9px 10px;color:#fff;font-size:10px;box-sizing:border-box;outline:none" />
+                        <label title="Enviar arquivo de imagem" style="padding:9px 10px;border-radius:8px;border:2px solid #374151;background:transparent;color:#9ca3af;cursor:pointer;font-size:13px;line-height:1;flex-shrink:0">📎<input type="file" accept="image/*" style="display:none" onchange="window._hUploadPendingRollImage(this)" /></label>
+                    </div>
+                    ${_imgVal ? `<div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+                        <img src="${_imgVal.replace(/"/g, '&quot;')}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;border:1px solid #374151" onerror="this.style.display='none'" />
+                        <span style="font-size:9px;color:#4b5563">${_isDataImg ? 'Arquivo anexado' : 'Link anexado'}</span>
+                        <button onclick="window._hClearPendingRollImage()" style="font-size:9px;color:#f87171;background:transparent;border:none;cursor:pointer;text-decoration:underline;margin-left:auto">remover</button>
+                    </div>` : ''}
+                </div>` : '';
             return `<div class="fixed inset-0 z-[200] flex items-end justify-center" style="background:rgba(0,0,0,0.75);backdrop-filter:blur(4px)" onclick="cancelPendingRoll()">
                 <div style="background:#0d1117;border-radius:20px 20px 0 0;border:1px solid #1f2937;border-bottom:none;padding:20px 16px 32px;width:100%;max-width:440px" onclick="event.stopPropagation()">
                     <div style="width:40px;height:4px;background:#374151;border-radius:2px;margin:0 auto 16px"></div>
                     ${_whPickerHtml}
+                    ${_imageAttachHtml}
                     <div style="font-size:9px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:14px;text-align:center">🎲 Modo de Rolagem</div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
                         ${MODES.map(m => `<button onclick="executePendingRoll('${m.id}')"
@@ -1690,7 +1730,8 @@
             const suffix = isCrit ? ' 🎯 **CRÍTICO!**' : isFumble ? ' 💀 **FALHA CRÍTICA!**' : '';
             const renNote = useRen ? `\n💪 **REN ativado** — +${renGraus} Grau${renGraus>1?'s':''} de dano${renUsedFree ? ' (1º grátis no dia)' : ''}` : '';
             const content = `⚔️ **${char.name}** atacou com **${weaponName}**\nAtaque: [${attackRoll.dice.join(', ')}] +${mod + pb} = **${attackTotal}**${suffix}\nDano: [${dmgResult.rolls.join('+')}] +${mod} = **${dmgTotal}** (${renDiceExpr} + ${attrKey})${renNote}`;
-            fetch(getActiveWebhookUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content }) }).catch(() => {});
+            sendRollToDiscord(content, state.pendingRollImage);
+            state.pendingRollImage = '';
             state.attackModal = null;
             state.rollResult = { name: `⚔️ ${weaponName}`, total: attackTotal, diceVal: attackRoll.total, mod: mod + pb, label: attackRoll.label };
             if (state.activeTab !== 'DADOS') state.unreadRolls = true;
