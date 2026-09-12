@@ -67,7 +67,8 @@
             // Retroativo: personagem antigo com Aura Gigantesca recebe o bônus na 1ª abertura.
             if (aplicarAuraGigantesca(char)) saveCharacter(char);
             const clsData = SYSTEM_DB.classes.find(c => c.id === char.class);
-            const themeColor = clsData ? clsData.color : '#00ff9d';
+            // Sem categoria de Nen o app fica em preto e branco, não em verde neon.
+            const themeColor = clsData ? clsData.color : (window.TEMA_SEM_NEN || '#eaecf0');
             setThemeColor(themeColor);
             
             // Helpers de renderização interna da ficha
@@ -847,6 +848,19 @@
                 </div>`;
             }
 
+            // ── Sem categoria de Nen: a aba de Nen fica bloqueada ───────────────────────
+            // Personagem criado com "Começar do nível 0 — Sem Nen" não tem categoria, e a aba
+            // inteira depende dela (princípios, Hatsus, roda de afinidade). Em vez de desenhar
+            // com dados faltando, sobrescrevemos o conteúdo da aba pelo estado de bloqueio.
+            if (state.activeTab === 'NEN' && !char.class) {
+                tabContent = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 32px;text-align:center">
+                    <div style="font-size:44px;margin-bottom:14px;opacity:.5">🚫</div>
+                    <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:14px;color:#6b7280;text-transform:uppercase;letter-spacing:2px">Nen Adormecido</div>
+                    <div style="font-size:11px;color:#4b5563;margin-top:12px;line-height:1.6;max-width:280px">Este personagem começou sem Nen. Quando o Nen despertar na mesa, defina a categoria para liberar princípios, Hatsus e a roda de afinidade.</div>
+                </div>`;
+            }
+
+
             const nextXp = char.xp_next || 100;
             const xpPct = Math.min(100, (char.xp / nextXp) * 100);
             const imgPos = char.imagePosition || { x: 50, y: 50 };
@@ -958,7 +972,20 @@
             render(true);
         };
         function selectNenType(cls) { state.tempChar.class = cls; const clsData = SYSTEM_DB.classes.find(c => c.id === cls); if(clsData) setThemeColor(clsData.color); render(true); }
-        function setCategoriaMetodo(method) { state.tempChar.categoriaMetodo = method; render(true); }
+        function setCategoriaMetodo(method) {
+            state.tempChar.categoriaMetodo = method;
+            // "Sem Nen": o personagem começa nível 0 sem categoria. Limpamos categoria,
+            // afinidade e talento para nada ficar meio-preenchido de uma escolha anterior.
+            // Os cálculos que dependem de categoria já têm padrão de segurança:
+            // tema cai em verde neon (sheet.js:70) e dado de vida em d8 (sheet.js:2016).
+            if (method === 'semnen') {
+                state.tempChar.class = null;
+                state.tempChar.afinidade = null;
+                state.tempChar.genialidade = null;
+                state.tempChar.categoriaRoll = null;
+            }
+            render(true);
+        }
         function rollCategoriaNen() {
             const roll = Math.floor(Math.random() * 100) + 1;
             const cls = window.rollCategoriaNenTable ? window.rollCategoriaNenTable(roll) : 'INTENSIFICAÇÃO';

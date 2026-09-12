@@ -225,6 +225,12 @@ function calculateTotalCost(attrs) {
     return total;
 }
 
+// Tema neutro para personagem sem categoria de Nen (criado no nível 0, Sem Nen).
+// Cores amostradas da referência enviada: fundos #151515 / #111111 / #1a1a19,
+// realce #343434, texto secundário #5a5957 e texto claro #eaecf0. Como o tema do app
+// é um único acento, usamos o cinza claro — o resultado é a ficha em preto e branco.
+window.TEMA_SEM_NEN = '#eaecf0';
+
 function setThemeColor(hex) {
     document.documentElement.style.setProperty('--theme-color-hex', hex);
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);

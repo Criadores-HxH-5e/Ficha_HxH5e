@@ -3,6 +3,11 @@
             const step = state.creatorStep;
             let themeColorHex = '#00ff9d';
             if (state.tempChar && state.tempChar.class) { const clsTheme = SYSTEM_DB.classes.find(c => c.id === state.tempChar.class); if (clsTheme) { setThemeColor(clsTheme.color); themeColorHex = clsTheme.color; } }
+            // Sem Nen: já na criação o tema vira neutro, para o jogador ver como vai ficar.
+            else if (state.tempChar && state.tempChar.categoriaMetodo === 'semnen') {
+                const _tn = window.TEMA_SEM_NEN || '#eaecf0';
+                setThemeColor(_tn); themeColorHex = _tn;
+            }
             let contentHtml = '';
             let title = '';
 
@@ -20,6 +25,10 @@
                             <button onclick="setCategoriaMetodo('chosen')" class="w-full py-5 bg-gray-900 border-2 border-neon-theme rounded-xl font-display font-bold text-neon-theme tracking-widest hover:bg-neon-theme/10 active:scale-95 transition-all flex flex-col items-center gap-1">
                                 <span class="text-sm">✋ ESCOLHER MANUALMENTE</span>
                                 <span class="text-[9px] font-normal opacity-80 normal-case text-gray-400">Selecione livremente sua categoria de Nen</span>
+                            </button>
+                            <button onclick="setCategoriaMetodo('semnen')" class="w-full py-5 bg-gray-900 border-2 border-gray-700 rounded-xl font-display font-bold text-gray-400 uppercase tracking-wider hover:bg-gray-800 transition-all flex flex-col items-center gap-1">
+                                <span class="text-sm">🚫 COMEÇAR DO NÍVEL 0 — SEM NEN</span>
+                                <span class="text-[9px] font-normal opacity-80 normal-case text-gray-500">A categoria fica para quando o Nen despertar</span>
                             </button>
                         </div>
                         ${rolledLabel}
@@ -123,6 +132,12 @@
                         ${genialidadeHtml}
                     </div>`;
 
+                // ── Sem Nen: a identidade pede só o nome ────────────────────────────────
+                // Quem começa sem Nen não tem categoria, então hexágono de afinidade, descrição
+                // da categoria e rolagem de talento não fazem sentido ainda. A categoria é
+                // escolhida depois, quando o Nen despertar. O personagem já nasce nível 0 no
+                // fluxo normal, então nada muda nesse ponto.
+                const _semNen = state.tempChar.categoriaMetodo === 'semnen';
                 contentHtml = `
                     <div class="space-y-6">
                         <div class="relative">
@@ -135,13 +150,18 @@
                             <label for="creator-isnpc" style="font-size:10px;font-weight:700;color:#fb923c;text-transform:uppercase;letter-spacing:.05em;cursor:pointer">🤖 Este personagem é um NPC (libera regras de criação de Hatsu)</label>
                         </div>` : ''}
 
+                        ${_semNen ? `<div style="text-align:center;padding:18px 14px;background:#0d1117;border:1px dashed #374151;border-radius:12px">
+                            <div style="font-size:28px;margin-bottom:8px">🚫</div>
+                            <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:12px;color:#9ca3af;text-transform:uppercase;letter-spacing:2px">Sem Nen</div>
+                            <div style="font-size:10px;color:#6b7280;margin-top:8px;line-height:1.5">Seu personagem começa no nível 0, sem categoria de Nen. A aba de Nen fica bloqueada até o despertar.</div>
+                        </div>` : `
                         ${diagramHtml}
 
                         <div class="text-center px-4 bg-gray-900/50 p-3 rounded-xl border border-gray-800/50">
                             <p class="text-sm font-medium text-gray-300 italic">"${currentClass.desc}"</p>
                         </div>
 
-                        ${rollBtnHtml}
+                        ${rollBtnHtml}`}
                     </div>`;
             } else if (step === 1) {
                 title = 'RAÇA';
