@@ -67,14 +67,75 @@ window.DANO_GRAU_MAP = {
 // mesmo jeito que já acontece no Cálculo Pensado Básico. A escolha fica em
 // specialChoices[id] e aparece na tela do Hatsu.
 window.GRAU_ESCOLHIDO_EFEITOS = {
-    'ri_e1': { graus: 1, opcoes: ['Acerto', 'CD do TR', 'Dano/Cura'] },       // Aumento de Atributo
-    'ri_e2': { graus: 1, opcoes: ['Acerto', 'CD do TR', 'Redução de Custo'] }, // Intensificação
+    // Intensificação segue as características de Grau de Potência da CATEGORIA do usuário
+    // (Manual: "Adicione N graus usando qualquer uma das características abaixo"), então as
+    // opções são montadas em tempo de execução — ver grauEscolhidoOpcoes().
+    'ri_e2': { graus: 1, porCategoria: true },
+};
+
+// Características de Grau de Potência por categoria, na redação do manual.
+// Mesma lista do GRAUS_POR_CAT (js/init.js), usada nos 5 Graus do 1º Hatsu.
+window.GRAU_OPCOES_POR_CATEGORIA = {
+    // Acerto saiu de Reforço/Intensificação: era duplicado. Aumentar um atributo já melhora
+    // a jogada de ataque (e as perícias), então "Atributos" cobre o que "Acerto" cobria.
+    'INTENSIFICAÇÃO': ['Atributos', 'Dano/Cura', 'Redução de Custo'],
+    'REFORÇO':        ['Atributos', 'Dano/Cura', 'Redução de Custo'],
+    'TRANSMUTAÇÃO':   ['Área', 'Dano/Cura', 'Redução de Custo'],
+    'MATERIALIZAÇÃO': ['Alcance/Área', 'Duração', 'Redução de Custo'],
+    'CONJURAÇÃO':     ['Alcance/Área', 'Duração', 'Redução de Custo'],
+    'ESPECIALIZAÇÃO': ['Alcance/Área', 'Dano/Cura', 'Duração', 'CD do TR', 'Redução de Custo'],
+    'MANIPULAÇÃO':    ['Alcance/Área', 'Número de Alvos', 'Duração', 'CD do TR', 'Redução de Custo'],
+    'EMISSÃO':        ['Acerto', 'Alcance/Área', 'Redução de Custo'],
+};
+
+// Opções do picker de grau de um efeito, já resolvidas para a categoria do Hatsu.
+// ── Aumento de Atributo (ri_e1): roteamento automático ────────────────────────
+// O jogador escolhe QUAL atributo aumentar; onde o grau conta é consequência, não
+// pergunta. Se o atributo aumentado é o mesmo usado na Jogada de Ataque do Hatsu, o
+// grau consome o teto de Acerto. Se é o usado na CD do TR, consome o teto de CD. Pode
+// consumir os dois quando for o mesmo atributo nos dois papéis — o benefício acontece
+// nos dois. Se não for nenhum dos dois, não consome teto: vale só para perícias.
+// Chaves: cópia 0 em 'ri_e1_attr', extras em 'ri_e1_attr#1', '#2'… (padrão do rm_e2).
+window.atributosDeAumento = function (h) {
+    const sc = (h && h.specialChoices) || {};
+    const copias = ((h && h.efeitos) || []).filter(function (id) { return id === 'ri_e1'; }).length;
+    const out = [];
+    for (let i = 0; i < copias; i++) {
+        const v = sc[i > 0 ? ('ri_e1_attr#' + i) : 'ri_e1_attr'];
+        if (v) out.push(v);
+    }
+    return out;
+};
+// Quantos pontos de Aumento de Atributo caem em cada teto, dado o atributo de ataque
+// e o de CD/dano configurados no Hatsu.
+window.aumentoAtributoPorTeto = function (h, attrAtaque, attrCD) {
+    const lista = window.atributosDeAumento(h);
+    let acerto = 0, cd = 0;
+    lista.forEach(function (a) {
+        if (attrAtaque && a === attrAtaque) acerto++;
+        if (attrCD && a === attrCD) cd++;
+    });
+    return { acerto: acerto, cd: cd, total: lista.length, lista: lista };
+};
+
+window.grauEscolhidoOpcoes = function (id, categoria) {
+    const def = (window.GRAU_ESCOLHIDO_EFEITOS || {})[id];
+    if (!def) return null;
+    if (!def.porCategoria) return def.opcoes;
+    return (window.GRAU_OPCOES_POR_CATEGORIA || {})[categoria] || ['Redução de Custo'];
 };
 window.GRAU_ESCOLHA_PARA_CHAVE = {
     'Acerto': 'acerto',
     'CD do TR': 'cd',
     'Dano/Cura': 'dano',
-    'Redução de Custo': null, // não tem teto: reduz custo, tratado fora do sistema de grau
+    'Área': 'area',
+    'Alcance/Área': 'alcance',
+    'Duração': 'duracao',
+    // Sem teto rastreado: Redução de Custo, Atributos e Número de Alvos não entram
+    // na conta de Grau de Potência por característica.
+    'Redução de Custo': null,
+    'Atributos': null,
+    'Número de Alvos': null,
 };
 
 // +1 DADO: aumenta a QUANTIDADE de dados (ex: 2d6 → 3d6), aplicado ANTES dos graus
@@ -270,6 +331,15 @@ window.calcGrausPotenciaPorCaracteristica = function(h, charLevel) {
         }
         // em_e20 (Disparo Potente) e outros itens sem escolha caem no bloco genérico acima
     });
+
+    // Aumento de Atributo: roteado pelo atributo escolhido, não por pergunta ao jogador.
+    if (window.aumentoAtributoPorTeto) {
+        const _atkA = h.atkMod || h.dmgMod || null;
+        const _cdA = h.dmgMod || h.atkMod || null;
+        const _aa = window.aumentoAtributoPorTeto(h, _atkA, _cdA);
+        totals.acerto += _aa.acerto;
+        totals.cd += _aa.cd;
+    }
 
     // Juramento Imutável (rg_e5): +4 em TODAS as características da categoria, mas só a partir de
     // 3 níveis após a restrição ter sido adquirida (h.juramentoImutavelNivelBase).
@@ -643,6 +713,7 @@ function renderHatsuDetail(container) {
     const _WRAPPER_META = {
         'eg4': { label:'🔀 Modo Alternativo' },
         'eg6': { label:'🎯 Poder é Intenção'   },
+        'rm_e8': { label:'🔮 Imbuir Conjuração' },
     };
     // ── MODOS do Efeito Alternativo ───────────────────────────────────────────
     // Regra do manual: cada compra de eg4 CLONA o Modo A (raiz) num modo novo, que
@@ -916,7 +987,14 @@ function renderHatsuDetail(container) {
             // manual, o 2d6 é o dano do efeito Dano/Cura Focal (eg15) — quem não comprou
             // o efeito bate mais fraco. Hatsus hostis sem eg15 partem de 1d8.
             // Flagelo Puro segue a régua própria dele (1d10) e não é afetado.
-            const _temDanoFocal = (h.efeitos || []).includes('eg15');
+            // ── Portas para o dano básico 2d6 ────────────────────────────────────────
+            // Duas: o efeito Dano/Cura Focal (eg15) ou Forjar Objeto/Arma (rm_e1) QUANDO o
+            // jogador escolhe "Arma" — a própria descrição do rm_e1 diz que causa 2d6 nesse caso.
+            // Olhamos efeitosSel, não h.efeitos, porque ele já inclui o que veio por Poder é
+            // Intenção, Efeito Alternativo e Imbuir Conjuração, e já respeita o modo ativo.
+            const _temForjarArma = efeitosSel.some(function (e) { return e.id === 'rm_e1'; })
+                && (h.specialChoices || {})['rm_e1_tipo'] === 'Arma';
+            const _temDanoFocal = efeitosSel.some(function (e) { return e.id === 'eg15'; }) || _temForjarArma;
             const _idxSemFocal = DAMAGE_TABLE.indexOf('1d8');
             const _baseLabel = isPuroFlagelo ? '1d10' : (_temDanoFocal ? '2d6' : '1d8');
             let baseIdx = isPuroFlagelo ? 3 : (_temDanoFocal ? BASE_DAMAGE_IDX : _idxSemFocal);
@@ -949,7 +1027,7 @@ function renderHatsuDetail(container) {
             // Build info breakdown for popup
             const _danoInfo = [{ l: 'Base', v: _baseLabel, c: '#9ca3af' }];
             if (!isPuroFlagelo && !_temDanoFocal) {
-                _danoInfo.push({ l: 'Sem Dano/Cura Focal', v: 'compre o efeito para partir de 2d6', c: '#fbbf24' });
+                _danoInfo.push({ l: 'Sem Dano/Cura Focal', v: 'compre o efeito (ou Forjar Arma) para partir de 2d6', c: '#fbbf24' });
             }
             if (dadoSources.length > 0) {
                 dadoSources.forEach(function(s){ _danoInfo.push({ l: '+' + s.n + ' dado (' + s.tipo + ')', v: s.nome, c: '#fbbf24' }); });
@@ -1185,6 +1263,14 @@ function renderHatsuDetail(container) {
             acertoVantagem = true;
         }
     });
+    // Aumento de Atributo: entra no acerto quando o atributo aumentado é o do ataque.
+    const _aaTeto = window.aumentoAtributoPorTeto
+        ? window.aumentoAtributoPorTeto(h, baseAttrAtk, baseAttr)
+        : { acerto: 0, cd: 0, total: 0, lista: [] };
+    if (_aaTeto.acerto > 0) {
+        acertoBonus += _aaTeto.acerto;
+        acertoBonusSources.push({ nome: 'Aumento de Atributo (' + baseAttrAtk + ')', bonus: _aaTeto.acerto });
+    }
     // 5 Graus do 1º Hatsu — Acerto
     if (idx === 0 && h.primeiroHatsuGraus && h.primeiroHatsuGraus.acerto) {
         acertoBonus += h.primeiroHatsuGraus.acerto;
@@ -1261,6 +1347,11 @@ function renderHatsuDetail(container) {
         cdBonusTotal += bonus;
         cdBonusSources.push({ nome: item.nome, bonus });
     });
+    // Aumento de Atributo: entra na CD quando o atributo aumentado é o usado no TR.
+    if (_aaTeto.cd > 0) {
+        cdBonusTotal += _aaTeto.cd;
+        cdBonusSources.push({ nome: 'Aumento de Atributo (' + baseAttr + ')', bonus: _aaTeto.cd });
+    }
     // 5 Graus do 1º Hatsu — CD
     if (idx === 0 && h.primeiroHatsuGraus && h.primeiroHatsuGraus.cd) {
         cdBonusTotal += h.primeiroHatsuGraus.cd;
@@ -1980,6 +2071,12 @@ function renderHatsuDetail(container) {
                 const _rm2Mat = sc[_eCopyIdx > 0 ? `rm_e2#${_eCopyIdx}` : 'rm_e2'];
                 if (_rm2Mat) specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">🧱 Pequeno · ${_rm2Mat} &nbsp;|&nbsp; PV = 5 + CON×2</div>`;
             }
+            if (e.id === 'rm_e1') {
+                const _t = sc['rm_e1_tipo'];
+                specialDetail = _t
+                    ? `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">🔨 ${_t}${_t === 'Arma' ? ' — concede o dano básico 2d6' : ' — sem dano básico'}</div>`
+                    : `<div style="margin-top:6px;font-size:9px;font-weight:700;color:#f87171;padding:4px 8px;background:#f8717118;border-radius:6px">⚠ Escolha o que foi forjado: Objeto, Arma ou Equipamento</div>`;
+            }
             if (e.id === 'rm_e3' && sc.rm_e3) { specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">✨ Característica: ${sc.rm_e3}</div>`; }
            if (e.id === 'rm_e5' && sc.rm_e5) { const _e5Names = {'ap_partes':'Aparência por Partes','fn_partes':'Funções em Partes','ap_compl':'Aparência Completa','fn_compl':'Funções Completas','ben10':'Ben 10'}; specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">🎭 Alteração: ${_e5Names[sc.rm_e5] || sc.rm_e5}</div>`; }
             if (e.id === 're_e17' && sc.re_e17) { const _e17n = {'vidente':'Vidente (Sharingan)','profeta':'Profeta','cego':'Cego de Tebas','joia':'Joia do Tempo','olho':'Olho de Agamoto'}; specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">🕧 Previsão: ${_e17n[sc.re_e17] || sc.re_e17}</div>`; }
@@ -2011,7 +2108,19 @@ function renderHatsuDetail(container) {
                 }
             }
             if (e.id === 'eg1' && sc.eg1) specialDetail = `<div style="margin-top:6px;font-size:8px;font-weight:700;color:#60a5fa;padding:2px 7px;background:#60a5fa18;border-radius:5px">${sc.eg1 === 'Área' ? '🔵 Aplicado em Área' : '📐 Aplicado em Alcance'}</div>`;
-            // Grau de escolha (Aumento de Atributo, Intensificação): deixa visível onde o grau caiu.
+            // Aumento de Atributo: mostra o atributo escolhido e o teto que ele consome.
+            if (e.id === 'ri_e1') {
+                const _attr = sc[_eCopyIdx > 0 ? ('ri_e1_attr#' + _eCopyIdx) : 'ri_e1_attr'];
+                if (!_attr) {
+                    specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:#f87171;padding:4px 8px;background:#f8717118;border-radius:6px">⚠ Escolha qual atributo aumentar (edite o Hatsu)</div>`;
+                } else {
+                    const _destinos = [];
+                    if (_attr === baseAttrAtk) _destinos.push('teto de Acerto');
+                    if (hasCDBlock && _attr === baseAttr) _destinos.push('teto de CD do TR');
+                    specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">💪 +2 em ${_attr} (mod. +1)${_destinos.length ? ` &nbsp;|&nbsp; consome ${_destinos.join(' e ')}` : ' &nbsp;|&nbsp; não consome teto (vale para perícias)'}</div>`;
+                }
+            }
+            // Grau de escolha (Intensificação): deixa visível onde o grau caiu.
             if ((window.GRAU_ESCOLHIDO_EFEITOS || {})[e.id]) {
                 specialDetail = sc[e.id]
                     ? `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">⚖ Grau aplicado em: ${sc[e.id]}</div>`
