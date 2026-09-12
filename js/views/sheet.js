@@ -1138,7 +1138,29 @@
         function selectRaceFeatureChoice(nome) { state.tempChar.raceFeatureChoice = nome; render(true); }
         // "Esforço no lugar de talento" (Humano Comum) — ao trocar a raça-fonte, limpa a característica
         // escolhida (as opções mudam por raça, não faz sentido manter a seleção anterior).
-        function selectEffortRace(raceName) { state.tempChar.effortRace = raceName; state.tempChar.effortTrait = null; render(true); }
+        // Aviso ao abrir a lista de raças-fonte do Humano Comum: a regra concede APENAS a
+        // característica escolhida, nunca os pontos de atributo daquela raça. Aparece uma vez
+        // por sessão de criação, para não incomodar a cada clique no dropdown.
+        window._avisoEsforcoHumano = function () {
+            if (!state.tempChar || state.tempChar._avisoEsforcoVisto) return;
+            state.tempChar._avisoEsforcoVisto = true;
+            const tc = getComputedStyle(document.documentElement).getPropertyValue('--theme-color-hex').trim() || '#eaecf0';
+            const ov = document.createElement('div');
+            ov.style.cssText = 'position:fixed;inset:0;background:#000000ee;display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;font-family:Rajdhani,sans-serif';
+            ov.innerHTML = '<div style="background:#0d1117;border:2px solid ' + tc + ';border-radius:20px;padding:20px;width:100%;max-width:380px">'
+                + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:12px;color:' + tc + ';text-transform:uppercase;letter-spacing:2px;margin-bottom:10px">💪 Esforço no Lugar de Talento</div>'
+                + '<div style="font-size:11px;color:#d1d5db;line-height:1.6;margin-bottom:14px">Os <b>pontos de atributo</b> da raça escolhida <b style="color:#f87171">não são recebidos</b>. O Humano Comum ganha apenas a <b style="color:' + tc + '">característica</b> que você selecionar.</div>'
+                + '<button id="aviso-esforco-ok" style="width:100%;padding:11px;border-radius:10px;background:' + tc + ';border:none;color:#000;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer;letter-spacing:1px">Entendido</button>'
+                + '</div>';
+            document.body.appendChild(ov);
+            document.getElementById('aviso-esforco-ok').onclick = function () { ov.remove(); };
+        };
+
+        function selectEffortRace(raceName) {
+            state.tempChar.effortRace = raceName || null;
+            state.tempChar.effortTrait = null;
+            render(true);
+        }
         function selectEffortTrait(traitName) { state.tempChar.effortTrait = traitName; render(true); }
         // ── Formiga Quimera: fagogênese, referência pronta, tamanho e deslocamento de inseto ──────
         // Trocar a categoria de fagogênese invalida a referência pronta escolhida (presets são por categoria).
