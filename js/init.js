@@ -350,7 +350,11 @@ function closeHatsuCreator() {
             const TOTAL = 5;
 
             const GRAUS_POR_CAT = {
-                'INTENSIFICAÇÃO': ['acerto', 'atributos', 'dano', 'custo'],
+                // Acerto saiu de Reforço/Intensificação: era duplicado, porque Atributos já
+                // melhora a jogada de ataque (e as perícias). Mesma decisão de
+                // GRAU_OPCOES_POR_CATEGORIA em hatsu-detail.js.
+                'INTENSIFICAÇÃO': ['atributos', 'dano', 'custo'],
+                'REFORÇO':        ['atributos', 'dano', 'custo'],
                 'TRANSMUTAÇÃO':   ['area', 'dano', 'custo'],
                 'MATERIALIZAÇÃO': ['alcance', 'area', 'duracao', 'custo'],
                 'CONJURAÇÃO':     ['alcance', 'area', 'duracao', 'custo'],
@@ -391,8 +395,31 @@ function closeHatsuCreator() {
             overlay.id = 'primeiro-hatsu-overlay';
             overlay.style.cssText = 'position:fixed;inset:0;background:#000000dd;display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;font-family:Rajdhani,sans-serif';
 
+            // Quando o grau vai para "Atributos", o jogador precisa dizer QUAL atributo —
+            // mesma lógica do efeito Aumento de Atributo (ri_e1). Sem escolha, a tela avisa.
+            const _PH_ATTRS = ['FOR','DES','CON','INT','SAB','PRE'];
+            function _phAttrPickerHtml() {
+                const escolhido = alloc._atributosAttr || '';
+                return '<div style="margin-top:6px">'
+                    + '<div style="font-size:7px;color:#6b7280;margin-bottom:3px">Em qual atributo?</div>'
+                    + '<div style="display:flex;gap:3px;flex-wrap:wrap">'
+                    + _PH_ATTRS.map(function (a) {
+                        const active = escolhido === a;
+                        return '<button onclick="event.stopPropagation();window._phSetAttr(\'' + a + '\')" '
+                            + 'style="padding:4px 7px;border-radius:6px;font-size:8px;font-weight:900;cursor:pointer;border:1px solid '
+                            + (active ? tc : '#374151') + ';background:' + (active ? tc + '22' : 'transparent')
+                            + ';color:' + (active ? tc : '#9ca3af') + '">' + a + '</button>';
+                    }).join('')
+                    + '</div>'
+                    + (escolhido ? '' : '<div style="font-size:7px;color:#f87171;margin-top:3px">⚠ Escolha o atributo.</div>')
+                    + '</div>';
+            }
+            window._phSetAttr = function (a) { alloc._atributosAttr = a; rebuild(); };
+
             function rebuild() {
-                const total = Object.values(alloc).reduce((s,v) => s+v, 0);
+                // Soma só as características; _atributosAttr guarda texto, não grau.
+                const total = ['acerto','atributos','dano','alcance','area','duracao','cd','alvos','custo']
+                    .reduce(function (s, k) { return s + (alloc[k] || 0); }, 0);
                 const remaining = TOTAL - total;
                 const done = total === TOTAL;
                 const rowsHtml = available.map(k => {
@@ -403,14 +430,23 @@ function closeHatsuCreator() {
                     const capK = isTracked ? grauMaxByKey[k] : Infinity;
                     const roomLeft = capK === Infinity ? Infinity : capK - base - val;
                     const canAdd = remaining > 0 && (roomLeft === Infinity || roomLeft > 0);
-                    const capNote = (isTracked && capK !== Infinity && base > 0)
-                        ? `<div style="font-size:7px;color:${roomLeft<=0?'#f87171':'#6b7280'};margin-top:2px">Já possui +${base} nesta característica (máx. total: ${capK})</div>`
-                        : '';
+                    // Radar de teto em TODAS as características, não só nas que já têm base.
+                    // Antes só aparecia com base > 0, então Acerto e Atributos ficavam sem aviso.
+                    let capNote = '';
+                    if (!isTracked) {
+                        capNote = `<div style="font-size:7px;color:#4b5563;margin-top:2px">Sem teto de Grau de Potência</div>`;
+                    } else if (capK === Infinity) {
+                        capNote = `<div style="font-size:7px;color:#4ade80;margin-top:2px">Nível 11+ — sem limite de teto</div>`;
+                    } else {
+                        const cor = roomLeft <= 0 ? '#f87171' : (base > 0 ? '#9ca3af' : '#6b7280');
+                        capNote = `<div style="font-size:7px;color:${cor};margin-top:2px">Teto do nível: ${base + val}/${capK}${base > 0 ? ` (já possuía +${base})` : ''}${roomLeft <= 0 ? ' — cheio' : ''}</div>`;
+                    }
                     return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#0a0f1a;border-radius:10px;border:1px solid ${val>0?tc+'44':'#1f2937'}">
                         <div>
                             <div style="font-size:11px;font-weight:700;color:${val>0?tc:'#d1d5db'}">${info.label}</div>
                             <div style="font-size:8px;color:#6b7280">${info.desc}</div>
                             ${capNote}
+                            ${k === 'atributos' && val > 0 ? _phAttrPickerHtml() : ''}
                         </div>
                         <div style="display:flex;align-items:center;gap:8px">
                             <button onclick="window._phGrauDecr('${k}')"
@@ -443,7 +479,8 @@ function closeHatsuCreator() {
             }
 
             window._phGrauIncr = function(k) {
-                const total = Object.values(alloc).reduce((s,v) => s+v, 0);
+                const total = ['acerto','atributos','dano','alcance','area','duracao','cd','alvos','custo']
+                    .reduce(function (s, v) { return s + (alloc[v] || 0); }, 0);
                 if (total >= TOTAL) return;
                 if (TRACKED_KEYS.includes(k)) {
                     const capK = grauMaxByKey[k];
@@ -465,8 +502,13 @@ function closeHatsuCreator() {
                 rebuild();
             };
             window._confirmPrimeiroHatsu = function() {
-                const total = Object.values(alloc).reduce((s,v) => s+v, 0);
+                const total = ['acerto','atributos','dano','alcance','area','duracao','cd','alvos','custo']
+                    .reduce(function (s, k) { return s + (alloc[k] || 0); }, 0);
                 if (total !== TOTAL) return;
+                if ((alloc.atributos || 0) > 0 && !alloc._atributosAttr) {
+                    alert('Escolha em qual atributo os Graus de Atributos serão aplicados.');
+                    return;
+                }
                 char.hatsus[hatsuIdx].primeiroHatsuGraus = Object.assign({}, alloc);
                 saveCharacter(char);
                 overlay.remove();
