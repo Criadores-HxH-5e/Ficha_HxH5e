@@ -579,7 +579,10 @@ const SYSTEM_DB = {
 
 const SKILL_MAP = {
     'FOR': ['Atletismo'],
-    'DES': ['Acrobacia', 'Furtividade', 'Prestidigitação'],
+    // Iniciativa entra aqui para ganhar botão próprio no popup de DES. Não é treinável:
+    // não está em SYSTEM_DB.skills, então proficiência nunca é somada nela — é teste puro
+    // de Destreza, e é o lugar onde os bônus de inclinação finalmente caem.
+    'DES': ['Acrobacia', 'Furtividade', 'Iniciativa', 'Prestidigitação'],
     'CON': [],
     'INT': ['Arcanismo', 'História', 'Investigação', 'Natureza', 'Religião'],
     'SAB': ['Lidar com Animais', 'Intuição', 'Medicina', 'Percepção', 'Sobrevivência'],
@@ -665,3 +668,48 @@ const WEBHOOKS_OFICIAIS = [
     }
 ];
 window.WEBHOOKS_OFICIAIS = WEBHOOKS_OFICIAIS;
+
+
+// ── Bônus de Iniciativa ───────────────────────────────────────────────────────
+// Vários itens do sistema alteram iniciativa, mas até agora não havia onde aplicar:
+// a ficha não tinha iniciativa nenhuma. Fontes conhecidas:
+//  Inclinações gerais: Imponência Assustadora +3, Indeciso -3, Nanismo -1,
+//                      Paraplégico -5, Visões de Morte -10
+//  Inclinações de combate (1º ponto): Ofensiva Ágil +5, Perceptiva +2
+window.INICIATIVA_INCLINACOES = {
+    'Imponência Assustadora': 3,
+    'Indeciso': -3,
+    'Nanismo': -1,
+    'Paraplégico': -5,
+    'Visões de Morte': -10,
+};
+window.INICIATIVA_COMBATE = {
+    'ofensiva_agil': { tier: 1, valor: 5 },
+    'perceptiva':    { tier: 1, valor: 2 },
+};
+
+window.calcIniciativaBonus = function (char) {
+    const fontes = [];
+    if (!char) return { total: 0, fontes: fontes };
+    const nome = function (i) { return String((i && i.nome) || '').split(':')[0].trim(); };
+    const gerais = [].concat(
+        ((char.inclinations || {}).positive) || [],
+        ((char.inclinations || {}).negative) || [],
+        char.generalIncByPoints || [],
+        char.generalNegByPoints || []
+    );
+    gerais.forEach(function (i) {
+        const v = window.INICIATIVA_INCLINACOES[nome(i)];
+        if (v) fontes.push({ nome: nome(i), valor: v });
+    });
+    const ci = char.combatInclinations || {};
+    Object.keys(window.INICIATIVA_COMBATE).forEach(function (id) {
+        const def = window.INICIATIVA_COMBATE[id];
+        if ((parseInt(ci[id]) || 0) >= def.tier) {
+            const info = (window.COMBAT_INCLINATIONS_DB || []).find(function (x) { return x.id === id; });
+            fontes.push({ nome: (info && info.nome) || id, valor: def.valor });
+        }
+    });
+    const total = fontes.reduce(function (a, f) { return a + f.valor; }, 0);
+    return { total: total, fontes: fontes };
+};
