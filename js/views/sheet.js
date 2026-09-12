@@ -106,7 +106,35 @@
                 const sanColor = sanPct >= 90 ? 'text-green-400' : sanPct >= 75 ? 'text-yellow-400' : sanPct >= 50 ? 'text-orange-400' : 'text-purple-400';
                 const reaMax = 7 + getMod(char.attributes.SAB.value) + (((char.combatInclinations || {}).analitica || 0) >= 1 ? 2 : 0);
                 const reaCur = char.vitals.rea !== undefined ? char.vitals.rea : reaMax;
-                const vitalsGridHtml = `<div class="grid grid-cols-3 gap-y-2 gap-x-2 px-2 py-2 border-b border-gray-800 bg-[#0b0c10] mb-4">${renderNeonVital('SAN', char.vitals.san, char.vitals.sanMax, sanColor, 'bg-white')}${renderNeonVital('REA', reaCur, reaMax, 'text-white', 'bg-white text-white', true, 1, true)}${renderNeonVital('AURA', char.vitals.aura, char.vitals.auraMax, `text-[${themeColor}]`, `bg-[${themeColor}] text-[${themeColor}]`, true, 5)}${renderNeonVital('CA', calcCAAtual(char), null, 'text-white', 'bg-white text-white', false)}<div class="flex flex-col items-center justify-center cursor-pointer group" onclick="handleArmorClick()"><span class="text-[9px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">ARMADURA</span><div class="w-10 h-10 rounded-full border border-gray-700 flex items-center justify-center bg-gray-900 group-hover:border-[${themeColor}] group-hover:shadow-[0_0_10px_rgba(var(--theme-rgb),0.3)] transition-all"><i data-lucide="shield" size="20" class="text-gray-400 group-hover:text-[${themeColor}] transition-colors"></i></div><div class="w-8 h-0.5 rounded-full mt-1.5 bg-gray-800 opacity-80"></div></div>${renderNeonVital('PV', char.vitals.hp, char.vitals.hpMax, 'text-neon-red', 'bg-neon-red text-neon-red', true, 1, true)}</div>${rdmVal > 0 ? `<div class="flex items-center justify-center gap-2 text-[9px] text-blue-400 font-bold pb-2 border-b border-gray-800 mb-2"><span> 🛡️ RDM (Resist. Mental)</span><span class="font-display text-sm">−${rdmVal}</span></div>` : ''}`;
+                const vitalsGridHtml = `<div class="grid grid-cols-3 gap-y-2 gap-x-2 px-2 py-2 border-b border-gray-800 bg-[#0b0c10] mb-4">${renderNeonVital('SAN', char.vitals.san, char.vitals.sanMax, sanColor, 'bg-white')}${renderNeonVital('REA', reaCur, reaMax, 'text-white', 'bg-white text-white', true, 1, true)}${renderNeonVital('AURA', char.vitals.aura, char.vitals.auraMax, `text-[${themeColor}]`, `bg-[${themeColor}] text-[${themeColor}]`, true, 5)}${(() => {
+                    // Escudo desenhado ATRÁS do número da CA, como marca d'água.
+                    const _ca = calcCAAtual(char);
+                    return `<div class="flex flex-col items-center justify-center w-full">
+                        <span class="text-[9px] font-bold text-white uppercase tracking-wider mb-0.5">CA</span>
+                        <div class="relative flex items-center justify-center" style="width:34px;height:26px">
+                            <i data-lucide="shield" size="26" class="absolute text-gray-600" style="opacity:.28"></i>
+                            <span class="relative font-display font-bold text-lg text-white tracking-wider">${_ca}</span>
+                        </div>
+                        <div class="w-8 h-0.5 rounded-full mt-0.5 bg-white opacity-80"></div>
+                    </div>`;
+                })()}${(() => {
+                    // Ícone de ARMADURA (não mais escudo) com a durabilidade no centro.
+                    // Clicar reduz 1. Zerada, o ícone mostra um X e o clique oferece reparo.
+                    const _d = getDurabilidade(char);
+                    const _cor = !_d.temArmadura ? '#4b5563' : (_d.quebrada ? '#ef4444' : (_d.atual <= Math.ceil(_d.max / 4) ? '#fbbf24' : themeColor));
+                    const _icone = _d.quebrada ? 'shield-off' : 'shield-half';
+                    const _titulo = !_d.temArmadura
+                        ? 'Sem armadura no inventário'
+                        : (_d.quebrada ? 'Armadura quebrada — clique para reparar' : `Durabilidade ${_d.atual}/${_d.max} — clique para marcar 1 golpe`);
+                    return `<div class="flex flex-col items-center justify-center cursor-pointer group" onclick="handleArmorClick()" title="${_titulo}">
+                        <span class="text-[9px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">ARMADURA</span>
+                        <div class="w-10 h-10 rounded-full border flex items-center justify-center bg-gray-900 transition-all" style="border-color:${_cor}55">
+                            <i data-lucide="${_icone}" size="26" class="absolute" style="color:${_cor};opacity:${_d.quebrada ? '.9' : '.3'}"></i>
+                            ${_d.temArmadura && !_d.quebrada ? `<span class="relative font-display font-bold text-sm tracking-wider" style="color:${_cor}">${_d.atual}</span>` : ''}
+                        </div>
+                        <div class="w-8 h-0.5 rounded-full mt-1.5 opacity-80" style="background:${_d.temArmadura ? _cor : '#1f2937'}"></div>
+                    </div>`;
+                })()}${renderNeonVital('PV', char.vitals.hp, char.vitals.hpMax, 'text-neon-red', 'bg-neon-red text-neon-red', true, 1, true)}</div>${rdmVal > 0 ? `<div class="flex items-center justify-center gap-2 text-[9px] text-blue-400 font-bold pb-2 border-b border-gray-800 mb-2"><span> 🛡️ RDM (Resist. Mental)</span><span class="font-display text-sm">−${rdmVal}</span></div>` : ''}`;
                 const rollModesHtml = ''; // removido — modo é escolhido por rolagem via modal
                 const _attrPts = (char.pendingAttrPoints !== undefined && char.pendingAttrPoints !== null) ? char.pendingAttrPoints : null;
                 const _attrBanner = (_attrPts !== null && _attrPts > 0) ? `<div class="mx-4 mb-3 px-4 py-3 rounded-xl border border-yellow-500/40 bg-yellow-500/10 flex items-center justify-between"><div class="flex items-center gap-2"><span class="text-xs font-black uppercase tracking-widest text-yellow-400">✦ Pontos de Atributo</span><span class="text-[9px] text-yellow-400/60 font-bold">para distribuir</span></div><span class="font-display font-black text-2xl text-yellow-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.5)]">${_attrPts}</span></div>` : '';
@@ -2771,7 +2799,51 @@
         }
         window.calcCAAtual = calcCAAtual;
 
-        function handleArmorClick() { alert('Funcionalidade de Armadura em desenvolvimento.'); }
+        // ── Durabilidade de Equipamentos de Proteção ─────────────────────────────────
+        // Regra: a durabilidade de uma armadura é igual à CA que ela concede — Colete de
+        // Resposta Rápida (CA 15) aguenta 15 golpes, Colete Fino de Kevlar (CA 12+DES) é
+        // destruído em 12. Reduz 1 por golpe recebido sem TEN, KEN ou RYU; golpes de rajada
+        // ou explosivos reduzem 2. Escudos NÃO entram: só quebram por balístico, explosivo,
+        // arma de cerco ou golpe mirado com aura.
+        // Por decisão de mesa, a redução é MANUAL: clicar no ícone tira 1. Nada automático,
+        // porque o app não acompanha a rodada e clicar no PV não significa golpe recebido.
+        function calcDurabilidadeMax(char) {
+            const arm = calcCAArmadura(char);
+            return arm.armadura > 0 ? arm.armadura : 0;
+        }
+        function getDurabilidade(char) {
+            const max = calcDurabilidadeMax(char);
+            if (max <= 0) return { max: 0, atual: 0, quebrada: false, temArmadura: false };
+            const atual = (char.armorDurability != null) ? char.armorDurability : max;
+            return { max: max, atual: Math.max(0, Math.min(atual, max)), quebrada: atual <= 0, temArmadura: true };
+        }
+        function handleArmorClick() {
+            const char = state.currentChar;
+            const d = getDurabilidade(char);
+            if (!d.temArmadura) {
+                alert('Nenhuma armadura no inventário.\n\nA durabilidade é igual à CA que a armadura concede. Escudos não têm durabilidade nesta regra.');
+                return;
+            }
+            if (d.quebrada) {
+                if (confirm('Armadura quebrada.\n\nReparar e restaurar a durabilidade para ' + d.max + '?')) {
+                    char.armorDurability = d.max;
+                    saveCharacter(char);
+                    render(true);
+                }
+                return;
+            }
+            char.armorDurability = d.atual - 1;
+            saveCharacter(char);
+            render(true);
+        }
+        window.handleArmorRepair = function () {
+            const char = state.currentChar;
+            const d = getDurabilidade(char);
+            if (!d.temArmadura) return;
+            char.armorDurability = d.max;
+            saveCharacter(char);
+            render(true);
+        };
         function uploadCharacterImage(input) { if (input.files && input.files[0]) { const reader = new FileReader(); reader.onload = function(e) { state.currentChar.imageUrl = e.target.result; state.currentChar.imagePosition = { x: 50, y: 50 }; saveCharacter(state.currentChar); render(true); }; reader.readAsDataURL(input.files[0]); } }
 
         // Modal pra escolher qual parte da imagem do personagem fica visível no recorte do header

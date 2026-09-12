@@ -113,6 +113,27 @@ function saveCharacter(char) {
 
 // viewing=true → apagar a ficha de OUTRO jogador (só permitido para admin, ver state.viewingChars,
 // aberto via "Jogadores"/Admin → Ver Fichas). viewing=false/omitido → apagar ficha própria (lista LIST).
+// ── Simular Evolução: clona a ficha no MESMO nível ───────────────────────────
+// Serve para testar caminhos de evolução sem perder a versão original: o jogador
+// duplica, sobe a cópia e compara. O personagem é um JSONB inteiro no Supabase,
+// então clonar é copiar o objeto com um id novo — nenhuma migração necessária.
+// O clone nasce no mesmo nível, com o mesmo XP, e aparece na lista junto dos outros.
+window._simularEvolucao = function (id) {
+    const orig = (state.characters || []).find(function (c) { return c.id === id; });
+    if (!orig) return;
+    const nome = prompt('Nome da simulação:', (orig.name || 'Personagem') + ' (Simulação)');
+    if (nome === null) return;
+    const clone = JSON.parse(JSON.stringify(orig));
+    clone.id = generateId();
+    clone.name = String(nome).trim() || ((orig.name || 'Personagem') + ' (Simulação)');
+    clone.isSimulacao = true;
+    clone.simulacaoDe = orig.id;
+    clone.simulacaoNivelOrigem = orig.level;
+    clone.lastMod = new Date().toISOString();
+    saveCharacter(clone);
+    render(true);
+};
+
 function deleteCharacter(id, viewing) {
     const isViewing = !!viewing;
     if (isViewing && !state.isAdmin) return; // só admin apaga ficha de outro jogador
