@@ -161,6 +161,14 @@
         .shake {
             animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
         }
+        /* Aviso piscante da tag de Hatsu (Maldição / Exorcismo / Besta Especial).
+           Pulso suave em opacidade — sem trocar cor, para não cansar a leitura. */
+        @keyframes aviso-tag-pulse {
+            0%, 100% { opacity: 1; }
+            50%      { opacity: .45; }
+        }
+        .aviso-tag-piscando { animation: aviso-tag-pulse 1.6s ease-in-out infinite; }
+
         @keyframes shake {
             10%, 90% { transform: translate3d(-1px, 0, 0); }
             20%, 80% { transform: translate3d(2px, 0, 0); }
@@ -257,6 +265,7 @@
     <script src="js/data/transmutacao-db.js"></script>
     <script src="js/data/hatsu-db.js"></script>
     <script src="js/data/constructo-db.js"></script>
+    <script src="js/data/maldicao-besta-db.js"></script>
     <script src="js/data/nen-affinity.js"></script>
     <script src="js/data/combat-inclinations-db.js"></script>
 
