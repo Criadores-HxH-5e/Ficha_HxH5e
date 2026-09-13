@@ -61,7 +61,10 @@ function renderHatsuCreator(container) {
     const pnLeft = pnBonusLeft + pnBaseLeft; // total disponível ainda
     const pnMax = pnBaseAvail + pnBonus; // total máximo deste hatsu
 
-    const STEPS = ['CONCEITO','TIPO','RESTRIÇÕES','EFEITOS GERAIS','EFEITOS CATEG.','RESUMO'];
+    // A etapa 3 (EF. MALDIÇÃO) só é percorrida quando a tag do Hatsu é M. Para as outras
+    // tags ela é pulada na navegação, mas o índice continua fixo para não renumerar nada
+    // além desta troca — ver _hEtapaVisivel, _hNext e _hPrev.
+    const STEPS = ['CONCEITO','TIPO','RESTRIÇÕES','EF. MALDIÇÃO','EFEITOS GERAIS','EFEITOS CATEG.','RESUMO'];
 
     // ── barra de progresso ──
     const progressBar = STEPS.map((s,i) => {
@@ -1637,6 +1640,28 @@ function renderHatsuCreator(container) {
     let content = '', canNext = false;
 
     // ETAPA 0 — CONCEITO
+    // ── Barra de abas das etapas de efeitos ──────────────────────────────────────
+    // As três etapas de efeitos (Maldição, Gerais, Categoria) aparecem como abas para o
+    // jogador poder ir e voltar sem passar pelo Próximo. Cada aba continua sendo uma
+    // etapa própria por baixo — as abas só trocam hb.step.
+    function buildAbasEfeitosHtml(atual) {
+        const temM = (hb.tag || 'P') === 'M';
+        const abas = [];
+        if (temM) abas.push({ step: 3, label: 'MALDIÇÃO', cor: '#a855f7', n: (hb.em || []).length });
+        abas.push({ step: 4, label: 'GERAIS',   cor: '#9ca3af', n: (hb.eg || []).length });
+        abas.push({ step: 5, label: 'CATEGORIA', cor: tc,      n: (hb.ec || []).length });
+        return '<div style="display:flex;gap:4px;background:#0f1117;border-radius:10px;padding:3px;margin-bottom:12px">'
+            + abas.map(function (a) {
+                const sel = atual === a.step;
+                return '<button onclick="window._hIrParaEtapa(' + a.step + ')"'
+                    + ' style="flex:1;padding:9px 4px;border-radius:8px;border:none;cursor:pointer;font-family:\'Orbitron\',sans-serif;font-weight:900;font-size:8px;text-transform:uppercase;letter-spacing:1px;'
+                    + 'background:' + (sel ? a.cor : 'transparent') + ';color:' + (sel ? '#000' : '#6b7280') + '">'
+                    + a.label + (a.n > 0 ? ' <span style="font-size:8px;background:' + (sel ? '#00000033' : '#ffffff22') + ';padding:1px 5px;border-radius:10px">' + a.n + '</span>' : '')
+                    + '</button>';
+            }).join('')
+            + '</div>';
+    }
+
     if (hb.step === 0) {
         canNext = hb.nome.trim().length > 0;
         content = `
@@ -1691,6 +1716,31 @@ function renderHatsuCreator(container) {
             { id:'instantaneo',   icon:'⚡', label:'INSTANTÂNEO',   sub:'Ativa e termina no mesmo turno', tip:'Investe em dano, alcance ou área.' },
             { id:'longa_duracao', icon:'⏳', label:'LONGA DURAÇÃO',  sub:'Persiste por múltiplas rodadas', tip:'Investe em duração, alcance ou CD.' },
         ];
+
+        // ── Tags P/M/E/B ────────────────────────────────────────────────────────────
+        // Não são um terceiro grupo de botões grandes: são etiquetas compactas aplicadas
+        // sobre os tipos que já existem. P é o padrão. M, E e B limitam o personagem a
+        // 2 Hatsus NO TOTAL (Manual: "a escolha de um Hatsu de Exorcismo, Besta de NEN
+        // Especial ou Maldição de NEN limita o usuário a no máximo 2 Hatsus").
+        const _tags = (window.HATSU_TAGS || []);
+        const _tagAtual = hb.tag || 'P';
+        const _tagCores = { P: '#9ca3af', M: '#a855f7', E: '#38bdf8', B: '#fb923c' };
+        const _tagsHtml = '<div style="display:flex;gap:6px">'
+            + _tags.map(function (tg) {
+                const sel = _tagAtual === tg.id;
+                const cor = _tagCores[tg.id] || tc;
+                return '<button onclick="window._hSetTag(\'' + tg.id + '\')" title="' + tg.nome + '"'
+                    + ' style="flex:1;padding:10px 4px;border-radius:10px;border:2px solid ' + (sel ? cor : '#1f2937')
+                    + ';background:' + (sel ? cor + '22' : '#0f1117') + ';cursor:pointer;transition:all .15s">'
+                    + '<div style="font-family:\'Orbitron\',sans-serif;font-weight:900;font-size:15px;color:' + (sel ? cor : '#6b7280') + '">' + tg.id + '</div>'
+                    + '<div style="font-size:7px;color:' + (sel ? cor : '#4b5563') + ';margin-top:2px;line-height:1.2">' + tg.nome.replace('Hatsu de ', '').replace('Hatsu ', '') + '</div>'
+                    + '</button>';
+            }).join('')
+            + '</div>'
+            + '<div style="font-size:8px;color:#6b7280;margin-top:5px;text-align:center">Toque em uma tag para ver o significado</div>'
+            + (_tagAtual !== 'P'
+                ? '<div class="aviso-tag-piscando" style="margin-top:8px;background:#f9731618;border:1px solid #f9731655;border-radius:10px;padding:9px 11px;font-size:9px;color:#fb923c;font-weight:700;line-height:1.5">⚠ ' + (window.HATSU_TAG_AVISO || '') + '</div>'
+                : '');
         content = `
         <div style="text-align:center;margin-bottom:14px">
             <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:13px;color:#fff;text-transform:uppercase;letter-spacing:2px">Tipo de Hatsu</div>
@@ -1734,6 +1784,9 @@ function renderHatsuCreator(container) {
                 ${sel?`<div style="font-size:9px;color:${tc}cc;margin-top:6px;padding-left:28px;line-height:1.5">${t.tip}</div>`:''}
             </div>`;
         }).join('')}
+
+        <div style="font-size:8px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin:12px 0 8px">🏷 Tag do Hatsu</div>
+        ${_tagsHtml}
 
         ${hb.tipoA && hb.tipoB ? `<div style="background:${tc}18;border:2px solid ${tc};border-radius:12px;padding:10px;margin-top:4px;text-align:center">
             <div style="font-size:9px;font-weight:900;color:${tc};text-transform:uppercase;letter-spacing:1px">✓ Combinação: ${hb.tipoA.toUpperCase()} + ${hb.tipoB.toUpperCase()}</div>
@@ -1838,14 +1891,70 @@ function renderHatsuCreator(container) {
             + '</div>' + grauPanelHtml + tabsHtml + searchBarHtml + bodyHtml;
     }
 
-    // ETAPA 3 — EFEITOS GERAIS
+    // ── ETAPA 3 — EFEITOS DE MALDIÇÃO ───────────────────────────────────────────
+    // Só existe com a tag M. Cada efeito custa 1 P.N, mas é liberado por LIMIAR: o total
+    // de P.N já investido EM EFEITOS neste Hatsu. P.N devolvido por restrição não conta.
     else if (hb.step === 3) {
+        canNext = true;
+        const _mdb = (window.MALDICAO_DB || { efeitos: [], temporizadores: [] });
+        if (!Array.isArray(hb.em)) hb.em = [];
+        // P.N investido em efeitos = soma do custo dos efeitos escolhidos (gerais + categoria
+        // + maldição). Não entra nada que venha de restrição, por definição da regra.
+        const _investido = window.calcPNInvestidoEmEfeitos ? window.calcPNInvestidoEmEfeitos(hb) : 0;
+
+        const _listaMal = _mdb.efeitos.map(function (ef) {
+            const sel = hb.em.indexOf(ef.id) >= 0;
+            const liberado = _investido >= ef.limiar;
+            const cor = sel ? '#a855f7' : (liberado ? '#d1d5db' : '#4b5563');
+            const clique = liberado
+                ? 'window._hToggleMaldicao(\'' + ef.id + '\')'
+                : "alert('🔒 Bloqueado\\n\\nEste efeito exige " + ef.limiar + " P.N já investidos em efeitos deste Hatsu. Você tem " + _investido + ".\\n\\nP.N devolvido por restrições não conta para o limiar.')";
+            return '<div onclick="' + clique + '" style="background:#0d1117;border:1px solid ' + (sel ? '#a855f788' : '#1f2937')
+                + ';border-radius:12px;padding:11px 12px;margin-bottom:7px;cursor:pointer;opacity:' + (liberado ? '1' : '.55') + '">'
+                + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
+                + '<div style="font-size:10px;color:' + cor + ';line-height:1.45;flex:1">' + (sel ? '✓ ' : '') + ef.desc + '</div>'
+                + '<div style="flex-shrink:0;text-align:right">'
+                + '<div style="font-size:8px;font-weight:900;padding:2px 7px;border-radius:6px;background:' + (liberado ? '#a855f722' : '#1f2937') + ';color:' + (liberado ? '#c084fc' : '#4b5563') + ';white-space:nowrap">' + ef.limiar + ' P.N inv.' + (liberado ? '' : ' 🔒') + '</div>'
+                + '<div style="font-size:7px;color:#6b7280;margin-top:3px">custa 1 P.N</div>'
+                + '</div></div></div>';
+        }).join('');
+
+        const _temporizadorAtual = hb.temporizador || '';
+        const _listaTemp = _mdb.temporizadores.map(function (tp) {
+            const sel = _temporizadorAtual === tp.id;
+            return '<div onclick="window._hSetTemporizador(\'' + tp.id + '\')" style="background:#0d1117;border:1px solid ' + (sel ? '#a855f788' : '#1f2937')
+                + ';border-radius:10px;padding:9px 11px;margin-bottom:6px;cursor:pointer">'
+                + '<div style="font-size:10px;font-weight:700;color:' + (sel ? '#c084fc' : '#d1d5db') + '">' + (sel ? '✓ ' : '') + tp.nome + '</div>'
+                + '<div style="font-size:8px;color:#6b7280;margin-top:2px">Mínimo: ' + tp.min + ' &nbsp;·&nbsp; Máximo: ' + tp.max + '</div>'
+                + '</div>';
+        }).join('');
+
+        content = `
+        <div style="text-align:center;margin-bottom:10px">
+            <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:13px;color:#c084fc;text-transform:uppercase;letter-spacing:2px">Efeitos de Maldição</div>
+            <div style="font-size:9px;color:#6b7280;margin-top:3px">Liberados por P.N já investido em efeitos deste Hatsu</div>
+        </div>
+        ${buildAbasEfeitosHtml(3)}
+        <div style="background:#0f1117;border:1px solid #1f2937;border-radius:12px;padding:12px;margin-bottom:12px;text-align:center">
+            <div style="font-size:8px;color:#4b5563;text-transform:uppercase;font-weight:700;margin-bottom:4px">P.N investido em efeitos</div>
+            <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:24px;color:#c084fc">${_investido}</div>
+            <div style="font-size:8px;color:#6b7280;margin-top:3px">Restrições não contam para o limiar</div>
+        </div>
+        ${_listaMal}
+        <div style="font-size:8px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin:16px 0 8px">⏳ Temporizador (obrigatório)</div>
+        ${_listaTemp}
+        `;
+    }
+
+    // ETAPA 4 — EFEITOS GERAIS
+    else if (hb.step === 4) {
         canNext = true;
         content = `
         <div style="text-align:center;margin-bottom:10px">
             <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:13px;color:#fff;text-transform:uppercase;letter-spacing:2px">Efeitos Gerais</div>
             <div style="font-size:9px;color:#6b7280;margin-top:3px">Disponíveis para qualquer categoria</div>
         </div>
+        ${buildAbasEfeitosHtml(4)}
         ${buildGrauPanelHtml()}
         <div style="background:#0a0f1a;border:1px solid #1f2937;border-radius:10px;padding:9px;margin-bottom:10px">
             <div style="display:flex;align-items:flex-start;gap:7px">
@@ -1879,7 +1988,8 @@ function renderHatsuCreator(container) {
         ${renderE(window.HATSU_DB.efeitos_gerais, hb.eg, 'eg', '#9ca3af')}
         ${(() => { const ft = hb.filterText||''; const fs = hb.filterStatus||'todos'; const allItems = window.HATSU_DB.efeitos_gerais; const shown = allItems.filter(item => { if (ft && !item.nome.toLowerCase().includes(ft.toLowerCase()) && !(item.desc||'').toLowerCase().includes(ft.toLowerCase())) return false; return true; }); return shown.length === 0 ? `<div style="text-align:center;color:#374151;font-style:italic;font-size:11px;padding:20px">Nenhum efeito encontrado.</div>` : ''; })()}`;
     }
-    else if (hb.step === 4) {
+    // ETAPA 5 — EFEITOS DE CATEGORIA
+    else if (hb.step === 5) {
         canNext = true;
 
         const charLevel = parseInt(char.level) || 0;
@@ -2022,6 +2132,7 @@ function renderHatsuCreator(container) {
             <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:12px;color:#fff;text-transform:uppercase;letter-spacing:2px">Efeitos de ${cls}</div>
             <div style="font-size:9px;font-weight:700;margin-top:3px;color:${tc}">${catDB.graus}</div>
         </div>
+        ${buildAbasEfeitosHtml(5)}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;background:#0f1117;border:1px solid #1f2937;border-radius:12px;padding:12px;margin-bottom:14px">
             <div>
                 <div style="font-size:8px;color:#4b5563;text-transform:uppercase;font-weight:700;margin-bottom:4px">P.N Disponíveis</div>
@@ -2061,8 +2172,8 @@ function renderHatsuCreator(container) {
         </div>` : ''}`;
     }
 
-    // ETAPA 5 — RESUMO
-    else if (hb.step === 5) {
+    // ETAPA 6 — RESUMO
+    else if (hb.step === 6) {
         canNext = hb.nome.trim().length > 0 && pnBonusLeft === 0;
         const allRDB = [
             ...(window.HATSU_DB.restricoes_gerais.leves||[]).map(r=>({...r,peso:'leve'})),
@@ -2229,7 +2340,7 @@ window._hNext = function() {
     if (hb.step === 1 && (!hb.tipoA || !hb.tipoB)) {
         return; // usuário precisa selecionar um tipo de cada grupo
     }
-    if (hb.step === 5) {
+    if (hb.step === 6) {
         // Bloqueia se há P.N não gastos — P.N não podem ser guardados para outro nível
         const _char5 = state.currentChar;
         const _pnBase5 = window.calcularPHBase(_char5.level);
@@ -2268,6 +2379,11 @@ window._hNext = function() {
             nome: hb.nome,
             descricao: hb.descricao,
             tipo: (hb.tipoA||'')+(hb.tipoB?'+'+hb.tipoB:''),
+            // Tag P/M/E/B: P (padrão) é o valor de quem não escolheu nada.
+            tag: hb.tag || 'P',
+            // Dados exclusivos da tag M (Maldição).
+            efeitosMaldicao: [].concat(hb.em || []),
+            temporizador: hb.temporizador || '',
             restricoes: [...hb.rg, ...hb.rc],
             beneficioChoices: {...(hb.beneficioChoices||{})},
             pureRestrictions: {...(hb.pureRestrictions||{})},
@@ -2310,6 +2426,8 @@ window._hNext = function() {
         return;
     }
     hb.step++;
+    // Sem a tag M, a etapa de Efeitos de Maldição não existe para este Hatsu.
+    if (hb.step === 3 && (hb.tag || 'P') !== 'M') hb.step++;
     hb.filterText = '';
     hb.filterStatus = 'todos';
     render();
@@ -2317,6 +2435,16 @@ window._hNext = function() {
 window._hPrev = function() {
     const hb = state.hatsuBuilder; if (!hb || hb.step === 0) return;
     hb.step--;
+    if (hb.step === 3 && (hb.tag || 'P') !== 'M') hb.step--;
+    render();
+};
+// Navegação direta entre as abas de efeitos (Maldição, Gerais, Categoria).
+window._hIrParaEtapa = function (n) {
+    const hb = state.hatsuBuilder; if (!hb) return;
+    if (n === 3 && (hb.tag || 'P') !== 'M') return;
+    hb.step = n;
+    hb.filterText = '';
+    hb.filterStatus = 'todos';
     render();
 };
 // Re-render hatsu creator preserving scroll position of content area
@@ -2466,6 +2594,73 @@ window._hAvisoAlvos = function () {
         + '</div>';
     document.body.appendChild(ov);
     document.getElementById('aviso-alvos-ok').onclick = function () { ov.remove(); };
+};
+
+// ── Tag do Hatsu (P/M/E/B) ───────────────────────────────────────────────────
+// Trocar para M, E ou B verifica a trava de 2 Hatsus NO TOTAL antes de aceitar.
+// A contagem considera os Hatsus já salvos no personagem; o que está sendo criado
+// agora ainda não está na lista, então ele mesmo já ocupa a segunda vaga.
+// P.N investido EM EFEITOS neste Hatsu — base do limiar dos efeitos de Maldição.
+// Soma o custo dos efeitos escolhidos (gerais, de categoria e de maldição). P.N que vem
+// de restrição NÃO entra: é justamente o que impede destravar maldição forte de graça.
+window.calcPNInvestidoEmEfeitos = function (hb) {
+    if (!hb) return 0;
+    const D = window.HATSU_DB || {};
+    const todos = [].concat(D.efeitos_gerais || []);
+    Object.keys(D.categorias || {}).forEach(function (k) {
+        if (k === 'CONJURAÇÃO') return;
+        (D.categorias[k].efeitos || []).forEach(function (e) { todos.push(e); });
+    });
+    let total = 0;
+    [].concat(hb.eg || [], hb.ec || []).forEach(function (id) {
+        const ef = todos.find(function (e) { return e.id === id; });
+        total += ef ? (parseInt(ef.pn) || 0) : 0;
+    });
+    // Efeitos de maldição custam 1 P.N cada e também contam como investimento.
+    total += (hb.em || []).length;
+    return total;
+};
+
+window._hToggleMaldicao = function (id) {
+    const hb = state.hatsuBuilder; if (!hb) return;
+    if (!Array.isArray(hb.em)) hb.em = [];
+    const i = hb.em.indexOf(id);
+    if (i >= 0) hb.em.splice(i, 1);
+    else {
+        const ef = ((window.MALDICAO_DB || {}).efeitos || []).find(function (x) { return x.id === id; });
+        if (!ef) return;
+        if (window.calcPNInvestidoEmEfeitos(hb) < ef.limiar) return;
+        hb.em.push(id);
+    }
+    renderHatsuInPlace();
+};
+
+window._hSetTemporizador = function (id) {
+    const hb = state.hatsuBuilder; if (!hb) return;
+    hb.temporizador = (hb.temporizador === id) ? '' : id;
+    renderHatsuInPlace();
+};
+
+window._hSetTag = function (tagId) {
+    const hb = state.hatsuBuilder; if (!hb) return;
+    const def = (window.HATSU_TAGS || []).find(function (x) { return x.id === tagId; });
+    if (!def) return;
+
+    if (def.limite2) {
+        const char = state.currentChar || {};
+        const jaExistentes = (char.hatsus || []).length;
+        // Editando um Hatsu existente, ele não conta duas vezes.
+        const editando = hb.editIdx != null && hb.editIdx >= 0;
+        const totalComEste = editando ? jaExistentes : jaExistentes + 1;
+        if (totalComEste > 2) {
+            alert('🏷 ' + def.nome + '\n\n' + (window.HATSU_TAG_AVISO || ''));
+            return;
+        }
+    }
+    hb.tag = tagId;
+    // A aba de efeitos de Maldição só existe com a tag M; sair dela volta para Gerais.
+    if (tagId !== 'M' && hb.efTab === 'maldicao') hb.efTab = 'gerais';
+    renderHatsuInPlace();
 };
 
 window._hToggleModoRestricao = function(chave, nomeRestricao) {
