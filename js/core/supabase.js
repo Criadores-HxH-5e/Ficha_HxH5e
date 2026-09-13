@@ -46,8 +46,15 @@ async function syncFromCloud() {
         } else {
             try {
                 const lc = JSON.parse(localRaw);
-                if (new Date(rc.lastMod || 0) > new Date(lc.lastMod || 0))
+                if (new Date(rc.lastMod || 0) > new Date(lc.lastMod || 0)) {
                     localStorage.setItem(localKey, JSON.stringify(rc));
+                } else if (lc.userId !== state.user.id) {
+                    // A cópia local é mais recente, então não sobrescrevemos o conteúdo —
+                    // mas corrigimos o dono. Sem isso, uma ficha com userId errado (ou
+                    // vazio) fica invisível para sempre na lista, mesmo estando na nuvem.
+                    lc.userId = state.user.id;
+                    localStorage.setItem(localKey, JSON.stringify(lc));
+                }
             } catch { localStorage.setItem(localKey, JSON.stringify(rc)); }
         }
     });
@@ -79,6 +86,11 @@ function loadCharacters() {
         if(key && key.startsWith('hxhrpg_') && !key.startsWith('hxhrpg_cloud')) {
             try {
                 const char = JSON.parse(localStorage.getItem(key));
+                // O prefixo hxhrpg_ é o espaço do app no localStorage e guarda outras
+                // coisas além de fichas (hxhrpg_webhooks, hxhrpg_webhook_escolhido...).
+                // Antes o laço tentava interpretar tudo como personagem e engolia o erro
+                // em silêncio. Agora exige a cara de uma ficha: id e bloco de atributos.
+                if (!char || typeof char !== 'object' || !char.id || !char.attributes) continue;
                 if ((char.userId || '000000') !== currentUserId) continue;
                 // Migrate TRANSFORMAÇÃO → TRANSMUTAÇÃO (typo fix)
                 if (char.class === 'TRANSFORMAÇÃO') {
