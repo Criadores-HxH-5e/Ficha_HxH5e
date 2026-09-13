@@ -903,7 +903,7 @@
                         <div class="absolute inset-0 bg-cover bg-no-repeat transition-all duration-700 group-hover:scale-105" style="${bgImage}"></div>
                         ${!char.imageUrl ? `<div class="absolute inset-0 bg-[${themeColor}]/5 flex items-center justify-center"><i data-lucide="image-plus" size="48" class="text-[${themeColor}]/30"></i></div>` : ''}
                         <div class="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/60 to-transparent"></div>
-                        <button onclick="event.stopPropagation(); state.view='LIST'; render()" class="absolute top-6 left-6 text-white/80 hover:text-white bg-black/40 p-2 rounded-full backdrop-blur-md border border-white/10 z-20 transition-all hover:bg-black/60"><i data-lucide="arrow-left" size="20"></i></button>
+                        <button onclick="event.stopPropagation(); window._sairDaFicha()" class="absolute top-6 left-6 text-white/80 hover:text-white bg-black/40 p-2 rounded-full backdrop-blur-md border border-white/10 z-20 transition-all hover:bg-black/60"><i data-lucide="arrow-left" size="20"></i></button>
                         ${char.imageUrl ? `<button onclick="event.stopPropagation(); window._openImagePositionModal()" class="absolute top-6 right-6 text-white/80 hover:text-white bg-black/40 p-2 rounded-full backdrop-blur-md border border-white/10 z-20 transition-all hover:bg-black/60" title="Ajustar posição da imagem"><i data-lucide="move" size="18"></i></button>` : ''}
                         <div class="absolute bottom-0 left-0 w-full p-6 flex flex-col justify-end z-10" onclick="event.stopPropagation()">
                             <h1 contenteditable="true" 
@@ -937,7 +937,7 @@
                 </div>` : 
                 `<div class="flex-1 overflow-hidden relative flex flex-col">
                     <div class="absolute top-4 left-4 z-50">
-                        <button onclick="event.stopPropagation(); state.view='LIST'; render()" class="text-white/80 hover:text-white bg-black/40 p-2 rounded-full backdrop-blur-md border border-white/10 transition-all hover:bg-black/60"><i data-lucide="arrow-left" size="20"></i></button>
+                        <button onclick="event.stopPropagation(); window._sairDaFicha()" class="text-white/80 hover:text-white bg-black/40 p-2 rounded-full backdrop-blur-md border border-white/10 transition-all hover:bg-black/60"><i data-lucide="arrow-left" size="20"></i></button>
                     </div>
                     ${tabContent}
                 </div>`
@@ -1000,6 +1000,25 @@
             render(true);
         };
         function selectNenType(cls) { state.tempChar.class = cls; const clsData = SYSTEM_DB.classes.find(c => c.id === cls); if(clsData) setThemeColor(clsData.color); render(true); }
+        // Aviso ao escolher a categoria manualmente. A escolha livre existe para NPCs e
+        // playtesters; jogador comum normalmente rola o 1d100 ou descobre com a evolução.
+        // Informa e segue: confirmar o aviso abre a seleção manual.
+        window._avisoEscolhaManual = function () {
+            const tc = getComputedStyle(document.documentElement).getPropertyValue('--theme-color-hex').trim() || '#eaecf0';
+            const ov = document.createElement('div');
+            ov.style.cssText = 'position:fixed;inset:0;background:#000000ee;display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;font-family:Rajdhani,sans-serif';
+            ov.innerHTML = '<div style="background:#0d1117;border:2px solid #374151;border-radius:20px;padding:20px;width:100%;max-width:360px;text-align:center">'
+                + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:12px;color:#d1d5db;text-transform:uppercase;letter-spacing:2px;margin-bottom:10px">Escolher Manualmente</div>'
+                + '<div style="font-size:12px;color:#9ca3af;line-height:1.6;margin-bottom:16px">Recurso para NPCs e Playtesters</div>'
+                + '<div style="display:flex;gap:8px">'
+                + '<button id="aviso-manual-cancel" style="flex:1;padding:11px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Voltar</button>'
+                + '<button id="aviso-manual-ok" style="flex:2;padding:11px;border-radius:10px;background:#e5e7eb;border:none;color:#000;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Entendido</button>'
+                + '</div></div>';
+            document.body.appendChild(ov);
+            document.getElementById('aviso-manual-cancel').onclick = function () { ov.remove(); };
+            document.getElementById('aviso-manual-ok').onclick = function () { ov.remove(); setCategoriaMetodo('chosen'); };
+        };
+
         function setCategoriaMetodo(method) {
             state.tempChar.categoriaMetodo = method;
             // "Sem Nen": o personagem começa nível 0 sem categoria. Limpamos categoria,
@@ -2817,6 +2836,23 @@
             const atual = (char.armorDurability != null) ? char.armorDurability : max;
             return { max: max, atual: Math.max(0, Math.min(atual, max)), quebrada: atual <= 0, temArmadura: true };
         }
+        // ── Sair da ficha para a lista ───────────────────────────────────────────────
+        // Precisa DESLIGAR o modo de visualização. Antes, abrir uma ficha pelo painel de
+        // admin ligava state._viewingMode e o desligamento só acontecia no botão da faixa
+        // de somente leitura — faixa que nunca aparece para admin, porque readOnly fica
+        // false. O modo ficava ligado pelo resto da sessão e TODO saveCharacter passava a
+        // gravar só no Supabase, via saveViewingChar, sem tocar o localStorage. Como a
+        // lista inicial lê do localStorage, as fichas do próprio admin ficavam invisíveis.
+        window._sairDaFicha = function () {
+            state._viewingMode = false;
+            state.readOnly = false;
+            state.viewingUser = null;
+            state.currentChar = state._prevChar || null;
+            state._prevChar = null;
+            state.view = 'LIST';
+            render();
+        };
+
         function handleArmorClick() {
             const char = state.currentChar;
             const d = getDurabilidade(char);

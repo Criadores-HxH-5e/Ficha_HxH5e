@@ -17,18 +17,18 @@
                 contentHtml = `
                     <div class="space-y-6 text-center">
                         <p class="text-xs text-gray-400 leading-relaxed px-2">Antes de definir sua identidade, escolha como sua categoria de Nen (Reforço, Transmutação, Materialização, Emissão, Manipulação ou Especialização) será determinada.</p>
-                        <div class="grid grid-cols-1 gap-3">
-                            <button onclick="rollCategoriaNen()" class="w-full py-5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl font-display font-bold text-white tracking-widest hover:brightness-110 active:scale-95 transition-all shadow-lg flex flex-col items-center gap-1 border border-white/10">
-                                <span class="text-sm">🎲 ROLAR 1d100</span>
-                                <span class="text-[9px] font-normal opacity-80 normal-case">Sua categoria é definida pelo destino (tabela de afinidade)</span>
-                            </button>
-                            <button onclick="setCategoriaMetodo('chosen')" class="w-full py-5 bg-gray-900 border-2 border-neon-theme rounded-xl font-display font-bold text-neon-theme tracking-widest hover:bg-neon-theme/10 active:scale-95 transition-all flex flex-col items-center gap-1">
-                                <span class="text-sm">✋ ESCOLHER MANUALMENTE</span>
-                                <span class="text-[9px] font-normal opacity-80 normal-case text-gray-400">Selecione livremente sua categoria de Nen</span>
-                            </button>
-                            <button onclick="setCategoriaMetodo('semnen')" class="w-full py-5 bg-gray-900 border-2 border-gray-700 rounded-xl font-display font-bold text-gray-400 uppercase tracking-wider hover:bg-gray-800 transition-all flex flex-col items-center gap-1">
-                                <span class="text-sm">🚫 COMEÇAR DO NÍVEL 0 — SEM NEN</span>
+                        <div class="flex flex-col justify-between gap-4" style="min-height:52vh">
+                            <button onclick="setCategoriaMetodo('semnen')" class="w-full flex-1 py-5 bg-gray-900 border-2 border-gray-700 rounded-xl font-display font-bold text-gray-300 tracking-widest hover:bg-gray-800 active:scale-95 transition-all flex flex-col items-center justify-center gap-1">
+                                <span class="text-sm">DESCOBRIR COM A EVOLUÇÃO</span>
                                 <span class="text-[9px] font-normal opacity-80 normal-case text-gray-500">A categoria fica para quando o Nen despertar</span>
+                            </button>
+                            <button onclick="rollCategoriaNen()" class="w-full flex-1 py-5 bg-gray-900 border-2 border-gray-700 rounded-xl font-display font-bold text-gray-300 tracking-widest hover:bg-gray-800 active:scale-95 transition-all flex flex-col items-center justify-center gap-1">
+                                <span class="text-sm">ROLAR 1d100</span>
+                                <span class="text-[9px] font-normal opacity-80 normal-case text-gray-500">Sua categoria é definida pelo destino (tabela de afinidade)</span>
+                            </button>
+                            <button onclick="window._avisoEscolhaManual()" class="w-full flex-1 py-5 bg-gray-900 border-2 border-gray-700 rounded-xl font-display font-bold text-gray-300 tracking-widest hover:bg-gray-800 active:scale-95 transition-all flex flex-col items-center justify-center gap-1">
+                                <span class="text-sm">ESCOLHER MANUALMENTE</span>
+                                <span class="text-[9px] font-normal opacity-80 normal-case text-gray-500">Selecione livremente sua categoria de Nen</span>
                             </button>
                         </div>
                         ${rolledLabel}
