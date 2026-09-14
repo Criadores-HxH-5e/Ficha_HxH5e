@@ -961,6 +961,16 @@ function closeHatsuCreator() {
             render(true);
         };
 
+        // Ativar direto da aba Ficha, sem abrir o Hatsu. A duração vem da mesma regra
+        // usada na tela de detalhe (calcDuracaoHatsu), para os dois lugares concordarem.
+        window._ativarHatsuDaFicha = function (idx) {
+            const char = state.currentChar;
+            const h = (char.hatsus || [])[idx];
+            if (!h) return;
+            const info = window.calcDuracaoHatsu ? window.calcDuracaoHatsu(h, char) : { rodadas: 0, constante: false };
+            window._ativarHatsu(idx, info.rodadas, info.constante);
+        };
+
         window._desativarHatsu = function (idx) {
             const char = state.currentChar;
             if (char.hatsusAtivos) delete char.hatsusAtivos[idx];

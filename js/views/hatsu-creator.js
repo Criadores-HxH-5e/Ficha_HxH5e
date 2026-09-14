@@ -1781,7 +1781,8 @@ function renderHatsuCreator(container) {
             + '</div>'
             + '<div style="font-size:8px;color:#6b7280;margin-top:5px;text-align:center">Toque em uma tag para ver o significado</div>'
             + (_tagAtual !== 'P'
-                ? '<div class="aviso-tag-piscando" style="margin-top:8px;background:#f9731618;border:1px solid #f9731655;border-radius:10px;padding:9px 11px;font-size:9px;color:#fb923c;font-weight:700;line-height:1.5">⚠ ' + (window.HATSU_TAG_AVISO || '') + '</div>'
+                // O aviso pisca na cor do TEMA (que segue a categoria de Nen), não numa cor fixa.
+                ? '<div class="aviso-tag-piscando" style="margin-top:8px;background:' + tc + '18;border:1px solid ' + tc + '55;border-radius:10px;padding:9px 11px;font-size:9px;color:' + tc + ';font-weight:700;line-height:1.5">⚠ ' + (window.HATSU_TAG_AVISO || '') + '</div>'
                 : '');
         content = `
         <div style="text-align:center;margin-bottom:14px">

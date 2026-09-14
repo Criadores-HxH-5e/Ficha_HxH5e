@@ -229,12 +229,41 @@
                                 const suf = rod == null ? '' : (k === 'zetsu' ? (' em ' + rod + 'r') : (' ' + rod + 'r'));
                                 return (k === 'gyo' && char.gyoAlvo ? (n + ' (' + char.gyoAlvo + ')') : n) + suf;
                             }).join(', ');
-                            return `<div style="background:#4ade8015;border:1px solid #4ade8044;border-radius:9px;padding:7px 10px;margin-bottom:8px;display:flex;align-items:center;gap:8px">
-                                <div style="flex:1;font-size:9px;color:#4ade80;font-weight:700;line-height:1.4">⚡ Ativo: ${nomes}</div>
-                                <button onclick="window._desativarTodosPrincipios()" style="flex-shrink:0;padding:4px 9px;border-radius:6px;background:transparent;border:1px solid #4ade8055;color:#4ade80;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer">Desligar tudo</button>
+                            // O container externo NÃO é flex: antes ele era, e a linha era
+                            // fechada cedo para caber o botão de passar rodada, sobrando uma
+                            // </div>. Esse fechamento a mais quebrava o layout e engolia a
+                            // barra inferior de abas do app.
+                            return `<div style="background:#4ade8015;border:1px solid #4ade8044;border-radius:9px;padding:7px 10px;margin-bottom:8px">
+                                <div style="display:flex;align-items:center;gap:8px">
+                                    <div style="flex:1;font-size:9px;color:#4ade80;font-weight:700;line-height:1.4">⚡ Ativo: ${nomes}</div>
+                                    <button onclick="window._desativarTodosPrincipios()" style="flex-shrink:0;padding:4px 9px;border-radius:6px;background:transparent;border:1px solid #4ade8055;color:#4ade80;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer">Desligar tudo</button>
                                 </div>
                                 <button onclick="window._passarRodada()" style="width:100%;margin-top:7px;padding:8px;border-radius:8px;background:#4ade8022;border:1px solid #4ade8066;color:#4ade80;font-family:'Orbitron',sans-serif;font-weight:900;font-size:8px;text-transform:uppercase;letter-spacing:1px;cursor:pointer">⏭ Passar rodada${char.rodadaAtual ? ' (rodada ' + char.rodadaAtual + ')' : ''}</button>
                             </div>`;
+                        })()}
+                        ${(() => {
+                            // ── Hatsus na mesma aba dos Princípios ─────────────────────────────
+                            // Assim o jogador controla tudo de um lugar, sem abrir cada Hatsu.
+                            // Os desativados piscam na cor do TEMA (que segue a categoria de Nen).
+                            const ha = char.hatsusAtivos || {};
+                            const lista = (char.hatsus || []);
+                            if (!lista.length) return '';
+                            const nAtivos = Object.keys(ha).filter(k => ha[k]).length;
+                            const html = lista.map((h, i) => {
+                                const a = ha[i];
+                                if (a) {
+                                    const txt = a.constante ? 'constante' : ('restam ' + (a.rodadas || 0) + '/' + a.max + ' rod.');
+                                    return `<div style="display:flex;align-items:center;gap:8px;background:#4ade8012;border:1px solid #4ade8033;border-radius:8px;padding:6px 9px;margin-bottom:5px">
+                                        <div style="flex:1;min-width:0;font-size:9px;color:#4ade80;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">⚡ ${h.nome || ('Hatsu ' + (i+1))} <span style="color:#6b7280;font-weight:400">(${txt})</span></div>
+                                        <button onclick="window._desativarHatsu(${i})" style="flex-shrink:0;padding:3px 8px;border-radius:6px;background:transparent;border:1px solid #4ade8055;color:#4ade80;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer">Desligar</button>
+                                    </div>`;
+                                }
+                                return `<div class="aviso-tag-piscando" style="display:flex;align-items:center;gap:8px;background:${tc2}12;border:1px solid ${tc2}33;border-radius:8px;padding:6px 9px;margin-bottom:5px">
+                                    <div style="flex:1;min-width:0;font-size:9px;color:${tc2};font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h.nome || ('Hatsu ' + (i+1))}</div>
+                                    <button onclick="window._ativarHatsuDaFicha(${i})" style="flex-shrink:0;padding:3px 9px;border-radius:6px;background:${tc2};border:none;color:#000;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer">⚡ Ativar</button>
+                                </div>`;
+                            }).join('');
+                            return `<div style="font-size:7px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">🌀 Hatsus${nAtivos ? ' — ' + nAtivos + ' ativo(s)' : ''}</div>${html}<div style="height:8px"></div>`;
                         })()}
                         <div style="font-size:7px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">🔮 Princípios de NEN</div>
                         <div style="display:flex;gap:4px;flex-wrap:wrap">${btns}</div>
