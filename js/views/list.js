@@ -66,6 +66,9 @@
                         </div>
                         <span style="font-size:8px;color:#374151">&#x21BB; Sincronizar</span>
                     </div>` : ''}
+                    ${state._quotaCheia ? `<div style="background:#f9731615;border:1px solid #f9731644;border-radius:10px;padding:9px 12px;margin-bottom:12px;font-size:9px;color:#fb923c;line-height:1.5">
+                        &#x26A0; O armazenamento local do navegador está cheio, então as fichas estão sendo lidas direto da nuvem. Tudo continua salvo, mas o app fica mais lento e não funciona offline. Imagens grandes nas fichas são a causa mais comum.
+                    </div>` : ''}
 
                     <div class="text-center mb-8">
                         <h1 class="font-display font-black text-3xl tracking-widest text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">HxH 5e RPG</h1>
