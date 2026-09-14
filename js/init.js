@@ -944,6 +944,189 @@ function closeHatsuCreator() {
             else render(true);
         };
 
+        // ── Contador de rodada do personagem ────────────────────────────────────────
+        // Um contador só, compartilhado por Hatsus e Princípios ativos. Passar a rodada
+        // desconta de tudo que tem duração contada e desliga o que chegou a zero.
+        // O que tem duração constante (Relíquia Viva, Vínculo Sustentado, Maldição pelo
+        // temporizador) não entra na contagem e só sai no desligamento manual.
+        window._ativarHatsu = function (idx, rodadas, constante) {
+            const char = state.currentChar;
+            if (!char.hatsusAtivos) char.hatsusAtivos = {};
+            char.hatsusAtivos[idx] = {
+                constante: !!constante,
+                rodadas: constante ? null : Math.max(0, parseInt(rodadas) || 0),
+                max: constante ? null : Math.max(0, parseInt(rodadas) || 0),
+            };
+            saveCharacter(char);
+            render(true);
+        };
+
+        window._desativarHatsu = function (idx) {
+            const char = state.currentChar;
+            if (char.hatsusAtivos) delete char.hatsusAtivos[idx];
+            saveCharacter(char);
+            render(true);
+        };
+
+        // Quantas rodadas cada princípio dura. Null = sem contagem (sai manual).
+        window.PRINCIPIO_RODADAS = {
+            ten: 1,      // vale pela reação
+            ren: 1,      // próximo ataque do turno
+            ken: 2,      // CA dobrada por 2 rodadas
+            ko: 1,       // próximo golpe, CA reduzida até o próximo turno
+            ryu: 6,      // 6 rodadas: exemplos 1-3 são padrão, 4-6 exigem Superior
+            shu: null,   // rodadas conforme aprimoramento — resolvido na ativação
+            gyo: 1,
+            en: 1,
+            inp: null,   // rodadas conforme aprimoramento
+            zetsu: null, // conta ao contrário: é CARGA, resolvida na ativação
+        };
+
+        window._passarRodada = function () {
+            const char = state.currentChar;
+            const expirados = [];
+
+            // Hatsus com duração contada
+            const ha = char.hatsusAtivos || {};
+            Object.keys(ha).forEach(function (k) {
+                const a = ha[k];
+                if (!a || a.constante) return;
+                a.rodadas = Math.max(0, (a.rodadas || 0) - 1);
+                if (a.rodadas <= 0) {
+                    const h = (char.hatsus || [])[k];
+                    expirados.push('Hatsu "' + ((h && h.nome) || ('#' + (parseInt(k) + 1))) + '"');
+                    delete ha[k];
+                }
+            });
+
+            // Princípios com duração contada
+            const pr = char.principiosRodadas || {};
+            const at = char.principiosAtivos || {};
+            const concluidos = [];
+            Object.keys(at).forEach(function (k) {
+                if (!at[k]) return;
+                if (pr[k] == null) return; // sem contagem: sai manual
+                pr[k] = Math.max(0, pr[k] - 1);
+                if (pr[k] > 0) return;
+
+                if (k === 'zetsu') {
+                    // ZETSU não expira: ele COMPLETA. A contagem é o tempo de espera
+                    // (3, 2 ou 1 rodada conforme o investimento) e, ao acabar, concede
+                    // os benefícios — aura recuperada e reações. Por isso ele é contado
+                    // separado de tudo que "expira".
+                    const z = window.calcZetsuBonus ? window.calcZetsuBonus(char) : { auraPct: 0, reacoes: 0, furtividade: 0 };
+                    const ganhoAura = Math.round(((char.vitals.auraMax || 100) * (z.auraPct || 0)) / 100);
+                    if (ganhoAura > 0) {
+                        char.vitals.aura = Math.min(char.vitals.auraMax || 100, (char.vitals.aura || 0) + ganhoAura);
+                    }
+                    if (z.reacoes > 0) {
+                        const reaMaxAtual = window.calcReacoesMax ? window.calcReacoesMax(char) : null;
+                        const base = (char.vitals.rea !== undefined) ? char.vitals.rea : (reaMaxAtual != null ? reaMaxAtual : 0);
+                        char.vitals.rea = base + z.reacoes;
+                    }
+                    concluidos.push('ZETSU: +' + ganhoAura + ' de aura'
+                        + (z.reacoes > 0 ? ', +' + z.reacoes + ' Reação(ões)' : '')
+                        + (z.furtividade > 0 ? ', +' + z.furtividade + ' Furtividade nesta rodada' : ''));
+                } else {
+                    expirados.push(k.toUpperCase());
+                }
+                delete at[k];
+                delete pr[k];
+                if (k === 'gyo') delete char.gyoAlvo;
+            });
+
+            char.rodadaAtual = (parseInt(char.rodadaAtual) || 0) + 1;
+            saveCharacter(char);
+            render(true);
+            if (concluidos.length && window._showXpToast) {
+                window._showXpToast('👁️ ' + concluidos.join(' | '));
+            }
+            if (expirados.length && window._showXpToast) {
+                setTimeout(function () { window._showXpToast('⏳ Expirou: ' + expirados.join(', ')); }, concluidos.length ? 2400 : 0);
+            }
+        };
+
+        window._zerarRodadas = function () {
+            const char = state.currentChar;
+            char.rodadaAtual = 0;
+            char.hatsusAtivos = {};
+            char.principiosAtivos = {};
+            char.principiosRodadas = {};
+            delete char.gyoAlvo;
+            saveCharacter(char);
+            render(true);
+        };
+
+        // ── Princípios de Nen ATIVOS ────────────────────────────────────────────────
+        // Até aqui o botão do princípio só descontava aura e mostrava um texto: nenhum
+        // número da ficha mudava. Agora o estado fica guardado em char.principiosAtivos,
+        // e os efeitos numéricos leem daí (RD do TEN, CA do KEN/KO/RYU/SHU, atributo do GYO).
+        //
+        // O desligamento é MANUAL, por decisão de mesa: o app não acompanha as rodadas, e
+        // desligar sozinho na hora errada atrapalharia mais que ajudar. Cada princípio mostra
+        // a duração no rótulo para o jogador lembrar.
+        window.principioAtivo = function (char, key) {
+            return !!(((char || {}).principiosAtivos) || {})[key];
+        };
+
+        window._desativarPrincipio = function (key) {
+            const char = state.currentChar;
+            if (!char.principiosAtivos) char.principiosAtivos = {};
+            delete char.principiosAtivos[key];
+            if (char.principiosRodadas) delete char.principiosRodadas[key];
+            if (key === 'gyo') delete char.gyoAlvo;
+            saveCharacter(char);
+            render(true);
+        };
+
+        window._desativarTodosPrincipios = function () {
+            const char = state.currentChar;
+            char.principiosAtivos = {};
+            delete char.gyoAlvo;
+            saveCharacter(char);
+            render(true);
+        };
+
+        // GYO pergunta onde a aura foi concentrada. Nos olhos, é percepção (narrativo).
+        // No corpo, dá bônus num atributo físico — e se for CON, a CA sobe junto, porque
+        // a CA sem armadura é 10 + modificador de CON.
+        window._abrirGyoAlvo = function () {
+            const char = state.currentChar;
+            const bonus = (window.calcAvancadoBonus ? window.calcAvancadoBonus(char, 'gyo') : { attrBonus: 3 }).attrBonus || 3;
+            const tc = getComputedStyle(document.documentElement).getPropertyValue('--theme-color-hex').trim() || '#00ff9d';
+            const ov = document.createElement('div');
+            ov.id = 'gyo-overlay';
+            ov.style.cssText = 'position:fixed;inset:0;background:#000000ee;display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;font-family:Rajdhani,sans-serif';
+            const btn = function (val, titulo, sub) {
+                return '<div onclick="window._hSetGyoAlvo(\'' + val + '\')" style="background:#111827;border:1px solid #1f2937;border-radius:11px;padding:11px 13px;margin-bottom:7px;cursor:pointer">'
+                    + '<div style="font-size:11px;font-weight:900;color:' + tc + '">' + titulo + '</div>'
+                    + '<div style="font-size:9px;color:#6b7280;margin-top:2px;line-height:1.4">' + sub + '</div></div>';
+            };
+            ov.innerHTML = '<div style="background:#0d1117;border:2px solid ' + tc + ';border-radius:20px;padding:20px;width:100%;max-width:380px">'
+                + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:12px;color:' + tc + ';text-transform:uppercase;letter-spacing:2px;margin-bottom:4px">🔍 GYO — onde concentrar?</div>'
+                + '<div style="font-size:9px;color:#6b7280;margin-bottom:12px">A concentração de aura vai para uma parte do corpo. A escolha muda o efeito.</div>'
+                + btn('olhos', '👁 Olhos', 'Enxerga aura e o que está oculto (IN). Custo menor, efeito narrativo.')
+                + '<div style="font-size:8px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin:10px 0 6px">Corpo — +' + bonus + ' no atributo</div>'
+                + btn('FOR', '💪 Força', 'Golpes e testes de Força.')
+                + btn('DES', '🏃 Destreza', 'Reflexos e testes de Destreza.')
+                + btn('CON', '🛡 Constituição', 'Resistência — e a CA sobe junto, por causa do 10 + CON.')
+                + '<button onclick="document.getElementById(\'gyo-overlay\').remove()" style="width:100%;margin-top:6px;padding:10px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:9px;text-transform:uppercase;cursor:pointer">Cancelar</button>'
+                + '</div>';
+            document.body.appendChild(ov);
+        };
+
+        window._hSetGyoAlvo = function (alvo) {
+            const char = state.currentChar;
+            if (!char.principiosAtivos) char.principiosAtivos = {};
+            char.principiosAtivos.gyo = true;
+            char.gyoAlvo = alvo;
+            if (!char.principiosRodadas) char.principiosRodadas = {};
+            char.principiosRodadas.gyo = 1;
+            document.getElementById('gyo-overlay')?.remove();
+            saveCharacter(char);
+            render(true);
+        };
+
         window._showSanDamageModal = function() {
             const char = state.currentChar;
             const rdm = calcRDM(char);
@@ -1058,6 +1241,31 @@ function closeHatsuCreator() {
 };
             const msgs = EFEITOS[key];
             const msg = msgs ? (msgs[nivel-1] || msgs[msgs.length-1]) : 'Princípio ativado.';
+
+            // Guarda o princípio como ATIVO. É isso que faz os efeitos numéricos valerem:
+            // sem esse registro, a ativação só descontava aura e mostrava o texto.
+            // O GYO pergunta antes onde a aura foi concentrada — e essa resposta é que
+            // define o efeito, então a ativação dele acontece dentro do pop-up.
+            if (!char.principiosAtivos) char.principiosAtivos = {};
+            if (key === 'gyo') {
+                if (window._abrirGyoAlvo) { window._abrirGyoAlvo(); }
+            } else if (key === 'zetsu') {
+                // ZETSU entra na contagem como CARGA: o tempo de espera vem do nível
+                // investido (3 rodadas no Básico, 2 no Intermediário, 1 na Maestria) e o
+                // benefício é concedido quando a contagem zera, não durante.
+                const zb = window.calcZetsuBonus ? window.calcZetsuBonus(char) : { rodadas: 3 };
+                char.principiosAtivos.zetsu = true;
+                if (!char.principiosRodadas) char.principiosRodadas = {};
+                char.principiosRodadas.zetsu = Math.max(1, zb.rodadas || 3);
+            } else {
+                char.principiosAtivos[key] = true;
+                // Registra a duração para o contador de rodada. SHU e IN dependem do
+                // aprimoramento comprado, então lemos o valor calculado.
+                if (!char.principiosRodadas) char.principiosRodadas = {};
+                let rod = (window.PRINCIPIO_RODADAS || {})[key];
+                if (key === 'shu' || key === 'inp') rod = (advB && advB.rodadas) || 1;
+                char.principiosRodadas[key] = (rod == null) ? null : rod;
+            }
 
             saveCharacter(char);
             render(true);
