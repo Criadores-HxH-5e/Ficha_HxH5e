@@ -392,6 +392,35 @@ window._checkJuramentoImutavelLevelUp = function(char, previousLevel) {
 // Custo final de aura de um Hatsu (base calculada pelas restrições/efeitos, reduzido pelos
 // Graus dos "5 Graus do 1º Hatsu" aplicados em Redução de Custo). Única fonte de verdade — usada
 // tanto na exibição (renderHatsuDetail) quanto no desconto real ao rolar (rollHatsuDamage).
+// ── Duração do Hatsu, reutilizável fora da tela de detalhe ────────────────────
+// A tela de detalhe calcula a duração com todos os bônus. A aba Ficha precisa do
+// mesmo número para ativar o Hatsu sem abrir, então a regra vive aqui.
+// Constante = sem contagem: Relíquia Viva, Vínculo Sustentado, Concentração Total,
+// Canalizar com Concentração e Maldição (que tem temporizador próprio).
+window.calcDuracaoHatsu = function (h, char) {
+    if (!h) return { rodadas: 0, constante: false };
+    const efeitos = h.efeitos || [];
+    const restr = h.restricoes || [];
+    if ((h.tag || 'P') === 'M') return { rodadas: null, constante: true };
+    if (efeitos.includes('rm_e21') || efeitos.includes('rm_e11') || efeitos.includes('ri_e15')) {
+        return { rodadas: null, constante: true };
+    }
+    if (restr.includes('rg_v2')) return { rodadas: null, constante: true };
+    let rod = 0;
+    rod += efeitos.filter(function (id) { return id === 'eg2'; }).length;  // Aumento de Duração
+    if (restr.includes('rg_p2')) rod += 3;                                 // Boneca Russa
+    if (restr.includes('rm_l3')) rod += 2;                                 // 1 Item por Combate
+    const bc = h.beneficioChoices || {};
+    if (restr.includes('rg_m13')) {
+        const esc = String(bc.rg_m13 || '').toLowerCase();
+        if (esc.includes('rodada') || esc.includes('dura')) rod += 2;      // Zetsu Protetivo
+    }
+    const ph = h.primeiroHatsuGraus || {};
+    rod += ph.duracao || 0;
+    if (h.bonusGraus && h.bonusGraus.tipo === 'duracao') rod += h.bonusGraus.valor || 0;
+    return { rodadas: Math.max(0, rod), constante: false };
+};
+
 window.calcHatsuAuraCostFinal = function(h, idx, idsModo) {
     if (!window.calcAuraCost) return { pct: 50, reduced: false, phgCusto: 0 };
     // idsModo permite calcular o custo com as restrições/efeitos DO MODO ATIVO, e não
