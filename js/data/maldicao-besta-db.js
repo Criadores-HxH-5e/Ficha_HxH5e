@@ -46,6 +46,19 @@ window.MALDICAO_DB = {
         { n:5, texto:'Uma Restrição/Efeito COMO CONSEQUÊNCIA por cumprir ou descumprir a imposição' },
         { n:6, texto:'Uma forma de NÃO RECEBER ou SAIR da maldição sem ser por Exorcismo' },
     ],
+    // ── Mapa dos requisitos para os ids reais do HATSU_DB ───────────────────────
+    // Requisitos 1 a 4 o app detecta sozinho; 5 e 6 são declarações do jogador, porque
+    // "consequência" e "forma de sair" dependem da narrativa, não de uma lista fechada.
+    // Um mesmo item pode cumprir mais de um requisito — o validador não consome nada.
+    mapa: {
+        req1: { pesada: 1, inferiores: 3 },
+        req2: ['rg_l10','rg_m9','rg_v4','rg_l11','rg_m1','rg_m8'],
+        // Golem de Aura fica em MATERIALIZAÇÃO no app (o livro agrupa em Emissão);
+        // seguimos o app, que é o correto.
+        req3: ['rm_e4','rm_e1','rm_e2','em_e1','em_e3','em_e5','ma_e2',
+               'ma_e3','ma_e4','ma_e7','ma_e8','ma_e9','ma_e10','ma_e11'],
+    },
+
     requisitosPositiva: [
         { n:7, texto:'Bônus máximo de +3 Graus de Potência em qualquer característica' },
         { n:8, texto:'Desmaiar com o Hatsu ativo ou ser Selado (Zetsu forçado) bloqueia o efeito — exige novo ritual' },

@@ -392,13 +392,18 @@ window._checkJuramentoImutavelLevelUp = function(char, previousLevel) {
 // Custo final de aura de um Hatsu (base calculada pelas restrições/efeitos, reduzido pelos
 // Graus dos "5 Graus do 1º Hatsu" aplicados em Redução de Custo). Única fonte de verdade — usada
 // tanto na exibição (renderHatsuDetail) quanto no desconto real ao rolar (rollHatsuDamage).
-window.calcHatsuAuraCostFinal = function(h, idx) {
+window.calcHatsuAuraCostFinal = function(h, idx, idsModo) {
     if (!window.calcAuraCost) return { pct: 50, reduced: false, phgCusto: 0 };
+    // idsModo permite calcular o custo com as restrições/efeitos DO MODO ATIVO, e não
+    // sempre com os do Hatsu raiz. Sem isso, desligar ou acrescentar restrição num modo
+    // mudava o dano mas não mudava o custo de aura.
+    const _rIds = (idsModo && idsModo.restricoes) || h.restricoes || [];
+    const _eIds = (idsModo && idsModo.efeitos) || h.efeitos || [];
     const fakeHb = {
-        rg: (h.restricoes||[]).filter(id => id.startsWith('rg_')),
-        rc: (h.restricoes||[]).filter(id => !id.startsWith('rg_')),
-        eg: (h.efeitos||[]).filter(id => id.startsWith('eg')),
-        ec: (h.efeitos||[]).filter(id => !id.startsWith('eg')),
+        rg: _rIds.filter(id => id.startsWith('rg_')),
+        rc: _rIds.filter(id => !id.startsWith('rg_')),
+        eg: _eIds.filter(id => id.startsWith('eg')),
+        ec: _eIds.filter(id => !id.startsWith('eg')),
     };
     const cc = window.calcAuraCost(fakeHb);
     const phgCusto = (idx === 0 && h.primeiroHatsuGraus && h.primeiroHatsuGraus.custo) ? h.primeiroHatsuGraus.custo : 0;
@@ -733,7 +738,8 @@ function renderHatsuDetail(container) {
             nome: _sc[_kEg4('eg4_nome', _i)] || '',
             adicionado: _sc[_kEg4('eg4', _i)] || '',
             removido: _sc[_kEg4('eg4_remove', _i)] || '',
-            restrOff: Array.isArray(_sc[_kEg4('eg4_restr_off', _i)]) ? _sc[_kEg4('eg4_restr_off', _i)] : []
+            restrOff: Array.isArray(_sc[_kEg4('eg4_restr_off', _i)]) ? _sc[_kEg4('eg4_restr_off', _i)] : [],
+            restrAdd: Array.isArray(_sc[_kEg4('eg4_restr_add', _i)]) ? _sc[_kEg4('eg4_restr_add', _i)] : []
         });
     }
     let _modoIdx = parseInt(h.modoAtivo) || 0;
@@ -750,6 +756,13 @@ function renderHatsuDetail(container) {
         (_modo.restrOff || []).forEach(function(nomeR){
             const _iR = restricoesSel.findIndex(function(r){ return r.nome === nomeR; });
             if (_iR >= 0) restricoesSel.splice(_iR, 1);
+        });
+        // Restrições exclusivas deste modo entram aqui, com todos os efeitos mecânicos
+        // (inclusive o P.N que concedem, que vale só neste modo).
+        (_modo.restrAdd || []).forEach(function (nomeR) {
+            if (restricoesSel.some(function (r) { return r.nome === nomeR; })) return;
+            const add = allRDB.find(function (r) { return r.nome === nomeR; });
+            if (add) restricoesSel.push(add);
         });
     }
 
@@ -2165,6 +2178,7 @@ function renderHatsuDetail(container) {
                     ${_modo.adicionado ? `<div style="color:#4ade80;font-weight:700">+ ${_modo.adicionado}</div>` : ''}
                     ${_modo.removido ? `<div style="color:#f87171;font-weight:700">− ${_modo.removido}</div>` : ''}
                     ${(_modo.restrOff || []).length ? `<div style="color:#fb923c;font-weight:700;margin-top:2px">Restrições desligadas: ${_modo.restrOff.join(', ')}</div>` : ''}
+                    ${(_modo.restrAdd || []).length ? `<div style="color:#4ade80;font-weight:700;margin-top:2px">Restrições só deste modo: ${_modo.restrAdd.join(', ')}</div>` : ''}
                 </div>` : ''}
             </div>`
         : '';
@@ -2303,7 +2317,7 @@ function renderHatsuDetail(container) {
                     </div>
                     <div>
                         <div style="font-size:8px;color:#374151;text-transform:uppercase;font-weight:700;margin-bottom:2px">Custo Base</div>
-                        <div style="font-size:10px;font-weight:600">${(() => { const _ac = window.calcHatsuAuraCostFinal(h, idx); const color = _ac.reduced ? '#4ade80' : '#d1d5db'; const extra = _ac.phgCusto > 0 ? ` <span style="font-size:8px;color:#4b5563">(−${_ac.phgCusto*5}% 1º Hatsu)</span>` : ''; return '<span style="color:'+color+'">' + _ac.pct + '% de Aura' + (_ac.reduced?' ✓':'') + '</span>' + extra; })()}</div>
+                        <div style="font-size:10px;font-weight:600">${(() => { const _ac = window.calcHatsuAuraCostFinal(h, idx, { restricoes: restricoesSel.map(function(r){return r.id;}), efeitos: efeitosSel.map(function(e){return e.id;}) }); const color = _ac.reduced ? '#4ade80' : '#d1d5db'; const extra = _ac.phgCusto > 0 ? ` <span style="font-size:8px;color:#4b5563">(−${_ac.phgCusto*5}% 1º Hatsu)</span>` : ''; return '<span style="color:'+color+'">' + _ac.pct + '% de Aura' + (_ac.reduced?' ✓':'') + '</span>' + extra; })()}</div>
                     </div>
                     <div>
                         <div style="font-size:8px;color:#374151;text-transform:uppercase;font-weight:700;margin-bottom:2px">Alcance</div>
