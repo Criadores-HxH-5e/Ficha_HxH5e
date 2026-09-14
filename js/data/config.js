@@ -713,3 +713,42 @@ window.calcIniciativaBonus = function (char) {
     const total = fontes.reduce(function (a, f) { return a + f.valor; }, 0);
     return { total: total, fontes: fontes };
 };
+
+// ── Fontes de Redução de Dano (RD) ────────────────────────────────────────────
+// A RD do sistema NÃO é um número único: cada fonte tem a própria condição. Só a
+// Defensiva Bruta de 1º ponto vale sempre; as demais dependem do golpe, do alvo ou
+// da rolagem. Por isso o app não subtrai tudo sozinho — ele lista as fontes, liga as
+// passivas por padrão e deixa o jogador ligar as condicionais quando valerem.
+//
+// Fonte: Inclinações de Combate (livro v2.0). A RD vinda dos Princípios de Nen
+// (TEN, KEN) entra aqui quando a ativação dos princípios existir.
+window.RD_FONTES = [
+    { id: 'defensiva_bruta_1',   inc: 'defensiva_bruta',          tier: 1, valor: 3,
+      nome: 'Defensiva Bruta', passiva: true,
+      condicao: 'Qualquer dano, de qualquer oponente' },
+    { id: 'defensiva_precisa_1', inc: 'defensiva_precisa',        tier: 1, valor: 5,
+      nome: 'Defensiva Precisa', passiva: false,
+      condicao: 'Só contra UM alvo escolhido no combate' },
+    { id: 'defensiva_bruta_2',   inc: 'defensiva_bruta',          tier: 2, valor: null, formula: 'con3',
+      nome: 'Defensiva Bruta (3×CON)', passiva: false,
+      condicao: 'Ataque que falhou em bloquear — 1× por rodada' },
+    { id: 'armadura_pesada_2',   inc: 'maestria_armadura_pesada', tier: 2, valor: 3,
+      nome: 'Maestria em Armadura Pesada', passiva: false,
+      condicao: 'Só quando o acerto IGUALA a sua CA' },
+];
+
+// Devolve as fontes de RD que o personagem realmente possui, já com o valor calculado.
+// 3×CON usa o MODIFICADOR de Constituição, não o valor bruto do atributo.
+window.calcFontesRD = function (char) {
+    if (!char) return [];
+    const ci = char.combatInclinations || {};
+    const conMod = Math.floor(((((char.attributes || {}).CON || {}).value || 10) - 10) / 2);
+    return (window.RD_FONTES || []).filter(function (f) {
+        return (parseInt(ci[f.inc]) || 0) >= f.tier;
+    }).map(function (f) {
+        return {
+            id: f.id, nome: f.nome, passiva: f.passiva, condicao: f.condicao,
+            valor: f.formula === 'con3' ? Math.max(0, conMod * 3) : f.valor,
+        };
+    });
+};
