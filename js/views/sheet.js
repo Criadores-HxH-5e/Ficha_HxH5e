@@ -104,7 +104,7 @@
                 const rdmVal = calcRDM(char);
                 const sanPct = Math.round((char.vitals.san / char.vitals.sanMax) * 100);
                 const sanColor = sanPct >= 90 ? 'text-green-400' : sanPct >= 75 ? 'text-yellow-400' : sanPct >= 50 ? 'text-orange-400' : 'text-purple-400';
-                const reaMax = 7 + getMod(char.attributes.SAB.value) + (((char.combatInclinations || {}).analitica || 0) >= 1 ? 2 : 0);
+                const reaMax = window.calcReacoesMax ? window.calcReacoesMax(char) : (7 + getMod(char.attributes.SAB.value));
                 const reaCur = char.vitals.rea !== undefined ? char.vitals.rea : reaMax;
                 const vitalsGridHtml = `<div class="grid grid-cols-3 gap-y-2 gap-x-2 px-2 py-2 border-b border-gray-800 bg-[#0b0c10] mb-4">${renderNeonVital('SAN', char.vitals.san, char.vitals.sanMax, sanColor, 'bg-white')}${renderNeonVital('REA', reaCur, reaMax, 'text-white', 'bg-white text-white', true, 1, true)}${renderNeonVital('AURA', char.vitals.aura, char.vitals.auraMax, `text-[${themeColor}]`, `bg-[${themeColor}] text-[${themeColor}]`, true, 5)}${(() => {
                     // Escudo desenhado ATRÁS do número da CA, como marca d'água.
@@ -193,12 +193,19 @@
                     ].filter(p => p.show);
 
                     const btns = PRINCIPIOS.map(p => {
-                        const canAct = aura >= p.custo;
-                        const col = canAct ? tc2 : '#374151';
-                        return `<button onclick="window._activatePrincipio('${p.key}',${p.custo})"
+                        // Princípio ATIVO ganha destaque e o clique passa a DESLIGAR.
+                        // O desligamento é manual: o app não acompanha as rodadas da mesa.
+                        const ativo = window.principioAtivo && window.principioAtivo(char, p.key);
+                        // ZETSU custa 0 e serve de carga: sempre pode ser iniciado.
+                        const canAct = ativo || p.key === 'zetsu' || aura >= p.custo;
+                        const col = ativo ? '#4ade80' : (canAct ? tc2 : '#374151');
+                        const acao = ativo
+                            ? `window._desativarPrincipio('${p.key}')`
+                            : `window._activatePrincipio('${p.key}',${p.custo})`;
+                        return `<button onclick="${acao}"
                             style="display:flex;flex-direction:column;align-items:center;padding:8px 6px;border-radius:10px;border:1.5px solid ${col}44;background:${col}11;cursor:${canAct?'pointer':'not-allowed'};opacity:${canAct?1:0.5};min-width:56px;flex:1;transition:all .15s"
-                            title="${p.desc}">
-                            <span style="font-size:14px;margin-bottom:2px">${p.icon}</span>
+                            title="${ativo ? 'ATIVO — clique para desligar' : p.desc}">
+                            <span style="font-size:14px;margin-bottom:2px">${p.icon}${ativo ? ' ✓' : ''}</span>
                             <span style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:7px;color:${col};text-transform:uppercase">${p.label}</span>
                             <span style="font-size:7px;color:#6b7280;margin-top:1px">${p.custo>0?p.custo+'%':p.efeito}</span>
                             <span style="font-size:7px;color:${col};font-weight:700;margin-top:1px">${p.efeito}</span>
@@ -206,6 +213,29 @@
                     }).join('');
 
                     return `<div style="padding:8px 12px;border-bottom:1px solid #111827;background:#0a0f1a">
+                        ${(() => {
+                            // Faixa dos princípios ligados, com o botão de desligar tudo.
+                            // Serve de lembrete: como o desligamento é manual, é fácil esquecer
+                            // um princípio aceso depois do combate.
+                            const at = char.principiosAtivos || {};
+                            const ligados = Object.keys(at).filter(k => at[k]);
+                            if (!ligados.length) return '';
+                            const nomes = ligados.map(k => {
+                                const p = PRINCIPIOS.find(x => x.key === k);
+                                const n = p ? p.label : k.toUpperCase();
+                                const rod = (char.principiosRodadas || {})[k];
+                                // ZETSU é carga: mostra quanto falta para receber o benefício,
+                                // não quanto falta para expirar.
+                                const suf = rod == null ? '' : (k === 'zetsu' ? (' em ' + rod + 'r') : (' ' + rod + 'r'));
+                                return (k === 'gyo' && char.gyoAlvo ? (n + ' (' + char.gyoAlvo + ')') : n) + suf;
+                            }).join(', ');
+                            return `<div style="background:#4ade8015;border:1px solid #4ade8044;border-radius:9px;padding:7px 10px;margin-bottom:8px;display:flex;align-items:center;gap:8px">
+                                <div style="flex:1;font-size:9px;color:#4ade80;font-weight:700;line-height:1.4">⚡ Ativo: ${nomes}</div>
+                                <button onclick="window._desativarTodosPrincipios()" style="flex-shrink:0;padding:4px 9px;border-radius:6px;background:transparent;border:1px solid #4ade8055;color:#4ade80;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer">Desligar tudo</button>
+                                </div>
+                                <button onclick="window._passarRodada()" style="width:100%;margin-top:7px;padding:8px;border-radius:8px;background:#4ade8022;border:1px solid #4ade8066;color:#4ade80;font-family:'Orbitron',sans-serif;font-weight:900;font-size:8px;text-transform:uppercase;letter-spacing:1px;cursor:pointer">⏭ Passar rodada${char.rodadaAtual ? ' (rodada ' + char.rodadaAtual + ')' : ''}</button>
+                            </div>`;
+                        })()}
                         <div style="font-size:7px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">🔮 Princípios de NEN</div>
                         <div style="display:flex;gap:4px;flex-wrap:wrap">${btns}</div>
                     </div>`;
@@ -2798,8 +2828,16 @@
         // recalculada: se o CON subisse, a CA continuava a mesma. Agora é sempre conta.
         // Sem armadura: 10 + mod CON. Com armadura: vale a MAIOR das duas.
         // CA de objeto de Hatsu não entra aqui — ela tem lugar próprio na ficha do Hatsu.
+        // Bônus de atributo vindo do GYO corporal. Vale enquanto o princípio estiver ativo.
+        window.gyoBonusAttr = function (char, attr) {
+            const at = (char && char.principiosAtivos) || {};
+            if (!at.gyo || char.gyoAlvo !== attr) return 0;
+            const b = window.calcAvancadoBonus ? window.calcAvancadoBonus(char, 'gyo') : { attrBonus: 3 };
+            return b.attrBonus || 3;
+        };
+
         function calcCASemArmadura(char) {
-            const con = ((char.attributes || {}).CON || {}).value || 10;
+            const con = (((char.attributes || {}).CON || {}).value || 10) + window.gyoBonusAttr(char, 'CON');
             return 10 + getMod(con);
         }
         // O campo ca do ITEM_DB é texto: "16", "12 + DES", "14 + DES (max. 3)" para armaduras
@@ -2832,11 +2870,34 @@
             });
             return { armadura: melhorArmadura, escudo: bonusEscudo };
         }
+        // ── Princípios ativos que mexem na CA ───────────────────────────────────────
+        // KEN dobra a CA, KO reduz 80%, RYU soma 3 e SHU soma 1d4 (usamos a média, 2).
+        // O GYO concentrado em CON entra pela porta normal, no 10 + modificador.
+        function calcCAPrincipios(char, caBase) {
+            const at = (char && char.principiosAtivos) || {};
+            const fontes = [];
+            let ca = caBase;
+            if (at.ken) { ca = ca * 2; fontes.push('KEN (×2)'); }
+            if (at.ko) {
+                const koB = window.calcAvancadoBonus ? window.calcAvancadoBonus(char, 'ko') : { caBonus: 0 };
+                ca = Math.round(ca * 0.2) + (koB.caBonus || 0);
+                fontes.push('KO (−80%' + ((koB.caBonus || 0) > 0 ? ', +' + koB.caBonus : '') + ')');
+            }
+            if (at.ryu) {
+                const ryB = window.calcAvancadoBonus ? window.calcAvancadoBonus(char, 'ryu') : { tabelaBonus: 0 };
+                const v = 3 + (ryB.tabelaBonus || 0);
+                ca += v; fontes.push('RYU (+' + v + ')');
+            }
+            if (at.shu) { ca += 2; fontes.push('SHU (+1d4, média 2)'); }
+            return { ca: Math.max(0, ca), fontes: fontes };
+        }
+
         function calcCAAtual(char) {
             if (!char) return 10;
             const arm = calcCAArmadura(char);
             // A maior entre "sem armadura" e a armadura vestida, e o escudo soma dos dois jeitos.
-            return Math.max(calcCASemArmadura(char), arm.armadura) + arm.escudo;
+            const base = Math.max(calcCASemArmadura(char), arm.armadura) + arm.escudo;
+            return calcCAPrincipios(char, base).ca;
         }
         window.calcCAAtual = calcCAAtual;
 

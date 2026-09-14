@@ -743,7 +743,7 @@ window.calcFontesRD = function (char) {
     if (!char) return [];
     const ci = char.combatInclinations || {};
     const conMod = Math.floor(((((char.attributes || {}).CON || {}).value || 10) - 10) / 2);
-    return (window.RD_FONTES || []).filter(function (f) {
+    const lista = (window.RD_FONTES || []).filter(function (f) {
         return (parseInt(ci[f.inc]) || 0) >= f.tier;
     }).map(function (f) {
         return {
@@ -751,4 +751,24 @@ window.calcFontesRD = function (char) {
             valor: f.formula === 'con3' ? Math.max(0, conMod * 3) : f.valor,
         };
     });
+    // TEN ativo também dá RD. Entra ligado por padrão: se o princípio está ativo, a
+    // proteção vale — mas só contra Corte, Impacto e Explosão, por isso a condição
+    // aparece escrita e o jogador pode desligar quando o dano for de outro tipo.
+    if (((char.principiosAtivos) || {}).ten && window.calcTenRD) {
+        const v = window.calcTenRD(char) || 0;
+        if (v > 0) lista.unshift({
+            id: 'principio_ten', nome: 'TEN (ativo)', passiva: true, valor: v,
+            condicao: 'Só contra Corte, Impacto e Explosão',
+        });
+    }
+    return lista;
+};
+
+// Reações máximas do personagem. Já existia embutido na ficha (sheet.js); virou função
+// para o contador de rodada poder somar as Reações concedidas pelo ZETSU ao completar.
+window.calcReacoesMax = function (char) {
+    if (!char || !char.attributes) return 7;
+    const sab = ((char.attributes.SAB || {}).value) || 10;
+    const analitica = ((char.combatInclinations || {}).analitica || 0) >= 1 ? 2 : 0;
+    return 7 + Math.floor((sab - 10) / 2) + analitica;
 };
