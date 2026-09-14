@@ -76,7 +76,7 @@
                 <div class="flex flex-col items-center justify-center w-full">
                     <span class="text-[9px] font-bold ${colorClass} uppercase tracking-wider mb-0.5">${label}</span>
                     <div class="flex items-center justify-between w-full max-w-[80%] gap-1">
-                         ${showBtns ? `<button onclick="${label === 'SAN' ? 'window._showSanDamageModal()' : `updateVital('${label.toLowerCase()}', ${-step})`}" class="text-gray-500 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors"><i data-lucide="minus" size="10"></i></button>` : '<div class="w-4"></div>'}
+                         ${showBtns ? `<button onclick="${label === 'SAN' ? 'window._showSanDamageModal()' : (label === 'PV' ? 'window._showPvDamageModal()' : `updateVital('${label.toLowerCase()}', ${-step})`)}" class="text-gray-500 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors"><i data-lucide="minus" size="10"></i></button>` : '<div class="w-4"></div>'}
                         <span class="font-display font-bold text-lg text-white tracking-wider${showMax && max != null ? ' cursor-pointer select-none active:opacity-60' : ''}" ${showMax && max != null ? `onclick="window._openVitalInputModal('${label.toLowerCase()}',${val},${max})"` : ''}>${showMax && max != null ? `${val}<span class="text-gray-400 text-xs font-normal">/${max}</span>` : val}</span>
                          ${showBtns ? `<button onclick="updateVital('${label.toLowerCase()}', ${step})" class="text-gray-500 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors"><i data-lucide="plus" size="10"></i></button>` : '<div class="w-4"></div>'}
                     </div>

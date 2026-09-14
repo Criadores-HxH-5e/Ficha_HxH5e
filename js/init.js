@@ -854,6 +854,96 @@ function closeHatsuCreator() {
             document.body.appendChild(overlay);
         };
 
+        // ── Modal de dano no PV, com Redução de Dano ────────────────────────────────
+        // O jogador digita o dano BRUTO e o app desconta a RD. As fontes passivas vêm
+        // ligadas; as condicionais vêm desligadas com a condição escrita ao lado, porque
+        // dependem do golpe, do alvo ou da rolagem e o app não tem como saber sozinho.
+        // Nada é descontado escondido: a conta aparece inteira antes de aplicar.
+        window._pvRdLigadas = {};
+        window._showPvDamageModal = function () {
+            const char = state.currentChar;
+            const fontes = (window.calcFontesRD ? window.calcFontesRD(char) : []);
+            // Estado inicial: passivas ligadas, condicionais desligadas.
+            window._pvRdLigadas = {};
+            fontes.forEach(function (f) { window._pvRdLigadas[f.id] = !!f.passiva; });
+
+            const overlay = document.createElement('div');
+            overlay.id = 'pv-dmg-overlay';
+            overlay.style.cssText = 'position:fixed;inset:0;background:#000000cc;display:flex;align-items:center;justify-content:center;z-index:9999;padding:24px;font-family:Rajdhani,sans-serif';
+            const fontesHtml = fontes.length
+                ? fontes.map(function (f) {
+                    return '<div onclick="window._pvRdToggle(\'' + f.id + '\')" id="rd-row-' + f.id + '" style="display:flex;align-items:center;gap:9px;background:#111827;border:1px solid #1f2937;border-radius:10px;padding:9px 11px;margin-bottom:6px;cursor:pointer">'
+                        + '<div id="rd-sw-' + f.id + '" style="width:34px;height:19px;border-radius:10px;background:' + (f.passiva ? '#4ade80' : '#374151') + ';position:relative;flex-shrink:0;transition:all .15s">'
+                        + '<div style="position:absolute;top:3px;left:' + (f.passiva ? '18px' : '3px') + ';width:13px;height:13px;border-radius:50%;background:#0d1117;transition:all .15s"></div></div>'
+                        + '<div style="flex:1;min-width:0">'
+                        + '<div style="font-size:10px;font-weight:700;color:#d1d5db">' + f.nome + ' <span style="color:#4ade80">−' + f.valor + '</span></div>'
+                        + '<div style="font-size:8px;color:#6b7280;line-height:1.3">' + f.condicao + '</div></div></div>';
+                }).join('')
+                : '<div style="font-size:9px;color:#4b5563;text-align:center;padding:10px;font-style:italic">Nenhuma fonte de Redução de Dano neste personagem.</div>';
+
+            overlay.innerHTML =
+                '<div style="background:#0d1117;border:2px solid #ef4444;border-radius:18px;padding:22px;width:100%;max-width:360px;max-height:86vh;overflow-y:auto;box-shadow:0 0 40px #ef444433">'
+                + '<div style="text-align:center;margin-bottom:14px">'
+                +   '<div style="font-size:20px;margin-bottom:4px">💔</div>'
+                +   '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:12px;color:#f87171;text-transform:uppercase;letter-spacing:2px">Dano Recebido</div>'
+                + '</div>'
+                + '<div style="margin-bottom:12px">'
+                +   '<label style="font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px">Dano bruto (antes da RD):</label>'
+                +   '<input id="pv-dmg-input" type="number" min="0" placeholder="Ex: 18" oninput="window._pvDmgUpdate()"'
+                +     ' style="width:100%;box-sizing:border-box;background:#060d1a;border:2px solid #374151;border-radius:10px;padding:12px 14px;color:#fff;font-family:Orbitron,sans-serif;font-weight:900;font-size:22px;outline:none;text-align:center">'
+                + '</div>'
+                + (fontes.length ? '<div style="font-size:8px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">🛡 Redução de Dano</div>' : '')
+                + fontesHtml
+                + '<div id="pv-dmg-preview" style="text-align:center;margin:12px 0;font-size:11px;color:#6b7280;min-height:34px"></div>'
+                + '<div style="display:flex;gap:8px">'
+                +   '<button onclick="document.getElementById(\'pv-dmg-overlay\').remove()" style="flex:1;padding:11px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Cancelar</button>'
+                +   '<button onclick="window._pvDmgAplicar()" style="flex:2;padding:11px;border-radius:10px;background:#ef4444;border:none;color:#fff;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Aplicar</button>'
+                + '</div></div>';
+            document.body.appendChild(overlay);
+            setTimeout(function () { const i = document.getElementById('pv-dmg-input'); if (i) i.focus(); }, 50);
+            window._pvDmgUpdate();
+        };
+
+        window._pvRdToggle = function (id) {
+            window._pvRdLigadas[id] = !window._pvRdLigadas[id];
+            const sw = document.getElementById('rd-sw-' + id);
+            if (sw) {
+                const on = window._pvRdLigadas[id];
+                sw.style.background = on ? '#4ade80' : '#374151';
+                sw.firstElementChild.style.left = on ? '18px' : '3px';
+            }
+            window._pvDmgUpdate();
+        };
+
+        window._pvRdTotal = function () {
+            const fontes = (window.calcFontesRD ? window.calcFontesRD(state.currentChar) : []);
+            return fontes.reduce(function (s, f) { return s + (window._pvRdLigadas[f.id] ? (f.valor || 0) : 0); }, 0);
+        };
+
+        window._pvDmgUpdate = function () {
+            const inp = document.getElementById('pv-dmg-input');
+            const prev = document.getElementById('pv-dmg-preview');
+            if (!prev) return;
+            const bruto = Math.max(0, parseInt(inp && inp.value) || 0);
+            const rd = window._pvRdTotal();
+            const liquido = Math.max(0, bruto - rd);
+            if (!bruto) { prev.innerHTML = rd > 0 ? ('RD ativa: <b style="color:#4ade80">−' + rd + '</b>') : ''; return; }
+            prev.innerHTML = '<span style="color:#9ca3af">' + bruto + '</span>'
+                + (rd > 0 ? ' <span style="color:#4ade80">− ' + rd + ' (RD)</span>' : '')
+                + ' = <b style="font-family:Orbitron,sans-serif;font-size:18px;color:#f87171">' + liquido + '</b> de dano'
+                + (rd > 0 && liquido === 0 ? '<div style="font-size:9px;color:#4ade80;margin-top:3px">A RD absorveu o golpe inteiro.</div>' : '');
+        };
+
+        window._pvDmgAplicar = function () {
+            const inp = document.getElementById('pv-dmg-input');
+            const bruto = Math.max(0, parseInt(inp && inp.value) || 0);
+            if (!bruto) { if (inp) inp.style.borderColor = '#ef4444'; return; }
+            const liquido = Math.max(0, bruto - window._pvRdTotal());
+            document.getElementById('pv-dmg-overlay')?.remove();
+            if (liquido > 0) updateVital('pv', -liquido);
+            else render(true);
+        };
+
         window._showSanDamageModal = function() {
             const char = state.currentChar;
             const rdm = calcRDM(char);
