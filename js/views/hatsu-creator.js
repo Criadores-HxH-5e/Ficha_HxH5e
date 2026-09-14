@@ -64,7 +64,10 @@ function renderHatsuCreator(container) {
     // A etapa 3 (EF. MALDIÇÃO) só é percorrida quando a tag do Hatsu é M. Para as outras
     // tags ela é pulada na navegação, mas o índice continua fixo para não renumerar nada
     // além desta troca — ver _hEtapaVisivel, _hNext e _hPrev.
-    const STEPS = ['CONCEITO','TIPO','RESTRIÇÕES','EF. MALDIÇÃO','EFEITOS GERAIS','EFEITOS CATEG.','RESUMO'];
+    // A etapa 3 pertence à TAG do Hatsu: Maldição (M), Exorcismo (E) ou Besta (B).
+    // Com a tag P ela é pulada na navegação — ver _hNext e _hPrev.
+    const _ROTULO_TAG = { M: 'MALDIÇÃO', E: 'EXORCISMO', B: 'BESTA DE NEN' };
+    const STEPS = ['CONCEITO','TIPO','RESTRIÇÕES', (_ROTULO_TAG[(state.hatsuBuilder||{}).tag] || 'TAG'), 'EFEITOS GERAIS','EFEITOS CATEG.','RESUMO'];
 
     // ── barra de progresso ──
     const progressBar = STEPS.map((s,i) => {
@@ -1673,9 +1676,11 @@ function renderHatsuCreator(container) {
     // jogador poder ir e voltar sem passar pelo Próximo. Cada aba continua sendo uma
     // etapa própria por baixo — as abas só trocam hb.step.
     function buildAbasEfeitosHtml(atual) {
-        const temM = (hb.tag || 'P') === 'M';
+        const _tg = hb.tag || 'P';
+        const _rot = { M: 'MALDIÇÃO', E: 'EXORCISMO', B: 'BESTA' };
+        const _corTag = { M: '#a855f7', E: '#38bdf8', B: '#fb923c' };
         const abas = [];
-        if (temM) abas.push({ step: 3, label: 'MALDIÇÃO', cor: '#a855f7', n: (hb.em || []).length });
+        if (_tg !== 'P') abas.push({ step: 3, label: _rot[_tg], cor: _corTag[_tg], n: (hb.em || []).length });
         abas.push({ step: 4, label: 'GERAIS',   cor: '#9ca3af', n: (hb.eg || []).length });
         abas.push({ step: 5, label: 'CATEGORIA', cor: tc,      n: (hb.ec || []).length });
         return '<div style="display:flex;gap:4px;background:#0f1117;border-radius:10px;padding:3px;margin-bottom:12px">'
@@ -1922,7 +1927,7 @@ function renderHatsuCreator(container) {
     // ── ETAPA 3 — EFEITOS DE MALDIÇÃO ───────────────────────────────────────────
     // Só existe com a tag M. Cada efeito custa 1 P.N, mas é liberado por LIMIAR: o total
     // de P.N já investido EM EFEITOS neste Hatsu. P.N devolvido por restrição não conta.
-    else if (hb.step === 3) {
+    else if (hb.step === 3 && (hb.tag || 'P') === 'M') {
         canNext = true;
         const _mdb = (window.MALDICAO_DB || { efeitos: [], temporizadores: [] });
         if (!Array.isArray(hb.em)) hb.em = [];
@@ -2011,6 +2016,139 @@ function renderHatsuCreator(container) {
         ${_positivaHtml}
         <div style="font-size:8px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin:16px 0 8px">📋 Requisitos da Maldição (${_req.cumpridos}/${_req.total})</div>
         ${_reqHtml}
+        `;
+    }
+
+    // ── ETAPA 3 (tag E) — EXORCISMO ─────────────────────────────────────────────
+    // Os efeitos de exorcista são liberados por NÍVEL do personagem. A tabela de
+    // resultados do ritual fica como referência de mesa: o app não rola o ritual,
+    // porque ele acontece na narrativa e depende da CD que o mestre define.
+    else if (hb.step === 3 && (hb.tag || 'P') === 'E') {
+        canNext = true;
+        const _edb = (window.EXORCISMO_DB || { efeitos: [], resultados: [] });
+        if (!Array.isArray(hb.ex)) hb.ex = [];
+        const _nivel = parseInt(char.level) || 0;
+
+        const _listaExo = _edb.efeitos.map(function (ef) {
+            const nv = parseInt(String(ef.req).replace(/\D/g, '')) || 1;
+            const liberado = _nivel >= nv;
+            const sel = hb.ex.indexOf(ef.id) >= 0;
+            const cor = sel ? '#38bdf8' : (liberado ? '#d1d5db' : '#4b5563');
+            const clique = liberado
+                ? 'window._hToggleExorcismo(\'' + ef.id + '\')'
+                : "alert('🔒 Bloqueado\\n\\nEste efeito exige nível " + nv + ". Você está no nível " + _nivel + ".')";
+            return '<div onclick="' + clique + '" style="background:#0d1117;border:1px solid ' + (sel ? '#38bdf888' : '#1f2937')
+                + ';border-radius:12px;padding:11px 12px;margin-bottom:7px;cursor:pointer;opacity:' + (liberado ? '1' : '.55') + '">'
+                + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:3px">'
+                + '<div style="font-size:10px;font-weight:900;color:' + cor + '">' + (sel ? '✓ ' : '') + ef.nome + '</div>'
+                + '<div style="font-size:8px;font-weight:900;padding:2px 7px;border-radius:6px;background:' + (liberado ? '#38bdf822' : '#1f2937') + ';color:' + (liberado ? '#7dd3fc' : '#4b5563') + ';white-space:nowrap">' + ef.req + (liberado ? '' : ' 🔒') + '</div>'
+                + '</div>'
+                + '<div style="font-size:9px;color:#6b7280;line-height:1.45">' + ef.desc + '</div></div>';
+        }).join('');
+
+        const _listaRes = _edb.resultados.map(function (r) {
+            return '<div style="background:#0d1117;border:1px solid #1f2937;border-radius:10px;padding:9px 11px;margin-bottom:6px">'
+                + '<div style="font-size:9px;font-weight:900;color:#7dd3fc">' + r.comparacao + '</div>'
+                + '<div style="font-size:9px;color:#d1d5db;margin-top:2px;line-height:1.4">' + r.resultado + '</div>'
+                + '<div style="font-size:8px;color:#6b7280;margin-top:2px;line-height:1.4">' + r.consequencia + '</div></div>';
+        }).join('');
+
+        content = `
+        <div style="text-align:center;margin-bottom:10px">
+            <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:13px;color:#7dd3fc;text-transform:uppercase;letter-spacing:2px">Exorcismo de Nen</div>
+            <div style="font-size:9px;color:#6b7280;margin-top:3px">Efeitos liberados pelo seu nível (${_nivel})</div>
+        </div>
+        ${buildAbasEfeitosHtml(3)}
+        ${_listaExo}
+        <div style="font-size:8px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin:16px 0 8px">📜 Resultados do Ritual (referência de mesa)</div>
+        <div style="font-size:8px;color:#6b7280;margin-bottom:8px">O ritual é narrado na mesa; o app não rola por você. A CD é definida pelo mestre conforme a maldição enfrentada.</div>
+        ${_listaRes}
+        `;
+    }
+
+    // ── ETAPA 3 (tag B) — BESTA DE NEN ──────────────────────────────────────────
+    // A categoria da besta é INDEPENDENTE da do usuário e ALEATÓRIA (1d6). A escolha
+    // entre Manifestação A (auto-imposta ou em aliado) e B (imposta a oponentes) é do
+    // jogador. Os efeitos favoráveis são filtrados pela categoria sorteada; os hostis não.
+    else if (hb.step === 3 && (hb.tag || 'P') === 'B') {
+        canNext = true;
+        const _bdb = (window.BESTA_DB || { categorias: [], favoraveis: [], hostis: [], lendarios: [] });
+        if (!Array.isArray(hb.be)) hb.be = [];
+        const _nivelB = parseInt(char.level) || 0;
+        const _catBesta = hb.bestaCategoria || '';
+        const _manif = hb.bestaManifestacao || '';
+
+        const _catHtml = _catBesta
+            ? '<div style="background:#0f1117;border:1px solid #fb923c55;border-radius:12px;padding:12px;text-align:center;margin-bottom:12px">'
+                + '<div style="font-size:8px;color:#4b5563;text-transform:uppercase;font-weight:700;margin-bottom:4px">Categoria da Besta (sorteada)</div>'
+                + '<div style="font-family:\'Orbitron\',sans-serif;font-weight:900;font-size:15px;color:#fb923c">' + _catBesta + '</div>'
+                + '<div style="font-size:8px;color:#6b7280;margin-top:4px">Independente da sua categoria</div>'
+                + '<button onclick="window._hRolarCategoriaBesta()" style="margin-top:8px;padding:5px 12px;border-radius:7px;background:#fb923c22;border:1px solid #fb923c55;color:#fb923c;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer">🎲 Rolar de novo</button>'
+                + '</div>'
+            : '<div style="background:#0f1117;border:1px dashed #374151;border-radius:12px;padding:16px;text-align:center;margin-bottom:12px">'
+                + '<div style="font-size:10px;color:#9ca3af;margin-bottom:8px">A categoria da Besta é sorteada e independe da sua.</div>'
+                + '<button onclick="window._hRolarCategoriaBesta()" style="padding:9px 16px;border-radius:9px;background:#fb923c22;border:1px solid #fb923c77;color:#fb923c;font-size:10px;font-weight:900;text-transform:uppercase;cursor:pointer">🎲 Rolar 1d6</button>'
+                + '</div>';
+
+        const _manifHtml = '<div style="display:flex;gap:6px;margin-bottom:12px">'
+            + [['A','Auto-imposta / Aliado'],['B','Imposta a Oponentes']].map(function (par) {
+                const sel = _manif === par[0];
+                return '<button onclick="window._hSetManifestacao(\'' + par[0] + '\')" style="flex:1;padding:10px 6px;border-radius:10px;border:2px solid '
+                    + (sel ? '#fb923c' : '#1f2937') + ';background:' + (sel ? '#fb923c22' : 'transparent') + ';cursor:pointer">'
+                    + '<div style="font-family:\'Orbitron\',sans-serif;font-weight:900;font-size:13px;color:' + (sel ? '#fb923c' : '#6b7280') + '">Manif. ' + par[0] + '</div>'
+                    + '<div style="font-size:7px;color:' + (sel ? '#fb923c' : '#4b5563') + ';margin-top:2px;line-height:1.2">' + par[1] + '</div></button>';
+            }).join('') + '</div>';
+
+        let _listaB = '';
+        if (!_manif) {
+            _listaB = '<div style="font-size:9px;color:#f87171;text-align:center;padding:16px">Escolha a Manifestação para ver os efeitos.</div>';
+        } else if (_manif === 'A' && !_catBesta) {
+            _listaB = '<div style="font-size:9px;color:#f87171;text-align:center;padding:16px">Role a categoria da Besta para ver os efeitos favoráveis.</div>';
+        } else {
+            const fonte = _manif === 'A'
+                ? _bdb.favoraveis.filter(function (e) { return e.cat === _catBesta; })
+                : _bdb.hostis;
+            _listaB = fonte.length ? fonte.map(function (ef) {
+                const nv = parseInt(String(ef.req).replace(/\D/g, '')) || 1;
+                const liberado = _nivelB >= nv;
+                const sel = hb.be.indexOf(ef.id) >= 0;
+                const cor = sel ? '#fb923c' : (liberado ? '#d1d5db' : '#4b5563');
+                const clique = liberado
+                    ? 'window._hToggleBesta(\'' + ef.id + '\')'
+                    : "alert('🔒 Bloqueado\\n\\nEste efeito exige " + ef.req + ". Você está no nível " + _nivelB + ".')";
+                return '<div onclick="' + clique + '" style="background:#0d1117;border:1px solid ' + (sel ? '#fb923c88' : '#1f2937')
+                    + ';border-radius:12px;padding:11px 12px;margin-bottom:7px;cursor:pointer;opacity:' + (liberado ? '1' : '.55') + '">'
+                    + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:3px">'
+                    + '<div style="font-size:10px;font-weight:900;color:' + cor + '">' + (sel ? '✓ ' : '') + ef.nome + '</div>'
+                    + '<div style="font-size:8px;font-weight:900;padding:2px 7px;border-radius:6px;background:' + (liberado ? '#fb923c22' : '#1f2937') + ';color:' + (liberado ? '#fdba74' : '#4b5563') + ';white-space:nowrap">' + ef.req + (liberado ? '' : ' 🔒') + '</div>'
+                    + '</div>'
+                    + '<div style="font-size:9px;color:#6b7280;line-height:1.45">' + ef.desc + '</div></div>';
+            }).join('')
+            : '<div style="font-size:9px;color:#6b7280;text-align:center;padding:16px">Nenhum efeito desta categoria.</div>';
+        }
+
+        // Efeito Lendário: só no nível 12, e escolhe apenas UM.
+        const _lend = hb.bestaLendario || '';
+        const _lendHtml = _nivelB >= 12
+            ? '<div style="font-size:8px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin:16px 0 8px">✦ Efeito Lendário (nível 12 — escolha 1)</div>'
+                + _bdb.lendarios.map(function (l) {
+                    const sel = _lend === l.id;
+                    return '<div onclick="window._hSetLendario(\'' + l.id + '\')" style="background:#0d1117;border:1px solid ' + (sel ? '#fbbf2488' : '#1f2937') + ';border-radius:11px;padding:10px 12px;margin-bottom:6px;cursor:pointer">'
+                        + '<div style="font-size:10px;font-weight:900;color:' + (sel ? '#fbbf24' : '#d1d5db') + '">' + (sel ? '✓ ' : '') + l.nome + '</div>'
+                        + '<div style="font-size:8px;color:#6b7280;margin-top:2px;line-height:1.45">' + l.desc + '</div></div>';
+                }).join('')
+            : '<div style="font-size:8px;color:#4b5563;text-align:center;margin-top:16px;font-style:italic">Efeitos Lendários são liberados no nível 12.</div>';
+
+        content = `
+        <div style="text-align:center;margin-bottom:10px">
+            <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:13px;color:#fb923c;text-transform:uppercase;letter-spacing:2px">Besta de Nen</div>
+            <div style="font-size:9px;color:#6b7280;margin-top:3px">Parasita ou Guardiã — categoria própria e aleatória</div>
+        </div>
+        ${buildAbasEfeitosHtml(3)}
+        ${_catHtml}
+        ${_manifHtml}
+        ${_listaB}
+        ${_lendHtml}
         `;
     }
 
@@ -2454,6 +2592,12 @@ window._hNext = function() {
             temporizador: hb.temporizador || '',
             maldicaoPositiva: !!hb.maldicaoPositiva,
             reqMaldicao: Object.assign({}, hb.reqMaldicao || {}),
+            // Dados exclusivos das tags E (Exorcismo) e B (Besta).
+            efeitosExorcismo: [].concat(hb.ex || []),
+            bestaCategoria: hb.bestaCategoria || '',
+            bestaManifestacao: hb.bestaManifestacao || '',
+            efeitosBesta: [].concat(hb.be || []),
+            bestaLendario: hb.bestaLendario || '',
             restricoes: [...hb.rg, ...hb.rc],
             beneficioChoices: {...(hb.beneficioChoices||{})},
             pureRestrictions: {...(hb.pureRestrictions||{})},
@@ -2497,7 +2641,7 @@ window._hNext = function() {
     }
     hb.step++;
     // Sem a tag M, a etapa de Efeitos de Maldição não existe para este Hatsu.
-    if (hb.step === 3 && (hb.tag || 'P') !== 'M') hb.step++;
+    if (hb.step === 3 && (hb.tag || 'P') === 'P') hb.step++;
     hb.filterText = '';
     hb.filterStatus = 'todos';
     render();
@@ -2505,13 +2649,13 @@ window._hNext = function() {
 window._hPrev = function() {
     const hb = state.hatsuBuilder; if (!hb || hb.step === 0) return;
     hb.step--;
-    if (hb.step === 3 && (hb.tag || 'P') !== 'M') hb.step--;
+    if (hb.step === 3 && (hb.tag || 'P') === 'P') hb.step--;
     render();
 };
 // Navegação direta entre as abas de efeitos (Maldição, Gerais, Categoria).
 window._hIrParaEtapa = function (n) {
     const hb = state.hatsuBuilder; if (!hb) return;
-    if (n === 3 && (hb.tag || 'P') !== 'M') return;
+    if (n === 3 && (hb.tag || 'P') === 'P') return;
     hb.step = n;
     hb.filterText = '';
     hb.filterStatus = 'todos';
@@ -2794,6 +2938,53 @@ window.calcRequisitosMaldicao = function (hb) {
     }
 
     return { itens: out, cumpridos: out.filter(function (r) { return r.ok; }).length, total: out.length };
+};
+
+// ── Setters de Exorcismo e Besta ─────────────────────────────────────────────
+window._hToggleExorcismo = function (id) {
+    const hb = state.hatsuBuilder; if (!hb) return;
+    if (!Array.isArray(hb.ex)) hb.ex = [];
+    const i = hb.ex.indexOf(id);
+    if (i >= 0) hb.ex.splice(i, 1); else hb.ex.push(id);
+    renderHatsuInPlace();
+};
+
+// Categoria da Besta: 1d6 entre as seis, com chance igual. É independente da
+// categoria do usuário — a Besta pode ser de qualquer uma.
+window._hRolarCategoriaBesta = function () {
+    const hb = state.hatsuBuilder; if (!hb) return;
+    const cats = ((window.BESTA_DB || {}).categorias) || [];
+    if (!cats.length) return;
+    const d6 = Math.floor(Math.random() * cats.length);
+    hb.bestaCategoria = cats[d6];
+    // Trocar de categoria invalida os efeitos favoráveis da categoria anterior.
+    hb.be = (hb.be || []).filter(function (id) {
+        const ef = ((window.BESTA_DB || {}).favoraveis || []).find(function (x) { return x.id === id; });
+        return !ef || ef.cat === hb.bestaCategoria;
+    });
+    renderHatsuInPlace();
+};
+
+window._hSetManifestacao = function (m) {
+    const hb = state.hatsuBuilder; if (!hb) return;
+    if (hb.bestaManifestacao !== m) hb.be = []; // A e B têm listas diferentes
+    hb.bestaManifestacao = m;
+    renderHatsuInPlace();
+};
+
+window._hToggleBesta = function (id) {
+    const hb = state.hatsuBuilder; if (!hb) return;
+    if (!Array.isArray(hb.be)) hb.be = [];
+    const i = hb.be.indexOf(id);
+    if (i >= 0) hb.be.splice(i, 1); else hb.be.push(id);
+    renderHatsuInPlace();
+};
+
+// Só um Efeito Lendário por Besta. Clicar no já escolhido desmarca.
+window._hSetLendario = function (id) {
+    const hb = state.hatsuBuilder; if (!hb) return;
+    hb.bestaLendario = (hb.bestaLendario === id) ? '' : id;
+    renderHatsuInPlace();
 };
 
 window._hToggleMaldicaoPositiva = function () {
