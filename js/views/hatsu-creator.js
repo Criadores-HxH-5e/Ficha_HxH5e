@@ -48,12 +48,21 @@ function renderHatsuCreator(container) {
         }
     });
     // ── Breakdown por tipo de P.N ──
-    // Ordem de consumo: Extremo → Pura não-extrema → Base
+    // Ordem de consumo: BASE → Pura não-extrema → Extremo.
+    //
+    // Antes era o contrário (restrição primeiro), e isso abria um vazamento: a restrição
+    // "economizava" o P.N base, e o base economizado ficava livre para comprar Princípios
+    // de Nen. Um Hatsu de 4 P.N com 6 de restrição saía de graça e devolvia 6 base ao pool.
+    //
+    // A regra é que o P.N das restrições vale SÓ NO HATSU. Consumindo o base primeiro,
+    // a restrição passa a cobrir apenas o que o base não alcança, e o excedente dela é
+    // desperdiçado — como deve ser, já que não pode migrar para os princípios.
     const pnFromExtreme = window.calcPNFromExtremeRestr ? window.calcPNFromExtremeRestr(hb) : 0;
     const pnFromPureNonExtreme = Math.max(0, pnBonus - pnFromExtreme);
-    const usedFromExtreme = Math.min(pnUsed, pnFromExtreme);
-    const usedFromPureNonExtreme = Math.min(Math.max(0, pnUsed - pnFromExtreme), pnFromPureNonExtreme);
-    const usedFromBase = Math.max(0, pnUsed - pnFromExtreme - pnFromPureNonExtreme);
+    const usedFromBase = Math.min(pnUsed, pnBaseAvail);
+    const restante = Math.max(0, pnUsed - usedFromBase);
+    const usedFromPureNonExtreme = Math.min(restante, pnFromPureNonExtreme);
+    const usedFromExtreme = Math.min(Math.max(0, restante - pnFromPureNonExtreme), pnFromExtreme);
     const pnExtremeLeft = pnFromExtreme - usedFromExtreme;
     const pnPureNonExtremeLeft = pnFromPureNonExtreme - usedFromPureNonExtreme;
     const pnBonusLeft = pnExtremeLeft + pnPureNonExtremeLeft; // total restrições ainda não gastos
@@ -2557,15 +2566,20 @@ window._hNext = function() {
         let _pnUsed5 = 0;
         hb.eg.forEach(id => { const e = window.HATSU_DB.efeitos_gerais.find(x=>x.id===id); if(e) _pnUsed5+=e.pn; });
         hb.ec.forEach(id => { for (const cat of Object.values(window.HATSU_DB.categorias||{})) { if (!cat||!cat.efeitos) continue; const e=cat.efeitos.find(x=>x.id===id); if(e){_pnUsed5+=e.pn;break;} } });
-        // Breakdown por tipo: restrições devem ser gastas, base pode ser guardada
-        const _pnFromExtreme5 = window.calcPNFromExtremeRestr ? window.calcPNFromExtremeRestr(hb) : 0;
-        const _pnFromPureNonExtreme5 = Math.max(0, _pnBonus5 - _pnFromExtreme5);
-        const _usedFromExtreme5 = Math.min(_pnUsed5, _pnFromExtreme5);
-        const _usedFromPureNonExtreme5 = Math.min(Math.max(0, _pnUsed5 - _pnFromExtreme5), _pnFromPureNonExtreme5);
-        const _pnExtremeLeft5 = _pnFromExtreme5 - _usedFromExtreme5;
-        const _pnPureNonExtremeLeft5 = _pnFromPureNonExtreme5 - _usedFromPureNonExtreme5;
-        const _pnBonusLeft5 = _pnExtremeLeft5 + _pnPureNonExtremeLeft5;
-        if (_pnBonusLeft5 > 0) return; // P.N de restrições devem ser todos gastos antes de finalizar
+        // Mesma ordem do painel: BASE → Pura → Extremo. Com o base sendo consumido antes,
+        // sobrar P.N de restrição passou a ser NORMAL (o excedente é desperdiçado, porque
+        // não pode migrar para os princípios). Antes isso travava a finalização para sempre;
+        // agora só avisa, para o jogador saber que está abrindo mão de algo.
+        const _usedFromBase5 = Math.min(_pnUsed5, _pnBaseAvail5);
+        const _restante5 = Math.max(0, _pnUsed5 - _usedFromBase5);
+        const _pnBonusLeft5 = Math.max(0, _pnBonus5 - _restante5);
+        if (_pnBonusLeft5 > 0) {
+            const _ok = confirm('Sobram ' + _pnBonusLeft5 + ' P.N vindos das restrições.\n\n'
+                + 'Esse P.N vale APENAS neste Hatsu e não pode ser usado em Princípios de Nen. '
+                + 'Se você finalizar agora, ele é desperdiçado.\n\n'
+                + 'Quer finalizar mesmo assim?');
+            if (!_ok) return;
+        }
 
         // Salva o hatsu
         const char = state.currentChar;
@@ -2605,8 +2619,9 @@ window._hNext = function() {
             juramentoImutavelNivelBase: hb.juramentoImutavelNivelBase != null ? hb.juramentoImutavelNivelBase : null,
             efeitos: [...hb.eg, ...hb.ec],
             efeitoNiveis: {...(hb.efeitoNiveis||{})},
-            // Only count base P.N consumed (bonus from pure restrictions is local to this hatsu)
-            pnUsados: Math.max(0, pnUsed - window.calcPNBonusFromRestr(hb)),
+            // Só o P.N BASE consumido sai do pool do personagem. O P.N das restrições é
+            // local a este Hatsu e, se sobrar, é desperdiçado — nunca volta para o pool.
+            pnUsados: _usedFromBase5,
             nivel: char.level,
             classe: char.class,
             criadoEm: (hb.editingIdx !== undefined ? char.hatsus[hb.editingIdx].criadoEm : null) || new Date().toLocaleDateString('pt-BR')
