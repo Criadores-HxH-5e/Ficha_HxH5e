@@ -438,14 +438,11 @@
                             const d = char.nenDominio || {};
                             const tc2 = catColor;
 
+                            // Comprar princípio consome P.N do pool base. Antes a gravação era
+                            // direta, SEM conferir se havia P.N disponível: dava para subir
+                            // qualquer princípio com o pool zerado ou negativo. Agora valida.
                             const setDom = (key, val) => {
-                                // inline call via onclick
-                                return `(function(){
-                                    var c=state.currentChar;
-                                    if(!c.nenDominio)c.nenDominio={};
-                                    c.nenDominio['${key}']=${val};
-                                    saveCharacter(c);render(true);
-                                })()`;
+                                return `window._comprarPrincipio('${key}', ${val})`;
                             };
 
                             const noteBox = (text) => `<div style="background:#0d1117;border:1px dashed #374151;border-radius:8px;padding:6px 8px;margin:0 0 8px;font-size:7px;color:#6b7280;line-height:1.4">💡 ${text}</div>`;
@@ -1017,6 +1014,31 @@
             document.body.appendChild(ov);
             document.getElementById('aviso-manual-cancel').onclick = function () { ov.remove(); };
             document.getElementById('aviso-manual-ok').onclick = function () { ov.remove(); setCategoriaMetodo('chosen'); };
+        };
+
+        // Compra/ajuste de um Princípio de Nen, validando o P.N disponível.
+        // Subir um nível custa a diferença; descer devolve e é sempre permitido.
+        window._comprarPrincipio = function (key, val) {
+            const char = state.currentChar;
+            if (!char.nenDominio) char.nenDominio = {};
+            const atual = parseInt(char.nenDominio[key]) || 0;
+            const novo = parseInt(val) || 0;
+            if (novo > atual) {
+                const pnTotal = window.calcularPHBase ? window.calcularPHBase(char.level) : 6;
+                const pnDominio = window.calcPNSpentInDominio ? window.calcPNSpentInDominio(char) : 0;
+                const pnHatsu = (char.hatsus || []).reduce(function (s, h) { return s + (h.pnUsados || 0); }, 0);
+                const livre = pnTotal - pnDominio - pnHatsu;
+                const custo = novo - atual;
+                if (custo > livre) {
+                    alert('P.N insuficiente\n\n'
+                        + 'Este avanço custa ' + custo + ' P.N e você tem ' + Math.max(0, livre) + ' livre(s).\n\n'
+                        + 'Lembre: o P.N concedido por restrições vale apenas dentro do Hatsu e não pode ser usado em Princípios de Nen.');
+                    return;
+                }
+            }
+            char.nenDominio[key] = novo;
+            saveCharacter(char);
+            render(true);
         };
 
         function setCategoriaMetodo(method) {

@@ -738,6 +738,7 @@ window.RD_FONTES = [
 ];
 
 // Devolve as fontes de RD que o personagem realmente possui, já com o valor calculado.
+// 3×CON usa o MODIFICADOR de Constituição, não o valor bruto do atributo.
 window.calcFontesRD = function (char) {
     if (!char) return [];
     const ci = char.combatInclinations || {};
