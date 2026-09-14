@@ -579,7 +579,10 @@ const SYSTEM_DB = {
 
 const SKILL_MAP = {
     'FOR': ['Atletismo'],
-    'DES': ['Acrobacia', 'Furtividade', 'Prestidigitação'],
+    // Iniciativa entra aqui para ganhar botão próprio no popup de DES. Não é treinável:
+    // não está em SYSTEM_DB.skills, então proficiência nunca é somada nela — é teste puro
+    // de Destreza, e é o lugar onde os bônus de inclinação finalmente caem.
+    'DES': ['Acrobacia', 'Furtividade', 'Iniciativa', 'Prestidigitação'],
     'CON': [],
     'INT': ['Arcanismo', 'História', 'Investigação', 'Natureza', 'Religião'],
     'SAB': ['Lidar com Animais', 'Intuição', 'Medicina', 'Percepção', 'Sobrevivência'],
@@ -665,3 +668,107 @@ const WEBHOOKS_OFICIAIS = [
     }
 ];
 window.WEBHOOKS_OFICIAIS = WEBHOOKS_OFICIAIS;
+
+
+// ── Bônus de Iniciativa ───────────────────────────────────────────────────────
+// Vários itens do sistema alteram iniciativa, mas até agora não havia onde aplicar:
+// a ficha não tinha iniciativa nenhuma. Fontes conhecidas:
+//  Inclinações gerais: Imponência Assustadora +3, Indeciso -3, Nanismo -1,
+//                      Paraplégico -5, Visões de Morte -10
+//  Inclinações de combate (1º ponto): Ofensiva Ágil +5, Perceptiva +2
+window.INICIATIVA_INCLINACOES = {
+    'Imponência Assustadora': 3,
+    'Indeciso': -3,
+    'Nanismo': -1,
+    'Paraplégico': -5,
+    'Visões de Morte': -10,
+};
+window.INICIATIVA_COMBATE = {
+    'ofensiva_agil': { tier: 1, valor: 5 },
+    'perceptiva':    { tier: 1, valor: 2 },
+};
+
+window.calcIniciativaBonus = function (char) {
+    const fontes = [];
+    if (!char) return { total: 0, fontes: fontes };
+    const nome = function (i) { return String((i && i.nome) || '').split(':')[0].trim(); };
+    const gerais = [].concat(
+        ((char.inclinations || {}).positive) || [],
+        ((char.inclinations || {}).negative) || [],
+        char.generalIncByPoints || [],
+        char.generalNegByPoints || []
+    );
+    gerais.forEach(function (i) {
+        const v = window.INICIATIVA_INCLINACOES[nome(i)];
+        if (v) fontes.push({ nome: nome(i), valor: v });
+    });
+    const ci = char.combatInclinations || {};
+    Object.keys(window.INICIATIVA_COMBATE).forEach(function (id) {
+        const def = window.INICIATIVA_COMBATE[id];
+        if ((parseInt(ci[id]) || 0) >= def.tier) {
+            const info = (window.COMBAT_INCLINATIONS_DB || []).find(function (x) { return x.id === id; });
+            fontes.push({ nome: (info && info.nome) || id, valor: def.valor });
+        }
+    });
+    const total = fontes.reduce(function (a, f) { return a + f.valor; }, 0);
+    return { total: total, fontes: fontes };
+};
+
+// ── Fontes de Redução de Dano (RD) ────────────────────────────────────────────
+// A RD do sistema NÃO é um número único: cada fonte tem a própria condição. Só a
+// Defensiva Bruta de 1º ponto vale sempre; as demais dependem do golpe, do alvo ou
+// da rolagem. Por isso o app não subtrai tudo sozinho — ele lista as fontes, liga as
+// passivas por padrão e deixa o jogador ligar as condicionais quando valerem.
+//
+// Fonte: Inclinações de Combate (livro v2.0). A RD vinda dos Princípios de Nen
+// (TEN, KEN) entra aqui quando a ativação dos princípios existir.
+window.RD_FONTES = [
+    { id: 'defensiva_bruta_1',   inc: 'defensiva_bruta',          tier: 1, valor: 3,
+      nome: 'Defensiva Bruta', passiva: true,
+      condicao: 'Qualquer dano, de qualquer oponente' },
+    { id: 'defensiva_precisa_1', inc: 'defensiva_precisa',        tier: 1, valor: 5,
+      nome: 'Defensiva Precisa', passiva: false,
+      condicao: 'Só contra UM alvo escolhido no combate' },
+    { id: 'defensiva_bruta_2',   inc: 'defensiva_bruta',          tier: 2, valor: null, formula: 'con3',
+      nome: 'Defensiva Bruta (3×CON)', passiva: false,
+      condicao: 'Ataque que falhou em bloquear — 1× por rodada' },
+    { id: 'armadura_pesada_2',   inc: 'maestria_armadura_pesada', tier: 2, valor: 3,
+      nome: 'Maestria em Armadura Pesada', passiva: false,
+      condicao: 'Só quando o acerto IGUALA a sua CA' },
+];
+
+// Devolve as fontes de RD que o personagem realmente possui, já com o valor calculado.
+// 3×CON usa o MODIFICADOR de Constituição, não o valor bruto do atributo.
+window.calcFontesRD = function (char) {
+    if (!char) return [];
+    const ci = char.combatInclinations || {};
+    const conMod = Math.floor(((((char.attributes || {}).CON || {}).value || 10) - 10) / 2);
+    const lista = (window.RD_FONTES || []).filter(function (f) {
+        return (parseInt(ci[f.inc]) || 0) >= f.tier;
+    }).map(function (f) {
+        return {
+            id: f.id, nome: f.nome, passiva: f.passiva, condicao: f.condicao,
+            valor: f.formula === 'con3' ? Math.max(0, conMod * 3) : f.valor,
+        };
+    });
+    // TEN ativo também dá RD. Entra ligado por padrão: se o princípio está ativo, a
+    // proteção vale — mas só contra Corte, Impacto e Explosão, por isso a condição
+    // aparece escrita e o jogador pode desligar quando o dano for de outro tipo.
+    if (((char.principiosAtivos) || {}).ten && window.calcTenRD) {
+        const v = window.calcTenRD(char) || 0;
+        if (v > 0) lista.unshift({
+            id: 'principio_ten', nome: 'TEN (ativo)', passiva: true, valor: v,
+            condicao: 'Só contra Corte, Impacto e Explosão',
+        });
+    }
+    return lista;
+};
+
+// Reações máximas do personagem. Já existia embutido na ficha (sheet.js); virou função
+// para o contador de rodada poder somar as Reações concedidas pelo ZETSU ao completar.
+window.calcReacoesMax = function (char) {
+    if (!char || !char.attributes) return 7;
+    const sab = ((char.attributes.SAB || {}).value) || 10;
+    const analitica = ((char.combatInclinations || {}).analitica || 0) >= 1 ? 2 : 0;
+    return 7 + Math.floor((sab - 10) / 2) + analitica;
+};

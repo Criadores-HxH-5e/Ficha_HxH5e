@@ -67,7 +67,8 @@
             // Retroativo: personagem antigo com Aura Gigantesca recebe o bônus na 1ª abertura.
             if (aplicarAuraGigantesca(char)) saveCharacter(char);
             const clsData = SYSTEM_DB.classes.find(c => c.id === char.class);
-            const themeColor = clsData ? clsData.color : '#00ff9d';
+            // Sem categoria de Nen o app fica em preto e branco, não em verde neon.
+            const themeColor = clsData ? clsData.color : (window.TEMA_SEM_NEN || '#eaecf0');
             setThemeColor(themeColor);
             
             // Helpers de renderização interna da ficha
@@ -75,7 +76,7 @@
                 <div class="flex flex-col items-center justify-center w-full">
                     <span class="text-[9px] font-bold ${colorClass} uppercase tracking-wider mb-0.5">${label}</span>
                     <div class="flex items-center justify-between w-full max-w-[80%] gap-1">
-                         ${showBtns ? `<button onclick="${label === 'SAN' ? 'window._showSanDamageModal()' : `updateVital('${label.toLowerCase()}', ${-step})`}" class="text-gray-500 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors"><i data-lucide="minus" size="10"></i></button>` : '<div class="w-4"></div>'}
+                         ${showBtns ? `<button onclick="${label === 'SAN' ? 'window._showSanDamageModal()' : (label === 'PV' ? 'window._showPvDamageModal()' : `updateVital('${label.toLowerCase()}', ${-step})`)}" class="text-gray-500 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors"><i data-lucide="minus" size="10"></i></button>` : '<div class="w-4"></div>'}
                         <span class="font-display font-bold text-lg text-white tracking-wider${showMax && max != null ? ' cursor-pointer select-none active:opacity-60' : ''}" ${showMax && max != null ? `onclick="window._openVitalInputModal('${label.toLowerCase()}',${val},${max})"` : ''}>${showMax && max != null ? `${val}<span class="text-gray-400 text-xs font-normal">/${max}</span>` : val}</span>
                          ${showBtns ? `<button onclick="updateVital('${label.toLowerCase()}', ${step})" class="text-gray-500 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors"><i data-lucide="plus" size="10"></i></button>` : '<div class="w-4"></div>'}
                     </div>
@@ -103,14 +104,42 @@
                 const rdmVal = calcRDM(char);
                 const sanPct = Math.round((char.vitals.san / char.vitals.sanMax) * 100);
                 const sanColor = sanPct >= 90 ? 'text-green-400' : sanPct >= 75 ? 'text-yellow-400' : sanPct >= 50 ? 'text-orange-400' : 'text-purple-400';
-                const reaMax = 7 + getMod(char.attributes.SAB.value) + (((char.combatInclinations || {}).analitica || 0) >= 1 ? 2 : 0);
+                const reaMax = window.calcReacoesMax ? window.calcReacoesMax(char) : (7 + getMod(char.attributes.SAB.value));
                 const reaCur = char.vitals.rea !== undefined ? char.vitals.rea : reaMax;
-                const vitalsGridHtml = `<div class="grid grid-cols-3 gap-y-2 gap-x-2 px-2 py-2 border-b border-gray-800 bg-[#0b0c10] mb-4">${renderNeonVital('SAN', char.vitals.san, char.vitals.sanMax, sanColor, 'bg-white')}${renderNeonVital('REA', reaCur, reaMax, 'text-white', 'bg-white text-white', true, 1, true)}${renderNeonVital('AURA', char.vitals.aura, char.vitals.auraMax, `text-[${themeColor}]`, `bg-[${themeColor}] text-[${themeColor}]`, true, 5)}${renderNeonVital('CA', char.vitals.ca, null, 'text-white', 'bg-white text-white', false)}<div class="flex flex-col items-center justify-center cursor-pointer group" onclick="handleArmorClick()"><span class="text-[9px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">ARMADURA</span><div class="w-10 h-10 rounded-full border border-gray-700 flex items-center justify-center bg-gray-900 group-hover:border-[${themeColor}] group-hover:shadow-[0_0_10px_rgba(var(--theme-rgb),0.3)] transition-all"><i data-lucide="shield" size="20" class="text-gray-400 group-hover:text-[${themeColor}] transition-colors"></i></div><div class="w-8 h-0.5 rounded-full mt-1.5 bg-gray-800 opacity-80"></div></div>${renderNeonVital('PV', char.vitals.hp, char.vitals.hpMax, 'text-neon-red', 'bg-neon-red text-neon-red', true, 1, true)}</div>${rdmVal > 0 ? `<div class="flex items-center justify-center gap-2 text-[9px] text-blue-400 font-bold pb-2 border-b border-gray-800 mb-2"><span> 🛡️ RDM (Resist. Mental)</span><span class="font-display text-sm">−${rdmVal}</span></div>` : ''}`;
+                const vitalsGridHtml = `<div class="grid grid-cols-3 gap-y-2 gap-x-2 px-2 py-2 border-b border-gray-800 bg-[#0b0c10] mb-4">${renderNeonVital('SAN', char.vitals.san, char.vitals.sanMax, sanColor, 'bg-white')}${renderNeonVital('REA', reaCur, reaMax, 'text-white', 'bg-white text-white', true, 1, true)}${renderNeonVital('AURA', char.vitals.aura, char.vitals.auraMax, `text-[${themeColor}]`, `bg-[${themeColor}] text-[${themeColor}]`, true, 5)}${(() => {
+                    // Escudo desenhado ATRÁS do número da CA, como marca d'água.
+                    const _ca = calcCAAtual(char);
+                    return `<div class="flex flex-col items-center justify-center w-full">
+                        <span class="text-[9px] font-bold text-white uppercase tracking-wider mb-0.5">CA</span>
+                        <div class="relative flex items-center justify-center" style="width:34px;height:26px">
+                            <i data-lucide="shield" size="26" class="absolute text-gray-600" style="opacity:.28"></i>
+                            <span class="relative font-display font-bold text-lg text-white tracking-wider">${_ca}</span>
+                        </div>
+                        <div class="w-8 h-0.5 rounded-full mt-0.5 bg-white opacity-80"></div>
+                    </div>`;
+                })()}${(() => {
+                    // Ícone de ARMADURA (não mais escudo) com a durabilidade no centro.
+                    // Clicar reduz 1. Zerada, o ícone mostra um X e o clique oferece reparo.
+                    const _d = getDurabilidade(char);
+                    const _cor = !_d.temArmadura ? '#4b5563' : (_d.quebrada ? '#ef4444' : (_d.atual <= Math.ceil(_d.max / 4) ? '#fbbf24' : themeColor));
+                    const _icone = _d.quebrada ? 'shield-off' : 'shield-half';
+                    const _titulo = !_d.temArmadura
+                        ? 'Sem armadura no inventário'
+                        : (_d.quebrada ? 'Armadura quebrada — clique para reparar' : `Durabilidade ${_d.atual}/${_d.max} — clique para marcar 1 golpe`);
+                    return `<div class="flex flex-col items-center justify-center cursor-pointer group" onclick="handleArmorClick()" title="${_titulo}">
+                        <span class="text-[9px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">ARMADURA</span>
+                        <div class="w-10 h-10 rounded-full border flex items-center justify-center bg-gray-900 transition-all" style="border-color:${_cor}55">
+                            <i data-lucide="${_icone}" size="26" class="absolute" style="color:${_cor};opacity:${_d.quebrada ? '.9' : '.3'}"></i>
+                            ${_d.temArmadura && !_d.quebrada ? `<span class="relative font-display font-bold text-sm tracking-wider" style="color:${_cor}">${_d.atual}</span>` : ''}
+                        </div>
+                        <div class="w-8 h-0.5 rounded-full mt-1.5 opacity-80" style="background:${_d.temArmadura ? _cor : '#1f2937'}"></div>
+                    </div>`;
+                })()}${renderNeonVital('PV', char.vitals.hp, char.vitals.hpMax, 'text-neon-red', 'bg-neon-red text-neon-red', true, 1, true)}</div>${rdmVal > 0 ? `<div class="flex items-center justify-center gap-2 text-[9px] text-blue-400 font-bold pb-2 border-b border-gray-800 mb-2"><span> 🛡️ RDM (Resist. Mental)</span><span class="font-display text-sm">−${rdmVal}</span></div>` : ''}`;
                 const rollModesHtml = ''; // removido — modo é escolhido por rolagem via modal
                 const _attrPts = (char.pendingAttrPoints !== undefined && char.pendingAttrPoints !== null) ? char.pendingAttrPoints : null;
                 const _attrBanner = (_attrPts !== null && _attrPts > 0) ? `<div class="mx-4 mb-3 px-4 py-3 rounded-xl border border-yellow-500/40 bg-yellow-500/10 flex items-center justify-between"><div class="flex items-center gap-2"><span class="text-xs font-black uppercase tracking-widest text-yellow-400">✦ Pontos de Atributo</span><span class="text-[9px] text-yellow-400/60 font-bold">para distribuir</span></div><span class="font-display font-black text-2xl text-yellow-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.5)]">${_attrPts}</span></div>` : '';
                 const _showAttrBtns = state.isAdmin || (_attrPts !== null && _attrPts > 0);
-                const attributesHtml = `${_attrBanner}<div class="grid grid-cols-2 gap-3 p-4 pt-0">${Object.entries(char.attributes).map(([key, attr]) => { const mod = getMod(attr.value); const fullName = ATTR_FULL_NAMES[key]; const icons = ATTR_ICONS_MAP[key] || ["star","star"]; const saveSkillName = `TR de ${key}`; const isTrained = char.skills.includes(saveSkillName); const isExpert = (char.expertise || []).includes(saveSkillName); const pb = getProficiencyBonus(char.level); let saveBonus = mod; if(isExpert) saveBonus += pb * 2; else if(isTrained) saveBonus += pb; const saveBonusStr = saveBonus >= 0 ? `+${saveBonus}` : `${saveBonus}`; return `<div class="bg-gray-900 border border-gray-800 rounded-3xl p-3 relative overflow-hidden transition-all duration-300 hover:border-[${themeColor}] hover:shadow-[0_0_20px_rgba(var(--theme-rgb),0.1)] h-full flex flex-col justify-between group" onclick="handleAttributeClick('${key}')"><div class="relative w-full flex justify-center items-center mb-1 min-h-[30px]"><div class="flex items-center gap-2 text-[${themeColor}] bg-black/40 px-3 py-1 rounded-full border border-white/5 backdrop-blur-sm z-10 shadow-[0_0_15px_${themeColor}40]"><i data-lucide="${icons[0]}" size="10" class="drop-shadow-[0_0_8px_${themeColor}]"></i><span class="text-[9px] font-black text-white uppercase tracking-[0.15em] drop-shadow-[0_0_5px_rgba(0,0,0,0.8)]">${fullName}</span><i data-lucide="${icons[1]}" size="10" class="drop-shadow-[0_0_8px_${themeColor}]"></i></div></div><div class="flex items-center justify-center my-0 relative flex-1">${_showAttrBtns ? `<button onclick="event.stopPropagation(); updateSheetAttr('${key}', -1)" class="absolute left-0 text-gray-600 hover:text-white p-1"><i data-lucide="minus" size="14"></i></button>` : ''}<span class="text-4xl font-display font-bold text-white tracking-tighter drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">${attr.value}</span>${_showAttrBtns ? `<button onclick="event.stopPropagation(); updateSheetAttr('${key}', 1)" class="absolute right-0 text-gray-600 hover:text-white p-1"><i data-lucide="plus" size="14"></i></button>` : ''}</div><div class="flex justify-center mt-1 mb-1"><div class="px-4 py-0.5 rounded-full border border-[${themeColor}]/30 bg-[${themeColor}]/5 text-[${themeColor}] text-xs font-bold shadow-[0_0_10px_rgba(var(--theme-rgb),0.2)]">${mod >= 0 ? '+'+mod : mod}</div></div><div onclick="event.stopPropagation(); handleShieldClick('${key}')" class="absolute right-2 bottom-2 cursor-pointer z-20 hover:scale-110 transition-transform flex items-center justify-center" title="TR de ${fullName}: ${saveBonusStr}"><i data-lucide="shield" size="18" class="${isTrained ? (isExpert ? 'text-neon-yellow fill-neon-yellow/10 drop-shadow-[0_0_5px_rgba(255,230,0,0.8)]' : `text-[${themeColor}] fill-[${themeColor}]/10 drop-shadow-[0_0_5px_${themeColor}]`) : 'text-gray-800 fill-gray-900'} transition-colors"></i><span class="absolute text-[7px] font-bold ${isTrained ? 'text-white' : 'text-gray-500'}" style="padding-top: 1px;">${saveBonusStr}</span></div></div>`; }).join('')}${state.openAttrPopup ? (() => { const key = state.openAttrPopup; const attr = char.attributes[key]; const mod = getMod(attr.value); const skillsList = SKILL_MAP[key] || []; return `<div class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" onclick="toggleAttrPopup(null)"><div class="bg-gray-900 border-2 border-[${themeColor}] rounded-2xl p-6 w-[85%] max-w-[320px] shadow-[0_0_50px_rgba(0,0,0,0.8)] relative transform scale-100 animate-in zoom-in-95 duration-200" onclick="event.stopPropagation()"><button onclick="toggleAttrPopup(null)" class="absolute top-4 right-4 text-gray-500 hover:text-white"><i data-lucide="x" size="20"></i></button><div class="text-center mb-6"><h2 class="text-2xl font-display font-black text-white uppercase tracking-widest drop-shadow-[0_0_10px_${themeColor}]">${ATTR_FULL_NAMES[key]}</h2><div class="flex justify-center items-center gap-4 mt-2"><div class="text-4xl font-display font-bold text-[${themeColor}]">${attr.value}</div><div class="bg-gray-800 px-4 py-1 rounded-full text-sm font-bold text-white border border-gray-700">Mod ${mod >= 0 ? '+'+mod : mod}</div></div></div><div class="space-y-3 mb-6"><h4 class="text-[10px] font-bold text-gray-500 uppercase border-b border-gray-800 pb-2 text-center">Perícias Associadas</h4><div class="flex flex-col gap-2 max-h-[200px] overflow-y-auto custom-scrollbar">${skillsList.length > 0 ? skillsList.map(s => { const isTrained = char.skills.includes(s); const isExpert = (char.expertise || []).includes(s); const pb = getProficiencyBonus(char.level); let totalBonus = mod; if (isExpert) totalBonus += (pb * 2); else if (isTrained) totalBonus += pb; let iconName = 'circle'; let iconColorClass = 'text-gray-600'; if (isExpert) { iconName = 'badge-check'; iconColorClass = 'text-neon-yellow fill-neon-yellow/20'; } else if (isTrained) { iconName = 'check-circle-2'; iconColorClass = `text-[${themeColor}]`; } return `<div class="flex items-center justify-between p-3 rounded-xl border transition-all group ${isTrained ? `bg-[${themeColor}]/10 border-[${themeColor}]/30` : 'bg-gray-950 border-gray-800 hover:border-gray-600'}"><div class="flex items-center gap-3 cursor-pointer" onclick="handleSkillStatus('${s}')"><i data-lucide="${iconName}" size="20" class="${iconColorClass} hover:scale-110 transition-transform"></i><span class="text-xs font-bold uppercase tracking-wide ${isTrained ? 'text-white' : 'text-gray-400'}">${s}</span></div><button class="flex items-center gap-2 px-2 py-1 rounded-lg border ${isExpert ? 'border-neon-yellow/40 bg-neon-yellow/10' : (isTrained ? `border-[${themeColor}]/40 bg-[${themeColor}]/10` : 'border-gray-700 bg-gray-900')} hover:brightness-125 transition-all cursor-pointer" onclick="toggleAttrPopup(null); openRollModeModal('skill', '${s}', '${key}')"><span class="text-xs font-mono font-bold ${isExpert ? 'text-neon-yellow' : (isTrained ? `text-[${themeColor}]` : 'text-gray-400')}">${totalBonus >= 0 ? '+'+totalBonus : totalBonus}</span><i data-lucide="dices" size="14" class="${isExpert ? 'text-neon-yellow' : (isTrained ? `text-[${themeColor}]` : 'text-gray-400')} transition-colors"></i></button></div>` }).join('') : '<span class="text-xs text-gray-600 italic block text-center py-2">Nenhuma perícia associada.</span>'}</div></div><button onclick="toggleAttrPopup(null); openRollModeModal('dice', '${key}', ${mod})" class="w-full py-3 bg-[${themeColor}] text-black font-black font-display tracking-widest rounded-xl hover:brightness-110 transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_${themeColor}40]"><i data-lucide="dices" size="18"></i> ROLAR ATRIBUTO PURO</button></div></div>${state.skillSelectionModal ? `<div class="fixed inset-0 z-[110] flex items-center justify-center bg-black/90 animate-in fade-in duration-200" onclick="closeSkillModal()"><div class="bg-gray-900 border border-gray-700 rounded-xl p-6 w-[85%] max-w-[300px] shadow-2xl relative" onclick="event.stopPropagation()"><h3 class="text-lg font-display font-bold text-white mb-1">${state.skillSelectionModal}</h3><p class="text-xs text-gray-400 mb-4 uppercase tracking-widest">Selecione o nível de treinamento</p><div class="space-y-2"><button onclick="setSkillLevel('${state.skillSelectionModal}', 'remove')" class="w-full p-3 rounded-lg border border-red-900/50 bg-red-500/10 text-red-500 font-bold text-xs uppercase hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="x" size="16"></i> Remover Proficiência</button><button onclick="setSkillLevel('${state.skillSelectionModal}', 'trained')" class="w-full p-3 rounded-lg border border-gray-700 bg-gray-800 text-gray-300 font-bold text-xs uppercase hover:bg-gray-700 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="check-circle-2" size="16"></i> Normal (1x Bônus)</button><button onclick="setSkillLevel('${state.skillSelectionModal}', 'expert')" class="w-full p-3 rounded-lg border border-neon-yellow/30 bg-neon-yellow/10 text-neon-yellow font-bold text-xs uppercase hover:bg-neon-yellow hover:text-black transition-colors flex items-center gap-2"><i data-lucide="badge-check" size="16"></i> Especialização (2x Bônus)</button></div><button onclick="closeSkillModal()" class="mt-4 w-full py-2 text-xs text-gray-500 hover:text-white uppercase font-bold tracking-widest">Cancelar</button></div></div>` : ''}`; })() : ''}</div>`;
+                const attributesHtml = `${_attrBanner}<div class="grid grid-cols-2 gap-3 p-4 pt-0">${Object.entries(char.attributes).map(([key, attr]) => { const mod = getMod(attr.value); const fullName = ATTR_FULL_NAMES[key]; const icons = ATTR_ICONS_MAP[key] || ["star","star"]; const saveSkillName = `TR de ${key}`; const isTrained = char.skills.includes(saveSkillName); const isExpert = (char.expertise || []).includes(saveSkillName); const pb = getProficiencyBonus(char.level); let saveBonus = mod; if(isExpert) saveBonus += pb * 2; else if(isTrained) saveBonus += pb; const saveBonusStr = saveBonus >= 0 ? `+${saveBonus}` : `${saveBonus}`; return `<div class="bg-gray-900 border border-gray-800 rounded-3xl p-3 relative overflow-hidden transition-all duration-300 hover:border-[${themeColor}] hover:shadow-[0_0_20px_rgba(var(--theme-rgb),0.1)] h-full flex flex-col justify-between group" onclick="handleAttributeClick('${key}')"><div class="relative w-full flex justify-center items-center mb-1 min-h-[30px]"><div class="flex items-center gap-2 text-[${themeColor}] bg-black/40 px-3 py-1 rounded-full border border-white/5 backdrop-blur-sm z-10 shadow-[0_0_15px_${themeColor}40]"><i data-lucide="${icons[0]}" size="10" class="drop-shadow-[0_0_8px_${themeColor}]"></i><span class="text-[9px] font-black text-white uppercase tracking-[0.15em] drop-shadow-[0_0_5px_rgba(0,0,0,0.8)]">${fullName}</span><i data-lucide="${icons[1]}" size="10" class="drop-shadow-[0_0_8px_${themeColor}]"></i></div></div><div class="flex items-center justify-center my-0 relative flex-1">${_showAttrBtns ? `<button onclick="event.stopPropagation(); updateSheetAttr('${key}', -1)" class="absolute left-0 text-gray-600 hover:text-white p-1"><i data-lucide="minus" size="14"></i></button>` : ''}<span class="text-4xl font-display font-bold text-white tracking-tighter drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">${attr.value}</span>${_showAttrBtns ? `<button onclick="event.stopPropagation(); updateSheetAttr('${key}', 1)" class="absolute right-0 text-gray-600 hover:text-white p-1"><i data-lucide="plus" size="14"></i></button>` : ''}</div><div class="flex justify-center mt-1 mb-1"><div class="px-4 py-0.5 rounded-full border border-[${themeColor}]/30 bg-[${themeColor}]/5 text-[${themeColor}] text-xs font-bold shadow-[0_0_10px_rgba(var(--theme-rgb),0.2)]">${mod >= 0 ? '+'+mod : mod}</div></div><div onclick="event.stopPropagation(); handleShieldClick('${key}')" class="absolute right-2 bottom-2 cursor-pointer z-20 hover:scale-110 transition-transform flex items-center justify-center" title="TR de ${fullName}: ${saveBonusStr}"><i data-lucide="shield" size="18" class="${isTrained ? (isExpert ? 'text-neon-yellow fill-neon-yellow/10 drop-shadow-[0_0_5px_rgba(255,230,0,0.8)]' : `text-[${themeColor}] fill-[${themeColor}]/10 drop-shadow-[0_0_5px_${themeColor}]`) : 'text-gray-800 fill-gray-900'} transition-colors"></i><span class="absolute text-[7px] font-bold ${isTrained ? 'text-white' : 'text-gray-500'}" style="padding-top: 1px;">${saveBonusStr}</span></div></div>`; }).join('')}${state.openAttrPopup ? (() => { const key = state.openAttrPopup; const attr = char.attributes[key]; const mod = getMod(attr.value); const skillsList = SKILL_MAP[key] || []; return `<div class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" onclick="toggleAttrPopup(null)"><div class="bg-gray-900 border-2 border-[${themeColor}] rounded-2xl p-6 w-[85%] max-w-[320px] shadow-[0_0_50px_rgba(0,0,0,0.8)] relative transform scale-100 animate-in zoom-in-95 duration-200" onclick="event.stopPropagation()"><button onclick="toggleAttrPopup(null)" class="absolute top-4 right-4 text-gray-500 hover:text-white"><i data-lucide="x" size="20"></i></button><div class="text-center mb-6"><h2 class="text-2xl font-display font-black text-white uppercase tracking-widest drop-shadow-[0_0_10px_${themeColor}]">${ATTR_FULL_NAMES[key]}</h2><div class="flex justify-center items-center gap-4 mt-2"><div class="text-4xl font-display font-bold text-[${themeColor}]">${attr.value}</div><div class="bg-gray-800 px-4 py-1 rounded-full text-sm font-bold text-white border border-gray-700">Mod ${mod >= 0 ? '+'+mod : mod}</div></div></div><div class="space-y-3 mb-6"><h4 class="text-[10px] font-bold text-gray-500 uppercase border-b border-gray-800 pb-2 text-center">Perícias Associadas</h4><div class="flex flex-col gap-2 max-h-[200px] overflow-y-auto custom-scrollbar">${skillsList.length > 0 ? skillsList.map(s => { const isTrained = char.skills.includes(s); const isExpert = (char.expertise || []).includes(s); const pb = getProficiencyBonus(char.level); let totalBonus = mod; if (isExpert) totalBonus += (pb * 2); else if (isTrained) totalBonus += pb; /* Iniciativa: soma os bônus de inclinação no número mostrado no botão. */ const _iniB = (s === 'Iniciativa' && window.calcIniciativaBonus) ? window.calcIniciativaBonus(char) : { total: 0, fontes: [] }; totalBonus += _iniB.total; let iconName = 'circle'; let iconColorClass = 'text-gray-600'; if (isExpert) { iconName = 'badge-check'; iconColorClass = 'text-neon-yellow fill-neon-yellow/20'; } else if (isTrained) { iconName = 'check-circle-2'; iconColorClass = `text-[${themeColor}]`; } return `<div class="flex items-center justify-between p-3 rounded-xl border transition-all group ${isTrained ? `bg-[${themeColor}]/10 border-[${themeColor}]/30` : 'bg-gray-950 border-gray-800 hover:border-gray-600'}"><div class="flex items-center gap-3 cursor-pointer" onclick="handleSkillStatus('${s}')"><i data-lucide="${iconName}" size="20" class="${iconColorClass} hover:scale-110 transition-transform"></i><span class="text-xs font-bold uppercase tracking-wide ${isTrained ? 'text-white' : 'text-gray-400'}">${s}</span></div><button class="flex items-center gap-2 px-2 py-1 rounded-lg border ${isExpert ? 'border-neon-yellow/40 bg-neon-yellow/10' : (isTrained ? `border-[${themeColor}]/40 bg-[${themeColor}]/10` : 'border-gray-700 bg-gray-900')} hover:brightness-125 transition-all cursor-pointer" onclick="toggleAttrPopup(null); openRollModeModal('skill', '${s}', '${key}')"><span class="text-xs font-mono font-bold ${isExpert ? 'text-neon-yellow' : (isTrained ? `text-[${themeColor}]` : 'text-gray-400')}">${totalBonus >= 0 ? '+'+totalBonus : totalBonus}</span><i data-lucide="dices" size="14" class="${isExpert ? 'text-neon-yellow' : (isTrained ? `text-[${themeColor}]` : 'text-gray-400')} transition-colors"></i></button></div>` }).join('') : '<span class="text-xs text-gray-600 italic block text-center py-2">Nenhuma perícia associada.</span>'}</div></div><button onclick="toggleAttrPopup(null); openRollModeModal('dice', '${key}', ${mod})" class="w-full py-3 bg-[${themeColor}] text-black font-black font-display tracking-widest rounded-xl hover:brightness-110 transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_${themeColor}40]"><i data-lucide="dices" size="18"></i> ROLAR ATRIBUTO PURO</button></div></div>${state.skillSelectionModal ? `<div class="fixed inset-0 z-[110] flex items-center justify-center bg-black/90 animate-in fade-in duration-200" onclick="closeSkillModal()"><div class="bg-gray-900 border border-gray-700 rounded-xl p-6 w-[85%] max-w-[300px] shadow-2xl relative" onclick="event.stopPropagation()"><h3 class="text-lg font-display font-bold text-white mb-1">${state.skillSelectionModal}</h3><p class="text-xs text-gray-400 mb-4 uppercase tracking-widest">Selecione o nível de treinamento</p><div class="space-y-2"><button onclick="setSkillLevel('${state.skillSelectionModal}', 'remove')" class="w-full p-3 rounded-lg border border-red-900/50 bg-red-500/10 text-red-500 font-bold text-xs uppercase hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="x" size="16"></i> Remover Proficiência</button><button onclick="setSkillLevel('${state.skillSelectionModal}', 'trained')" class="w-full p-3 rounded-lg border border-gray-700 bg-gray-800 text-gray-300 font-bold text-xs uppercase hover:bg-gray-700 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="check-circle-2" size="16"></i> Normal (1x Bônus)</button><button onclick="setSkillLevel('${state.skillSelectionModal}', 'expert')" class="w-full p-3 rounded-lg border border-neon-yellow/30 bg-neon-yellow/10 text-neon-yellow font-bold text-xs uppercase hover:bg-neon-yellow hover:text-black transition-colors flex items-center gap-2"><i data-lucide="badge-check" size="16"></i> Especialização (2x Bônus)</button></div><button onclick="closeSkillModal()" class="mt-4 w-full py-2 text-xs text-gray-500 hover:text-white uppercase font-bold tracking-widest">Cancelar</button></div></div>` : ''}`; })() : ''}</div>`;
                 tabContent = `${infoGridHtml}${vitalsGridHtml}${(() => {
                     // Active Nen principles quick-use buttons
                     const d = char.nenDominio || {};
@@ -164,12 +193,19 @@
                     ].filter(p => p.show);
 
                     const btns = PRINCIPIOS.map(p => {
-                        const canAct = aura >= p.custo;
-                        const col = canAct ? tc2 : '#374151';
-                        return `<button onclick="window._activatePrincipio('${p.key}',${p.custo})"
+                        // Princípio ATIVO ganha destaque e o clique passa a DESLIGAR.
+                        // O desligamento é manual: o app não acompanha as rodadas da mesa.
+                        const ativo = window.principioAtivo && window.principioAtivo(char, p.key);
+                        // ZETSU custa 0 e serve de carga: sempre pode ser iniciado.
+                        const canAct = ativo || p.key === 'zetsu' || aura >= p.custo;
+                        const col = ativo ? '#4ade80' : (canAct ? tc2 : '#374151');
+                        const acao = ativo
+                            ? `window._desativarPrincipio('${p.key}')`
+                            : `window._activatePrincipio('${p.key}',${p.custo})`;
+                        return `<button onclick="${acao}"
                             style="display:flex;flex-direction:column;align-items:center;padding:8px 6px;border-radius:10px;border:1.5px solid ${col}44;background:${col}11;cursor:${canAct?'pointer':'not-allowed'};opacity:${canAct?1:0.5};min-width:56px;flex:1;transition:all .15s"
-                            title="${p.desc}">
-                            <span style="font-size:14px;margin-bottom:2px">${p.icon}</span>
+                            title="${ativo ? 'ATIVO — clique para desligar' : p.desc}">
+                            <span style="font-size:14px;margin-bottom:2px">${p.icon}${ativo ? ' ✓' : ''}</span>
                             <span style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:7px;color:${col};text-transform:uppercase">${p.label}</span>
                             <span style="font-size:7px;color:#6b7280;margin-top:1px">${p.custo>0?p.custo+'%':p.efeito}</span>
                             <span style="font-size:7px;color:${col};font-weight:700;margin-top:1px">${p.efeito}</span>
@@ -177,6 +213,58 @@
                     }).join('');
 
                     return `<div style="padding:8px 12px;border-bottom:1px solid #111827;background:#0a0f1a">
+                        ${(() => {
+                            // Faixa dos princípios ligados, com o botão de desligar tudo.
+                            // Serve de lembrete: como o desligamento é manual, é fácil esquecer
+                            // um princípio aceso depois do combate.
+                            const at = char.principiosAtivos || {};
+                            const ligados = Object.keys(at).filter(k => at[k]);
+                            if (!ligados.length) return '';
+                            const nomes = ligados.map(k => {
+                                const p = PRINCIPIOS.find(x => x.key === k);
+                                const n = p ? p.label : k.toUpperCase();
+                                const rod = (char.principiosRodadas || {})[k];
+                                // ZETSU é carga: mostra quanto falta para receber o benefício,
+                                // não quanto falta para expirar.
+                                const suf = rod == null ? '' : (k === 'zetsu' ? (' em ' + rod + 'r') : (' ' + rod + 'r'));
+                                return (k === 'gyo' && char.gyoAlvo ? (n + ' (' + char.gyoAlvo + ')') : n) + suf;
+                            }).join(', ');
+                            // O container externo NÃO é flex: antes ele era, e a linha era
+                            // fechada cedo para caber o botão de passar rodada, sobrando uma
+                            // </div>. Esse fechamento a mais quebrava o layout e engolia a
+                            // barra inferior de abas do app.
+                            return `<div style="background:#4ade8015;border:1px solid #4ade8044;border-radius:9px;padding:7px 10px;margin-bottom:8px">
+                                <div style="display:flex;align-items:center;gap:8px">
+                                    <div style="flex:1;font-size:9px;color:#4ade80;font-weight:700;line-height:1.4">⚡ Ativo: ${nomes}</div>
+                                    <button onclick="window._desativarTodosPrincipios()" style="flex-shrink:0;padding:4px 9px;border-radius:6px;background:transparent;border:1px solid #4ade8055;color:#4ade80;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer">Desligar tudo</button>
+                                </div>
+                                <button onclick="window._passarRodada()" style="width:100%;margin-top:7px;padding:8px;border-radius:8px;background:#4ade8022;border:1px solid #4ade8066;color:#4ade80;font-family:'Orbitron',sans-serif;font-weight:900;font-size:8px;text-transform:uppercase;letter-spacing:1px;cursor:pointer">⏭ Passar rodada${char.rodadaAtual ? ' (rodada ' + char.rodadaAtual + ')' : ''}</button>
+                            </div>`;
+                        })()}
+                        ${(() => {
+                            // ── Hatsus na mesma aba dos Princípios ─────────────────────────────
+                            // Assim o jogador controla tudo de um lugar, sem abrir cada Hatsu.
+                            // Os desativados piscam na cor do TEMA (que segue a categoria de Nen).
+                            const ha = char.hatsusAtivos || {};
+                            const lista = (char.hatsus || []);
+                            if (!lista.length) return '';
+                            const nAtivos = Object.keys(ha).filter(k => ha[k]).length;
+                            const html = lista.map((h, i) => {
+                                const a = ha[i];
+                                if (a) {
+                                    const txt = a.constante ? 'constante' : ('restam ' + (a.rodadas || 0) + '/' + a.max + ' rod.');
+                                    return `<div style="display:flex;align-items:center;gap:8px;background:#4ade8012;border:1px solid #4ade8033;border-radius:8px;padding:6px 9px;margin-bottom:5px">
+                                        <div style="flex:1;min-width:0;font-size:9px;color:#4ade80;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">⚡ ${h.nome || ('Hatsu ' + (i+1))} <span style="color:#6b7280;font-weight:400">(${txt})</span></div>
+                                        <button onclick="window._desativarHatsu(${i})" style="flex-shrink:0;padding:3px 8px;border-radius:6px;background:transparent;border:1px solid #4ade8055;color:#4ade80;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer">Desligar</button>
+                                    </div>`;
+                                }
+                                return `<div class="aviso-tag-piscando" style="display:flex;align-items:center;gap:8px;background:${tc2}12;border:1px solid ${tc2}33;border-radius:8px;padding:6px 9px;margin-bottom:5px">
+                                    <div style="flex:1;min-width:0;font-size:9px;color:${tc2};font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h.nome || ('Hatsu ' + (i+1))}</div>
+                                    <button onclick="window._ativarHatsuDaFicha(${i})" style="flex-shrink:0;padding:3px 9px;border-radius:6px;background:${tc2};border:none;color:#000;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer">⚡ Ativar</button>
+                                </div>`;
+                            }).join('');
+                            return `<div style="font-size:7px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">🌀 Hatsus${nAtivos ? ' — ' + nAtivos + ' ativo(s)' : ''}</div>${html}<div style="height:8px"></div>`;
+                        })()}
                         <div style="font-size:7px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">🔮 Princípios de NEN</div>
                         <div style="display:flex;gap:4px;flex-wrap:wrap">${btns}</div>
                     </div>`;
@@ -187,7 +275,18 @@
                         if (!data || !data.dano || data.dano === '-' || data.dano.startsWith('+')) return null;
                         return { nome: item.name, dano: data.dano, tipoDano: data.tipo_dano || '', tags: data.tags || [] };
                     }).filter(Boolean);
-                    const attacksList = [{ nome: 'Ataque Desarmado', dano: '1d4', tipoDano: 'Impacto', tags: [] }, ...weapons];
+                    // ── Ataque desarmado: 1d6 com Artista Marcial ou Monge ──────────────────
+                    // Os dois antecedentes dizem, com as mesmas palavras, que "seus golpes
+                    // desarmados causam 1d6 no lugar de 1d4": Artista Marcial (Guarda Costas)
+                    // e Monge (Recluso). A escolha já era gravada em char.backgroundFeature na
+                    // criação, mas o dano estava escrito fixo como 1d4 e nunca a consultava.
+                    const _FEATS_1D6 = ['Artista Marcial', 'Monge'];
+                    const _featNome = typeof char.backgroundFeature === 'string'
+                        ? char.backgroundFeature
+                        : ((char.backgroundFeature || {}).nome || '');
+                    const _desarmadoMarcial = _FEATS_1D6.indexOf(String(_featNome).trim()) >= 0;
+                    const _danoDesarmado = _desarmadoMarcial ? '1d6' : '1d4';
+                    const attacksList = [{ nome: 'Ataque Desarmado' + (_desarmadoMarcial ? ' (Marcial)' : ''), dano: _danoDesarmado, tipoDano: 'Impacto', tags: [] }, ...weapons];
                     const rows = attacksList.map(w => {
                         const tagsHtml = (w.tags || []).slice(0, 2).map(t => `<span style="font-size:7px;background:#111827;color:#6b7280;padding:1px 5px;border-radius:3px;border:1px solid #1f2937">${t}</span>`).join('');
                         const safeNome = w.nome.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
@@ -398,14 +497,11 @@
                             const d = char.nenDominio || {};
                             const tc2 = catColor;
 
+                            // Comprar princípio consome P.N do pool base. Antes a gravação era
+                            // direta, SEM conferir se havia P.N disponível: dava para subir
+                            // qualquer princípio com o pool zerado ou negativo. Agora valida.
                             const setDom = (key, val) => {
-                                // inline call via onclick
-                                return `(function(){
-                                    var c=state.currentChar;
-                                    if(!c.nenDominio)c.nenDominio={};
-                                    c.nenDominio['${key}']=${val};
-                                    saveCharacter(c);render(true);
-                                })()`;
+                                return `window._comprarPrincipio('${key}', ${val})`;
                             };
 
                             const noteBox = (text) => `<div style="background:#0d1117;border:1px dashed #374151;border-radius:8px;padding:6px 8px;margin:0 0 8px;font-size:7px;color:#6b7280;line-height:1.4">💡 ${text}</div>`;
@@ -836,6 +932,19 @@
                 </div>`;
             }
 
+            // ── Sem categoria de Nen: a aba de Nen fica bloqueada ───────────────────────
+            // Personagem criado com "Começar do nível 0 — Sem Nen" não tem categoria, e a aba
+            // inteira depende dela (princípios, Hatsus, roda de afinidade). Em vez de desenhar
+            // com dados faltando, sobrescrevemos o conteúdo da aba pelo estado de bloqueio.
+            if (state.activeTab === 'NEN' && !char.class) {
+                tabContent = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 32px;text-align:center">
+                    <div style="font-size:44px;margin-bottom:14px;opacity:.5">🚫</div>
+                    <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:14px;color:#6b7280;text-transform:uppercase;letter-spacing:2px">Nen Adormecido</div>
+                    <div style="font-size:11px;color:#4b5563;margin-top:12px;line-height:1.6;max-width:280px">Este personagem começou sem Nen. Quando o Nen despertar na mesa, defina a categoria para liberar princípios, Hatsus e a roda de afinidade.</div>
+                </div>`;
+            }
+
+
             const nextXp = char.xp_next || 100;
             const xpPct = Math.min(100, (char.xp / nextXp) * 100);
             const imgPos = char.imagePosition || { x: 50, y: 50 };
@@ -850,7 +959,7 @@
                         <div class="absolute inset-0 bg-cover bg-no-repeat transition-all duration-700 group-hover:scale-105" style="${bgImage}"></div>
                         ${!char.imageUrl ? `<div class="absolute inset-0 bg-[${themeColor}]/5 flex items-center justify-center"><i data-lucide="image-plus" size="48" class="text-[${themeColor}]/30"></i></div>` : ''}
                         <div class="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/60 to-transparent"></div>
-                        <button onclick="event.stopPropagation(); state.view='LIST'; render()" class="absolute top-6 left-6 text-white/80 hover:text-white bg-black/40 p-2 rounded-full backdrop-blur-md border border-white/10 z-20 transition-all hover:bg-black/60"><i data-lucide="arrow-left" size="20"></i></button>
+                        <button onclick="event.stopPropagation(); window._sairDaFicha()" class="absolute top-6 left-6 text-white/80 hover:text-white bg-black/40 p-2 rounded-full backdrop-blur-md border border-white/10 z-20 transition-all hover:bg-black/60"><i data-lucide="arrow-left" size="20"></i></button>
                         ${char.imageUrl ? `<button onclick="event.stopPropagation(); window._openImagePositionModal()" class="absolute top-6 right-6 text-white/80 hover:text-white bg-black/40 p-2 rounded-full backdrop-blur-md border border-white/10 z-20 transition-all hover:bg-black/60" title="Ajustar posição da imagem"><i data-lucide="move" size="18"></i></button>` : ''}
                         <div class="absolute bottom-0 left-0 w-full p-6 flex flex-col justify-end z-10" onclick="event.stopPropagation()">
                             <h1 contenteditable="true" 
@@ -884,7 +993,7 @@
                 </div>` : 
                 `<div class="flex-1 overflow-hidden relative flex flex-col">
                     <div class="absolute top-4 left-4 z-50">
-                        <button onclick="event.stopPropagation(); state.view='LIST'; render()" class="text-white/80 hover:text-white bg-black/40 p-2 rounded-full backdrop-blur-md border border-white/10 transition-all hover:bg-black/60"><i data-lucide="arrow-left" size="20"></i></button>
+                        <button onclick="event.stopPropagation(); window._sairDaFicha()" class="text-white/80 hover:text-white bg-black/40 p-2 rounded-full backdrop-blur-md border border-white/10 transition-all hover:bg-black/60"><i data-lucide="arrow-left" size="20"></i></button>
                     </div>
                     ${tabContent}
                 </div>`
@@ -947,7 +1056,64 @@
             render(true);
         };
         function selectNenType(cls) { state.tempChar.class = cls; const clsData = SYSTEM_DB.classes.find(c => c.id === cls); if(clsData) setThemeColor(clsData.color); render(true); }
-        function setCategoriaMetodo(method) { state.tempChar.categoriaMetodo = method; render(true); }
+        // Aviso ao escolher a categoria manualmente. A escolha livre existe para NPCs e
+        // playtesters; jogador comum normalmente rola o 1d100 ou descobre com a evolução.
+        // Informa e segue: confirmar o aviso abre a seleção manual.
+        window._avisoEscolhaManual = function () {
+            const tc = getComputedStyle(document.documentElement).getPropertyValue('--theme-color-hex').trim() || '#eaecf0';
+            const ov = document.createElement('div');
+            ov.style.cssText = 'position:fixed;inset:0;background:#000000ee;display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;font-family:Rajdhani,sans-serif';
+            ov.innerHTML = '<div style="background:#0d1117;border:2px solid #374151;border-radius:20px;padding:20px;width:100%;max-width:360px;text-align:center">'
+                + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:12px;color:#d1d5db;text-transform:uppercase;letter-spacing:2px;margin-bottom:10px">Escolher Manualmente</div>'
+                + '<div style="font-size:12px;color:#9ca3af;line-height:1.6;margin-bottom:16px">Recurso para NPCs e Playtesters</div>'
+                + '<div style="display:flex;gap:8px">'
+                + '<button id="aviso-manual-cancel" style="flex:1;padding:11px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Voltar</button>'
+                + '<button id="aviso-manual-ok" style="flex:2;padding:11px;border-radius:10px;background:#e5e7eb;border:none;color:#000;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Entendido</button>'
+                + '</div></div>';
+            document.body.appendChild(ov);
+            document.getElementById('aviso-manual-cancel').onclick = function () { ov.remove(); };
+            document.getElementById('aviso-manual-ok').onclick = function () { ov.remove(); setCategoriaMetodo('chosen'); };
+        };
+
+        // Compra/ajuste de um Princípio de Nen, validando o P.N disponível.
+        // Subir um nível custa a diferença; descer devolve e é sempre permitido.
+        window._comprarPrincipio = function (key, val) {
+            const char = state.currentChar;
+            if (!char.nenDominio) char.nenDominio = {};
+            const atual = parseInt(char.nenDominio[key]) || 0;
+            const novo = parseInt(val) || 0;
+            if (novo > atual) {
+                const pnTotal = window.calcularPHBase ? window.calcularPHBase(char.level) : 6;
+                const pnDominio = window.calcPNSpentInDominio ? window.calcPNSpentInDominio(char) : 0;
+                const pnHatsu = (char.hatsus || []).reduce(function (s, h) { return s + (h.pnUsados || 0); }, 0);
+                const livre = pnTotal - pnDominio - pnHatsu;
+                const custo = novo - atual;
+                if (custo > livre) {
+                    alert('P.N insuficiente\n\n'
+                        + 'Este avanço custa ' + custo + ' P.N e você tem ' + Math.max(0, livre) + ' livre(s).\n\n'
+                        + 'Lembre: o P.N concedido por restrições vale apenas dentro do Hatsu e não pode ser usado em Princípios de Nen.');
+                    return;
+                }
+            }
+            char.nenDominio[key] = novo;
+            saveCharacter(char);
+            render(true);
+        };
+
+        function setCategoriaMetodo(method) {
+            state.tempChar.categoriaMetodo = method;
+            // "Sem Nen": o personagem começa nível 0 sem categoria. Limpamos categoria,
+            // afinidade e talento para nada ficar meio-preenchido de uma escolha anterior.
+            // Os cálculos que dependem de categoria já têm padrão de segurança:
+            // tema cai em verde neon (sheet.js:70) e dado de vida em d8 (sheet.js:2016).
+            if (method === 'semnen') {
+                state.tempChar.class = null;
+                state.tempChar.afinidade = null;
+                state.tempChar.genialidade = null;
+                state.tempChar.categoriaRoll = null;
+            }
+            render(true);
+        }
         function rollCategoriaNen() {
             const roll = Math.floor(Math.random() * 100) + 1;
             const cls = window.rollCategoriaNenTable ? window.rollCategoriaNenTable(roll) : 'INTENSIFICAÇÃO';
@@ -1100,7 +1266,29 @@
         function selectRaceFeatureChoice(nome) { state.tempChar.raceFeatureChoice = nome; render(true); }
         // "Esforço no lugar de talento" (Humano Comum) — ao trocar a raça-fonte, limpa a característica
         // escolhida (as opções mudam por raça, não faz sentido manter a seleção anterior).
-        function selectEffortRace(raceName) { state.tempChar.effortRace = raceName; state.tempChar.effortTrait = null; render(true); }
+        // Aviso ao abrir a lista de raças-fonte do Humano Comum: a regra concede APENAS a
+        // característica escolhida, nunca os pontos de atributo daquela raça. Aparece uma vez
+        // por sessão de criação, para não incomodar a cada clique no dropdown.
+        window._avisoEsforcoHumano = function () {
+            if (!state.tempChar || state.tempChar._avisoEsforcoVisto) return;
+            state.tempChar._avisoEsforcoVisto = true;
+            const tc = getComputedStyle(document.documentElement).getPropertyValue('--theme-color-hex').trim() || '#eaecf0';
+            const ov = document.createElement('div');
+            ov.style.cssText = 'position:fixed;inset:0;background:#000000ee;display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;font-family:Rajdhani,sans-serif';
+            ov.innerHTML = '<div style="background:#0d1117;border:2px solid ' + tc + ';border-radius:20px;padding:20px;width:100%;max-width:380px">'
+                + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:12px;color:' + tc + ';text-transform:uppercase;letter-spacing:2px;margin-bottom:10px">💪 Esforço no Lugar de Talento</div>'
+                + '<div style="font-size:11px;color:#d1d5db;line-height:1.6;margin-bottom:14px">Os <b>pontos de atributo</b> da raça escolhida <b style="color:#f87171">não são recebidos</b>. O Humano Comum ganha apenas a <b style="color:' + tc + '">característica</b> que você selecionar.</div>'
+                + '<button id="aviso-esforco-ok" style="width:100%;padding:11px;border-radius:10px;background:' + tc + ';border:none;color:#000;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer;letter-spacing:1px">Entendido</button>'
+                + '</div>';
+            document.body.appendChild(ov);
+            document.getElementById('aviso-esforco-ok').onclick = function () { ov.remove(); };
+        };
+
+        function selectEffortRace(raceName) {
+            state.tempChar.effortRace = raceName || null;
+            state.tempChar.effortTrait = null;
+            render(true);
+        }
         function selectEffortTrait(traitName) { state.tempChar.effortTrait = traitName; render(true); }
         // ── Formiga Quimera: fagogênese, referência pronta, tamanho e deslocamento de inseto ──────
         // Trocar a categoria de fagogênese invalida a referência pronta escolhida (presets são por categoria).
@@ -1747,7 +1935,7 @@
             fetch(getActiveWebhookUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content }) }).catch(() => {});
         }
         function rollDice(attrName, mod, mode) { const roll = getRollResult(mode || state.rollMode); const total = roll.total + mod; const entry = { time: new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}), label: `${attrName} (${roll.label})`, dice: roll.dice.join(', '), mod: mod, total: total }; state.currentChar.history.push(entry); if (state.currentChar.history.length > 50) state.currentChar.history.shift(); saveCharacter(state.currentChar); state.rollResult = { name: attrName, total: total, diceVal: roll.total, mod: mod, label: roll.label }; if (state.activeTab !== 'DADOS') state.unreadRolls = true; sendToDiscord(`${attrName} (${roll.label})`, roll.dice, mod, total, state.currentChar.name || 'Personagem'); render(true); }
-        function rollSkill(skillName, attrKey, mode, zetsuBonus) { const char = state.currentChar; const mod = getMod(char.attributes[attrKey].value); const isTrained = char.skills.includes(skillName); const isExpert = (char.expertise || []).includes(skillName); const pb = getProficiencyBonus(char.level); let totalMod = mod; if (isExpert) { totalMod += (pb * 2); } else if (isTrained) { totalMod += pb; } const zb = zetsuBonus || 0; totalMod += zb; const zetsuTag = zb > 0 ? ' 👁️Zetsu' : ''; const roll = getRollResult(mode || state.rollMode); const total = roll.total + totalMod; const entry = { time: new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}), label: `${skillName} ${isExpert ? "(Exp)" : ""}${zetsuTag} (${roll.label})`, dice: roll.dice.join(', '), mod: totalMod, total: total }; state.currentChar.history.push(entry); if (state.currentChar.history.length > 50) state.currentChar.history.shift(); saveCharacter(state.currentChar); state.rollResult = { name: skillName, total: total, diceVal: roll.total, mod: totalMod, label: roll.label }; if (state.activeTab !== 'DADOS') state.unreadRolls = true; sendToDiscord(`${skillName}${isExpert ? ' (Exp)' : ''}${zetsuTag} (${roll.label})`, roll.dice, totalMod, total, char.name || 'Personagem'); render(true); }
+        function rollSkill(skillName, attrKey, mode, zetsuBonus) { const char = state.currentChar; const mod = getMod(char.attributes[attrKey].value); const isTrained = char.skills.includes(skillName); const isExpert = (char.expertise || []).includes(skillName); const pb = getProficiencyBonus(char.level); let totalMod = mod; if (isExpert) { totalMod += (pb * 2); } else if (isTrained) { totalMod += pb; } const zb = zetsuBonus || 0; totalMod += zb; const zetsuTag = zb > 0 ? ' 👁️Zetsu' : ''; const _ini = (skillName === 'Iniciativa' && window.calcIniciativaBonus) ? window.calcIniciativaBonus(char) : { total: 0, fontes: [] }; totalMod += _ini.total; const roll = getRollResult(mode || state.rollMode); const total = roll.total + totalMod; const entry = { time: new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}), label: `${skillName} ${isExpert ? "(Exp)" : ""}${zetsuTag} (${roll.label})`, dice: roll.dice.join(', '), mod: totalMod, total: total }; state.currentChar.history.push(entry); if (state.currentChar.history.length > 50) state.currentChar.history.shift(); saveCharacter(state.currentChar); state.rollResult = { name: skillName, total: total, diceVal: roll.total, mod: totalMod, label: roll.label }; if (state.activeTab !== 'DADOS') state.unreadRolls = true; sendToDiscord(`${skillName}${isExpert ? ' (Exp)' : ''}${zetsuTag} (${roll.label})`, roll.dice, totalMod, total, char.name || 'Personagem'); render(true); }
         function closeRollModal() { state.rollResult = null; render(true); }
         function copyToClipboard(idx) { const h = state.currentChar.history[idx]; if(!h) return; const text = `**${h.label}**\nRolagem: [${h.dice}] ${h.mod>=0?'+':''}${h.mod} = **${h.total}**`; navigator.clipboard.writeText(text).then(() => { const btn = document.activeElement; if(btn && btn.tagName === 'BUTTON') { const originalHTML = btn.innerHTML; btn.innerHTML = '<i data-lucide="check" size="14"></i>'; btn.classList.add('text-green-500'); setTimeout(() => { btn.innerHTML = originalHTML; btn.classList.remove('text-green-500'); lucide.createIcons(); }, 1000); } }); }
         function getRollResult(mode) { const r1 = Math.floor(Math.random() * 20) + 1; const r2 = Math.floor(Math.random() * 20) + 1; if (mode === 'NORMAL') return { total: r1, dice: [r1], label: 'Normal' }; if (mode === 'VANTAGEM') return { total: Math.max(r1, r2), dice: [r1, r2], label: 'Vantagem' }; if (mode === 'DESVANTAGEM') return { total: Math.min(r1, r2), dice: [r1, r2], label: 'Desvantagem' }; if (mode === 'ÊNFASE') { const dist1 = Math.abs(r1 - 10.5); const dist2 = Math.abs(r2 - 10.5); return { total: dist1 > dist2 ? r1 : r2, dice: [r1, r2], label: 'Ênfase' }; } return { total: r1, dice: [r1], label: 'Normal' }; }
@@ -2139,7 +2327,11 @@
                 if (window._checkJuramentoImutavelLevelUp) window._checkJuramentoImutavelLevelUp(char, _previousLevel);
                 if (isAttrChoice) {
                     if (overlay._attrChoice === 'aura') {
+                        // Sobe o máximo E a aura atual, igual ao que já é feito com o PV logo
+                        // abaixo. Antes só o máximo subia, então o jogador tinha de lembrar de
+                        // clicar em + para ver a aura cheia de verdade.
                         char.vitals.auraMax = (char.vitals.auraMax || 100) + rewards.auraP;
+                        char.vitals.aura = (char.vitals.aura || 0) + rewards.auraP;
                     } else {
                         char.pendingAttrPoints = (char.pendingAttrPoints || 0) + rewards.attr;
                     }
@@ -2660,7 +2852,146 @@
         }
         function toggleSheetAccordion() { state.sheetOtherSkillsOpen = !state.sheetOtherSkillsOpen; render(true); }
         function toggleHatsuAccordion() { state.hatsuListOpen = !state.hatsuListOpen; render(true); }
-        function handleArmorClick() { alert('Funcionalidade de Armadura em desenvolvimento.'); }
+        // ── CA calculada na hora, nunca gravada ──────────────────────────────────────
+        // Antes a CA era gravada em char.vitals.ca na criação (10 + mod CON) e nunca mais
+        // recalculada: se o CON subisse, a CA continuava a mesma. Agora é sempre conta.
+        // Sem armadura: 10 + mod CON. Com armadura: vale a MAIOR das duas.
+        // CA de objeto de Hatsu não entra aqui — ela tem lugar próprio na ficha do Hatsu.
+        // Bônus de atributo vindo do GYO corporal. Vale enquanto o princípio estiver ativo.
+        window.gyoBonusAttr = function (char, attr) {
+            const at = (char && char.principiosAtivos) || {};
+            if (!at.gyo || char.gyoAlvo !== attr) return 0;
+            const b = window.calcAvancadoBonus ? window.calcAvancadoBonus(char, 'gyo') : { attrBonus: 3 };
+            return b.attrBonus || 3;
+        };
+
+        function calcCASemArmadura(char) {
+            const con = (((char.attributes || {}).CON || {}).value || 10) + window.gyoBonusAttr(char, 'CON');
+            return 10 + getMod(con);
+        }
+        // O campo ca do ITEM_DB é texto: "16", "12 + DES", "14 + DES (max. 3)" para armaduras
+        // e "+1", "+3", "+5" para escudos. Escudo é BÔNUS: soma por cima, com armadura ou sem.
+        function _parseCAItem(txt) {
+            const s = String(txt || '').trim();
+            if (!s) return null;
+            if (s[0] === '+') {
+                const b = parseInt(s.slice(1));
+                return isNaN(b) ? null : { tipo: 'escudo', bonus: b };
+            }
+            const base = parseInt(s);
+            if (isNaN(base)) return null;
+            const usaDes = /DES/i.test(s);
+            const mx = s.match(/max\.?\s*(\d+)/i);
+            return { tipo: 'armadura', base: base, usaDes: usaDes, teto: mx ? parseInt(mx[1]) : null };
+        }
+        // Melhor armadura vestida (uma só) + soma de TODOS os escudos do inventário.
+        function calcCAArmadura(char) {
+            const modDes = getMod(((char.attributes || {}).DES || {}).value || 10);
+            let melhorArmadura = 0, bonusEscudo = 0;
+            (char.inventory || []).forEach(function (item) {
+                const data = (typeof findItemData === 'function') ? findItemData(item && item.name) : null;
+                const info = _parseCAItem((item && item.ca) || (data && data.ca));
+                if (!info) return;
+                if (info.tipo === 'escudo') { bonusEscudo += info.bonus; return; }
+                let total = info.base;
+                if (info.usaDes) total += (info.teto != null) ? Math.min(modDes, info.teto) : modDes;
+                if (total > melhorArmadura) melhorArmadura = total;
+            });
+            return { armadura: melhorArmadura, escudo: bonusEscudo };
+        }
+        // ── Princípios ativos que mexem na CA ───────────────────────────────────────
+        // KEN dobra a CA, KO reduz 80%, RYU soma 3 e SHU soma 1d4 (usamos a média, 2).
+        // O GYO concentrado em CON entra pela porta normal, no 10 + modificador.
+        function calcCAPrincipios(char, caBase) {
+            const at = (char && char.principiosAtivos) || {};
+            const fontes = [];
+            let ca = caBase;
+            if (at.ken) { ca = ca * 2; fontes.push('KEN (×2)'); }
+            if (at.ko) {
+                const koB = window.calcAvancadoBonus ? window.calcAvancadoBonus(char, 'ko') : { caBonus: 0 };
+                ca = Math.round(ca * 0.2) + (koB.caBonus || 0);
+                fontes.push('KO (−80%' + ((koB.caBonus || 0) > 0 ? ', +' + koB.caBonus : '') + ')');
+            }
+            if (at.ryu) {
+                const ryB = window.calcAvancadoBonus ? window.calcAvancadoBonus(char, 'ryu') : { tabelaBonus: 0 };
+                const v = 3 + (ryB.tabelaBonus || 0);
+                ca += v; fontes.push('RYU (+' + v + ')');
+            }
+            if (at.shu) { ca += 2; fontes.push('SHU (+1d4, média 2)'); }
+            return { ca: Math.max(0, ca), fontes: fontes };
+        }
+
+        function calcCAAtual(char) {
+            if (!char) return 10;
+            const arm = calcCAArmadura(char);
+            // A maior entre "sem armadura" e a armadura vestida, e o escudo soma dos dois jeitos.
+            const base = Math.max(calcCASemArmadura(char), arm.armadura) + arm.escudo;
+            return calcCAPrincipios(char, base).ca;
+        }
+        window.calcCAAtual = calcCAAtual;
+
+        // ── Durabilidade de Equipamentos de Proteção ─────────────────────────────────
+        // Regra: a durabilidade de uma armadura é igual à CA que ela concede — Colete de
+        // Resposta Rápida (CA 15) aguenta 15 golpes, Colete Fino de Kevlar (CA 12+DES) é
+        // destruído em 12. Reduz 1 por golpe recebido sem TEN, KEN ou RYU; golpes de rajada
+        // ou explosivos reduzem 2. Escudos NÃO entram: só quebram por balístico, explosivo,
+        // arma de cerco ou golpe mirado com aura.
+        // Por decisão de mesa, a redução é MANUAL: clicar no ícone tira 1. Nada automático,
+        // porque o app não acompanha a rodada e clicar no PV não significa golpe recebido.
+        function calcDurabilidadeMax(char) {
+            const arm = calcCAArmadura(char);
+            return arm.armadura > 0 ? arm.armadura : 0;
+        }
+        function getDurabilidade(char) {
+            const max = calcDurabilidadeMax(char);
+            if (max <= 0) return { max: 0, atual: 0, quebrada: false, temArmadura: false };
+            const atual = (char.armorDurability != null) ? char.armorDurability : max;
+            return { max: max, atual: Math.max(0, Math.min(atual, max)), quebrada: atual <= 0, temArmadura: true };
+        }
+        // ── Sair da ficha para a lista ───────────────────────────────────────────────
+        // Precisa DESLIGAR o modo de visualização. Antes, abrir uma ficha pelo painel de
+        // admin ligava state._viewingMode e o desligamento só acontecia no botão da faixa
+        // de somente leitura — faixa que nunca aparece para admin, porque readOnly fica
+        // false. O modo ficava ligado pelo resto da sessão e TODO saveCharacter passava a
+        // gravar só no Supabase, via saveViewingChar, sem tocar o localStorage. Como a
+        // lista inicial lê do localStorage, as fichas do próprio admin ficavam invisíveis.
+        window._sairDaFicha = function () {
+            state._viewingMode = false;
+            state.readOnly = false;
+            state.viewingUser = null;
+            state.currentChar = state._prevChar || null;
+            state._prevChar = null;
+            state.view = 'LIST';
+            render();
+        };
+
+        function handleArmorClick() {
+            const char = state.currentChar;
+            const d = getDurabilidade(char);
+            if (!d.temArmadura) {
+                alert('Nenhuma armadura no inventário.\n\nA durabilidade é igual à CA que a armadura concede. Escudos não têm durabilidade nesta regra.');
+                return;
+            }
+            if (d.quebrada) {
+                if (confirm('Armadura quebrada.\n\nReparar e restaurar a durabilidade para ' + d.max + '?')) {
+                    char.armorDurability = d.max;
+                    saveCharacter(char);
+                    render(true);
+                }
+                return;
+            }
+            char.armorDurability = d.atual - 1;
+            saveCharacter(char);
+            render(true);
+        }
+        window.handleArmorRepair = function () {
+            const char = state.currentChar;
+            const d = getDurabilidade(char);
+            if (!d.temArmadura) return;
+            char.armorDurability = d.max;
+            saveCharacter(char);
+            render(true);
+        };
         function uploadCharacterImage(input) { if (input.files && input.files[0]) { const reader = new FileReader(); reader.onload = function(e) { state.currentChar.imageUrl = e.target.result; state.currentChar.imagePosition = { x: 50, y: 50 }; saveCharacter(state.currentChar); render(true); }; reader.readAsDataURL(input.files[0]); } }
 
         // Modal pra escolher qual parte da imagem do personagem fica visível no recorte do header

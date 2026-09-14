@@ -3,6 +3,11 @@
             const step = state.creatorStep;
             let themeColorHex = '#00ff9d';
             if (state.tempChar && state.tempChar.class) { const clsTheme = SYSTEM_DB.classes.find(c => c.id === state.tempChar.class); if (clsTheme) { setThemeColor(clsTheme.color); themeColorHex = clsTheme.color; } }
+            // Sem Nen: já na criação o tema vira neutro, para o jogador ver como vai ficar.
+            else if (state.tempChar && state.tempChar.categoriaMetodo === 'semnen') {
+                const _tn = window.TEMA_SEM_NEN || '#eaecf0';
+                setThemeColor(_tn); themeColorHex = _tn;
+            }
             let contentHtml = '';
             let title = '';
 
@@ -12,14 +17,18 @@
                 contentHtml = `
                     <div class="space-y-6 text-center">
                         <p class="text-xs text-gray-400 leading-relaxed px-2">Antes de definir sua identidade, escolha como sua categoria de Nen (Reforço, Transmutação, Materialização, Emissão, Manipulação ou Especialização) será determinada.</p>
-                        <div class="grid grid-cols-1 gap-3">
-                            <button onclick="rollCategoriaNen()" class="w-full py-5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl font-display font-bold text-white tracking-widest hover:brightness-110 active:scale-95 transition-all shadow-lg flex flex-col items-center gap-1 border border-white/10">
-                                <span class="text-sm">🎲 ROLAR 1d100</span>
-                                <span class="text-[9px] font-normal opacity-80 normal-case">Sua categoria é definida pelo destino (tabela de afinidade)</span>
+                        <div class="flex flex-col justify-between gap-4" style="min-height:52vh">
+                            <button onclick="setCategoriaMetodo('semnen')" class="w-full flex-1 py-5 bg-gray-900 border-2 border-gray-700 rounded-xl font-display font-bold text-gray-300 tracking-widest hover:bg-gray-800 active:scale-95 transition-all flex flex-col items-center justify-center gap-1">
+                                <span class="text-sm">DESCOBRIR COM A EVOLUÇÃO</span>
+                                <span class="text-[9px] font-normal opacity-80 normal-case text-gray-500">A categoria fica para quando o Nen despertar</span>
                             </button>
-                            <button onclick="setCategoriaMetodo('chosen')" class="w-full py-5 bg-gray-900 border-2 border-neon-theme rounded-xl font-display font-bold text-neon-theme tracking-widest hover:bg-neon-theme/10 active:scale-95 transition-all flex flex-col items-center gap-1">
-                                <span class="text-sm">✋ ESCOLHER MANUALMENTE</span>
-                                <span class="text-[9px] font-normal opacity-80 normal-case text-gray-400">Selecione livremente sua categoria de Nen</span>
+                            <button onclick="rollCategoriaNen()" class="w-full flex-1 py-5 bg-gray-900 border-2 border-gray-700 rounded-xl font-display font-bold text-gray-300 tracking-widest hover:bg-gray-800 active:scale-95 transition-all flex flex-col items-center justify-center gap-1">
+                                <span class="text-sm">ROLAR 1d100</span>
+                                <span class="text-[9px] font-normal opacity-80 normal-case text-gray-500">Sua categoria é definida pelo destino (tabela de afinidade)</span>
+                            </button>
+                            <button onclick="window._avisoEscolhaManual()" class="w-full flex-1 py-5 bg-gray-900 border-2 border-gray-700 rounded-xl font-display font-bold text-gray-300 tracking-widest hover:bg-gray-800 active:scale-95 transition-all flex flex-col items-center justify-center gap-1">
+                                <span class="text-sm">ESCOLHER MANUALMENTE</span>
+                                <span class="text-[9px] font-normal opacity-80 normal-case text-gray-500">Selecione livremente sua categoria de Nen</span>
                             </button>
                         </div>
                         ${rolledLabel}
@@ -123,6 +132,12 @@
                         ${genialidadeHtml}
                     </div>`;
 
+                // ── Sem Nen: a identidade pede só o nome ────────────────────────────────
+                // Quem começa sem Nen não tem categoria, então hexágono de afinidade, descrição
+                // da categoria e rolagem de talento não fazem sentido ainda. A categoria é
+                // escolhida depois, quando o Nen despertar. O personagem já nasce nível 0 no
+                // fluxo normal, então nada muda nesse ponto.
+                const _semNen = state.tempChar.categoriaMetodo === 'semnen';
                 contentHtml = `
                     <div class="space-y-6">
                         <div class="relative">
@@ -135,13 +150,18 @@
                             <label for="creator-isnpc" style="font-size:10px;font-weight:700;color:#fb923c;text-transform:uppercase;letter-spacing:.05em;cursor:pointer">🤖 Este personagem é um NPC (libera regras de criação de Hatsu)</label>
                         </div>` : ''}
 
+                        ${_semNen ? `<div style="text-align:center;padding:18px 14px;background:#0d1117;border:1px dashed #374151;border-radius:12px">
+                            <div style="font-size:28px;margin-bottom:8px">🚫</div>
+                            <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:12px;color:#9ca3af;text-transform:uppercase;letter-spacing:2px">Sem Nen</div>
+                            <div style="font-size:10px;color:#6b7280;margin-top:8px;line-height:1.5">Seu personagem começa no nível 0, sem categoria de Nen. A aba de Nen fica bloqueada até o despertar.</div>
+                        </div>` : `
                         ${diagramHtml}
 
                         <div class="text-center px-4 bg-gray-900/50 p-3 rounded-xl border border-gray-800/50">
                             <p class="text-sm font-medium text-gray-300 italic">"${currentClass.desc}"</p>
                         </div>
 
-                        ${rollBtnHtml}
+                        ${rollBtnHtml}`}
                     </div>`;
             } else if (step === 1) {
                 title = 'RAÇA';
@@ -231,14 +251,17 @@
                         // 1 característica (NÃO o bônus de atributo) de uma entre 6 raças-fonte.
                         const esforcoDB = SYSTEM_DB.esforcoRacas || {};
                         const esforcoRaceNames = Object.keys(esforcoDB);
-                        if (!state.tempChar.effortRace) state.tempChar.effortRace = esforcoRaceNames[0];
-                        const currentEsforcoRace = state.tempChar.effortRace;
+                        // Antes a primeira raça-fonte vinha pré-selecionada, o que dava a impressão
+                        // de que o Humano já herdava algo dela — inclusive o bônus de atributo, que
+                        // ele NÃO recebe. Agora começa sem seleção e o jogador escolhe de fato.
+                        const currentEsforcoRace = state.tempChar.effortRace || '';
                         const esforcoData = esforcoDB[currentEsforcoRace] || { opcoes: [] };
                         featuresHtml = `<div class="mb-4" onclick="event.stopPropagation()">
                             <h4 class="text-[10px] font-black text-neon-theme uppercase tracking-widest mb-1">💪 Esforço no Lugar de Talento</h4>
                             <p class="text-[10px] text-gray-500 leading-tight mb-2">Escolha UMA característica (sem o bônus de atributo) de uma destas raças:</p>
                             <div class="bg-gray-950/50 rounded-lg p-2 border border-gray-800/50 mb-2">
-                                <select onchange="selectEffortRace(this.value)" class="w-full bg-black border border-gray-700 rounded p-2 text-xs text-white outline-none focus:border-neon-theme">
+                                <select onchange="selectEffortRace(this.value)" onmousedown="window._avisoEsforcoHumano()" class="w-full bg-black border border-gray-700 rounded p-2 text-xs text-white outline-none focus:border-neon-theme">
+                                    <option value="" ${!currentEsforcoRace ? 'selected' : ''}>Humano Comum — escolha a raça-fonte...</option>
                                     ${esforcoRaceNames.map(rn => `<option value="${rn}" ${currentEsforcoRace === rn ? 'selected' : ''}>${rn}</option>`).join('')}
                                 </select>
                                 <p class="text-[9px] text-gray-600 italic mt-1 px-1">${esforcoData.bonus || ''}</p>
@@ -318,7 +341,7 @@
                         return `<div class="bg-gray-900 border border-gray-800 px-2 py-1 rounded text-[10px] text-gray-300 font-mono">${eqItem}</div>`;
                     }).join('');
                     const equipCustomizeBtn = (isSelected && pendingEquip.length > 0) ? `<button onclick="event.stopPropagation(); openEquipChoiceModal()" class="mt-2 w-full py-2 rounded-lg border border-neon-theme/40 text-neon-theme text-[10px] font-bold uppercase tracking-widest hover:bg-neon-theme/10 transition-colors">⚙️ Personalizar Equipamento</button>` : '';
-                    contentHtml += `<div id="bg-card-${bg.nome.replace(/\s/g,'-')}" onclick="selectBackground('${bg.nome}')" class="w-full text-left rounded-2xl border ${borderColor} ${bgColor} transition-all duration-300 cursor-pointer group relative overflow-hidden mb-2"><div class="p-4 flex items-start justify-between"><div><h3 class="font-display font-bold text-lg uppercase tracking-wider ${textColor} flex items-center gap-2">${bg.nome} ${checkIcon}</h3><p class="text-[10px] text-gray-500 uppercase font-bold tracking-widest mt-1 pr-6 leading-tight line-clamp-2">${bg.descricao}</p></div><div class="transition-transform duration-300 ${chevronClass} ${isSelected ? 'text-neon-theme' : 'text-gray-600'}"><i data-lucide="chevron-down" size="20"></i></div></div><div class="accordion-content px-4 ${isSelected ? 'open pb-4' : ''}"><div class="h-px w-full bg-gray-800 mb-4"></div><p class="text-xs text-gray-400 italic mb-4">"${bg.descricao}"</p><div class="bg-gray-950/50 border border-cyan-500/30 rounded-xl p-3 mb-3 relative overflow-hidden"><div class="absolute top-0 left-0 w-1 h-full bg-cyan-500"></div><h4 class="text-[10px] font-black text-cyan-400 uppercase tracking-widest mb-1 flex items-center gap-2"><i data-lucide="graduation-cap" size="12"></i> Proficiências</h4><p class="text-xs text-gray-300 font-bold">${bg.proficiencias}</p><p class="text-[10px] text-gray-500 italic mt-1">Estas perícias serão adicionadas automaticamente.</p></div><div class="bg-gray-950/50 border border-green-500/30 rounded-xl p-3 mb-3 relative overflow-hidden"><div class="absolute top-0 left-0 w-1 h-full bg-green-500"></div><h4 class="text-[10px] font-black text-green-400 uppercase tracking-widest mb-2 flex items-center gap-2"><i data-lucide="backpack" size="12"></i> Equipamento</h4><div class="space-y-1">${equipRowsHtml}</div>${equipCustomizeBtn}</div><div class="bg-gray-950/50 border border-purple-500/30 rounded-xl p-3 relative overflow-hidden"><div class="absolute top-0 left-0 w-1 h-full bg-purple-500"></div><h4 class="text-[10px] font-black text-purple-400 uppercase tracking-widest mb-2 flex items-center gap-2"><i data-lucide="star" size="12"></i> Escolha uma Característica</h4><div class="space-y-2">${bg.caracteristicas.map(c => `<label class="flex items-start gap-3 cursor-pointer p-2 rounded hover:bg-white/5 transition-colors"><div class="relative flex items-center mt-0.5"><input type="radio" name="bg-feature" value="${c.nome}" class="peer sr-only" onclick="selectBackgroundFeature('${c.nome}')" ${state.tempChar.backgroundFeature === c.nome ? 'checked' : ''}><div class="w-4 h-4 border-2 border-gray-600 rounded-full peer-checked:border-purple-500 peer-checked:bg-purple-500/20 transition-all flex items-center justify-center"><div class="w-2 h-2 rounded-full bg-transparent peer-checked:bg-purple-500 transition-colors radio-indicator"></div></div></div><div class="flex-1"><span class="text-xs font-bold text-white block ${state.tempChar.backgroundFeature === c.nome ? 'text-purple-400' : ''}">${c.nome}</span><span class="text-[10px] text-gray-500 leading-tight block">${c.efeito}</span></div></label>`).join('')}</div></div></div></div>`;
+                    contentHtml += `<div id="bg-card-${bg.nome.replace(/\s/g,'-')}" onclick="selectBackground('${bg.nome}')" class="w-full text-left rounded-2xl border ${borderColor} ${bgColor} transition-all duration-300 cursor-pointer group relative overflow-hidden mb-2"><div class="p-4 flex items-start justify-between"><div><h3 class="font-display font-bold text-lg uppercase tracking-wider ${textColor} flex items-center gap-2">${bg.nome} ${checkIcon}</h3><p class="text-[10px] text-gray-500 uppercase font-bold tracking-widest mt-1 pr-6 leading-tight line-clamp-2">${bg.descricao}</p></div><div class="transition-transform duration-300 ${chevronClass} ${isSelected ? 'text-neon-theme' : 'text-gray-600'}"><i data-lucide="chevron-down" size="20"></i></div></div><div class="accordion-content px-4 ${isSelected ? 'open pb-4' : ''}"><div class="h-px w-full bg-gray-800 mb-4"></div><p class="text-xs text-gray-400 italic mb-4">"${bg.descricao}"</p><div class="bg-gray-950/50 border border-neon-theme/30 rounded-xl p-3 mb-3 relative overflow-hidden"><div class="absolute top-0 left-0 w-1 h-full bg-neon-theme"></div><h4 class="text-[10px] font-black text-neon-theme uppercase tracking-widest mb-1 flex items-center gap-2"><i data-lucide="graduation-cap" size="12"></i> Proficiências</h4><p class="text-xs text-gray-300 font-bold">${bg.proficiencias}</p><p class="text-[10px] text-gray-500 italic mt-1">Estas perícias serão adicionadas automaticamente.</p></div><div class="bg-gray-950/50 border border-neon-theme/30 rounded-xl p-3 mb-3 relative overflow-hidden"><div class="absolute top-0 left-0 w-1 h-full bg-neon-theme"></div><h4 class="text-[10px] font-black text-neon-theme uppercase tracking-widest mb-2 flex items-center gap-2"><i data-lucide="backpack" size="12"></i> Equipamento</h4><div class="space-y-1">${equipRowsHtml}</div>${equipCustomizeBtn}</div><div class="bg-gray-950/50 border border-neon-theme/30 rounded-xl p-3 relative overflow-hidden"><div class="absolute top-0 left-0 w-1 h-full bg-neon-theme"></div><h4 class="text-[10px] font-black text-neon-theme uppercase tracking-widest mb-2 flex items-center gap-2"><i data-lucide="star" size="12"></i> Escolha uma Característica</h4><div class="space-y-2">${bg.caracteristicas.map(c => `<label class="flex items-start gap-3 cursor-pointer p-2 rounded hover:bg-white/5 transition-colors"><div class="relative flex items-center mt-0.5"><input type="radio" name="bg-feature" value="${c.nome}" class="peer sr-only" onclick="selectBackgroundFeature('${c.nome}')" ${state.tempChar.backgroundFeature === c.nome ? 'checked' : ''}><div class="w-4 h-4 border-2 border-gray-600 rounded-full peer-checked:border-neon-theme peer-checked:bg-neon-theme/20 transition-all flex items-center justify-center"><div class="w-2 h-2 rounded-full bg-transparent peer-checked:bg-neon-theme transition-colors radio-indicator"></div></div></div><div class="flex-1"><span class="text-xs font-bold text-white block ${state.tempChar.backgroundFeature === c.nome ? 'text-neon-theme' : ''}">${c.nome}</span><span class="text-[10px] text-gray-500 leading-tight block">${c.efeito}</span></div></label>`).join('')}</div></div></div></div>`;
                 });
                 contentHtml += `</div>`;
             } else if (step === 4) {
@@ -350,7 +373,10 @@
             } else if (step === 6) {
                 // ... (Step 6 - Revisão)
                 title = 'REVISÃO';
-                const color = SYSTEM_DB.classes.find(c => c.id === state.tempChar.class).color;
+                // Sem categoria de Nen (criação nível 0) o find devolve undefined e o .color
+                // quebrava a etapa de Revisão inteira, deixando a tela preta. Cai no tema neutro.
+                const _clsRev = SYSTEM_DB.classes.find(c => c.id === state.tempChar.class);
+                const color = _clsRev ? _clsRev.color : (window.TEMA_SEM_NEN || '#eaecf0');
                 const bonusReq = getBonusRequirements(state.tempChar.race);
                 const allocatedTotal = getAllocatedTotal();
                 const isBonusReady = !bonusReq || (bonusReq.type === 'wildcard' && allocatedTotal === bonusReq.amount) || (bonusReq.type === 'choice' && allocatedTotal === bonusReq.amount);

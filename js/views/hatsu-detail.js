@@ -67,14 +67,75 @@ window.DANO_GRAU_MAP = {
 // mesmo jeito que já acontece no Cálculo Pensado Básico. A escolha fica em
 // specialChoices[id] e aparece na tela do Hatsu.
 window.GRAU_ESCOLHIDO_EFEITOS = {
-    'ri_e1': { graus: 1, opcoes: ['Acerto', 'CD do TR', 'Dano/Cura'] },       // Aumento de Atributo
-    'ri_e2': { graus: 1, opcoes: ['Acerto', 'CD do TR', 'Redução de Custo'] }, // Intensificação
+    // Intensificação segue as características de Grau de Potência da CATEGORIA do usuário
+    // (Manual: "Adicione N graus usando qualquer uma das características abaixo"), então as
+    // opções são montadas em tempo de execução — ver grauEscolhidoOpcoes().
+    'ri_e2': { graus: 1, porCategoria: true },
+};
+
+// Características de Grau de Potência por categoria, na redação do manual.
+// Mesma lista do GRAUS_POR_CAT (js/init.js), usada nos 5 Graus do 1º Hatsu.
+window.GRAU_OPCOES_POR_CATEGORIA = {
+    // Acerto saiu de Reforço/Intensificação: era duplicado. Aumentar um atributo já melhora
+    // a jogada de ataque (e as perícias), então "Atributos" cobre o que "Acerto" cobria.
+    'INTENSIFICAÇÃO': ['Atributos', 'Dano/Cura', 'Redução de Custo'],
+    'REFORÇO':        ['Atributos', 'Dano/Cura', 'Redução de Custo'],
+    'TRANSMUTAÇÃO':   ['Área', 'Dano/Cura', 'Redução de Custo'],
+    'MATERIALIZAÇÃO': ['Alcance/Área', 'Duração', 'Redução de Custo'],
+    'CONJURAÇÃO':     ['Alcance/Área', 'Duração', 'Redução de Custo'],
+    'ESPECIALIZAÇÃO': ['Alcance/Área', 'Dano/Cura', 'Duração', 'CD do TR', 'Redução de Custo'],
+    'MANIPULAÇÃO':    ['Alcance/Área', 'Número de Alvos', 'Duração', 'CD do TR', 'Redução de Custo'],
+    'EMISSÃO':        ['Acerto', 'Alcance/Área', 'Redução de Custo'],
+};
+
+// Opções do picker de grau de um efeito, já resolvidas para a categoria do Hatsu.
+// ── Aumento de Atributo (ri_e1): roteamento automático ────────────────────────
+// O jogador escolhe QUAL atributo aumentar; onde o grau conta é consequência, não
+// pergunta. Se o atributo aumentado é o mesmo usado na Jogada de Ataque do Hatsu, o
+// grau consome o teto de Acerto. Se é o usado na CD do TR, consome o teto de CD. Pode
+// consumir os dois quando for o mesmo atributo nos dois papéis — o benefício acontece
+// nos dois. Se não for nenhum dos dois, não consome teto: vale só para perícias.
+// Chaves: cópia 0 em 'ri_e1_attr', extras em 'ri_e1_attr#1', '#2'… (padrão do rm_e2).
+window.atributosDeAumento = function (h) {
+    const sc = (h && h.specialChoices) || {};
+    const copias = ((h && h.efeitos) || []).filter(function (id) { return id === 'ri_e1'; }).length;
+    const out = [];
+    for (let i = 0; i < copias; i++) {
+        const v = sc[i > 0 ? ('ri_e1_attr#' + i) : 'ri_e1_attr'];
+        if (v) out.push(v);
+    }
+    return out;
+};
+// Quantos pontos de Aumento de Atributo caem em cada teto, dado o atributo de ataque
+// e o de CD/dano configurados no Hatsu.
+window.aumentoAtributoPorTeto = function (h, attrAtaque, attrCD) {
+    const lista = window.atributosDeAumento(h);
+    let acerto = 0, cd = 0;
+    lista.forEach(function (a) {
+        if (attrAtaque && a === attrAtaque) acerto++;
+        if (attrCD && a === attrCD) cd++;
+    });
+    return { acerto: acerto, cd: cd, total: lista.length, lista: lista };
+};
+
+window.grauEscolhidoOpcoes = function (id, categoria) {
+    const def = (window.GRAU_ESCOLHIDO_EFEITOS || {})[id];
+    if (!def) return null;
+    if (!def.porCategoria) return def.opcoes;
+    return (window.GRAU_OPCOES_POR_CATEGORIA || {})[categoria] || ['Redução de Custo'];
 };
 window.GRAU_ESCOLHA_PARA_CHAVE = {
     'Acerto': 'acerto',
     'CD do TR': 'cd',
     'Dano/Cura': 'dano',
-    'Redução de Custo': null, // não tem teto: reduz custo, tratado fora do sistema de grau
+    'Área': 'area',
+    'Alcance/Área': 'alcance',
+    'Duração': 'duracao',
+    // Sem teto rastreado: Redução de Custo, Atributos e Número de Alvos não entram
+    // na conta de Grau de Potência por característica.
+    'Redução de Custo': null,
+    'Atributos': null,
+    'Número de Alvos': null,
 };
 
 // +1 DADO: aumenta a QUANTIDADE de dados (ex: 2d6 → 3d6), aplicado ANTES dos graus
@@ -271,6 +332,15 @@ window.calcGrausPotenciaPorCaracteristica = function(h, charLevel) {
         // em_e20 (Disparo Potente) e outros itens sem escolha caem no bloco genérico acima
     });
 
+    // Aumento de Atributo: roteado pelo atributo escolhido, não por pergunta ao jogador.
+    if (window.aumentoAtributoPorTeto) {
+        const _atkA = h.atkMod || h.dmgMod || null;
+        const _cdA = h.dmgMod || h.atkMod || null;
+        const _aa = window.aumentoAtributoPorTeto(h, _atkA, _cdA);
+        totals.acerto += _aa.acerto;
+        totals.cd += _aa.cd;
+    }
+
     // Juramento Imutável (rg_e5): +4 em TODAS as características da categoria, mas só a partir de
     // 3 níveis após a restrição ter sido adquirida (h.juramentoImutavelNivelBase).
     if (allIds.includes('rg_e5') && !pr['rg_e5']) {
@@ -322,13 +392,47 @@ window._checkJuramentoImutavelLevelUp = function(char, previousLevel) {
 // Custo final de aura de um Hatsu (base calculada pelas restrições/efeitos, reduzido pelos
 // Graus dos "5 Graus do 1º Hatsu" aplicados em Redução de Custo). Única fonte de verdade — usada
 // tanto na exibição (renderHatsuDetail) quanto no desconto real ao rolar (rollHatsuDamage).
-window.calcHatsuAuraCostFinal = function(h, idx) {
+// ── Duração do Hatsu, reutilizável fora da tela de detalhe ────────────────────
+// A tela de detalhe calcula a duração com todos os bônus. A aba Ficha precisa do
+// mesmo número para ativar o Hatsu sem abrir, então a regra vive aqui.
+// Constante = sem contagem: Relíquia Viva, Vínculo Sustentado, Concentração Total,
+// Canalizar com Concentração e Maldição (que tem temporizador próprio).
+window.calcDuracaoHatsu = function (h, char) {
+    if (!h) return { rodadas: 0, constante: false };
+    const efeitos = h.efeitos || [];
+    const restr = h.restricoes || [];
+    if ((h.tag || 'P') === 'M') return { rodadas: null, constante: true };
+    if (efeitos.includes('rm_e21') || efeitos.includes('rm_e11') || efeitos.includes('ri_e15')) {
+        return { rodadas: null, constante: true };
+    }
+    if (restr.includes('rg_v2')) return { rodadas: null, constante: true };
+    let rod = 0;
+    rod += efeitos.filter(function (id) { return id === 'eg2'; }).length;  // Aumento de Duração
+    if (restr.includes('rg_p2')) rod += 3;                                 // Boneca Russa
+    if (restr.includes('rm_l3')) rod += 2;                                 // 1 Item por Combate
+    const bc = h.beneficioChoices || {};
+    if (restr.includes('rg_m13')) {
+        const esc = String(bc.rg_m13 || '').toLowerCase();
+        if (esc.includes('rodada') || esc.includes('dura')) rod += 2;      // Zetsu Protetivo
+    }
+    const ph = h.primeiroHatsuGraus || {};
+    rod += ph.duracao || 0;
+    if (h.bonusGraus && h.bonusGraus.tipo === 'duracao') rod += h.bonusGraus.valor || 0;
+    return { rodadas: Math.max(0, rod), constante: false };
+};
+
+window.calcHatsuAuraCostFinal = function(h, idx, idsModo) {
     if (!window.calcAuraCost) return { pct: 50, reduced: false, phgCusto: 0 };
+    // idsModo permite calcular o custo com as restrições/efeitos DO MODO ATIVO, e não
+    // sempre com os do Hatsu raiz. Sem isso, desligar ou acrescentar restrição num modo
+    // mudava o dano mas não mudava o custo de aura.
+    const _rIds = (idsModo && idsModo.restricoes) || h.restricoes || [];
+    const _eIds = (idsModo && idsModo.efeitos) || h.efeitos || [];
     const fakeHb = {
-        rg: (h.restricoes||[]).filter(id => id.startsWith('rg_')),
-        rc: (h.restricoes||[]).filter(id => !id.startsWith('rg_')),
-        eg: (h.efeitos||[]).filter(id => id.startsWith('eg')),
-        ec: (h.efeitos||[]).filter(id => !id.startsWith('eg')),
+        rg: _rIds.filter(id => id.startsWith('rg_')),
+        rc: _rIds.filter(id => !id.startsWith('rg_')),
+        eg: _eIds.filter(id => id.startsWith('eg')),
+        ec: _eIds.filter(id => !id.startsWith('eg')),
     };
     const cc = window.calcAuraCost(fakeHb);
     const phgCusto = (idx === 0 && h.primeiroHatsuGraus && h.primeiroHatsuGraus.custo) ? h.primeiroHatsuGraus.custo : 0;
@@ -340,6 +444,9 @@ window.calcHatsuAuraCostFinal = function(h, idx) {
 // de Grau de Potência do nível do personagem (mesma regra de qualquer outra fonte de grau).
 // Retorna a quantidade de graus de REN ainda disponíveis para este golpe (0 = sem espaço).
 window.calcRenGrauDisponivel = function(h, char) {
+    // Só conta quando o REN está ATIVO. Antes bastava ter comprado o princípio, o que
+    // dava o grau de dano o tempo todo — agora precisa estar ligado na ficha.
+    if (!(((char || {}).principiosAtivos) || {}).ren) return 0;
     if (!h || !char || !char.nenDominio || !(char.nenDominio.ren > 0)) return 0;
     if (!window.calcGrausPotenciaPorCaracteristica || !window.calcMaxGrauPorNivel) return 0;
     const grauMax = window.calcMaxGrauPorCaracteristica ? window.calcMaxGrauPorCaracteristica(char.level, h.classe, 'dano') : window.calcMaxGrauPorNivel(char.level);
@@ -643,6 +750,7 @@ function renderHatsuDetail(container) {
     const _WRAPPER_META = {
         'eg4': { label:'🔀 Modo Alternativo' },
         'eg6': { label:'🎯 Poder é Intenção'   },
+        'rm_e8': { label:'🔮 Imbuir Conjuração' },
     };
     // ── MODOS do Efeito Alternativo ───────────────────────────────────────────
     // Regra do manual: cada compra de eg4 CLONA o Modo A (raiz) num modo novo, que
@@ -662,7 +770,8 @@ function renderHatsuDetail(container) {
             nome: _sc[_kEg4('eg4_nome', _i)] || '',
             adicionado: _sc[_kEg4('eg4', _i)] || '',
             removido: _sc[_kEg4('eg4_remove', _i)] || '',
-            restrOff: Array.isArray(_sc[_kEg4('eg4_restr_off', _i)]) ? _sc[_kEg4('eg4_restr_off', _i)] : []
+            restrOff: Array.isArray(_sc[_kEg4('eg4_restr_off', _i)]) ? _sc[_kEg4('eg4_restr_off', _i)] : [],
+            restrAdd: Array.isArray(_sc[_kEg4('eg4_restr_add', _i)]) ? _sc[_kEg4('eg4_restr_add', _i)] : []
         });
     }
     let _modoIdx = parseInt(h.modoAtivo) || 0;
@@ -679,6 +788,13 @@ function renderHatsuDetail(container) {
         (_modo.restrOff || []).forEach(function(nomeR){
             const _iR = restricoesSel.findIndex(function(r){ return r.nome === nomeR; });
             if (_iR >= 0) restricoesSel.splice(_iR, 1);
+        });
+        // Restrições exclusivas deste modo entram aqui, com todos os efeitos mecânicos
+        // (inclusive o P.N que concedem, que vale só neste modo).
+        (_modo.restrAdd || []).forEach(function (nomeR) {
+            if (restricoesSel.some(function (r) { return r.nome === nomeR; })) return;
+            const add = allRDB.find(function (r) { return r.nome === nomeR; });
+            if (add) restricoesSel.push(add);
         });
     }
 
@@ -916,7 +1032,14 @@ function renderHatsuDetail(container) {
             // manual, o 2d6 é o dano do efeito Dano/Cura Focal (eg15) — quem não comprou
             // o efeito bate mais fraco. Hatsus hostis sem eg15 partem de 1d8.
             // Flagelo Puro segue a régua própria dele (1d10) e não é afetado.
-            const _temDanoFocal = (h.efeitos || []).includes('eg15');
+            // ── Portas para o dano básico 2d6 ────────────────────────────────────────
+            // Duas: o efeito Dano/Cura Focal (eg15) ou Forjar Objeto/Arma (rm_e1) QUANDO o
+            // jogador escolhe "Arma" — a própria descrição do rm_e1 diz que causa 2d6 nesse caso.
+            // Olhamos efeitosSel, não h.efeitos, porque ele já inclui o que veio por Poder é
+            // Intenção, Efeito Alternativo e Imbuir Conjuração, e já respeita o modo ativo.
+            const _temForjarArma = efeitosSel.some(function (e) { return e.id === 'rm_e1'; })
+                && (h.specialChoices || {})['rm_e1_tipo'] === 'Arma';
+            const _temDanoFocal = efeitosSel.some(function (e) { return e.id === 'eg15'; }) || _temForjarArma;
             const _idxSemFocal = DAMAGE_TABLE.indexOf('1d8');
             const _baseLabel = isPuroFlagelo ? '1d10' : (_temDanoFocal ? '2d6' : '1d8');
             let baseIdx = isPuroFlagelo ? 3 : (_temDanoFocal ? BASE_DAMAGE_IDX : _idxSemFocal);
@@ -949,7 +1072,7 @@ function renderHatsuDetail(container) {
             // Build info breakdown for popup
             const _danoInfo = [{ l: 'Base', v: _baseLabel, c: '#9ca3af' }];
             if (!isPuroFlagelo && !_temDanoFocal) {
-                _danoInfo.push({ l: 'Sem Dano/Cura Focal', v: 'compre o efeito para partir de 2d6', c: '#fbbf24' });
+                _danoInfo.push({ l: 'Sem Dano/Cura Focal', v: 'compre o efeito (ou Forjar Arma) para partir de 2d6', c: '#fbbf24' });
             }
             if (dadoSources.length > 0) {
                 dadoSources.forEach(function(s){ _danoInfo.push({ l: '+' + s.n + ' dado (' + s.tipo + ')', v: s.nome, c: '#fbbf24' }); });
@@ -1185,6 +1308,14 @@ function renderHatsuDetail(container) {
             acertoVantagem = true;
         }
     });
+    // Aumento de Atributo: entra no acerto quando o atributo aumentado é o do ataque.
+    const _aaTeto = window.aumentoAtributoPorTeto
+        ? window.aumentoAtributoPorTeto(h, baseAttrAtk, baseAttr)
+        : { acerto: 0, cd: 0, total: 0, lista: [] };
+    if (_aaTeto.acerto > 0) {
+        acertoBonus += _aaTeto.acerto;
+        acertoBonusSources.push({ nome: 'Aumento de Atributo (' + baseAttrAtk + ')', bonus: _aaTeto.acerto });
+    }
     // 5 Graus do 1º Hatsu — Acerto
     if (idx === 0 && h.primeiroHatsuGraus && h.primeiroHatsuGraus.acerto) {
         acertoBonus += h.primeiroHatsuGraus.acerto;
@@ -1261,6 +1392,11 @@ function renderHatsuDetail(container) {
         cdBonusTotal += bonus;
         cdBonusSources.push({ nome: item.nome, bonus });
     });
+    // Aumento de Atributo: entra na CD quando o atributo aumentado é o usado no TR.
+    if (_aaTeto.cd > 0) {
+        cdBonusTotal += _aaTeto.cd;
+        cdBonusSources.push({ nome: 'Aumento de Atributo (' + baseAttr + ')', bonus: _aaTeto.cd });
+    }
     // 5 Graus do 1º Hatsu — CD
     if (idx === 0 && h.primeiroHatsuGraus && h.primeiroHatsuGraus.cd) {
         cdBonusTotal += h.primeiroHatsuGraus.cd;
@@ -1855,6 +1991,41 @@ function renderHatsuDetail(container) {
         window._HATSU_STAT_INFO[idx].duracao = _durLines;
     }
 
+    // ── Duração real do Hatsu ───────────────────────────────────────────────────
+    // O campo mostrava "Instantâneo" fixo para todos, ignorando o total já calculado
+    // logo abaixo. A regra é que a duração É o que foi comprado (o manual fala em
+    // "rodadas compradas pela evolução"), então o campo passa a mostrar esse total.
+    //
+    // Alguns efeitos tornam a duração CONSTANTE, e nesses casos não há contagem:
+    //  • Vínculo Sustentado (rm_e11) — dura enquanto houver concentração e aura
+    //  • Relíquia Viva (rm_e21) — permanente até ser destruída
+    //  • Concentração Total (ri_e15) — +1 rodada por acerto ininterrupto, variável
+    const _EF_CONSTANTE = {
+        'rm_e21': { texto: 'Permanente', nota: 'Relíquia Viva — até ser destruída' },
+        'rm_e11': { texto: 'Enquanto concentrar', nota: 'Vínculo Sustentado — 5% de aura a cada 2 rodadas' },
+        'ri_e15': { texto: 'Variável', nota: 'Concentração Total — +1 rodada por acerto ininterrupto' },
+    };
+    const _duracaoInfo = (function () {
+        // Maldição tem temporizador próprio e não usa contagem de rodada.
+        if ((h.tag || 'P') === 'M') {
+            const tp = ((window.MALDICAO_DB || {}).temporizadores || []).find(function (x) { return x.id === h.temporizador; });
+            return { rodadas: null, constante: true, texto: tp ? tp.nome.replace('Temporizador ', '') : 'Temporizador', nota: 'Maldição — regida pelo Temporizador' };
+        }
+        for (const id of Object.keys(_EF_CONSTANTE)) {
+            if (efeitosSel.some(function (e) { return e.id === id; })) {
+                return { rodadas: null, constante: true, texto: _EF_CONSTANTE[id].texto, nota: _EF_CONSTANTE[id].nota };
+            }
+        }
+        if ((h.restricoes || []).includes('rg_v2')) {
+            return { rodadas: null, constante: true, texto: 'Variável (X)', nota: 'Canalizar com Concentração — X definido no uso' };
+        }
+        const r = totalDuracaoR;
+        if (duracaoDobrada) return { rodadas: r, constante: false, texto: (r > 0 ? r + ' rod. + base ×2' : 'Base ×2'), nota: 'Tempo Marcado dobra a duração base' };
+        if (r > 0) return { rodadas: r, constante: false, texto: r + (r === 1 ? ' rodada' : ' rodadas'), nota: '' };
+        return { rodadas: 0, constante: false, texto: 'Instantâneo', nota: 'Nenhuma rodada comprada' };
+    })();
+    window._HATSU_DURACAO_INFO = _duracaoInfo;
+
     const hasRangeOrDuration = alcanceBonus.length > 0 || areaBonus.length > 0 || duracaoBonus.length > 0 || alcanceDobrado || duracaoDobrada;
     let calcRangeDurHtml = '';
     if (hasRangeOrDuration) {
@@ -1980,6 +2151,12 @@ function renderHatsuDetail(container) {
                 const _rm2Mat = sc[_eCopyIdx > 0 ? `rm_e2#${_eCopyIdx}` : 'rm_e2'];
                 if (_rm2Mat) specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">🧱 Pequeno · ${_rm2Mat} &nbsp;|&nbsp; PV = 5 + CON×2</div>`;
             }
+            if (e.id === 'rm_e1') {
+                const _t = sc['rm_e1_tipo'];
+                specialDetail = _t
+                    ? `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">🔨 ${_t}${_t === 'Arma' ? ' — concede o dano básico 2d6' : ' — sem dano básico'}</div>`
+                    : `<div style="margin-top:6px;font-size:9px;font-weight:700;color:#f87171;padding:4px 8px;background:#f8717118;border-radius:6px">⚠ Escolha o que foi forjado: Objeto, Arma ou Equipamento</div>`;
+            }
             if (e.id === 'rm_e3' && sc.rm_e3) { specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">✨ Característica: ${sc.rm_e3}</div>`; }
            if (e.id === 'rm_e5' && sc.rm_e5) { const _e5Names = {'ap_partes':'Aparência por Partes','fn_partes':'Funções em Partes','ap_compl':'Aparência Completa','fn_compl':'Funções Completas','ben10':'Ben 10'}; specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">🎭 Alteração: ${_e5Names[sc.rm_e5] || sc.rm_e5}</div>`; }
             if (e.id === 're_e17' && sc.re_e17) { const _e17n = {'vidente':'Vidente (Sharingan)','profeta':'Profeta','cego':'Cego de Tebas','joia':'Joia do Tempo','olho':'Olho de Agamoto'}; specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">🕧 Previsão: ${_e17n[sc.re_e17] || sc.re_e17}</div>`; }
@@ -2011,7 +2188,19 @@ function renderHatsuDetail(container) {
                 }
             }
             if (e.id === 'eg1' && sc.eg1) specialDetail = `<div style="margin-top:6px;font-size:8px;font-weight:700;color:#60a5fa;padding:2px 7px;background:#60a5fa18;border-radius:5px">${sc.eg1 === 'Área' ? '🔵 Aplicado em Área' : '📐 Aplicado em Alcance'}</div>`;
-            // Grau de escolha (Aumento de Atributo, Intensificação): deixa visível onde o grau caiu.
+            // Aumento de Atributo: mostra o atributo escolhido e o teto que ele consome.
+            if (e.id === 'ri_e1') {
+                const _attr = sc[_eCopyIdx > 0 ? ('ri_e1_attr#' + _eCopyIdx) : 'ri_e1_attr'];
+                if (!_attr) {
+                    specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:#f87171;padding:4px 8px;background:#f8717118;border-radius:6px">⚠ Escolha qual atributo aumentar (edite o Hatsu)</div>`;
+                } else {
+                    const _destinos = [];
+                    if (_attr === baseAttrAtk) _destinos.push('teto de Acerto');
+                    if (hasCDBlock && _attr === baseAttr) _destinos.push('teto de CD do TR');
+                    specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">💪 +2 em ${_attr} (mod. +1)${_destinos.length ? ` &nbsp;|&nbsp; consome ${_destinos.join(' e ')}` : ' &nbsp;|&nbsp; não consome teto (vale para perícias)'}</div>`;
+                }
+            }
+            // Grau de escolha (Intensificação): deixa visível onde o grau caiu.
             if ((window.GRAU_ESCOLHIDO_EFEITOS || {})[e.id]) {
                 specialDetail = sc[e.id]
                     ? `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">⚖ Grau aplicado em: ${sc[e.id]}</div>`
@@ -2056,6 +2245,7 @@ function renderHatsuDetail(container) {
                     ${_modo.adicionado ? `<div style="color:#4ade80;font-weight:700">+ ${_modo.adicionado}</div>` : ''}
                     ${_modo.removido ? `<div style="color:#f87171;font-weight:700">− ${_modo.removido}</div>` : ''}
                     ${(_modo.restrOff || []).length ? `<div style="color:#fb923c;font-weight:700;margin-top:2px">Restrições desligadas: ${_modo.restrOff.join(', ')}</div>` : ''}
+                    ${(_modo.restrAdd || []).length ? `<div style="color:#4ade80;font-weight:700;margin-top:2px">Restrições só deste modo: ${_modo.restrAdd.join(', ')}</div>` : ''}
                 </div>` : ''}
             </div>`
         : '';
@@ -2137,6 +2327,38 @@ function renderHatsuDetail(container) {
         </div>`;
     }
 
+    // ── Faixa de Ativar Hatsu / contador de rodada ──────────────────────────────
+    // Piscando quando desligado, no mesmo padrão do aviso de armazenamento da lista.
+    // Ativado, mostra as rodadas restantes e o botão de passar rodada — que é global:
+    // desconta de todos os Hatsus e Princípios ativos de uma vez.
+    const _ativoH = ((char.hatsusAtivos || {})[idx]) || null;
+    const _barraAtivarHtml = (function () {
+        if (!_ativoH) {
+            const rod = _duracaoInfo.constante ? 'null' : (_duracaoInfo.rodadas || 0);
+            return `<div class="aviso-tag-piscando" style="margin:0 16px 12px;background:${tc}15;border:1px solid ${tc}55;border-radius:12px;padding:11px 13px;display:flex;align-items:center;gap:10px">
+                <div style="flex:1;min-width:0">
+                    <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:10px;color:${tc};text-transform:uppercase;letter-spacing:1px">Hatsu desativado</div>
+                    <div style="font-size:9px;color:#6b7280;margin-top:2px">Duração: ${_duracaoInfo.texto}${_duracaoInfo.nota ? ' — ' + _duracaoInfo.nota : ''}</div>
+                </div>
+                <button onclick="window._ativarHatsu(${idx}, ${rod}, ${_duracaoInfo.constante})" style="flex-shrink:0;padding:9px 14px;border-radius:9px;background:${tc};border:none;color:#000;font-family:'Orbitron',sans-serif;font-weight:900;font-size:9px;text-transform:uppercase;letter-spacing:1px;cursor:pointer">⚡ Ativar</button>
+            </div>`;
+        }
+        const restante = _ativoH.constante ? null : (_ativoH.rodadas || 0);
+        return `<div style="margin:0 16px 12px;background:#4ade8015;border:1px solid #4ade8055;border-radius:12px;padding:11px 13px">
+            <div style="display:flex;align-items:center;gap:10px">
+                <div style="flex:1;min-width:0">
+                    <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:10px;color:#4ade80;text-transform:uppercase;letter-spacing:1px">⚡ Hatsu ativo</div>
+                    <div style="font-size:9px;color:#6b7280;margin-top:2px">${_ativoH.constante
+                        ? _duracaoInfo.texto + (_duracaoInfo.nota ? ' — ' + _duracaoInfo.nota : '')
+                        : 'Restam <b style="color:#4ade80">' + restante + '</b> de ' + _ativoH.max + ' rodada(s)'}</div>
+                </div>
+                <button onclick="window._desativarHatsu(${idx})" style="flex-shrink:0;padding:7px 11px;border-radius:8px;background:transparent;border:1px solid #4ade8055;color:#4ade80;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer">Desligar</button>
+            </div>
+            ${!_ativoH.constante ? `<button onclick="window._passarRodada()" style="width:100%;margin-top:9px;padding:9px;border-radius:9px;background:#4ade8022;border:1px solid #4ade8066;color:#4ade80;font-family:'Orbitron',sans-serif;font-weight:900;font-size:9px;text-transform:uppercase;letter-spacing:1px;cursor:pointer">⏭ Passar rodada${char.rodadaAtual ? ' (rodada ' + char.rodadaAtual + ')' : ''}</button>
+            <div style="font-size:8px;color:#4b5563;margin-top:5px;text-align:center">Passar rodada desconta de TODOS os Hatsus e Princípios ativos.</div>` : ''}
+        </div>`;
+    })();
+
     container.innerHTML = `
     <div style="display:flex;flex-direction:column;height:100%;background:#030712;color:#d1d5db;font-family:'Rajdhani',sans-serif">
         <!-- HEADER -->
@@ -2152,7 +2374,9 @@ function renderHatsuDetail(container) {
         </div>
 
         <!-- CONTEÚDO SCROLLÁVEL -->
-        <div style="flex:1;overflow-y:auto;padding:16px" class="custom-scrollbar hatsu-scroll-area">
+        <div style="flex:1;overflow-y:auto;padding:16px 0" class="custom-scrollbar hatsu-scroll-area">
+            ${_barraAtivarHtml}
+            <div style="padding:0 16px">
 
             <!-- Card principal -->
             <div style="text-align:center;padding:20px 16px;border-radius:16px;border:2px solid ${tc};background:${tc}08;margin-bottom:16px">
@@ -2194,7 +2418,7 @@ function renderHatsuDetail(container) {
                     </div>
                     <div>
                         <div style="font-size:8px;color:#374151;text-transform:uppercase;font-weight:700;margin-bottom:2px">Custo Base</div>
-                        <div style="font-size:10px;font-weight:600">${(() => { const _ac = window.calcHatsuAuraCostFinal(h, idx); const color = _ac.reduced ? '#4ade80' : '#d1d5db'; const extra = _ac.phgCusto > 0 ? ` <span style="font-size:8px;color:#4b5563">(−${_ac.phgCusto*5}% 1º Hatsu)</span>` : ''; return '<span style="color:'+color+'">' + _ac.pct + '% de Aura' + (_ac.reduced?' ✓':'') + '</span>' + extra; })()}</div>
+                        <div style="font-size:10px;font-weight:600">${(() => { const _ac = window.calcHatsuAuraCostFinal(h, idx, { restricoes: restricoesSel.map(function(r){return r.id;}), efeitos: efeitosSel.map(function(e){return e.id;}) }); const color = _ac.reduced ? '#4ade80' : '#d1d5db'; const extra = _ac.phgCusto > 0 ? ` <span style="font-size:8px;color:#4b5563">(−${_ac.phgCusto*5}% 1º Hatsu)</span>` : ''; return '<span style="color:'+color+'">' + _ac.pct + '% de Aura' + (_ac.reduced?' ✓':'') + '</span>' + extra; })()}</div>
                     </div>
                     <div>
                         <div style="font-size:8px;color:#374151;text-transform:uppercase;font-weight:700;margin-bottom:2px">Alcance</div>
@@ -2202,7 +2426,7 @@ function renderHatsuDetail(container) {
                     </div>
                     <div>
                         <div style="font-size:8px;color:#374151;text-transform:uppercase;font-weight:700;margin-bottom:2px">Duração</div>
-                        <div style="font-size:10px;color:#d1d5db;font-weight:600">Instantâneo</div>
+                        <div style="font-size:10px;color:#d1d5db;font-weight:600">${_duracaoInfo.texto}</div>
                     </div>
                     <div>
                         <div style="font-size:8px;color:#374151;text-transform:uppercase;font-weight:700;margin-bottom:2px">Categoria</div>
@@ -2243,6 +2467,7 @@ function renderHatsuDetail(container) {
                     <span style="font-size:9px;font-weight:700;padding:2px 8px;border-radius:20px;background:${tc}22;color:${tc}">${efeitosSel.length}</span>
                 </div>
                 ${eHtml}
+            </div>
             </div>
 
         </div>

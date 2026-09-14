@@ -48,12 +48,21 @@ function renderHatsuCreator(container) {
         }
     });
     // ── Breakdown por tipo de P.N ──
-    // Ordem de consumo: Extremo → Pura não-extrema → Base
+    // Ordem de consumo: BASE → Pura não-extrema → Extremo.
+    //
+    // Antes era o contrário (restrição primeiro), e isso abria um vazamento: a restrição
+    // "economizava" o P.N base, e o base economizado ficava livre para comprar Princípios
+    // de Nen. Um Hatsu de 4 P.N com 6 de restrição saía de graça e devolvia 6 base ao pool.
+    //
+    // A regra é que o P.N das restrições vale SÓ NO HATSU. Consumindo o base primeiro,
+    // a restrição passa a cobrir apenas o que o base não alcança, e o excedente dela é
+    // desperdiçado — como deve ser, já que não pode migrar para os princípios.
     const pnFromExtreme = window.calcPNFromExtremeRestr ? window.calcPNFromExtremeRestr(hb) : 0;
     const pnFromPureNonExtreme = Math.max(0, pnBonus - pnFromExtreme);
-    const usedFromExtreme = Math.min(pnUsed, pnFromExtreme);
-    const usedFromPureNonExtreme = Math.min(Math.max(0, pnUsed - pnFromExtreme), pnFromPureNonExtreme);
-    const usedFromBase = Math.max(0, pnUsed - pnFromExtreme - pnFromPureNonExtreme);
+    const usedFromBase = Math.min(pnUsed, pnBaseAvail);
+    const restante = Math.max(0, pnUsed - usedFromBase);
+    const usedFromPureNonExtreme = Math.min(restante, pnFromPureNonExtreme);
+    const usedFromExtreme = Math.min(Math.max(0, restante - pnFromPureNonExtreme), pnFromExtreme);
     const pnExtremeLeft = pnFromExtreme - usedFromExtreme;
     const pnPureNonExtremeLeft = pnFromPureNonExtreme - usedFromPureNonExtreme;
     const pnBonusLeft = pnExtremeLeft + pnPureNonExtremeLeft; // total restrições ainda não gastos
@@ -61,7 +70,13 @@ function renderHatsuCreator(container) {
     const pnLeft = pnBonusLeft + pnBaseLeft; // total disponível ainda
     const pnMax = pnBaseAvail + pnBonus; // total máximo deste hatsu
 
-    const STEPS = ['CONCEITO','TIPO','RESTRIÇÕES','EFEITOS GERAIS','EFEITOS CATEG.','RESUMO'];
+    // A etapa 3 (EF. MALDIÇÃO) só é percorrida quando a tag do Hatsu é M. Para as outras
+    // tags ela é pulada na navegação, mas o índice continua fixo para não renumerar nada
+    // além desta troca — ver _hEtapaVisivel, _hNext e _hPrev.
+    // A etapa 3 pertence à TAG do Hatsu: Maldição (M), Exorcismo (E) ou Besta (B).
+    // Com a tag P ela é pulada na navegação — ver _hNext e _hPrev.
+    const _ROTULO_TAG = { M: 'MALDIÇÃO', E: 'EXORCISMO', B: 'BESTA DE NEN' };
+    const STEPS = ['CONCEITO','TIPO','RESTRIÇÕES', (_ROTULO_TAG[(state.hatsuBuilder||{}).tag] || 'TAG'), 'EFEITOS GERAIS','EFEITOS CATEG.','RESUMO'];
 
     // ── barra de progresso ──
     const progressBar = STEPS.map((s,i) => {
@@ -732,6 +747,13 @@ function renderHatsuCreator(container) {
                         }
                         return '<button onclick="' + onclick + '" style="' + st + '">' + (active ? '✓ ' : '') + e.nome + (isBlocked ? ' 🔒' : '') + '</button>';
                     }
+                    // No Efeito Alternativo o que está fora do alcance é OCULTADO, não mostrado
+                    // com cadeado: a lista já é longa e o jogador só precisa ver o que pode pegar.
+                    // O teto por categoria já considera as Restrições Extremas (+2 níveis cada).
+                    function eg4Alcancavel(e, tetoNivel) {
+                        var nivelEf = window.nivelDoEfeito ? window.nivelDoEfeito(e) : 1;
+                        return nivelEf <= tetoNivel && checkReq(e.req).ok;
+                    }
                     function eg4BtnTeto(e, teto, chave, escolhido) {
                         var nivelEf = window.nivelDoEfeito ? window.nivelDoEfeito(e) : 1;
                         if (nivelEf > teto) {
@@ -749,37 +771,55 @@ function renderHatsuCreator(container) {
                         const gerais = (window.HATSU_DB && window.HATSU_DB.efeitos_gerais) || [];
                         const cats = (window.HATSU_DB && window.HATSU_DB.categorias) || {};
                         const ordem = ['INTENSIFICAÇÃO','TRANSMUTAÇÃO','MATERIALIZAÇÃO','EMISSÃO','MANIPULAÇÃO'];
-                        let html = '<div style="font-size:7px;font-weight:700;color:#9ca3af;margin:2px 0;text-transform:uppercase;letter-spacing:1px">🌐 Efeitos Gerais</div>'
-                            + '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">'
-                            + gerais.filter(function(e){ return e.id !== 'eg4' && e.id !== 'eg6'; })
-                                    .map(function(e){ return eg4Btn(e, chave, escolhido); }).join('')
-                            + '</div>';
+                        const geraisVis = gerais.filter(function (e) {
+                            return e.id !== 'eg4' && e.id !== 'eg6' && eg4Alcancavel(e, charLevel);
+                        });
+                        let html = geraisVis.length
+                            ? '<div style="font-size:7px;font-weight:700;color:#9ca3af;margin:2px 0;text-transform:uppercase;letter-spacing:1px">🌐 Efeitos Gerais</div>'
+                                + '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">'
+                                + geraisVis.map(function(e){ return eg4Btn(e, chave, escolhido); }).join('')
+                                + '</div>'
+                            : '';
                         ordem.forEach(function (nomeCat) {
                             const cat = cats[nomeCat];
                             if (!cat || !cat.efeitos) return;
                             const teto = window.acessoMaxPorCategoria
                                 ? window.acessoMaxPorCategoria(char.class, charLevel, hb, nomeCat) : 0;
+                            const visiveis = cat.efeitos.filter(function (e) { return eg4Alcancavel(e, teto); });
+                            if (!visiveis.length) return; // categoria inteira fora do alcance: não exibe
                             const propria = nomeCat === char.class;
                             const af = propria ? 100 : (((window.CATEGORY_AFFINITY || {})[char.class] || {})[nomeCat] || 0);
                             html += '<div style="font-size:7px;font-weight:700;color:' + (propria ? color : '#6b7280') + ';margin:6px 0 2px;text-transform:uppercase;letter-spacing:1px">'
                                 + (propria ? '⚡ ' + nomeCat + ' (sua categoria)' : '◈ ' + nomeCat + ' — ' + af + '%')
-                                + ' <span style="color:#4b5563">(' + (teto > 0 ? 'até nível ' + teto : 'sem acesso') + ')</span></div>'
+                                + ' <span style="color:#4b5563">(até nível ' + teto + ')</span></div>'
                                 + '<div style="display:flex;flex-wrap:wrap;gap:4px">'
-                                + cat.efeitos.map(function(e){ return eg4BtnTeto(e, teto, chave, escolhido); }).join('')
+                                + visiveis.map(function(e){ return eg4BtnTeto(e, teto, chave, escolhido); }).join('')
                                 + '</div>';
                         });
                         const podeEsp = ['MANIPULAÇÃO','MATERIALIZAÇÃO'].indexOf(char.class) >= 0
                             && window.checkEspecializacaoAccess && window.checkEspecializacaoAccess(hb).ok;
                         if (podeEsp && cats['ESPECIALIZAÇÃO'] && cats['ESPECIALIZAÇÃO'].efeitos) {
-                            html += '<div style="font-size:7px;font-weight:700;color:#c084fc;margin:6px 0 2px;text-transform:uppercase;letter-spacing:1px">✦ ESPECIALIZAÇÃO — 1% <span style="color:#4b5563">(até nível 3)</span></div>'
-                                + '<div style="display:flex;flex-wrap:wrap;gap:4px">'
-                                + cats['ESPECIALIZAÇÃO'].efeitos.map(function(e){ return eg4BtnTeto(e, 3, chave, escolhido); }).join('')
-                                + '</div>';
+                            const espVis = cats['ESPECIALIZAÇÃO'].efeitos.filter(function (e) { return eg4Alcancavel(e, 3); });
+                            if (espVis.length) {
+                                html += '<div style="font-size:7px;font-weight:700;color:#c084fc;margin:6px 0 2px;text-transform:uppercase;letter-spacing:1px">✦ ESPECIALIZAÇÃO — 1% <span style="color:#4b5563">(até nível 3)</span></div>'
+                                    + '<div style="display:flex;flex-wrap:wrap;gap:4px">'
+                                    + espVis.map(function(e){ return eg4BtnTeto(e, 3, chave, escolhido); }).join('')
+                                    + '</div>';
+                            }
                         }
-                        return html;
+                        return html || '<div style="font-size:8px;color:#f87171">Nenhum efeito ao seu alcance ainda. Suba de nível ou adicione uma Restrição Extrema (+2 níveis).</div>';
                     }
 
-                    let blocosModos = '';
+                    // O Modo A (raiz) também pode ser renomeado. A etiqueta "raiz" continua
+                    // aparecendo junto do nome, para nunca se perder qual modo é o original.
+                    const _nomeRaiz = specialChoices['eg4_nome_raiz'] || '';
+                    let blocosModos = '<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px dashed ' + color + '33">'
+                        + '<div style="font-size:8px;font-weight:900;color:' + color + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">🔒 Modo A <span style="background:' + color + '22;padding:2px 7px;border-radius:6px;margin-left:4px">RAIZ</span></div>'
+                        + '<input type="text" value="' + String(_nomeRaiz).replace(/"/g, '&quot;') + '" placeholder="Nome do modo raiz (ex.: Guu)" '
+                        + 'onclick="event.stopPropagation()" onchange="window._hSetSpecialText(\'eg4_nome_raiz\', this.value)" '
+                        + 'style="width:100%;box-sizing:border-box;background:#111827;border:1px solid #374151;border-radius:8px;padding:6px 10px;color:#fff;font-size:9px;outline:none" />'
+                        + '<div style="font-size:8px;color:#6b7280;margin-top:5px">É o Hatsu original. Não remove nem adiciona nada — os outros modos partem dele.</div>'
+                        + '</div>';
                     for (let _m = 0; _m < totalModos; _m++) {
                         const letra = LETRAS[_m + 1] || ('#' + (_m + 2));
                         const kAdd = keyEg4('eg4', _m);
@@ -800,6 +840,21 @@ function renderHatsuCreator(container) {
                                     + (sel ? '✕ ' : '') + e.nome + '</button>';
                               }).join('')
                             : '<div style="font-size:8px;color:#f87171">Escolha os efeitos do modo raiz antes de criar um modo.</div>';
+
+                        // Restrições EXCLUSIVAS deste modo: valem e concedem P.N só aqui.
+                        const kRestrAdd = keyEg4('eg4_restr_add', _m);
+                        const restrAdd = Array.isArray(specialChoices[kRestrAdd]) ? specialChoices[kRestrAdd] : [];
+                        const _idsRaiz = [].concat(hb.rg || [], hb.rc || []);
+                        const _disponiveis = _todasRestr.filter(function (r) {
+                            return _idsRaiz.indexOf(r.id) < 0;
+                        });
+                        const restrAddBtns = _disponiveis.map(function (r) {
+                            const sel = restrAdd.indexOf(r.nome) >= 0;
+                            const st = 'padding:4px 8px;border-radius:7px;font-size:8px;white-space:nowrap;font-weight:600;border:1px solid '
+                                + (sel ? '#4ade8088;background:#4ade8018;color:#4ade80' : '#1f2937;background:transparent;color:#6b7280') + ';cursor:pointer';
+                            return '<button onclick="event.stopPropagation();window._hToggleModoRestricao(\'' + kRestrAdd + '\',\'' + r.nome.replace(/'/g, "\\'") + '\')" style="' + st + '">'
+                                + (sel ? '+ ' : '') + r.nome + '</button>';
+                        }).join('');
 
                         const restrBtns = restricoesDaRaiz.length
                             ? restricoesDaRaiz.map(function(r){
@@ -823,12 +878,16 @@ function renderHatsuCreator(container) {
                             + '<input type="text" value="' + String(nomeModo).replace(/"/g,'&quot;') + '" placeholder="Nome do modo (ex.: Chi)" '
                                 + 'onclick="event.stopPropagation()" onchange="window._hSetSpecialText(\'' + kNome + '\', this.value)" '
                                 + 'style="width:100%;box-sizing:border-box;background:#111827;border:1px solid #374151;border-radius:8px;padding:6px 10px;color:#fff;font-size:9px;margin-bottom:8px;outline:none" />'
-                            + '<div style="font-size:7px;font-weight:700;color:#4ade80;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">1. Adicionar (paga o P.N do efeito)</div>'
-                            + eg4Catalogo(kAdd, addEscolhido)
-                            + '<div style="font-size:7px;font-weight:700;color:#f87171;text-transform:uppercase;letter-spacing:1px;margin:8px 0 3px">2. Remover da raiz, só neste modo</div>'
+                            + '<div style="font-size:7px;font-weight:700;color:#f87171;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">1. Remover da raiz, só neste modo</div>'
                             + '<div style="display:flex;flex-wrap:wrap;gap:4px">' + removeBtns + '</div>'
-                            + '<div style="font-size:7px;font-weight:700;color:#fb923c;text-transform:uppercase;letter-spacing:1px;margin:8px 0 3px">3. Restrições — clique para desligar neste modo</div>'
+                            + '<div style="font-size:7px;font-weight:700;color:#4ade80;text-transform:uppercase;letter-spacing:1px;margin:8px 0 3px">2. Adicionar (paga o P.N do efeito)</div>'
+                            + eg4Catalogo(kAdd, addEscolhido)
+                            + '<div style="font-size:7px;font-weight:700;color:#fb923c;text-transform:uppercase;letter-spacing:1px;margin:8px 0 3px">3. Restrições herdadas — clique para desligar neste modo</div>'
                             + '<div style="display:flex;flex-wrap:wrap;gap:4px">' + restrBtns + '</div>'
+                            + '<div style="font-size:7px;font-weight:700;color:#4ade80;text-transform:uppercase;letter-spacing:1px;margin:8px 0 3px">4. Restrições só deste modo (opcional)</div>'
+                            + '<div style="font-size:8px;color:#6b7280;margin-bottom:4px">O P.N que elas concedem vale <b>apenas neste modo</b>.</div>'
+                            + '<details><summary style="font-size:8px;color:#9ca3af;cursor:pointer;margin-bottom:5px">Ver restrições disponíveis (' + _disponiveis.length + ')</summary>'
+                            + '<div style="display:flex;flex-wrap:wrap;gap:4px;max-height:170px;overflow-y:auto">' + restrAddBtns + '</div></details>'
                             + resumo
                             + '</div>';
                     }
@@ -845,19 +904,99 @@ function renderHatsuCreator(container) {
                         + '</div>';
                 }
 
-                // ── Efeitos com GRAU DE ESCOLHA (Aumento de Atributo, Intensificação) ──────
+                // ── rm_e1: Forjar Objeto, Arma ou Equipamento — o quê, exatamente? ──────────
+                // A descrição do efeito diz que causa 2d6 "ao escolher arma". Só nessa escolha o
+                // Hatsu ganha o dano básico 2d6; Objeto e Equipamento não concedem dano.
+                if (item.id === 'rm_e1') {
+                    const _f = specialChoices['rm_e1_tipo'] || '';
+                    const _fOpts = [['Objeto','📦'],['Arma','⚔️'],['Equipamento','🛡️']];
+                    specialHtml = '<div style="margin-top:8px;background:#0a0f1a;border:1px solid ' + color + '33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
+                        + '<div style="font-size:8px;font-weight:900;color:' + color + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">🔨 O que foi forjado?</div>'
+                        + '<div style="font-size:8px;color:#6b7280;margin-bottom:8px">Só a opção Arma concede o dano básico 2d6 ao Hatsu.</div>'
+                        + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
+                        + _fOpts.map(function (par) {
+                            var o = par[0], icon = par[1];
+                            var active = _f === o;
+                            return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\'rm_e1_tipo\',\'' + o + '\')" '
+                                + 'style="flex:1;min-width:76px;padding:7px;border-radius:8px;font-size:9px;font-weight:900;cursor:pointer;border:1.5px solid '
+                                + (active ? color : '#1f2937') + ';background:' + (active ? color + '22' : 'transparent')
+                                + ';color:' + (active ? color : '#9ca3af') + '">' + icon + ' ' + o + '</button>';
+                        }).join('')
+                        + '</div>'
+                        + (_f
+                            ? '<div style="font-size:8px;color:' + (_f === 'Arma' ? '#4ade80' : '#6b7280') + ';margin-top:5px">' + (_f === 'Arma' ? '✓ Dano básico 2d6 liberado' : '✓ ' + _f + ' — sem dano básico') + '</div>'
+                            : '<div style="font-size:8px;color:#f87171;margin-top:5px">⚠ Escolha o que foi forjado.</div>')
+                        + '</div>';
+                }
+
+                // ── ri_e1: Aumento de Atributo — escolher QUAL atributo, por cópia ──────────
+                // Onde o grau conta é consequência automática (ver aumentoAtributoPorTeto em
+                // hatsu-detail.js): se o atributo aumentado for o do ataque, consome teto de
+                // Acerto; se for o da CD, consome teto de CD. O jogador só escolhe o atributo.
+                // Regra: cópias compradas no MESMO nível não podem repetir o atributo.
+                if (item.id === 'ri_e1') {
+                    const ATTRS = ['FOR','DES','CON','INT','SAB','PRE'];
+                    const _copias = [].concat(hb.eg || [], hb.ec || []).filter(function(x){ return x === item.id; }).length;
+                    const _niveisCompra = (hb.efeitoNiveis && hb.efeitoNiveis['ri_e1']) || [];
+                    const _kAttr = function(i){ return i > 0 ? ('ri_e1_attr#' + i) : 'ri_e1_attr'; };
+                    let _blocos = '';
+                    for (let _i = 0; _i < _copias; _i++) {
+                        const _chave = _kAttr(_i);
+                        const _atual = specialChoices[_chave] || '';
+                        const _nivelDesta = _niveisCompra[_i];
+                        // Atributos já usados por OUTRA cópia comprada no mesmo nível.
+                        const _bloqueados = [];
+                        for (let _j = 0; _j < _copias; _j++) {
+                            if (_j === _i) continue;
+                            if (_nivelDesta == null || _niveisCompra[_j] !== _nivelDesta) continue;
+                            const _outro = specialChoices[_kAttr(_j)];
+                            if (_outro) _bloqueados.push(_outro);
+                        }
+                        _blocos += '<div style="' + (_i > 0 ? 'margin-top:8px;padding-top:8px;border-top:1px dashed ' + color + '33;' : '') + '">'
+                            + '<div style="font-size:8px;font-weight:700;color:#9ca3af;margin-bottom:4px">Compra ' + (_i + 1)
+                            + (_nivelDesta != null ? ' <span style="color:#4b5563">(nível ' + _nivelDesta + ')</span>' : '') + '</div>'
+                            + '<div style="display:flex;gap:4px;flex-wrap:wrap">'
+                            + ATTRS.map(function (a) {
+                                var active = _atual === a;
+                                var travado = !active && _bloqueados.indexOf(a) >= 0;
+                                var st = 'flex:1;min-width:48px;padding:7px 4px;border-radius:8px;font-size:9px;font-weight:900;border:1.5px solid '
+                                    + (active ? color : (travado ? '#1f2937' : '#374151'))
+                                    + ';background:' + (active ? color + '22' : 'transparent')
+                                    + ';color:' + (active ? color : (travado ? '#374151' : '#9ca3af'))
+                                    + ';cursor:' + (travado ? 'not-allowed' : 'pointer') + ';opacity:' + (travado ? '.45' : '1');
+                                var onclick = travado
+                                    ? "event.stopPropagation();alert('Este atributo já foi aumentado por outra compra no mesmo nível. Escolha outro.')"
+                                    : "event.stopPropagation();window._hSetSpecialChoice('" + _chave + "','" + a + "')";
+                                return '<button onclick="' + onclick + '" style="' + st + '">' + a + (travado ? ' 🔒' : '') + '</button>';
+                            }).join('')
+                            + '</div>'
+                            + (_atual ? '' : '<div style="font-size:8px;color:#f87171;margin-top:4px">⚠ Escolha o atributo desta compra.</div>')
+                            + '</div>';
+                    }
+                    specialHtml = '<div style="margin-top:8px;background:#0a0f1a;border:1px solid ' + color + '33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
+                        + '<div style="font-size:8px;font-weight:900;color:' + color + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">💪 Qual atributo aumentar?</div>'
+                        + '<div style="font-size:8px;color:#6b7280;margin-bottom:8px">+2 no valor (mod. +1). Se for o atributo do ataque ou da CD deste Hatsu, o grau consome o teto correspondente automaticamente. Não repita o mesmo atributo em compras do mesmo nível.</div>'
+                        + _blocos
+                        + '</div>';
+                }
+
+                // ── Efeitos com GRAU DE ESCOLHA (Intensificação) ────────────────────────────
                 // Aumentar um atributo melhora acerto, CD do TR e o dano ao mesmo tempo, e o teto
                 // é por característica — então o jogador precisa declarar onde o grau conta.
                 // Sem escolha, o grau não é aplicado em lugar nenhum (e a tela avisa).
                 if ((window.GRAU_ESCOLHIDO_EFEITOS || {})[item.id]) {
                     const _ge = window.GRAU_ESCOLHIDO_EFEITOS[item.id];
+                    const _geOpcoes = window.grauEscolhidoOpcoes
+                        ? (window.grauEscolhidoOpcoes(item.id, char.class) || [])
+                        : (_ge.opcoes || []);
                     const _geChosen = specialChoices[item.id] || '';
-                    const _geIcons = { 'Acerto': '⚔️', 'CD do TR': '🎯', 'Dano/Cura': '🔥', 'Redução de Custo': '💨' };
+                    const _geIcons = { 'Acerto': '⚔️', 'CD do TR': '🎯', 'Dano/Cura': '🔥', 'Redução de Custo': '💨',
+                        'Atributos': '💪', 'Área': '🔵', 'Alcance/Área': '📏', 'Duração': '⏱', 'Número de Alvos': '👥' };
                     specialHtml = '<div style="margin-top:8px;background:#0a0f1a;border:1px solid ' + color + '33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
                         + '<div style="font-size:8px;font-weight:900;color:' + color + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">⚖ Aplicar o Grau em:</div>'
                         + '<div style="font-size:8px;color:#6b7280;margin-bottom:8px">Este efeito concede ' + _ge.graus + ' Grau/Passo. Escolha a característica — é ela que consome o teto do seu nível.</div>'
                         + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
-                        + _ge.opcoes.map(function (o) {
+                        + _geOpcoes.map(function (o) {
                             var active = _geChosen === o;
                             return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\'' + item.id + '\',\'' + o + '\')" '
                                 + 'style="flex:1;min-width:82px;padding:7px;border-radius:8px;font-size:9px;font-weight:900;cursor:pointer;border:1.5px solid '
@@ -1541,6 +1680,30 @@ function renderHatsuCreator(container) {
     let content = '', canNext = false;
 
     // ETAPA 0 — CONCEITO
+    // ── Barra de abas das etapas de efeitos ──────────────────────────────────────
+    // As três etapas de efeitos (Maldição, Gerais, Categoria) aparecem como abas para o
+    // jogador poder ir e voltar sem passar pelo Próximo. Cada aba continua sendo uma
+    // etapa própria por baixo — as abas só trocam hb.step.
+    function buildAbasEfeitosHtml(atual) {
+        const _tg = hb.tag || 'P';
+        const _rot = { M: 'MALDIÇÃO', E: 'EXORCISMO', B: 'BESTA' };
+        const _corTag = { M: '#a855f7', E: '#38bdf8', B: '#fb923c' };
+        const abas = [];
+        if (_tg !== 'P') abas.push({ step: 3, label: _rot[_tg], cor: _corTag[_tg], n: (hb.em || []).length });
+        abas.push({ step: 4, label: 'GERAIS',   cor: '#9ca3af', n: (hb.eg || []).length });
+        abas.push({ step: 5, label: 'CATEGORIA', cor: tc,      n: (hb.ec || []).length });
+        return '<div style="display:flex;gap:4px;background:#0f1117;border-radius:10px;padding:3px;margin-bottom:12px">'
+            + abas.map(function (a) {
+                const sel = atual === a.step;
+                return '<button onclick="window._hIrParaEtapa(' + a.step + ')"'
+                    + ' style="flex:1;padding:9px 4px;border-radius:8px;border:none;cursor:pointer;font-family:\'Orbitron\',sans-serif;font-weight:900;font-size:8px;text-transform:uppercase;letter-spacing:1px;'
+                    + 'background:' + (sel ? a.cor : 'transparent') + ';color:' + (sel ? '#000' : '#6b7280') + '">'
+                    + a.label + (a.n > 0 ? ' <span style="font-size:8px;background:' + (sel ? '#00000033' : '#ffffff22') + ';padding:1px 5px;border-radius:10px">' + a.n + '</span>' : '')
+                    + '</button>';
+            }).join('')
+            + '</div>';
+    }
+
     if (hb.step === 0) {
         canNext = hb.nome.trim().length > 0;
         content = `
@@ -1595,6 +1758,32 @@ function renderHatsuCreator(container) {
             { id:'instantaneo',   icon:'⚡', label:'INSTANTÂNEO',   sub:'Ativa e termina no mesmo turno', tip:'Investe em dano, alcance ou área.' },
             { id:'longa_duracao', icon:'⏳', label:'LONGA DURAÇÃO',  sub:'Persiste por múltiplas rodadas', tip:'Investe em duração, alcance ou CD.' },
         ];
+
+        // ── Tags P/M/E/B ────────────────────────────────────────────────────────────
+        // Não são um terceiro grupo de botões grandes: são etiquetas compactas aplicadas
+        // sobre os tipos que já existem. P é o padrão. M, E e B limitam o personagem a
+        // 2 Hatsus NO TOTAL (Manual: "a escolha de um Hatsu de Exorcismo, Besta de NEN
+        // Especial ou Maldição de NEN limita o usuário a no máximo 2 Hatsus").
+        const _tags = (window.HATSU_TAGS || []);
+        const _tagAtual = hb.tag || 'P';
+        const _tagCores = { P: '#9ca3af', M: '#a855f7', E: '#38bdf8', B: '#fb923c' };
+        const _tagsHtml = '<div style="display:flex;gap:6px">'
+            + _tags.map(function (tg) {
+                const sel = _tagAtual === tg.id;
+                const cor = _tagCores[tg.id] || tc;
+                return '<button onclick="window._hSetTag(\'' + tg.id + '\')" title="' + tg.nome + '"'
+                    + ' style="flex:1;padding:10px 4px;border-radius:10px;border:2px solid ' + (sel ? cor : '#1f2937')
+                    + ';background:' + (sel ? cor + '22' : '#0f1117') + ';cursor:pointer;transition:all .15s">'
+                    + '<div style="font-family:\'Orbitron\',sans-serif;font-weight:900;font-size:15px;color:' + (sel ? cor : '#6b7280') + '">' + tg.id + '</div>'
+                    + '<div style="font-size:7px;color:' + (sel ? cor : '#4b5563') + ';margin-top:2px;line-height:1.2">' + tg.nome.replace('Hatsu de ', '').replace('Hatsu ', '') + '</div>'
+                    + '</button>';
+            }).join('')
+            + '</div>'
+            + '<div style="font-size:8px;color:#6b7280;margin-top:5px;text-align:center">Toque em uma tag para ver o significado</div>'
+            + (_tagAtual !== 'P'
+                // O aviso pisca na cor do TEMA (que segue a categoria de Nen), não numa cor fixa.
+                ? '<div class="aviso-tag-piscando" style="margin-top:8px;background:' + tc + '18;border:1px solid ' + tc + '55;border-radius:10px;padding:9px 11px;font-size:9px;color:' + tc + ';font-weight:700;line-height:1.5">⚠ ' + (window.HATSU_TAG_AVISO || '') + '</div>'
+                : '');
         content = `
         <div style="text-align:center;margin-bottom:14px">
             <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:13px;color:#fff;text-transform:uppercase;letter-spacing:2px">Tipo de Hatsu</div>
@@ -1638,6 +1827,9 @@ function renderHatsuCreator(container) {
                 ${sel?`<div style="font-size:9px;color:${tc}cc;margin-top:6px;padding-left:28px;line-height:1.5">${t.tip}</div>`:''}
             </div>`;
         }).join('')}
+
+        <div style="font-size:8px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin:12px 0 8px">🏷 Tag do Hatsu</div>
+        ${_tagsHtml}
 
         ${hb.tipoA && hb.tipoB ? `<div style="background:${tc}18;border:2px solid ${tc};border-radius:12px;padding:10px;margin-top:4px;text-align:center">
             <div style="font-size:9px;font-weight:900;color:${tc};text-transform:uppercase;letter-spacing:1px">✓ Combinação: ${hb.tipoA.toUpperCase()} + ${hb.tipoB.toUpperCase()}</div>
@@ -1742,14 +1934,243 @@ function renderHatsuCreator(container) {
             + '</div>' + grauPanelHtml + tabsHtml + searchBarHtml + bodyHtml;
     }
 
-    // ETAPA 3 — EFEITOS GERAIS
-    else if (hb.step === 3) {
+    // ── ETAPA 3 — EFEITOS DE MALDIÇÃO ───────────────────────────────────────────
+    // Só existe com a tag M. Cada efeito custa 1 P.N, mas é liberado por LIMIAR: o total
+    // de P.N já investido EM EFEITOS neste Hatsu. P.N devolvido por restrição não conta.
+    else if (hb.step === 3 && (hb.tag || 'P') === 'M') {
+        canNext = true;
+        const _mdb = (window.MALDICAO_DB || { efeitos: [], temporizadores: [] });
+        if (!Array.isArray(hb.em)) hb.em = [];
+        // P.N investido em efeitos = soma do custo dos efeitos escolhidos (gerais + categoria
+        // + maldição). Não entra nada que venha de restrição, por definição da regra.
+        const _investido = window.calcPNInvestidoEmEfeitos ? window.calcPNInvestidoEmEfeitos(hb) : 0;
+
+        const _listaMal = _mdb.efeitos.map(function (ef) {
+            const sel = hb.em.indexOf(ef.id) >= 0;
+            const liberado = _investido >= ef.limiar;
+            const cor = sel ? '#a855f7' : (liberado ? '#d1d5db' : '#4b5563');
+            const clique = liberado
+                ? 'window._hToggleMaldicao(\'' + ef.id + '\')'
+                : "alert('🔒 Bloqueado\\n\\nEste efeito exige " + ef.limiar + " P.N já investidos em efeitos deste Hatsu. Você tem " + _investido + ".\\n\\nP.N devolvido por restrições não conta para o limiar.')";
+            return '<div onclick="' + clique + '" style="background:#0d1117;border:1px solid ' + (sel ? '#a855f788' : '#1f2937')
+                + ';border-radius:12px;padding:11px 12px;margin-bottom:7px;cursor:pointer;opacity:' + (liberado ? '1' : '.55') + '">'
+                + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
+                + '<div style="font-size:10px;color:' + cor + ';line-height:1.45;flex:1">' + (sel ? '✓ ' : '') + ef.desc + '</div>'
+                + '<div style="flex-shrink:0;text-align:right">'
+                + '<div style="font-size:8px;font-weight:900;padding:2px 7px;border-radius:6px;background:' + (liberado ? '#a855f722' : '#1f2937') + ';color:' + (liberado ? '#c084fc' : '#4b5563') + ';white-space:nowrap">' + ef.limiar + ' P.N inv.' + (liberado ? '' : ' 🔒') + '</div>'
+                + '<div style="font-size:7px;color:#6b7280;margin-top:3px">custa 1 P.N</div>'
+                + '</div></div></div>';
+        }).join('');
+
+        // ── Interruptor: Maldição Positiva ──────────────────────────────────────
+        // A positiva abençoa em vez de punir e ganha dois requisitos extras: teto de
+        // +3 Graus de Potência e bloqueio por desmaio ou selamento.
+        const _ehPositiva = !!hb.maldicaoPositiva;
+        const _positivaHtml = '<div style="background:#0f1117;border:1px solid ' + (_ehPositiva ? '#4ade8055' : '#1f2937') + ';border-radius:12px;padding:12px;margin-top:16px">'
+            + '<div style="display:flex;align-items:center;gap:10px">'
+            + '<div onclick="window._hToggleMaldicaoPositiva()" style="width:40px;height:22px;border-radius:11px;background:' + (_ehPositiva ? '#4ade80' : '#374151') + ';position:relative;flex-shrink:0;cursor:pointer;transition:all .15s">'
+            + '<div style="position:absolute;top:3px;left:' + (_ehPositiva ? '21px' : '3px') + ';width:16px;height:16px;border-radius:50%;background:#0d1117;transition:all .15s"></div></div>'
+            + '<div onclick="window._hToggleMaldicaoPositiva()" style="cursor:pointer"><div style="font-size:10px;font-weight:900;color:' + (_ehPositiva ? '#4ade80' : '#9ca3af') + ';text-transform:uppercase;letter-spacing:1px">Maldição Positiva</div>'
+            + '<div style="font-size:8px;color:#6b7280;margin-top:2px">Abençoa em vez de punir — dois requisitos a mais</div></div>'
+            + '<button onclick="event.stopPropagation();window._hExplicarPositiva()" title="O que é uma Maldição Positiva?" style="margin-left:auto;flex-shrink:0;width:24px;height:24px;border-radius:50%;background:transparent;border:1px solid #374151;color:#9ca3af;font-size:12px;font-weight:900;cursor:pointer;padding:0">?</button>'
+            + '</div></div>';
+
+        // ── Painel dos requisitos (6, ou 8 quando positiva) ─────────────────────
+        const _req = window.calcRequisitosMaldicao(hb);
+        const _reqHtml = _req.itens.map(function (r) {
+            const cor = r.ok ? '#4ade80' : '#f87171';
+            const nomeEsc = r.escolhido
+                ? (r.candidatos.find(function (c) { return c.id === r.escolhido; }) || {}).nome
+                : '';
+            const podeClicar = !r.auto && r.candidatos.length > 0;
+            return '<div style="background:#0d1117;border:1px solid ' + (r.ok ? '#4ade8044' : '#1f2937') + ';border-radius:11px;padding:10px 12px;margin-bottom:6px">'
+                + '<div style="display:flex;align-items:flex-start;gap:8px">'
+                + '<span style="font-size:12px;flex-shrink:0;color:' + cor + '">' + (r.ok ? '✓' : '○') + '</span>'
+                + '<div style="flex:1">'
+                + '<div style="font-size:9px;font-weight:700;color:' + (r.ok ? '#d1d5db' : '#9ca3af') + ';line-height:1.45">' + r.n + '. ' + r.texto + '</div>'
+                + (r.detalhe ? '<div style="font-size:8px;color:#6b7280;margin-top:3px">' + r.detalhe + '</div>' : '')
+                + (nomeEsc ? '<div style="font-size:8px;color:#c084fc;font-weight:700;margin-top:3px">Cumprido por: ' + nomeEsc + '</div>' : '')
+                + (r.aceite
+                    ? '<button onclick="window._hSetReqMaldicao(' + r.n + ', ' + (r.ok ? 'null' : 'true') + ')" style="margin-top:6px;padding:5px 10px;border-radius:7px;background:' + (r.ok ? '#4ade8022' : '#a855f722') + ';border:1px solid ' + (r.ok ? '#4ade8055' : '#a855f755') + ';color:' + (r.ok ? '#4ade80' : '#c084fc') + ';font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer">' + (r.ok ? '✓ Ciente' : 'Estou ciente') + '</button>'
+                    : (podeClicar
+                        ? '<button onclick="window._hAbrirEscolhaReq(' + r.n + ')" style="margin-top:6px;padding:5px 10px;border-radius:7px;background:#a855f722;border:1px solid #a855f755;color:#c084fc;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer">'
+                            + (nomeEsc ? 'Trocar' : 'Escolher') + (r.candidatos.length > 1 ? ' (' + r.candidatos.length + ' elegíveis)' : '') + '</button>'
+                        : ''))
+                + '</div></div></div>';
+        }).join('');
+
+        const _temporizadorAtual = hb.temporizador || '';
+        const _listaTemp = _mdb.temporizadores.map(function (tp) {
+            const sel = _temporizadorAtual === tp.id;
+            return '<div onclick="window._hSetTemporizador(\'' + tp.id + '\')" style="background:#0d1117;border:1px solid ' + (sel ? '#a855f788' : '#1f2937')
+                + ';border-radius:10px;padding:9px 11px;margin-bottom:6px;cursor:pointer">'
+                + '<div style="font-size:10px;font-weight:700;color:' + (sel ? '#c084fc' : '#d1d5db') + '">' + (sel ? '✓ ' : '') + tp.nome + '</div>'
+                + '<div style="font-size:8px;color:#6b7280;margin-top:2px">Mínimo: ' + tp.min + ' &nbsp;·&nbsp; Máximo: ' + tp.max + '</div>'
+                + '</div>';
+        }).join('');
+
+        content = `
+        <div style="text-align:center;margin-bottom:10px">
+            <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:13px;color:#c084fc;text-transform:uppercase;letter-spacing:2px">Efeitos de Maldição</div>
+            <div style="font-size:9px;color:#6b7280;margin-top:3px">Liberados por P.N já investido em efeitos deste Hatsu</div>
+        </div>
+        ${buildAbasEfeitosHtml(3)}
+        <div style="background:#0f1117;border:1px solid #1f2937;border-radius:12px;padding:12px;margin-bottom:12px;text-align:center">
+            <div style="font-size:8px;color:#4b5563;text-transform:uppercase;font-weight:700;margin-bottom:4px">P.N investido em efeitos</div>
+            <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:24px;color:#c084fc">${_investido}</div>
+            <div style="font-size:8px;color:#6b7280;margin-top:3px">Restrições não contam para o limiar</div>
+        </div>
+        ${_listaMal}
+        <div style="font-size:8px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin:16px 0 8px">⏳ Temporizador (obrigatório)</div>
+        ${_listaTemp}
+        ${_positivaHtml}
+        <div style="font-size:8px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin:16px 0 8px">📋 Requisitos da Maldição (${_req.cumpridos}/${_req.total})</div>
+        ${_reqHtml}
+        `;
+    }
+
+    // ── ETAPA 3 (tag E) — EXORCISMO ─────────────────────────────────────────────
+    // Os efeitos de exorcista são liberados por NÍVEL do personagem. A tabela de
+    // resultados do ritual fica como referência de mesa: o app não rola o ritual,
+    // porque ele acontece na narrativa e depende da CD que o mestre define.
+    else if (hb.step === 3 && (hb.tag || 'P') === 'E') {
+        canNext = true;
+        const _edb = (window.EXORCISMO_DB || { efeitos: [], resultados: [] });
+        if (!Array.isArray(hb.ex)) hb.ex = [];
+        const _nivel = parseInt(char.level) || 0;
+
+        const _listaExo = _edb.efeitos.map(function (ef) {
+            const nv = parseInt(String(ef.req).replace(/\D/g, '')) || 1;
+            const liberado = _nivel >= nv;
+            const sel = hb.ex.indexOf(ef.id) >= 0;
+            const cor = sel ? '#38bdf8' : (liberado ? '#d1d5db' : '#4b5563');
+            const clique = liberado
+                ? 'window._hToggleExorcismo(\'' + ef.id + '\')'
+                : "alert('🔒 Bloqueado\\n\\nEste efeito exige nível " + nv + ". Você está no nível " + _nivel + ".')";
+            return '<div onclick="' + clique + '" style="background:#0d1117;border:1px solid ' + (sel ? '#38bdf888' : '#1f2937')
+                + ';border-radius:12px;padding:11px 12px;margin-bottom:7px;cursor:pointer;opacity:' + (liberado ? '1' : '.55') + '">'
+                + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:3px">'
+                + '<div style="font-size:10px;font-weight:900;color:' + cor + '">' + (sel ? '✓ ' : '') + ef.nome + '</div>'
+                + '<div style="font-size:8px;font-weight:900;padding:2px 7px;border-radius:6px;background:' + (liberado ? '#38bdf822' : '#1f2937') + ';color:' + (liberado ? '#7dd3fc' : '#4b5563') + ';white-space:nowrap">' + ef.req + (liberado ? '' : ' 🔒') + '</div>'
+                + '</div>'
+                + '<div style="font-size:9px;color:#6b7280;line-height:1.45">' + ef.desc + '</div></div>';
+        }).join('');
+
+        const _listaRes = _edb.resultados.map(function (r) {
+            return '<div style="background:#0d1117;border:1px solid #1f2937;border-radius:10px;padding:9px 11px;margin-bottom:6px">'
+                + '<div style="font-size:9px;font-weight:900;color:#7dd3fc">' + r.comparacao + '</div>'
+                + '<div style="font-size:9px;color:#d1d5db;margin-top:2px;line-height:1.4">' + r.resultado + '</div>'
+                + '<div style="font-size:8px;color:#6b7280;margin-top:2px;line-height:1.4">' + r.consequencia + '</div></div>';
+        }).join('');
+
+        content = `
+        <div style="text-align:center;margin-bottom:10px">
+            <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:13px;color:#7dd3fc;text-transform:uppercase;letter-spacing:2px">Exorcismo de Nen</div>
+            <div style="font-size:9px;color:#6b7280;margin-top:3px">Efeitos liberados pelo seu nível (${_nivel})</div>
+        </div>
+        ${buildAbasEfeitosHtml(3)}
+        ${_listaExo}
+        <div style="font-size:8px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin:16px 0 8px">📜 Resultados do Ritual (referência de mesa)</div>
+        <div style="font-size:8px;color:#6b7280;margin-bottom:8px">O ritual é narrado na mesa; o app não rola por você. A CD é definida pelo mestre conforme a maldição enfrentada.</div>
+        ${_listaRes}
+        `;
+    }
+
+    // ── ETAPA 3 (tag B) — BESTA DE NEN ──────────────────────────────────────────
+    // A categoria da besta é INDEPENDENTE da do usuário e ALEATÓRIA (1d6). A escolha
+    // entre Manifestação A (auto-imposta ou em aliado) e B (imposta a oponentes) é do
+    // jogador. Os efeitos favoráveis são filtrados pela categoria sorteada; os hostis não.
+    else if (hb.step === 3 && (hb.tag || 'P') === 'B') {
+        canNext = true;
+        const _bdb = (window.BESTA_DB || { categorias: [], favoraveis: [], hostis: [], lendarios: [] });
+        if (!Array.isArray(hb.be)) hb.be = [];
+        const _nivelB = parseInt(char.level) || 0;
+        const _catBesta = hb.bestaCategoria || '';
+        const _manif = hb.bestaManifestacao || '';
+
+        const _catHtml = _catBesta
+            ? '<div style="background:#0f1117;border:1px solid #fb923c55;border-radius:12px;padding:12px;text-align:center;margin-bottom:12px">'
+                + '<div style="font-size:8px;color:#4b5563;text-transform:uppercase;font-weight:700;margin-bottom:4px">Categoria da Besta (sorteada)</div>'
+                + '<div style="font-family:\'Orbitron\',sans-serif;font-weight:900;font-size:15px;color:#fb923c">' + _catBesta + '</div>'
+                + '<div style="font-size:8px;color:#6b7280;margin-top:4px">Independente da sua categoria</div>'
+                + '<button onclick="window._hRolarCategoriaBesta()" style="margin-top:8px;padding:5px 12px;border-radius:7px;background:#fb923c22;border:1px solid #fb923c55;color:#fb923c;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer">🎲 Rolar de novo</button>'
+                + '</div>'
+            : '<div style="background:#0f1117;border:1px dashed #374151;border-radius:12px;padding:16px;text-align:center;margin-bottom:12px">'
+                + '<div style="font-size:10px;color:#9ca3af;margin-bottom:8px">A categoria da Besta é sorteada e independe da sua.</div>'
+                + '<button onclick="window._hRolarCategoriaBesta()" style="padding:9px 16px;border-radius:9px;background:#fb923c22;border:1px solid #fb923c77;color:#fb923c;font-size:10px;font-weight:900;text-transform:uppercase;cursor:pointer">🎲 Rolar 1d6</button>'
+                + '</div>';
+
+        const _manifHtml = '<div style="display:flex;gap:6px;margin-bottom:12px">'
+            + [['A','Auto-imposta / Aliado'],['B','Imposta a Oponentes']].map(function (par) {
+                const sel = _manif === par[0];
+                return '<button onclick="window._hSetManifestacao(\'' + par[0] + '\')" style="flex:1;padding:10px 6px;border-radius:10px;border:2px solid '
+                    + (sel ? '#fb923c' : '#1f2937') + ';background:' + (sel ? '#fb923c22' : 'transparent') + ';cursor:pointer">'
+                    + '<div style="font-family:\'Orbitron\',sans-serif;font-weight:900;font-size:13px;color:' + (sel ? '#fb923c' : '#6b7280') + '">Manif. ' + par[0] + '</div>'
+                    + '<div style="font-size:7px;color:' + (sel ? '#fb923c' : '#4b5563') + ';margin-top:2px;line-height:1.2">' + par[1] + '</div></button>';
+            }).join('') + '</div>';
+
+        let _listaB = '';
+        if (!_manif) {
+            _listaB = '<div style="font-size:9px;color:#f87171;text-align:center;padding:16px">Escolha a Manifestação para ver os efeitos.</div>';
+        } else if (_manif === 'A' && !_catBesta) {
+            _listaB = '<div style="font-size:9px;color:#f87171;text-align:center;padding:16px">Role a categoria da Besta para ver os efeitos favoráveis.</div>';
+        } else {
+            const fonte = _manif === 'A'
+                ? _bdb.favoraveis.filter(function (e) { return e.cat === _catBesta; })
+                : _bdb.hostis;
+            _listaB = fonte.length ? fonte.map(function (ef) {
+                const nv = parseInt(String(ef.req).replace(/\D/g, '')) || 1;
+                const liberado = _nivelB >= nv;
+                const sel = hb.be.indexOf(ef.id) >= 0;
+                const cor = sel ? '#fb923c' : (liberado ? '#d1d5db' : '#4b5563');
+                const clique = liberado
+                    ? 'window._hToggleBesta(\'' + ef.id + '\')'
+                    : "alert('🔒 Bloqueado\\n\\nEste efeito exige " + ef.req + ". Você está no nível " + _nivelB + ".')";
+                return '<div onclick="' + clique + '" style="background:#0d1117;border:1px solid ' + (sel ? '#fb923c88' : '#1f2937')
+                    + ';border-radius:12px;padding:11px 12px;margin-bottom:7px;cursor:pointer;opacity:' + (liberado ? '1' : '.55') + '">'
+                    + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:3px">'
+                    + '<div style="font-size:10px;font-weight:900;color:' + cor + '">' + (sel ? '✓ ' : '') + ef.nome + '</div>'
+                    + '<div style="font-size:8px;font-weight:900;padding:2px 7px;border-radius:6px;background:' + (liberado ? '#fb923c22' : '#1f2937') + ';color:' + (liberado ? '#fdba74' : '#4b5563') + ';white-space:nowrap">' + ef.req + (liberado ? '' : ' 🔒') + '</div>'
+                    + '</div>'
+                    + '<div style="font-size:9px;color:#6b7280;line-height:1.45">' + ef.desc + '</div></div>';
+            }).join('')
+            : '<div style="font-size:9px;color:#6b7280;text-align:center;padding:16px">Nenhum efeito desta categoria.</div>';
+        }
+
+        // Efeito Lendário: só no nível 12, e escolhe apenas UM.
+        const _lend = hb.bestaLendario || '';
+        const _lendHtml = _nivelB >= 12
+            ? '<div style="font-size:8px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin:16px 0 8px">✦ Efeito Lendário (nível 12 — escolha 1)</div>'
+                + _bdb.lendarios.map(function (l) {
+                    const sel = _lend === l.id;
+                    return '<div onclick="window._hSetLendario(\'' + l.id + '\')" style="background:#0d1117;border:1px solid ' + (sel ? '#fbbf2488' : '#1f2937') + ';border-radius:11px;padding:10px 12px;margin-bottom:6px;cursor:pointer">'
+                        + '<div style="font-size:10px;font-weight:900;color:' + (sel ? '#fbbf24' : '#d1d5db') + '">' + (sel ? '✓ ' : '') + l.nome + '</div>'
+                        + '<div style="font-size:8px;color:#6b7280;margin-top:2px;line-height:1.45">' + l.desc + '</div></div>';
+                }).join('')
+            : '<div style="font-size:8px;color:#4b5563;text-align:center;margin-top:16px;font-style:italic">Efeitos Lendários são liberados no nível 12.</div>';
+
+        content = `
+        <div style="text-align:center;margin-bottom:10px">
+            <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:13px;color:#fb923c;text-transform:uppercase;letter-spacing:2px">Besta de Nen</div>
+            <div style="font-size:9px;color:#6b7280;margin-top:3px">Parasita ou Guardiã — categoria própria e aleatória</div>
+        </div>
+        ${buildAbasEfeitosHtml(3)}
+        ${_catHtml}
+        ${_manifHtml}
+        ${_listaB}
+        ${_lendHtml}
+        `;
+    }
+
+    // ETAPA 4 — EFEITOS GERAIS
+    else if (hb.step === 4) {
         canNext = true;
         content = `
         <div style="text-align:center;margin-bottom:10px">
             <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:13px;color:#fff;text-transform:uppercase;letter-spacing:2px">Efeitos Gerais</div>
             <div style="font-size:9px;color:#6b7280;margin-top:3px">Disponíveis para qualquer categoria</div>
         </div>
+        ${buildAbasEfeitosHtml(4)}
         ${buildGrauPanelHtml()}
         <div style="background:#0a0f1a;border:1px solid #1f2937;border-radius:10px;padding:9px;margin-bottom:10px">
             <div style="display:flex;align-items:flex-start;gap:7px">
@@ -1783,7 +2204,8 @@ function renderHatsuCreator(container) {
         ${renderE(window.HATSU_DB.efeitos_gerais, hb.eg, 'eg', '#9ca3af')}
         ${(() => { const ft = hb.filterText||''; const fs = hb.filterStatus||'todos'; const allItems = window.HATSU_DB.efeitos_gerais; const shown = allItems.filter(item => { if (ft && !item.nome.toLowerCase().includes(ft.toLowerCase()) && !(item.desc||'').toLowerCase().includes(ft.toLowerCase())) return false; return true; }); return shown.length === 0 ? `<div style="text-align:center;color:#374151;font-style:italic;font-size:11px;padding:20px">Nenhum efeito encontrado.</div>` : ''; })()}`;
     }
-    else if (hb.step === 4) {
+    // ETAPA 5 — EFEITOS DE CATEGORIA
+    else if (hb.step === 5) {
         canNext = true;
 
         const charLevel = parseInt(char.level) || 0;
@@ -1926,6 +2348,7 @@ function renderHatsuCreator(container) {
             <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:12px;color:#fff;text-transform:uppercase;letter-spacing:2px">Efeitos de ${cls}</div>
             <div style="font-size:9px;font-weight:700;margin-top:3px;color:${tc}">${catDB.graus}</div>
         </div>
+        ${buildAbasEfeitosHtml(5)}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;background:#0f1117;border:1px solid #1f2937;border-radius:12px;padding:12px;margin-bottom:14px">
             <div>
                 <div style="font-size:8px;color:#4b5563;text-transform:uppercase;font-weight:700;margin-bottom:4px">P.N Disponíveis</div>
@@ -1965,8 +2388,8 @@ function renderHatsuCreator(container) {
         </div>` : ''}`;
     }
 
-    // ETAPA 5 — RESUMO
-    else if (hb.step === 5) {
+    // ETAPA 6 — RESUMO
+    else if (hb.step === 6) {
         canNext = hb.nome.trim().length > 0 && pnBonusLeft === 0;
         const allRDB = [
             ...(window.HATSU_DB.restricoes_gerais.leves||[]).map(r=>({...r,peso:'leve'})),
@@ -2133,7 +2556,7 @@ window._hNext = function() {
     if (hb.step === 1 && (!hb.tipoA || !hb.tipoB)) {
         return; // usuário precisa selecionar um tipo de cada grupo
     }
-    if (hb.step === 5) {
+    if (hb.step === 6) {
         // Bloqueia se há P.N não gastos — P.N não podem ser guardados para outro nível
         const _char5 = state.currentChar;
         const _pnBase5 = window.calcularPHBase(_char5.level);
@@ -2144,15 +2567,20 @@ window._hNext = function() {
         let _pnUsed5 = 0;
         hb.eg.forEach(id => { const e = window.HATSU_DB.efeitos_gerais.find(x=>x.id===id); if(e) _pnUsed5+=e.pn; });
         hb.ec.forEach(id => { for (const cat of Object.values(window.HATSU_DB.categorias||{})) { if (!cat||!cat.efeitos) continue; const e=cat.efeitos.find(x=>x.id===id); if(e){_pnUsed5+=e.pn;break;} } });
-        // Breakdown por tipo: restrições devem ser gastas, base pode ser guardada
-        const _pnFromExtreme5 = window.calcPNFromExtremeRestr ? window.calcPNFromExtremeRestr(hb) : 0;
-        const _pnFromPureNonExtreme5 = Math.max(0, _pnBonus5 - _pnFromExtreme5);
-        const _usedFromExtreme5 = Math.min(_pnUsed5, _pnFromExtreme5);
-        const _usedFromPureNonExtreme5 = Math.min(Math.max(0, _pnUsed5 - _pnFromExtreme5), _pnFromPureNonExtreme5);
-        const _pnExtremeLeft5 = _pnFromExtreme5 - _usedFromExtreme5;
-        const _pnPureNonExtremeLeft5 = _pnFromPureNonExtreme5 - _usedFromPureNonExtreme5;
-        const _pnBonusLeft5 = _pnExtremeLeft5 + _pnPureNonExtremeLeft5;
-        if (_pnBonusLeft5 > 0) return; // P.N de restrições devem ser todos gastos antes de finalizar
+        // Mesma ordem do painel: BASE → Pura → Extremo. Com o base sendo consumido antes,
+        // sobrar P.N de restrição passou a ser NORMAL (o excedente é desperdiçado, porque
+        // não pode migrar para os princípios). Antes isso travava a finalização para sempre;
+        // agora só avisa, para o jogador saber que está abrindo mão de algo.
+        const _usedFromBase5 = Math.min(_pnUsed5, _pnBaseAvail5);
+        const _restante5 = Math.max(0, _pnUsed5 - _usedFromBase5);
+        const _pnBonusLeft5 = Math.max(0, _pnBonus5 - _restante5);
+        if (_pnBonusLeft5 > 0) {
+            const _ok = confirm('Sobram ' + _pnBonusLeft5 + ' P.N vindos das restrições.\n\n'
+                + 'Esse P.N vale APENAS neste Hatsu e não pode ser usado em Princípios de Nen. '
+                + 'Se você finalizar agora, ele é desperdiçado.\n\n'
+                + 'Quer finalizar mesmo assim?');
+            if (!_ok) return;
+        }
 
         // Salva o hatsu
         const char = state.currentChar;
@@ -2172,6 +2600,19 @@ window._hNext = function() {
             nome: hb.nome,
             descricao: hb.descricao,
             tipo: (hb.tipoA||'')+(hb.tipoB?'+'+hb.tipoB:''),
+            // Tag P/M/E/B: P (padrão) é o valor de quem não escolheu nada.
+            tag: hb.tag || 'P',
+            // Dados exclusivos da tag M (Maldição).
+            efeitosMaldicao: [].concat(hb.em || []),
+            temporizador: hb.temporizador || '',
+            maldicaoPositiva: !!hb.maldicaoPositiva,
+            reqMaldicao: Object.assign({}, hb.reqMaldicao || {}),
+            // Dados exclusivos das tags E (Exorcismo) e B (Besta).
+            efeitosExorcismo: [].concat(hb.ex || []),
+            bestaCategoria: hb.bestaCategoria || '',
+            bestaManifestacao: hb.bestaManifestacao || '',
+            efeitosBesta: [].concat(hb.be || []),
+            bestaLendario: hb.bestaLendario || '',
             restricoes: [...hb.rg, ...hb.rc],
             beneficioChoices: {...(hb.beneficioChoices||{})},
             pureRestrictions: {...(hb.pureRestrictions||{})},
@@ -2179,8 +2620,9 @@ window._hNext = function() {
             juramentoImutavelNivelBase: hb.juramentoImutavelNivelBase != null ? hb.juramentoImutavelNivelBase : null,
             efeitos: [...hb.eg, ...hb.ec],
             efeitoNiveis: {...(hb.efeitoNiveis||{})},
-            // Only count base P.N consumed (bonus from pure restrictions is local to this hatsu)
-            pnUsados: Math.max(0, pnUsed - window.calcPNBonusFromRestr(hb)),
+            // Só o P.N BASE consumido sai do pool do personagem. O P.N das restrições é
+            // local a este Hatsu e, se sobrar, é desperdiçado — nunca volta para o pool.
+            pnUsados: _usedFromBase5,
             nivel: char.level,
             classe: char.class,
             criadoEm: (hb.editingIdx !== undefined ? char.hatsus[hb.editingIdx].criadoEm : null) || new Date().toLocaleDateString('pt-BR')
@@ -2214,6 +2656,8 @@ window._hNext = function() {
         return;
     }
     hb.step++;
+    // Sem a tag M, a etapa de Efeitos de Maldição não existe para este Hatsu.
+    if (hb.step === 3 && (hb.tag || 'P') === 'P') hb.step++;
     hb.filterText = '';
     hb.filterStatus = 'todos';
     render();
@@ -2221,6 +2665,16 @@ window._hNext = function() {
 window._hPrev = function() {
     const hb = state.hatsuBuilder; if (!hb || hb.step === 0) return;
     hb.step--;
+    if (hb.step === 3 && (hb.tag || 'P') === 'P') hb.step--;
+    render();
+};
+// Navegação direta entre as abas de efeitos (Maldição, Gerais, Categoria).
+window._hIrParaEtapa = function (n) {
+    const hb = state.hatsuBuilder; if (!hb) return;
+    if (n === 3 && (hb.tag || 'P') === 'P') return;
+    hb.step = n;
+    hb.filterText = '';
+    hb.filterStatus = 'todos';
     render();
 };
 // Re-render hatsu creator preserving scroll position of content area
@@ -2339,6 +2793,329 @@ window._hSetSpecialChoice = function(id, val) {
 };
 // Liga/desliga uma restrição herdada dentro de um modo alternativo.
 // Guarda a lista de restrições DESLIGADAS naquele modo (por nome).
+// ── Aviso de alvos: buff no usuário + dano no inimigo ────────────────────────
+// Um Hatsu pode ter efeitos que melhoram o PRÓPRIO usuário e efeitos que ferem um
+// ALVO. Sem o efeito "Poder é Intenção", o sistema entende que tudo cai no mesmo
+// alvo — o inimigo receberia o buff, ou o usuário levaria o próprio dano. O aviso
+// aparece uma vez por sessão de criação, quando os dois tipos estão selecionados.
+window._hAvisoAlvos = function () {
+    const hb = state.hatsuBuilder; if (!hb) return;
+    if (hb._avisoAlvosVisto) return;
+    const ids = [].concat(hb.eg || [], hb.ec || []);
+    if (ids.indexOf('eg6') >= 0) return;           // já resolveu com Poder é Intenção
+    const DANO = ['eg15'].concat(Object.keys(window.DANO_PROPRIO_MAP || {}));
+    const temDano = ids.some(function (id) { return DANO.indexOf(id) >= 0; });
+    const temOutro = ids.some(function (id) { return DANO.indexOf(id) < 0 && id !== 'eg6'; });
+    if (!temDano || !temOutro) return;
+    hb._avisoAlvosVisto = true;
+
+    const tc = getComputedStyle(document.documentElement).getPropertyValue('--theme-color-hex').trim() || '#00ff9d';
+    const ov = document.createElement('div');
+    ov.id = 'aviso-alvos-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:#000000ee;display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;font-family:Rajdhani,sans-serif';
+    ov.innerHTML = '<div style="background:#0d1117;border:2px solid ' + tc + ';border-radius:20px;padding:20px;width:100%;max-width:380px;box-shadow:0 0 60px ' + tc + '44">'
+        + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:12px;color:' + tc + ';text-transform:uppercase;letter-spacing:2px;margin-bottom:10px">🎯 Quantos alvos tem este Hatsu?</div>'
+        + '<div style="font-size:11px;color:#d1d5db;line-height:1.6;margin-bottom:14px">'
+        + 'Seu Hatsu funciona com buff no usuário + dano em um alvo? Escolha o efeito '
+        + '<b style="color:' + tc + '">Poder é Intenção</b> para detalhar isso de forma adequada, '
+        + 'caso contrário o mesmo alvo recebe todos os efeitos.'
+        + '</div>'
+        + '<button id="aviso-alvos-ok" style="width:100%;padding:11px;border-radius:10px;background:' + tc + ';border:none;color:#000;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer;letter-spacing:1px">Entendido</button>'
+        + '</div>';
+    document.body.appendChild(ov);
+    document.getElementById('aviso-alvos-ok').onclick = function () { ov.remove(); };
+};
+
+// ── Tag do Hatsu (P/M/E/B) ───────────────────────────────────────────────────
+// Trocar para M, E ou B verifica a trava de 2 Hatsus NO TOTAL antes de aceitar.
+// A contagem considera os Hatsus já salvos no personagem; o que está sendo criado
+// agora ainda não está na lista, então ele mesmo já ocupa a segunda vaga.
+// P.N investido EM EFEITOS neste Hatsu — base do limiar dos efeitos de Maldição.
+// Soma o custo dos efeitos escolhidos (gerais, de categoria e de maldição). P.N que vem
+// de restrição NÃO entra: é justamente o que impede destravar maldição forte de graça.
+// ── Validador dos requisitos da Maldição ─────────────────────────────────────
+// Checa o que JÁ foi selecionado nas outras etapas; não cria pickers próprios.
+// Requisitos 1 a 4 são detectados; 5 e 6 são declarados pelo jogador, porque
+// "consequência" e "forma de sair" dependem da narrativa. Um mesmo item pode
+// cumprir mais de um requisito: nada é consumido.
+// Quando há mais de um candidato, o jogador escolhe qual cumpre aquele requisito.
+window.calcRequisitosMaldicao = function (hb) {
+    const M = (window.MALDICAO_DB || {});
+    const mapa = M.mapa || {};
+    const D = window.HATSU_DB || {};
+    const rg = D.restricoes_gerais || {};
+
+    // Catálogo achatado, para traduzir id em nome e peso.
+    const todasR = [];
+    ['leves','moderadas','pesadas','variaveis','extremas'].forEach(function (g) {
+        (rg[g] || []).forEach(function (r) { todasR.push({ id: r.id, nome: r.nome, peso: g }); });
+    });
+    Object.keys(D.categorias || {}).forEach(function (k) {
+        if (k === 'CONJURAÇÃO') return;
+        (D.categorias[k].restricoes || []).forEach(function (r) {
+            todasR.push({ id: r.id, nome: r.nome, peso: (r.peso || 'categoria') + 's' });
+        });
+    });
+    const todosE = [].concat(D.efeitos_gerais || []);
+    Object.keys(D.categorias || {}).forEach(function (k) {
+        if (k === 'CONJURAÇÃO') return;
+        (D.categorias[k].efeitos || []).forEach(function (e) { todosE.push(e); });
+    });
+
+    const selR = [].concat(hb.rg || [], hb.rc || []);
+    const selE = [].concat(hb.eg || [], hb.ec || []);
+    const nomeR = function (id) { const r = todasR.find(function (x) { return x.id === id; }); return r ? r.nome : id; };
+    const nomeE = function (id) { const e = todosE.find(function (x) { return x.id === id; }); return e ? e.nome : id; };
+    const pesoR = function (id) { const r = todasR.find(function (x) { return x.id === id; }); return r ? r.peso : ''; };
+
+    const esc = hb.reqMaldicao || {};
+    const out = [];
+
+    // Req 1 — uma Pesada OU três inferiores (leve/moderada)
+    const pesadas = selR.filter(function (id) { return pesoR(id) === 'pesadas'; });
+    const inferiores = selR.filter(function (id) { return pesoR(id) === 'leves' || pesoR(id) === 'moderadas'; });
+    out.push({
+        n: 1,
+        texto: 'Uma Restrição Pesada ou três de peso inferior',
+        ok: pesadas.length >= 1 || inferiores.length >= 3,
+        candidatos: pesadas.concat(inferiores).map(function (id) { return { id: id, nome: nomeR(id) }; }),
+        detalhe: pesadas.length >= 1
+            ? ('Pesada: ' + pesadas.map(nomeR).join(', '))
+            : (inferiores.length + ' de 3 inferiores'),
+        auto: true,
+    });
+
+    // Req 2 — restrição de gatilho
+    const cand2 = selR.filter(function (id) { return (mapa.req2 || []).indexOf(id) >= 0; });
+    out.push({
+        n: 2, texto: 'Restrição de gatilho (toque, contrato, limitação de alvos ou explicar o Hatsu)',
+        ok: cand2.length >= 1,
+        candidatos: cand2.map(function (id) { return { id: id, nome: nomeR(id) }; }),
+        escolhido: esc.req2 || (cand2.length === 1 ? cand2[0] : ''),
+        precisaEscolher: cand2.length > 1,
+    });
+
+    // Req 3 — efeito da lista fechada
+    const cand3 = selE.filter(function (id) { return (mapa.req3 || []).indexOf(id) >= 0; });
+    out.push({
+        n: 3, texto: 'Um efeito de Materialização, Emissão ou Manipulação da lista da Maldição',
+        ok: cand3.length >= 1,
+        candidatos: cand3.map(function (id) { return { id: id, nome: nomeE(id) }; }),
+        escolhido: esc.req3 || (cand3.length === 1 ? cand3[0] : ''),
+        precisaEscolher: cand3.length > 1,
+    });
+
+    // Req 4 — temporizador
+    const tp = ((M.temporizadores) || []).find(function (x) { return x.id === hb.temporizador; });
+    out.push({
+        n: 4, texto: 'Definir um Temporizador',
+        ok: !!tp, detalhe: tp ? tp.nome : 'nenhum escolhido', auto: true, candidatos: [],
+    });
+
+    // Req 5 e 6 — declarados pelo jogador entre tudo que está selecionado
+    const todosSel = selR.map(function (id) { return { id: id, nome: nomeR(id) }; })
+        .concat(selE.map(function (id) { return { id: id, nome: nomeE(id) }; }));
+    out.push({
+        n: 5, texto: 'Uma Restrição/Efeito como CONSEQUÊNCIA por cumprir ou descumprir a imposição',
+        ok: !!esc.req5, candidatos: todosSel, escolhido: esc.req5 || '', precisaEscolher: true,
+    });
+    out.push({
+        n: 6, texto: 'Uma forma de NÃO RECEBER ou SAIR da maldição sem ser por Exorcismo',
+        ok: !!esc.req6, candidatos: todosSel, escolhido: esc.req6 || '', precisaEscolher: true,
+    });
+
+    // ── Requisitos extras da Maldição Positiva ──────────────────────────────────
+    if (hb.maldicaoPositiva) {
+        // Req 7 — teto de +3 Graus de Potência em qualquer característica. Dá para
+        // conferir de verdade: somamos os graus por característica do Hatsu.
+        let maiorGrau = 0, ondeGrau = '';
+        if (window.calcGrausPotenciaPorCaracteristica) {
+            const fake = {
+                restricoes: selR, efeitos: selE,
+                specialChoices: hb.specialChoices || {}, beneficioChoices: hb.beneficioChoices || {},
+                pureRestrictions: hb.pureRestrictions || {}, classe: (state.currentChar || {}).class,
+                nivel: (state.currentChar || {}).level || 1,
+            };
+            const tot = window.calcGrausPotenciaPorCaracteristica(fake, (state.currentChar || {}).level);
+            Object.keys(tot).forEach(function (k) { if (tot[k] > maiorGrau) { maiorGrau = tot[k]; ondeGrau = k; } });
+        }
+        out.push({
+            n: 7, texto: 'Bônus máximo de +3 Graus de Potência em qualquer característica',
+            ok: maiorGrau <= 3, auto: true, candidatos: [],
+            detalhe: maiorGrau > 3 ? ('Excedido: ' + maiorGrau + ' em ' + ondeGrau + ' (máximo 3)') : ('Maior valor atual: ' + maiorGrau + ' de 3'),
+        });
+        // Req 8 — regra de mesa, não dá para verificar no app: é um aceite do jogador.
+        out.push({
+            n: 8, texto: 'Desmaiar com o Hatsu ativo ou ser Selado bloqueia o efeito e exige novo ritual',
+            ok: !!esc.req8, auto: true, candidatos: [],
+            detalhe: esc.req8 ? 'Aceito' : 'Regra de mesa — marque para confirmar que está ciente',
+            aceite: true,
+        });
+    }
+
+    return { itens: out, cumpridos: out.filter(function (r) { return r.ok; }).length, total: out.length };
+};
+
+// ── Setters de Exorcismo e Besta ─────────────────────────────────────────────
+window._hToggleExorcismo = function (id) {
+    const hb = state.hatsuBuilder; if (!hb) return;
+    if (!Array.isArray(hb.ex)) hb.ex = [];
+    const i = hb.ex.indexOf(id);
+    if (i >= 0) hb.ex.splice(i, 1); else hb.ex.push(id);
+    renderHatsuInPlace();
+};
+
+// Categoria da Besta: 1d6 entre as seis, com chance igual. É independente da
+// categoria do usuário — a Besta pode ser de qualquer uma.
+window._hRolarCategoriaBesta = function () {
+    const hb = state.hatsuBuilder; if (!hb) return;
+    const cats = ((window.BESTA_DB || {}).categorias) || [];
+    if (!cats.length) return;
+    const d6 = Math.floor(Math.random() * cats.length);
+    hb.bestaCategoria = cats[d6];
+    // Trocar de categoria invalida os efeitos favoráveis da categoria anterior.
+    hb.be = (hb.be || []).filter(function (id) {
+        const ef = ((window.BESTA_DB || {}).favoraveis || []).find(function (x) { return x.id === id; });
+        return !ef || ef.cat === hb.bestaCategoria;
+    });
+    renderHatsuInPlace();
+};
+
+window._hSetManifestacao = function (m) {
+    const hb = state.hatsuBuilder; if (!hb) return;
+    if (hb.bestaManifestacao !== m) hb.be = []; // A e B têm listas diferentes
+    hb.bestaManifestacao = m;
+    renderHatsuInPlace();
+};
+
+window._hToggleBesta = function (id) {
+    const hb = state.hatsuBuilder; if (!hb) return;
+    if (!Array.isArray(hb.be)) hb.be = [];
+    const i = hb.be.indexOf(id);
+    if (i >= 0) hb.be.splice(i, 1); else hb.be.push(id);
+    renderHatsuInPlace();
+};
+
+// Só um Efeito Lendário por Besta. Clicar no já escolhido desmarca.
+window._hSetLendario = function (id) {
+    const hb = state.hatsuBuilder; if (!hb) return;
+    hb.bestaLendario = (hb.bestaLendario === id) ? '' : id;
+    renderHatsuInPlace();
+};
+
+window._hToggleMaldicaoPositiva = function () {
+    const hb = state.hatsuBuilder; if (!hb) return;
+    hb.maldicaoPositiva = !hb.maldicaoPositiva;
+    if (!hb.maldicaoPositiva && hb.reqMaldicao) delete hb.reqMaldicao.req8;
+    renderHatsuInPlace();
+};
+
+window._hExplicarPositiva = function () {
+    alert('Maldição Positiva\n\n'
+        + 'A maldição comum IMPÕE algo ruim ao alvo: condições, restrições no Hatsu dele, '
+        + 'Zetsu forçado.\n\n'
+        + 'A positiva usa a mesma estrutura para ABENÇOAR — o alvo recebe um benefício, e não '
+        + 'uma punição. Continua precisando de gatilho, temporizador, consequência e forma de sair.\n\n'
+        + 'Em troca, ganha dois limites:\n'
+        + '• O bônus não passa de +3 Graus de Potência em nenhuma característica.\n'
+        + '• Desmaiar com o Hatsu ativo ou ser Selado bloqueia o efeito, exigindo novo ritual.');
+};
+
+window._hSetReqMaldicao = function (n, id) {
+    const hb = state.hatsuBuilder; if (!hb) return;
+    if (!hb.reqMaldicao) hb.reqMaldicao = {};
+    hb.reqMaldicao['req' + n] = id;
+    document.getElementById('req-mal-overlay')?.remove();
+    renderHatsuInPlace();
+};
+
+// Pop-up de desambiguação: aparece quando mais de um item elegível pode cumprir
+// o requisito, ou quando o requisito é uma declaração (5 e 6).
+window._hAbrirEscolhaReq = function (n) {
+    const hb = state.hatsuBuilder; if (!hb) return;
+    const r = (window.calcRequisitosMaldicao(hb).itens || []).find(function (x) { return x.n === n; });
+    if (!r || !r.candidatos.length) {
+        alert('Nenhum item elegível selecionado ainda para o requisito ' + n + '.\n\nEscolha restrições e efeitos nas etapas anteriores.');
+        return;
+    }
+    const ov = document.createElement('div');
+    ov.id = 'req-mal-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:#000000ee;display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;font-family:Rajdhani,sans-serif';
+    ov.innerHTML = '<div style="background:#0d1117;border:2px solid #a855f7;border-radius:20px;padding:18px;width:100%;max-width:400px;max-height:80vh;overflow-y:auto">'
+        + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:11px;color:#c084fc;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">Requisito ' + n + '</div>'
+        + '<div style="font-size:10px;color:#9ca3af;line-height:1.5;margin-bottom:12px">' + r.texto + '</div>'
+        + '<div style="font-size:9px;color:#6b7280;margin-bottom:8px">Qual item cumpre este requisito? O mesmo item pode cumprir mais de um.</div>'
+        + r.candidatos.map(function (c) {
+            const sel = r.escolhido === c.id;
+            return '<div onclick="window._hSetReqMaldicao(' + n + ',\'' + c.id + '\')" style="background:#111827;border:1px solid '
+                + (sel ? '#a855f788' : '#1f2937') + ';border-radius:10px;padding:10px 12px;margin-bottom:6px;cursor:pointer;font-size:10px;color:'
+                + (sel ? '#c084fc' : '#d1d5db') + ';font-weight:700">' + (sel ? '✓ ' : '') + c.nome + '</div>';
+        }).join('')
+        + '<button onclick="document.getElementById(\'req-mal-overlay\').remove()" style="width:100%;margin-top:8px;padding:10px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:9px;text-transform:uppercase;cursor:pointer">Fechar</button>'
+        + '</div>';
+    document.body.appendChild(ov);
+};
+
+window.calcPNInvestidoEmEfeitos = function (hb) {
+    if (!hb) return 0;
+    const D = window.HATSU_DB || {};
+    const todos = [].concat(D.efeitos_gerais || []);
+    Object.keys(D.categorias || {}).forEach(function (k) {
+        if (k === 'CONJURAÇÃO') return;
+        (D.categorias[k].efeitos || []).forEach(function (e) { todos.push(e); });
+    });
+    let total = 0;
+    [].concat(hb.eg || [], hb.ec || []).forEach(function (id) {
+        const ef = todos.find(function (e) { return e.id === id; });
+        total += ef ? (parseInt(ef.pn) || 0) : 0;
+    });
+    // Efeitos de maldição custam 1 P.N cada e também contam como investimento.
+    total += (hb.em || []).length;
+    return total;
+};
+
+window._hToggleMaldicao = function (id) {
+    const hb = state.hatsuBuilder; if (!hb) return;
+    if (!Array.isArray(hb.em)) hb.em = [];
+    const i = hb.em.indexOf(id);
+    if (i >= 0) hb.em.splice(i, 1);
+    else {
+        const ef = ((window.MALDICAO_DB || {}).efeitos || []).find(function (x) { return x.id === id; });
+        if (!ef) return;
+        if (window.calcPNInvestidoEmEfeitos(hb) < ef.limiar) return;
+        hb.em.push(id);
+    }
+    renderHatsuInPlace();
+};
+
+window._hSetTemporizador = function (id) {
+    const hb = state.hatsuBuilder; if (!hb) return;
+    hb.temporizador = (hb.temporizador === id) ? '' : id;
+    renderHatsuInPlace();
+};
+
+window._hSetTag = function (tagId) {
+    const hb = state.hatsuBuilder; if (!hb) return;
+    const def = (window.HATSU_TAGS || []).find(function (x) { return x.id === tagId; });
+    if (!def) return;
+
+    if (def.limite2) {
+        const char = state.currentChar || {};
+        const jaExistentes = (char.hatsus || []).length;
+        // Editando um Hatsu existente, ele não conta duas vezes.
+        const editando = hb.editIdx != null && hb.editIdx >= 0;
+        const totalComEste = editando ? jaExistentes : jaExistentes + 1;
+        if (totalComEste > 2) {
+            alert('🏷 ' + def.nome + '\n\n' + (window.HATSU_TAG_AVISO || ''));
+            return;
+        }
+    }
+    hb.tag = tagId;
+    // A aba de efeitos de Maldição só existe com a tag M; sair dela volta para Gerais.
+    if (tagId !== 'M' && hb.efTab === 'maldicao') hb.efTab = 'gerais';
+    renderHatsuInPlace();
+};
+
 window._hToggleModoRestricao = function(chave, nomeRestricao) {
     const hb = state.hatsuBuilder; if (!hb) return;
     if (!hb.specialChoices) hb.specialChoices = {};
@@ -2944,6 +3721,8 @@ window._hToggleE = function(id, tipo, pn) {
         _hTryComprarEfeito(hb, item, id, tipo, pn, isRepetivel);
     }
     renderHatsuInPlace();
+    // Buff no usuário + dano no alvo no mesmo Hatsu: avisa uma vez.
+    if (window._hAvisoAlvos) window._hAvisoAlvos();
 };
 
 // Compra uma nova cópia de um efeito repetível (evolução no nível atual)

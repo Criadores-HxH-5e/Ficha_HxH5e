@@ -1,2 +1,3 @@
 # Claude Code — configuração local por máquina (não deve ser versionada)
 .claude/settings.local.json
+*.patch

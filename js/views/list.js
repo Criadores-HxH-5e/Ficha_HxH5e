@@ -66,6 +66,9 @@
                         </div>
                         <span style="font-size:8px;color:#374151">&#x21BB; Sincronizar</span>
                     </div>` : ''}
+                    ${state._quotaCheia ? `<div style="background:#f9731615;border:1px solid #f9731644;border-radius:10px;padding:9px 12px;margin-bottom:12px;font-size:9px;color:#fb923c;line-height:1.5">
+                        &#x26A0; O armazenamento local do navegador está cheio, então as fichas estão sendo lidas direto da nuvem. Tudo continua salvo, mas o app fica mais lento e não funciona offline. Imagens grandes nas fichas são a causa mais comum.
+                    </div>` : ''}
 
                     <div class="text-center mb-8">
                         <h1 class="font-display font-black text-3xl tracking-widest text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">HxH 5e RPG</h1>
@@ -86,8 +89,9 @@
                         ${avatar}
                         <div class="flex-1">
                             <h3 class="font-display font-bold text-white text-base">${char.name}</h3>
-                            <p class="text-[10px] text-gray-400 uppercase">${char.race} &#x2022; <span style="color:${color}">${char.class}</span></p>
+                            <p class="text-[10px] text-gray-400 uppercase">${char.race} &#x2022; <span style="color:${color}">${char.class || 'SEM NEN'}</span>${char.isSimulacao ? ` &#x2022; <span style="color:#fbbf24">SIMULAÇÃO N${char.simulacaoNivelOrigem != null ? char.simulacaoNivelOrigem : ''}</span>` : ''}</p>
                         </div>
+                        <button onclick="event.stopPropagation(); window._simularEvolucao('${char.id}')" title="Simular evolução — cria uma cópia no mesmo nível para testar caminhos sem perder o original" class="p-2 text-gray-600 hover:text-neon-theme transition-colors"><i data-lucide="git-branch-plus" size="16"></i></button>
                         <button onclick="event.stopPropagation(); deleteCharacter('${char.id}')" class="p-2 text-gray-600 hover:text-neon-red transition-colors"><i data-lucide="trash-2" size="16"></i></button>
                     </div>`;
                 });
@@ -107,6 +111,7 @@
                             <h3 class="font-display font-bold text-white text-base">${char.name}</h3>
                             <p class="text-[10px] text-gray-400 uppercase">LVL ${char.level} &#x2022; <span style="color:${color}">${char.class}</span></p>
                         </div>
+                        <button onclick="event.stopPropagation(); window._simularEvolucao('${char.id}')" title="Simular evolução — cria uma cópia no mesmo nível para testar caminhos sem perder o original" class="p-2 text-gray-600 hover:text-neon-theme transition-colors"><i data-lucide="git-branch-plus" size="16"></i></button>
                         <button onclick="event.stopPropagation(); deleteCharacter('${char.id}')" class="p-2 text-gray-600 hover:text-neon-red transition-colors"><i data-lucide="trash-2" size="16"></i></button>
                     </div>`;
                 });

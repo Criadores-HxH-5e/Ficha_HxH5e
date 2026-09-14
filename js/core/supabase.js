@@ -30,25 +30,51 @@ async function sbDelete(table, query) {
     } catch { return false; }
 }
 
-// Sincroniza fichas do Supabase para o localStorage
+// Sincroniza fichas do Supabase para o localStorage.
+//
+// O localStorage tem poucos megabytes e as imagens de personagem e de constructo são
+// guardadas DENTRO da ficha, em base64 — uma foto sozinha passa de centenas de KB.
+// Antes, quando o limite estourava, o setItem lançava QuotaExceededError, o forEach
+// morria no meio e o loadCharacters que vinha depois NUNCA rodava: a lista ficava
+// vazia sem nenhum aviso, enquanto o painel de admin (que lê direto do Supabase)
+// mostrava tudo normalmente.
+//
+// Agora: (1) cada gravação é protegida, então uma ficha grande não derruba as outras;
+// (2) as fichas da nuvem ficam guardadas em memória e a lista usa isso como fonte,
+// então o app funciona mesmo com o armazenamento local cheio.
 async function syncFromCloud() {
     if (!state.user) return;
     const data = await sbSelect('characters', `user_id=eq.${state.user.id}&select=data,last_mod`);
     if (!data || !data.length) return;
+    state._cloudChars = [];
+    state._quotaCheia = false;
     data.forEach(row => {
         const rc = row.data;
         if (!rc || !rc.id) return;
         rc.userId = state.user.id;
+        state._cloudChars.push(rc);
         const localKey = 'hxhrpg_' + rc.id;
         const localRaw = localStorage.getItem(localKey);
+        // Grava o cache local sem deixar o erro escapar: se não couber, seguimos em frente.
+        const gravar = (obj) => {
+            try { localStorage.setItem(localKey, JSON.stringify(obj)); }
+            catch (e) { state._quotaCheia = true; console.warn('Cache local cheio; usando a nuvem para', rc.id); }
+        };
         if (!localRaw) {
-            localStorage.setItem(localKey, JSON.stringify(rc));
+            gravar(rc);
         } else {
             try {
                 const lc = JSON.parse(localRaw);
-                if (new Date(rc.lastMod || 0) > new Date(lc.lastMod || 0))
-                    localStorage.setItem(localKey, JSON.stringify(rc));
-            } catch { localStorage.setItem(localKey, JSON.stringify(rc)); }
+                if (new Date(rc.lastMod || 0) > new Date(lc.lastMod || 0)) {
+                    gravar(rc);
+                } else if (lc.userId !== state.user.id) {
+                    // A cópia local é mais recente, então não sobrescrevemos o conteúdo —
+                    // mas corrigimos o dono. Sem isso, uma ficha com userId errado (ou
+                    // vazio) fica invisível para sempre na lista, mesmo estando na nuvem.
+                    lc.userId = state.user.id;
+                    gravar(lc);
+                }
+            } catch { gravar(rc); }
         }
     });
 }
@@ -79,6 +105,11 @@ function loadCharacters() {
         if(key && key.startsWith('hxhrpg_') && !key.startsWith('hxhrpg_cloud')) {
             try {
                 const char = JSON.parse(localStorage.getItem(key));
+                // O prefixo hxhrpg_ é o espaço do app no localStorage e guarda outras
+                // coisas além de fichas (hxhrpg_webhooks, hxhrpg_webhook_escolhido...).
+                // Antes o laço tentava interpretar tudo como personagem e engolia o erro
+                // em silêncio. Agora exige a cara de uma ficha: id e bloco de atributos.
+                if (!char || typeof char !== 'object' || !char.id || !char.attributes) continue;
                 if ((char.userId || '000000') !== currentUserId) continue;
                 // Migrate TRANSFORMAÇÃO → TRANSMUTAÇÃO (typo fix)
                 if (char.class === 'TRANSFORMAÇÃO') {
@@ -96,6 +127,15 @@ function loadCharacters() {
             } catch(e) {}
         }
     }
+    // Completa com as fichas da nuvem que não estão no cache local — caso típico quando
+    // o localStorage encheu. Sem isso a lista apareceria vazia mesmo com tudo salvo no
+    // Supabase, que era exatamente o sintoma relatado.
+    (state._cloudChars || []).forEach(function (rc) {
+        if (!rc || !rc.id) return;
+        if ((rc.userId || '000000') !== currentUserId) return;
+        if (chars.some(function (c) { return c.id === rc.id; })) return;
+        chars.push(rc);
+    });
     state.characters = chars.sort((a,b) => new Date(b.lastMod) - new Date(a.lastMod));
 }
 
@@ -106,13 +146,45 @@ function saveCharacter(char) {
         return;
     }
     char.userId = state.user ? state.user.id : '000000';
-    localStorage.setItem('hxhrpg_' + char.id, JSON.stringify(char));
+    // O cache local pode estar cheio (imagens grandes dentro da ficha). O Supabase logo
+    // abaixo é a fonte de verdade, então uma falha aqui não pode interromper o salvamento.
+    try {
+        localStorage.setItem('hxhrpg_' + char.id, JSON.stringify(char));
+    } catch (e) {
+        state._quotaCheia = true;
+        console.warn('Cache local cheio; ficha salva apenas na nuvem:', char.id);
+    }
+    // Mantém a cópia em memória em dia, para a lista refletir a edição na hora.
+    if (!Array.isArray(state._cloudChars)) state._cloudChars = [];
+    const _iMem = state._cloudChars.findIndex(function (c) { return c && c.id === char.id; });
+    if (_iMem >= 0) state._cloudChars[_iMem] = char; else state._cloudChars.push(char);
     loadCharacters();
     if (state.user) sbUpsert('characters', { id: char.id, user_id: state.user.id, data: char, last_mod: char.lastMod });
 }
 
 // viewing=true → apagar a ficha de OUTRO jogador (só permitido para admin, ver state.viewingChars,
 // aberto via "Jogadores"/Admin → Ver Fichas). viewing=false/omitido → apagar ficha própria (lista LIST).
+// ── Simular Evolução: clona a ficha no MESMO nível ───────────────────────────
+// Serve para testar caminhos de evolução sem perder a versão original: o jogador
+// duplica, sobe a cópia e compara. O personagem é um JSONB inteiro no Supabase,
+// então clonar é copiar o objeto com um id novo — nenhuma migração necessária.
+// O clone nasce no mesmo nível, com o mesmo XP, e aparece na lista junto dos outros.
+window._simularEvolucao = function (id) {
+    const orig = (state.characters || []).find(function (c) { return c.id === id; });
+    if (!orig) return;
+    const nome = prompt('Nome da simulação:', (orig.name || 'Personagem') + ' (Simulação)');
+    if (nome === null) return;
+    const clone = JSON.parse(JSON.stringify(orig));
+    clone.id = generateId();
+    clone.name = String(nome).trim() || ((orig.name || 'Personagem') + ' (Simulação)');
+    clone.isSimulacao = true;
+    clone.simulacaoDe = orig.id;
+    clone.simulacaoNivelOrigem = orig.level;
+    clone.lastMod = new Date().toISOString();
+    saveCharacter(clone);
+    render(true);
+};
+
 function deleteCharacter(id, viewing) {
     const isViewing = !!viewing;
     if (isViewing && !state.isAdmin) return; // só admin apaga ficha de outro jogador
@@ -224,6 +296,12 @@ function calculateTotalCost(attrs) {
     Object.values(attrs).forEach(val => { total += getPointBuyCost(val); });
     return total;
 }
+
+// Tema neutro para personagem sem categoria de Nen (criado no nível 0, Sem Nen).
+// Cores amostradas da referência enviada: fundos #151515 / #111111 / #1a1a19,
+// realce #343434, texto secundário #5a5957 e texto claro #eaecf0. Como o tema do app
+// é um único acento, usamos o cinza claro — o resultado é a ficha em preto e branco.
+window.TEMA_SEM_NEN = '#eaecf0';
 
 function setThemeColor(hex) {
     document.documentElement.style.setProperty('--theme-color-hex', hex);

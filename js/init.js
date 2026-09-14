@@ -350,7 +350,11 @@ function closeHatsuCreator() {
             const TOTAL = 5;
 
             const GRAUS_POR_CAT = {
-                'INTENSIFICAÇÃO': ['acerto', 'atributos', 'dano', 'custo'],
+                // Acerto saiu de Reforço/Intensificação: era duplicado, porque Atributos já
+                // melhora a jogada de ataque (e as perícias). Mesma decisão de
+                // GRAU_OPCOES_POR_CATEGORIA em hatsu-detail.js.
+                'INTENSIFICAÇÃO': ['atributos', 'dano', 'custo'],
+                'REFORÇO':        ['atributos', 'dano', 'custo'],
                 'TRANSMUTAÇÃO':   ['area', 'dano', 'custo'],
                 'MATERIALIZAÇÃO': ['alcance', 'area', 'duracao', 'custo'],
                 'CONJURAÇÃO':     ['alcance', 'area', 'duracao', 'custo'],
@@ -391,8 +395,31 @@ function closeHatsuCreator() {
             overlay.id = 'primeiro-hatsu-overlay';
             overlay.style.cssText = 'position:fixed;inset:0;background:#000000dd;display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;font-family:Rajdhani,sans-serif';
 
+            // Quando o grau vai para "Atributos", o jogador precisa dizer QUAL atributo —
+            // mesma lógica do efeito Aumento de Atributo (ri_e1). Sem escolha, a tela avisa.
+            const _PH_ATTRS = ['FOR','DES','CON','INT','SAB','PRE'];
+            function _phAttrPickerHtml() {
+                const escolhido = alloc._atributosAttr || '';
+                return '<div style="margin-top:6px">'
+                    + '<div style="font-size:7px;color:#6b7280;margin-bottom:3px">Em qual atributo?</div>'
+                    + '<div style="display:flex;gap:3px;flex-wrap:wrap">'
+                    + _PH_ATTRS.map(function (a) {
+                        const active = escolhido === a;
+                        return '<button onclick="event.stopPropagation();window._phSetAttr(\'' + a + '\')" '
+                            + 'style="padding:4px 7px;border-radius:6px;font-size:8px;font-weight:900;cursor:pointer;border:1px solid '
+                            + (active ? tc : '#374151') + ';background:' + (active ? tc + '22' : 'transparent')
+                            + ';color:' + (active ? tc : '#9ca3af') + '">' + a + '</button>';
+                    }).join('')
+                    + '</div>'
+                    + (escolhido ? '' : '<div style="font-size:7px;color:#f87171;margin-top:3px">⚠ Escolha o atributo.</div>')
+                    + '</div>';
+            }
+            window._phSetAttr = function (a) { alloc._atributosAttr = a; rebuild(); };
+
             function rebuild() {
-                const total = Object.values(alloc).reduce((s,v) => s+v, 0);
+                // Soma só as características; _atributosAttr guarda texto, não grau.
+                const total = ['acerto','atributos','dano','alcance','area','duracao','cd','alvos','custo']
+                    .reduce(function (s, k) { return s + (alloc[k] || 0); }, 0);
                 const remaining = TOTAL - total;
                 const done = total === TOTAL;
                 const rowsHtml = available.map(k => {
@@ -403,14 +430,23 @@ function closeHatsuCreator() {
                     const capK = isTracked ? grauMaxByKey[k] : Infinity;
                     const roomLeft = capK === Infinity ? Infinity : capK - base - val;
                     const canAdd = remaining > 0 && (roomLeft === Infinity || roomLeft > 0);
-                    const capNote = (isTracked && capK !== Infinity && base > 0)
-                        ? `<div style="font-size:7px;color:${roomLeft<=0?'#f87171':'#6b7280'};margin-top:2px">Já possui +${base} nesta característica (máx. total: ${capK})</div>`
-                        : '';
+                    // Radar de teto em TODAS as características, não só nas que já têm base.
+                    // Antes só aparecia com base > 0, então Acerto e Atributos ficavam sem aviso.
+                    let capNote = '';
+                    if (!isTracked) {
+                        capNote = `<div style="font-size:7px;color:#4b5563;margin-top:2px">Sem teto de Grau de Potência</div>`;
+                    } else if (capK === Infinity) {
+                        capNote = `<div style="font-size:7px;color:#4ade80;margin-top:2px">Nível 11+ — sem limite de teto</div>`;
+                    } else {
+                        const cor = roomLeft <= 0 ? '#f87171' : (base > 0 ? '#9ca3af' : '#6b7280');
+                        capNote = `<div style="font-size:7px;color:${cor};margin-top:2px">Teto do nível: ${base + val}/${capK}${base > 0 ? ` (já possuía +${base})` : ''}${roomLeft <= 0 ? ' — cheio' : ''}</div>`;
+                    }
                     return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#0a0f1a;border-radius:10px;border:1px solid ${val>0?tc+'44':'#1f2937'}">
                         <div>
                             <div style="font-size:11px;font-weight:700;color:${val>0?tc:'#d1d5db'}">${info.label}</div>
                             <div style="font-size:8px;color:#6b7280">${info.desc}</div>
                             ${capNote}
+                            ${k === 'atributos' && val > 0 ? _phAttrPickerHtml() : ''}
                         </div>
                         <div style="display:flex;align-items:center;gap:8px">
                             <button onclick="window._phGrauDecr('${k}')"
@@ -443,7 +479,8 @@ function closeHatsuCreator() {
             }
 
             window._phGrauIncr = function(k) {
-                const total = Object.values(alloc).reduce((s,v) => s+v, 0);
+                const total = ['acerto','atributos','dano','alcance','area','duracao','cd','alvos','custo']
+                    .reduce(function (s, v) { return s + (alloc[v] || 0); }, 0);
                 if (total >= TOTAL) return;
                 if (TRACKED_KEYS.includes(k)) {
                     const capK = grauMaxByKey[k];
@@ -465,8 +502,13 @@ function closeHatsuCreator() {
                 rebuild();
             };
             window._confirmPrimeiroHatsu = function() {
-                const total = Object.values(alloc).reduce((s,v) => s+v, 0);
+                const total = ['acerto','atributos','dano','alcance','area','duracao','cd','alvos','custo']
+                    .reduce(function (s, k) { return s + (alloc[k] || 0); }, 0);
                 if (total !== TOTAL) return;
+                if ((alloc.atributos || 0) > 0 && !alloc._atributosAttr) {
+                    alert('Escolha em qual atributo os Graus de Atributos serão aplicados.');
+                    return;
+                }
                 char.hatsus[hatsuIdx].primeiroHatsuGraus = Object.assign({}, alloc);
                 saveCharacter(char);
                 overlay.remove();
@@ -812,6 +854,289 @@ function closeHatsuCreator() {
             document.body.appendChild(overlay);
         };
 
+        // ── Modal de dano no PV, com Redução de Dano ────────────────────────────────
+        // O jogador digita o dano BRUTO e o app desconta a RD. As fontes passivas vêm
+        // ligadas; as condicionais vêm desligadas com a condição escrita ao lado, porque
+        // dependem do golpe, do alvo ou da rolagem e o app não tem como saber sozinho.
+        // Nada é descontado escondido: a conta aparece inteira antes de aplicar.
+        window._pvRdLigadas = {};
+        window._showPvDamageModal = function () {
+            const char = state.currentChar;
+            const fontes = (window.calcFontesRD ? window.calcFontesRD(char) : []);
+            // Estado inicial: passivas ligadas, condicionais desligadas.
+            window._pvRdLigadas = {};
+            fontes.forEach(function (f) { window._pvRdLigadas[f.id] = !!f.passiva; });
+
+            const overlay = document.createElement('div');
+            overlay.id = 'pv-dmg-overlay';
+            overlay.style.cssText = 'position:fixed;inset:0;background:#000000cc;display:flex;align-items:center;justify-content:center;z-index:9999;padding:24px;font-family:Rajdhani,sans-serif';
+            const fontesHtml = fontes.length
+                ? fontes.map(function (f) {
+                    return '<div onclick="window._pvRdToggle(\'' + f.id + '\')" id="rd-row-' + f.id + '" style="display:flex;align-items:center;gap:9px;background:#111827;border:1px solid #1f2937;border-radius:10px;padding:9px 11px;margin-bottom:6px;cursor:pointer">'
+                        + '<div id="rd-sw-' + f.id + '" style="width:34px;height:19px;border-radius:10px;background:' + (f.passiva ? '#4ade80' : '#374151') + ';position:relative;flex-shrink:0;transition:all .15s">'
+                        + '<div style="position:absolute;top:3px;left:' + (f.passiva ? '18px' : '3px') + ';width:13px;height:13px;border-radius:50%;background:#0d1117;transition:all .15s"></div></div>'
+                        + '<div style="flex:1;min-width:0">'
+                        + '<div style="font-size:10px;font-weight:700;color:#d1d5db">' + f.nome + ' <span style="color:#4ade80">−' + f.valor + '</span></div>'
+                        + '<div style="font-size:8px;color:#6b7280;line-height:1.3">' + f.condicao + '</div></div></div>';
+                }).join('')
+                : '<div style="font-size:9px;color:#4b5563;text-align:center;padding:10px;font-style:italic">Nenhuma fonte de Redução de Dano neste personagem.</div>';
+
+            overlay.innerHTML =
+                '<div style="background:#0d1117;border:2px solid #ef4444;border-radius:18px;padding:22px;width:100%;max-width:360px;max-height:86vh;overflow-y:auto;box-shadow:0 0 40px #ef444433">'
+                + '<div style="text-align:center;margin-bottom:14px">'
+                +   '<div style="font-size:20px;margin-bottom:4px">💔</div>'
+                +   '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:12px;color:#f87171;text-transform:uppercase;letter-spacing:2px">Dano Recebido</div>'
+                + '</div>'
+                + '<div style="margin-bottom:12px">'
+                +   '<label style="font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px">Dano bruto (antes da RD):</label>'
+                +   '<input id="pv-dmg-input" type="number" min="0" placeholder="Ex: 18" oninput="window._pvDmgUpdate()"'
+                +     ' style="width:100%;box-sizing:border-box;background:#060d1a;border:2px solid #374151;border-radius:10px;padding:12px 14px;color:#fff;font-family:Orbitron,sans-serif;font-weight:900;font-size:22px;outline:none;text-align:center">'
+                + '</div>'
+                + (fontes.length ? '<div style="font-size:8px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">🛡 Redução de Dano</div>' : '')
+                + fontesHtml
+                + '<div id="pv-dmg-preview" style="text-align:center;margin:12px 0;font-size:11px;color:#6b7280;min-height:34px"></div>'
+                + '<div style="display:flex;gap:8px">'
+                +   '<button onclick="document.getElementById(\'pv-dmg-overlay\').remove()" style="flex:1;padding:11px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Cancelar</button>'
+                +   '<button onclick="window._pvDmgAplicar()" style="flex:2;padding:11px;border-radius:10px;background:#ef4444;border:none;color:#fff;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Aplicar</button>'
+                + '</div></div>';
+            document.body.appendChild(overlay);
+            setTimeout(function () { const i = document.getElementById('pv-dmg-input'); if (i) i.focus(); }, 50);
+            window._pvDmgUpdate();
+        };
+
+        window._pvRdToggle = function (id) {
+            window._pvRdLigadas[id] = !window._pvRdLigadas[id];
+            const sw = document.getElementById('rd-sw-' + id);
+            if (sw) {
+                const on = window._pvRdLigadas[id];
+                sw.style.background = on ? '#4ade80' : '#374151';
+                sw.firstElementChild.style.left = on ? '18px' : '3px';
+            }
+            window._pvDmgUpdate();
+        };
+
+        window._pvRdTotal = function () {
+            const fontes = (window.calcFontesRD ? window.calcFontesRD(state.currentChar) : []);
+            return fontes.reduce(function (s, f) { return s + (window._pvRdLigadas[f.id] ? (f.valor || 0) : 0); }, 0);
+        };
+
+        window._pvDmgUpdate = function () {
+            const inp = document.getElementById('pv-dmg-input');
+            const prev = document.getElementById('pv-dmg-preview');
+            if (!prev) return;
+            const bruto = Math.max(0, parseInt(inp && inp.value) || 0);
+            const rd = window._pvRdTotal();
+            const liquido = Math.max(0, bruto - rd);
+            if (!bruto) { prev.innerHTML = rd > 0 ? ('RD ativa: <b style="color:#4ade80">−' + rd + '</b>') : ''; return; }
+            prev.innerHTML = '<span style="color:#9ca3af">' + bruto + '</span>'
+                + (rd > 0 ? ' <span style="color:#4ade80">− ' + rd + ' (RD)</span>' : '')
+                + ' = <b style="font-family:Orbitron,sans-serif;font-size:18px;color:#f87171">' + liquido + '</b> de dano'
+                + (rd > 0 && liquido === 0 ? '<div style="font-size:9px;color:#4ade80;margin-top:3px">A RD absorveu o golpe inteiro.</div>' : '');
+        };
+
+        window._pvDmgAplicar = function () {
+            const inp = document.getElementById('pv-dmg-input');
+            const bruto = Math.max(0, parseInt(inp && inp.value) || 0);
+            if (!bruto) { if (inp) inp.style.borderColor = '#ef4444'; return; }
+            const liquido = Math.max(0, bruto - window._pvRdTotal());
+            document.getElementById('pv-dmg-overlay')?.remove();
+            if (liquido > 0) updateVital('pv', -liquido);
+            else render(true);
+        };
+
+        // ── Contador de rodada do personagem ────────────────────────────────────────
+        // Um contador só, compartilhado por Hatsus e Princípios ativos. Passar a rodada
+        // desconta de tudo que tem duração contada e desliga o que chegou a zero.
+        // O que tem duração constante (Relíquia Viva, Vínculo Sustentado, Maldição pelo
+        // temporizador) não entra na contagem e só sai no desligamento manual.
+        window._ativarHatsu = function (idx, rodadas, constante) {
+            const char = state.currentChar;
+            if (!char.hatsusAtivos) char.hatsusAtivos = {};
+            char.hatsusAtivos[idx] = {
+                constante: !!constante,
+                rodadas: constante ? null : Math.max(0, parseInt(rodadas) || 0),
+                max: constante ? null : Math.max(0, parseInt(rodadas) || 0),
+            };
+            saveCharacter(char);
+            render(true);
+        };
+
+        // Ativar direto da aba Ficha, sem abrir o Hatsu. A duração vem da mesma regra
+        // usada na tela de detalhe (calcDuracaoHatsu), para os dois lugares concordarem.
+        window._ativarHatsuDaFicha = function (idx) {
+            const char = state.currentChar;
+            const h = (char.hatsus || [])[idx];
+            if (!h) return;
+            const info = window.calcDuracaoHatsu ? window.calcDuracaoHatsu(h, char) : { rodadas: 0, constante: false };
+            window._ativarHatsu(idx, info.rodadas, info.constante);
+        };
+
+        window._desativarHatsu = function (idx) {
+            const char = state.currentChar;
+            if (char.hatsusAtivos) delete char.hatsusAtivos[idx];
+            saveCharacter(char);
+            render(true);
+        };
+
+        // Quantas rodadas cada princípio dura. Null = sem contagem (sai manual).
+        window.PRINCIPIO_RODADAS = {
+            ten: 1,      // vale pela reação
+            ren: 1,      // próximo ataque do turno
+            ken: 2,      // CA dobrada por 2 rodadas
+            ko: 1,       // próximo golpe, CA reduzida até o próximo turno
+            ryu: 6,      // 6 rodadas: exemplos 1-3 são padrão, 4-6 exigem Superior
+            shu: null,   // rodadas conforme aprimoramento — resolvido na ativação
+            gyo: 1,
+            en: 1,
+            inp: null,   // rodadas conforme aprimoramento
+            zetsu: null, // conta ao contrário: é CARGA, resolvida na ativação
+        };
+
+        window._passarRodada = function () {
+            const char = state.currentChar;
+            const expirados = [];
+
+            // Hatsus com duração contada
+            const ha = char.hatsusAtivos || {};
+            Object.keys(ha).forEach(function (k) {
+                const a = ha[k];
+                if (!a || a.constante) return;
+                a.rodadas = Math.max(0, (a.rodadas || 0) - 1);
+                if (a.rodadas <= 0) {
+                    const h = (char.hatsus || [])[k];
+                    expirados.push('Hatsu "' + ((h && h.nome) || ('#' + (parseInt(k) + 1))) + '"');
+                    delete ha[k];
+                }
+            });
+
+            // Princípios com duração contada
+            const pr = char.principiosRodadas || {};
+            const at = char.principiosAtivos || {};
+            const concluidos = [];
+            Object.keys(at).forEach(function (k) {
+                if (!at[k]) return;
+                if (pr[k] == null) return; // sem contagem: sai manual
+                pr[k] = Math.max(0, pr[k] - 1);
+                if (pr[k] > 0) return;
+
+                if (k === 'zetsu') {
+                    // ZETSU não expira: ele COMPLETA. A contagem é o tempo de espera
+                    // (3, 2 ou 1 rodada conforme o investimento) e, ao acabar, concede
+                    // os benefícios — aura recuperada e reações. Por isso ele é contado
+                    // separado de tudo que "expira".
+                    const z = window.calcZetsuBonus ? window.calcZetsuBonus(char) : { auraPct: 0, reacoes: 0, furtividade: 0 };
+                    const ganhoAura = Math.round(((char.vitals.auraMax || 100) * (z.auraPct || 0)) / 100);
+                    if (ganhoAura > 0) {
+                        char.vitals.aura = Math.min(char.vitals.auraMax || 100, (char.vitals.aura || 0) + ganhoAura);
+                    }
+                    if (z.reacoes > 0) {
+                        const reaMaxAtual = window.calcReacoesMax ? window.calcReacoesMax(char) : null;
+                        const base = (char.vitals.rea !== undefined) ? char.vitals.rea : (reaMaxAtual != null ? reaMaxAtual : 0);
+                        char.vitals.rea = base + z.reacoes;
+                    }
+                    concluidos.push('ZETSU: +' + ganhoAura + ' de aura'
+                        + (z.reacoes > 0 ? ', +' + z.reacoes + ' Reação(ões)' : '')
+                        + (z.furtividade > 0 ? ', +' + z.furtividade + ' Furtividade nesta rodada' : ''));
+                } else {
+                    expirados.push(k.toUpperCase());
+                }
+                delete at[k];
+                delete pr[k];
+                if (k === 'gyo') delete char.gyoAlvo;
+            });
+
+            char.rodadaAtual = (parseInt(char.rodadaAtual) || 0) + 1;
+            saveCharacter(char);
+            render(true);
+            if (concluidos.length && window._showXpToast) {
+                window._showXpToast('👁️ ' + concluidos.join(' | '));
+            }
+            if (expirados.length && window._showXpToast) {
+                setTimeout(function () { window._showXpToast('⏳ Expirou: ' + expirados.join(', ')); }, concluidos.length ? 2400 : 0);
+            }
+        };
+
+        window._zerarRodadas = function () {
+            const char = state.currentChar;
+            char.rodadaAtual = 0;
+            char.hatsusAtivos = {};
+            char.principiosAtivos = {};
+            char.principiosRodadas = {};
+            delete char.gyoAlvo;
+            saveCharacter(char);
+            render(true);
+        };
+
+        // ── Princípios de Nen ATIVOS ────────────────────────────────────────────────
+        // Até aqui o botão do princípio só descontava aura e mostrava um texto: nenhum
+        // número da ficha mudava. Agora o estado fica guardado em char.principiosAtivos,
+        // e os efeitos numéricos leem daí (RD do TEN, CA do KEN/KO/RYU/SHU, atributo do GYO).
+        //
+        // O desligamento é MANUAL, por decisão de mesa: o app não acompanha as rodadas, e
+        // desligar sozinho na hora errada atrapalharia mais que ajudar. Cada princípio mostra
+        // a duração no rótulo para o jogador lembrar.
+        window.principioAtivo = function (char, key) {
+            return !!(((char || {}).principiosAtivos) || {})[key];
+        };
+
+        window._desativarPrincipio = function (key) {
+            const char = state.currentChar;
+            if (!char.principiosAtivos) char.principiosAtivos = {};
+            delete char.principiosAtivos[key];
+            if (char.principiosRodadas) delete char.principiosRodadas[key];
+            if (key === 'gyo') delete char.gyoAlvo;
+            saveCharacter(char);
+            render(true);
+        };
+
+        window._desativarTodosPrincipios = function () {
+            const char = state.currentChar;
+            char.principiosAtivos = {};
+            delete char.gyoAlvo;
+            saveCharacter(char);
+            render(true);
+        };
+
+        // GYO pergunta onde a aura foi concentrada. Nos olhos, é percepção (narrativo).
+        // No corpo, dá bônus num atributo físico — e se for CON, a CA sobe junto, porque
+        // a CA sem armadura é 10 + modificador de CON.
+        window._abrirGyoAlvo = function () {
+            const char = state.currentChar;
+            const bonus = (window.calcAvancadoBonus ? window.calcAvancadoBonus(char, 'gyo') : { attrBonus: 3 }).attrBonus || 3;
+            const tc = getComputedStyle(document.documentElement).getPropertyValue('--theme-color-hex').trim() || '#00ff9d';
+            const ov = document.createElement('div');
+            ov.id = 'gyo-overlay';
+            ov.style.cssText = 'position:fixed;inset:0;background:#000000ee;display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;font-family:Rajdhani,sans-serif';
+            const btn = function (val, titulo, sub) {
+                return '<div onclick="window._hSetGyoAlvo(\'' + val + '\')" style="background:#111827;border:1px solid #1f2937;border-radius:11px;padding:11px 13px;margin-bottom:7px;cursor:pointer">'
+                    + '<div style="font-size:11px;font-weight:900;color:' + tc + '">' + titulo + '</div>'
+                    + '<div style="font-size:9px;color:#6b7280;margin-top:2px;line-height:1.4">' + sub + '</div></div>';
+            };
+            ov.innerHTML = '<div style="background:#0d1117;border:2px solid ' + tc + ';border-radius:20px;padding:20px;width:100%;max-width:380px">'
+                + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:12px;color:' + tc + ';text-transform:uppercase;letter-spacing:2px;margin-bottom:4px">🔍 GYO — onde concentrar?</div>'
+                + '<div style="font-size:9px;color:#6b7280;margin-bottom:12px">A concentração de aura vai para uma parte do corpo. A escolha muda o efeito.</div>'
+                + btn('olhos', '👁 Olhos', 'Enxerga aura e o que está oculto (IN). Custo menor, efeito narrativo.')
+                + '<div style="font-size:8px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin:10px 0 6px">Corpo — +' + bonus + ' no atributo</div>'
+                + btn('FOR', '💪 Força', 'Golpes e testes de Força.')
+                + btn('DES', '🏃 Destreza', 'Reflexos e testes de Destreza.')
+                + btn('CON', '🛡 Constituição', 'Resistência — e a CA sobe junto, por causa do 10 + CON.')
+                + '<button onclick="document.getElementById(\'gyo-overlay\').remove()" style="width:100%;margin-top:6px;padding:10px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:9px;text-transform:uppercase;cursor:pointer">Cancelar</button>'
+                + '</div>';
+            document.body.appendChild(ov);
+        };
+
+        window._hSetGyoAlvo = function (alvo) {
+            const char = state.currentChar;
+            if (!char.principiosAtivos) char.principiosAtivos = {};
+            char.principiosAtivos.gyo = true;
+            char.gyoAlvo = alvo;
+            if (!char.principiosRodadas) char.principiosRodadas = {};
+            char.principiosRodadas.gyo = 1;
+            document.getElementById('gyo-overlay')?.remove();
+            saveCharacter(char);
+            render(true);
+        };
+
         window._showSanDamageModal = function() {
             const char = state.currentChar;
             const rdm = calcRDM(char);
@@ -926,6 +1251,31 @@ function closeHatsuCreator() {
 };
             const msgs = EFEITOS[key];
             const msg = msgs ? (msgs[nivel-1] || msgs[msgs.length-1]) : 'Princípio ativado.';
+
+            // Guarda o princípio como ATIVO. É isso que faz os efeitos numéricos valerem:
+            // sem esse registro, a ativação só descontava aura e mostrava o texto.
+            // O GYO pergunta antes onde a aura foi concentrada — e essa resposta é que
+            // define o efeito, então a ativação dele acontece dentro do pop-up.
+            if (!char.principiosAtivos) char.principiosAtivos = {};
+            if (key === 'gyo') {
+                if (window._abrirGyoAlvo) { window._abrirGyoAlvo(); }
+            } else if (key === 'zetsu') {
+                // ZETSU entra na contagem como CARGA: o tempo de espera vem do nível
+                // investido (3 rodadas no Básico, 2 no Intermediário, 1 na Maestria) e o
+                // benefício é concedido quando a contagem zera, não durante.
+                const zb = window.calcZetsuBonus ? window.calcZetsuBonus(char) : { rodadas: 3 };
+                char.principiosAtivos.zetsu = true;
+                if (!char.principiosRodadas) char.principiosRodadas = {};
+                char.principiosRodadas.zetsu = Math.max(1, zb.rodadas || 3);
+            } else {
+                char.principiosAtivos[key] = true;
+                // Registra a duração para o contador de rodada. SHU e IN dependem do
+                // aprimoramento comprado, então lemos o valor calculado.
+                if (!char.principiosRodadas) char.principiosRodadas = {};
+                let rod = (window.PRINCIPIO_RODADAS || {})[key];
+                if (key === 'shu' || key === 'inp') rod = (advB && advB.rodadas) || 1;
+                char.principiosRodadas[key] = (rod == null) ? null : rod;
+            }
 
             saveCharacter(char);
             render(true);
