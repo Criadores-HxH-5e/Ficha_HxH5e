@@ -804,7 +804,7 @@
                     </div>
                     <div class="flex-1 overflow-y-auto custom-scrollbar space-y-2 text-sm pb-4">
                         ${char.history.length === 0 ? '<div style="text-align:center;color:#4b5563;font-style:italic;padding:40px 0">Sem rolagens recentes.</div>' : ''}
-                        ${char.history.slice().reverse().map((h, index) => { const originalIndex = char.history.length - 1 - index; return `<div class="bg-gray-900/50 p-3 rounded-lg border-l-2 border-[${themeColor}] flex flex-col gap-1 group relative"><button onclick="copyToClipboard(${originalIndex})" class="absolute top-2 right-2 p-1.5 bg-gray-800 rounded-lg text-gray-500 hover:text-white hover:bg-gray-700 opacity-0 group-hover:opacity-100 transition-all" title="Copiar para Discord"><i data-lucide="copy" size="14"></i></button><div class="flex justify-between text-[10px] text-gray-500 pr-8"><span>${h.time}</span><span class="uppercase font-bold tracking-wider text-gray-400">${h.label}</span></div><div class="flex justify-between items-center mt-1"><div class="flex flex-col"><span class="text-xs text-gray-500">Resultado</span><span class="text-2xl font-bold ${h.dice===20?'text-neon-yellow':h.dice===1?'text-neon-red':'text-white'} font-display">${h.total}</span></div><div class="text-right"><span class="text-xs text-gray-600 block">D20 + Mod</span><span class="text-gray-300 font-mono text-sm">[${h.dice}] ${h.mod>=0?'+':''}${h.mod}</span></div></div></div>`; }).join('')}
+                        ${char.history.slice().reverse().map((h, index) => { const originalIndex = char.history.length - 1 - index; return `<div class="bg-gray-900/50 p-3 rounded-lg border-l-2 border-[${themeColor}] flex flex-col gap-1 group relative"><button onclick="copyToClipboard(${originalIndex})" class="absolute top-2 right-2 p-1.5 bg-gray-800 rounded-lg text-gray-500 hover:text-white hover:bg-gray-700 opacity-0 group-hover:opacity-100 transition-all" title="Copiar para Discord"><i data-lucide="copy" size="14"></i></button><div class="flex justify-between text-[10px] text-gray-500 pr-8"><span>${h.time}</span><span class="uppercase font-bold tracking-wider text-gray-400">${h.label}</span></div><div class="flex justify-between items-center mt-1"><div class="flex flex-col"><span class="text-xs text-gray-500">Resultado</span><span class="text-2xl font-bold ${h.dice===20?'text-neon-yellow':h.dice===1?'text-neon-red':'text-white'} font-display">${h.total}</span></div>${h.img ? `<img src="${String(h.img).replace(/"/g,'&quot;')}" style="width:32px;height:32px;object-fit:cover;border-radius:6px;border:1px solid #374151;margin:0 8px" onerror="this.style.display='none'" />` : ''}<div class="text-right"><span class="text-xs text-gray-600 block">D20 + Mod</span><span class="text-gray-300 font-mono text-sm">[${h.dice}] ${h.mod>=0?'+':''}${h.mod}</span></div></div></div>`; }).join('')}
                     </div>`;
 
                 // ── Sub-aba DISCORD ────────────────────────────────────────────
@@ -1515,7 +1515,7 @@
             const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
             const modeLabel = effectiveMode === 'NORMAL' ? '' : ` (${effectiveMode.charAt(0) + effectiveMode.slice(1).toLowerCase()})`;
             const renLabel = useRen ? ' 💪REN' : '';
-            char.history.push({ time, label: `⚡ ${rs.nome} (${rs.attr})${modeLabel}${renLabel}`, dice: dmgResult.rolls.join(', '), mod: mod + flatBonus, total });
+            char.history.push({ time, label: `⚡ ${rs.nome} (${rs.attr})${modeLabel}${renLabel}`, dice: dmgResult.rolls.join(', '), mod: mod + flatBonus, total, img: state.pendingRollImage || '' });
             if (char.history.length > 50) char.history.shift();
             saveCharacter(char);
 
@@ -1612,7 +1612,7 @@
             const total = roll.total + attrMod;
             const nome = cst.nome || `${h.nome} (Constructo)`;
             const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-            char.history.push({ time, label: `🐣 ${nome} — Ataque`, dice: roll.rolls.join(', '), mod: attrMod, total });
+            char.history.push({ time, label: `🐣 ${nome} — Ataque`, dice: roll.rolls.join(', '), mod: attrMod, total, img: cst.imagemUrl || '' });
             if (char.history.length > 50) char.history.shift();
             saveCharacter(char);
             const content = `🐣 **${nome}** ataca!\nDano: [${roll.rolls.join('+')}] ${attrMod >= 0 ? '+' : ''}${attrMod} = **${total}** (1d6 + ${attrKey})`;
@@ -1632,7 +1632,11 @@
         }
         function openRollModeModal(type, a1, a2, a3) {
             state.pendingRoll = { type, a1, a2, a3 };
-            state.pendingRollImage = '';
+            // Hatsu: a imagem/gif já foi anexada antes de clicar em "Rolar" (ver widget acima do
+            // botão em hatsu-detail.js), guardada no próprio Hatsu (h.attachImage) — cada Hatsu tem
+            // a sua própria imagem, então carrega a do Hatsu atual em vez de zerar.
+            const _hAtual = type === 'hatsu' ? (state.currentChar.hatsus || [])[state.hatsuDetailIdx] : null;
+            state.pendingRollImage = _hAtual ? (_hAtual.attachImage || '') : '';
             render(true);
         }
         function executePendingRoll(mode) {
@@ -1661,6 +1665,36 @@
         window._hClearPendingRollImage = function() {
             state.pendingRollImage = '';
             render(true);
+        };
+        // Anexo de imagem/gif do Hatsu, escolhido na tela de detalhe ANTES de clicar em "Rolar
+        // Hatsu no Discord" (ver widget no rodapé de renderHatsuDetail, hatsu-detail.js). Fica
+        // guardado no próprio Hatsu (h.attachImage, salvo com o personagem) — cada Hatsu tem a sua
+        // própria imagem — e é copiado para state.pendingRollImage só quando o jogador abre o modal
+        // de rolagem (openRollModeModal), permanecendo disponível para as próximas rolagens
+        // daquele Hatsu até o jogador removê-lo.
+        window._hUploadHatsuAttachImage = function(idx, input) {
+            if (!input.files || !input.files[0]) return;
+            const h = (state.currentChar.hatsus || [])[idx];
+            if (!h) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                h.attachImage = e.target.result;
+                saveCharacter(state.currentChar);
+                render(true);
+            };
+            reader.readAsDataURL(input.files[0]);
+        };
+        window._hClearHatsuAttachImage = function(idx) {
+            const h = (state.currentChar.hatsus || [])[idx];
+            if (!h) return;
+            h.attachImage = '';
+            saveCharacter(state.currentChar);
+            render(true);
+        };
+        window._hSetHatsuAttachImage = function(idx, value) {
+            const h = (state.currentChar.hatsus || [])[idx];
+            if (!h) return;
+            h.attachImage = value;
         };
         // Zetsu (Suprimir) dá bônus de Furtividade: nível 1/2 → +3, nível 3 (Maestria) → +6.
         // Se a Aprimoramento (Opção 2 — P.N extra pós-Maestria) estiver escolhida, o bônus sobe +1 por P.N investido.
@@ -1846,9 +1880,11 @@
                         ${_mwhs.map((w, i) => `<button onclick="setWebhook(${i})" style="padding:6px 12px;border-radius:8px;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:1px;cursor:pointer;font-family:'Orbitron',sans-serif;transition:all .15s;${state.selectedWebhook === i ? 'background:#1d4ed8;border:2px solid #3b82f6;color:#93c5fd;' : 'background:#111827;border:2px solid #374151;color:#6b7280;'}">${w.name}</button>`).join('')}
                     </div>
                 </div>` : '';
-            // Anexo de imagem/gif: só faz sentido em rolagens de ataque (arma ou Hatsu), onde o
-            // resultado vira uma mensagem de combate no Discord — dano puro/perícia não tem esse anexo.
-            const _showImageAttach = pr.type === 'attack' || pr.type === 'hatsu';
+            // Anexo de imagem/gif: só faz sentido em rolagens de ataque (arma), onde o resultado
+            // vira uma mensagem de combate no Discord — dano puro/perícia não tem esse anexo. O
+            // Hatsu já escolhe a imagem antes de abrir este modal (widget no rodapé de
+            // renderHatsuDetail), então não duplica o campo aqui.
+            const _showImageAttach = pr.type === 'attack';
             const _imgVal = state.pendingRollImage || '';
             const _isDataImg = /^data:image\//i.test(_imgVal);
             const _imageAttachHtml = _showImageAttach ? `
@@ -1910,7 +1946,7 @@
             const dmgTotal = dmgResult.total + mod;
             const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
             const renLabel = useRen ? ' 💪REN' : '';
-            char.history.push({ time, label: `⚔️ ${weaponName} (${attrKey})${renLabel}`, dice: attackRoll.dice.join(', '), mod: mod + pb, total: attackTotal });
+            char.history.push({ time, label: `⚔️ ${weaponName} (${attrKey})${renLabel}`, dice: attackRoll.dice.join(', '), mod: mod + pb, total: attackTotal, img: state.pendingRollImage || '' });
             if (char.history.length > 50) char.history.shift();
             saveCharacter(char);
             const isCrit = attackRoll.dice.includes(20);
