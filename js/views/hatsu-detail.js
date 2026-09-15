@@ -2474,6 +2474,25 @@ function renderHatsuDetail(container) {
 
         <!-- RODAPÉ -->
         <div style="padding:12px 14px;border-top:1px solid #111827;background:#0a0f1a;flex-shrink:0">
+            ${hasBaseDmg ? (() => {
+                // Anexo de imagem/gif do Hatsu — fica ANTES do botão de rolar, guardado no próprio
+                // Hatsu (h.attachImage, salvo com o personagem) para que cada Hatsu tenha a sua
+                // própria imagem em vez de compartilhar uma imagem global entre todos.
+                const _hImgVal = h.attachImage || '';
+                const _hIsDataImg = /^data:image\//i.test(_hImgVal);
+                return `<div style="margin-bottom:10px">
+                    <div style="font-size:8px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;text-align:center">🖼️ Imagem/GIF (opcional)</div>
+                    <div style="display:flex;gap:6px;align-items:center">
+                        <input id="hatsu-attach-image-input" type="text" value="${_hIsDataImg ? '' : _hImgVal.replace(/"/g, '&quot;')}" placeholder="Cole um link (ex: GIF do Tenor/Giphy)..." oninput="window._hSetHatsuAttachImage(${idx},this.value)" onchange="saveCharacter(state.currentChar);render(true)" style="flex:1;min-width:0;background:#111827;border:1px solid #374151;border-radius:8px;padding:9px 10px;color:#fff;font-size:10px;box-sizing:border-box;outline:none" />
+                        <label title="Enviar arquivo de imagem" style="padding:9px 10px;border-radius:8px;border:2px solid #374151;background:transparent;color:#9ca3af;cursor:pointer;font-size:13px;line-height:1;flex-shrink:0">📎<input type="file" accept="image/*" style="display:none" onchange="window._hUploadHatsuAttachImage(${idx},this)" /></label>
+                    </div>
+                    ${_hImgVal ? `<div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+                        <img src="${_hImgVal.replace(/"/g, '&quot;')}" style="width:32px;height:32px;object-fit:cover;border-radius:6px;border:1px solid #374151" onerror="this.style.display='none'" />
+                        <span style="font-size:9px;color:#4b5563">${_hIsDataImg ? 'Arquivo anexado' : 'Link anexado'}</span>
+                        <button onclick="window._hClearHatsuAttachImage(${idx})" style="font-size:9px;color:#f87171;background:transparent;border:none;cursor:pointer;text-decoration:underline;margin-left:auto">remover</button>
+                    </div>` : ''}
+                </div>`;
+            })() : ''}
             ${hasBaseDmg ? `<button onclick="openRollModeModal('hatsu')"
                 style="width:100%;margin-bottom:8px;padding:13px;border-radius:10px;background:#22c55e22;border:2px solid #22c55e66;color:#22c55e;font-family:'Orbitron',sans-serif;font-weight:900;font-size:11px;text-transform:uppercase;cursor:pointer;letter-spacing:1px;box-shadow:0 0 16px #22c55e22">🎲 Rolar Hatsu no Discord</button>` : ''}
             <div style="display:flex;gap:8px">

@@ -274,6 +274,11 @@ window._confirmDeleteCharacter = function(id, nome, viewing) {
     } else {
         localStorage.removeItem('hxhrpg_' + id);
         if (state.user) sbDelete('characters', `id=eq.${id}`);
+        // O sbDelete acima é assíncrono; sem isto, loadCharacters() logo abaixo lia
+        // state._cloudChars (ainda com a cópia antiga, só atualizada por syncFromCloud)
+        // e reinseria a ficha recém-apagada na lista — parecia que apagar não fazia nada,
+        // principalmente com o cache local cheio (quando a lista depende do cache da nuvem).
+        if (Array.isArray(state._cloudChars)) state._cloudChars = state._cloudChars.filter(c => c && c.id !== id);
         loadCharacters();
         if (state.currentChar && state.currentChar.id === id) {
             state.view = 'LIST';
