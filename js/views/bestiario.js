@@ -1,4 +1,21 @@
-﻿        // ── RENDER BESTIÁRIO ────────────────────────────────────────
+﻿    // ── Busca sem perder o foco ─────────────────────────────────────────────
+    // O oninput chamava render() direto, e o render reconstrói o DOM: o campo era
+    // destruído e recriado a cada tecla, então o foco sumia e só dava para digitar
+    // uma letra por clique. Agora guardamos a posição do cursor, redesenhamos e
+    // devolvemos o foco no campo novo. Mesmo problema que a lista de mesas da ficha
+    // já resolvia — o bestiário tinha ficado de fora.
+    window._bestBuscar = function (el) {
+      state.bestiarioSearch = el.value;
+      const pos = el.selectionStart;
+      render();
+      const novo = document.getElementById('bestiario-search');
+      if (novo) {
+        novo.focus();
+        try { novo.setSelectionRange(pos, pos); } catch (e) {}
+      }
+    };
+
+        // ── RENDER BESTIÁRIO ────────────────────────────────────────
         window.renderBestiario = function(container) {
           if (!state.isAdmin && !state.isMestre) { state.view = 'LIST'; render(); return; }
 
@@ -105,20 +122,51 @@
 
   <!-- TABS -->
   <div style="display:flex;gap:6px;margin-bottom:12px">
-    ${['LISTA','GERAR'].map(t=>`
+    ${['LISTA','MESA','GERAR'].map(t=>`
       <button onclick="state.bestiarioTab='${t}';state.bestiarioSelectedMonster=null;render()"
         style="flex:1;padding:8px;border-radius:8px;font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;letter-spacing:.06em;cursor:pointer;transition:all .2s;
           ${tab===t ? 'background:#f9731630;border:1px solid #f97316;color:#fb923c' : 'background:#ffffff08;border:1px solid #ffffff15;color:#64748b'}">
-        ${t==='LISTA' ? '📖‹ LISTA' : '⚡ GERAR'}
+        ${t==='LISTA' ? '📖‹ LISTA' : t==='MESA' ? '🎲 MESA' : '⚡ GERAR'}
       </button>`).join('')}
   </div>
+
+  ${tab === 'MESA' ? `
+  <!-- ── ABA MESA ──────────────────────────────────────────────────────────────
+       Mesma escolha de mesa da ficha: as rolagens do bestiário vão para o webhook
+       selecionado. A escolha é por aparelho (fica no localStorage), então cada
+       mestre aponta para a mesa dele sem afetar os outros. Reusa loadWebhooks e
+       setDefaultWebhook da ficha, para as duas telas nunca divergirem. -->
+  <div style="margin-bottom:12px">
+    <div style="font-size:10px;color:#64748b;line-height:1.6;margin-bottom:10px">
+      Escolha para onde vão as rolagens do bestiário. A seleção vale só neste aparelho.
+    </div>
+    ${(() => {
+      const whs = (typeof loadWebhooks === 'function') ? loadWebhooks() : [];
+      if (!whs.length) return '<div style="text-align:center;color:#64748b;font-style:italic;padding:28px 0;border:2px dashed #ffffff15;border-radius:12px;font-size:11px">Nenhuma mesa cadastrada.</div>';
+      const def = (typeof state.defaultWebhook === 'number') ? state.defaultWebhook : -1;
+      return whs.map((w, i) => {
+        const sel = def === i;
+        return `<div style="background:#ffffff08;border:2px solid ${sel ? '#f59e0b' : '#ffffff15'};border-radius:12px;padding:11px 13px;margin-bottom:7px;display:flex;align-items:center;gap:10px">
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:6px">
+              ${sel ? '<span style="font-size:8px;background:#92400e;color:#fbbf24;border-radius:4px;padding:2px 6px;font-weight:900;text-transform:uppercase">Ativa</span>' : ''}
+              <span style="font-weight:900;color:#f1f5f9;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${w.name}</span>
+            </div>
+            <div style="font-size:9px;color:#64748b;margin-top:3px">${sel ? 'As rolagens do bestiário vão para esta mesa.' : 'Toque em Selecionar para usar esta mesa.'}</div>
+          </div>
+          <button onclick="setDefaultWebhook(${i})" style="flex-shrink:0;padding:7px 12px;border-radius:8px;background:${sel ? 'transparent' : '#f9731630'};border:1px solid ${sel ? '#ffffff20' : '#f97316'};color:${sel ? '#94a3b8' : '#fb923c'};font-size:9px;font-weight:900;text-transform:uppercase;cursor:pointer">${sel ? 'Desativar' : 'Selecionar'}</button>
+        </div>`;
+      }).join('');
+    })()}
+  </div>
+  ` : ''}
 
   ${tab === 'LISTA' ? `
   <!-- SEARCH -->
   <div style="position:relative;margin-bottom:8px">
     <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#64748b;font-size:14px">🔍</span>
-    <input type="text" placeholder="Buscar criatura..." value="${(S.bestiarioSearch||'').replace(/"/g,'&quot;')}"
-      oninput="state.bestiarioSearch=this.value;render()"
+    <input type="text" id="bestiario-search" placeholder="Buscar criatura..." value="${(S.bestiarioSearch||'').replace(/"/g,'&quot;')}"
+      oninput="window._bestBuscar(this)"
       style="width:100%;padding:8px 8px 8px 32px;background:#ffffff08;border:1px solid #ffffff15;border-radius:10px;color:#e2e8f0;font-size:13px;outline:none;box-sizing:border-box"/>
   </div>
 
@@ -154,7 +202,7 @@
       }).join('')}
   </div>
 
-  ` : `
+  ` : tab === 'GERAR' ? `
   <!-- GERAR MONSTRO -->
   <div style="display:flex;flex-direction:column;gap:10px">
     <div style="background:#f9731610;border:1px solid #f9731630;border-radius:10px;padding:10px;font-size:11px;color:#fb923c;line-height:1.5">
@@ -240,7 +288,7 @@
       🗑️ Limpar Formulário
     </button>
   </div>
-  `}
+  ` : ''}
 </div>
 </div>`;
 
@@ -260,9 +308,79 @@
               return { nome: a.n, atk: parseInt(atkM[1]), dmg: dmgM[1], tipo: tipoM ? tipoM[1] : 'dano' };
             }).filter(Boolean);
 
+            // Marca/desmarca um integrante do bando como derrotado. Redesenha só o
+            // modal, para não perder a posição da rolagem na lista atrás dele.
+            window._bestToggleBando = function (chave, i) {
+              if (!state.bandoStatus) state.bandoStatus = {};
+              const lista = state.bandoStatus[chave] || [];
+              const pos = lista.indexOf(i);
+              if (pos >= 0) lista.splice(pos, 1); else lista.push(i);
+              state.bandoStatus[chave] = lista;
+              render(true);
+            };
+
+            window._bestResetBando = function (chave) {
+              if (!state.bandoStatus) state.bandoStatus = {};
+              state.bandoStatus[chave] = [];
+              render(true);
+            };
+
+            // ── Modo de rolagem do bestiário ────────────────────────────────────────
+            // A ficha do jogador já perguntava Normal/Vantagem/Desvantagem/Ênfase antes de
+            // rolar; o bestiário rolava sempre um d20 seco. Agora usa o mesmo getRollResult
+            // da ficha, então as quatro alternativas valem para monstro também.
+            window._bestRollModal = function (titulo, onEscolha) {
+              const _old = document.getElementById('best-roll-mode');
+              if (_old) _old.remove();
+              const ov = document.createElement('div');
+              ov.id = 'best-roll-mode';
+              ov.style.cssText = 'position:fixed;inset:0;background:#000000ee;display:flex;align-items:center;justify-content:center;z-index:10000;padding:16px;font-family:Rajdhani,sans-serif';
+              const opcoes = [
+                ['NORMAL', '🎲 Normal', '1d20'],
+                ['VANTAGEM', '⬆️ Vantagem', '2d20, pega o maior'],
+                ['DESVANTAGEM', '⬇️ Desvantagem', '2d20, pega o menor'],
+                ['ÊNFASE', '✨ Ênfase', '2d20, pega o mais extremo'],
+              ];
+              ov.innerHTML = '<div style="background:#0d1117;border:2px solid #22d3ee;border-radius:18px;padding:18px;width:100%;max-width:340px">'
+                + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:11px;color:#22d3ee;text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;text-align:center">' + titulo + '</div>'
+                + opcoes.map(function (o) {
+                    return '<button data-modo="' + o[0] + '" style="width:100%;text-align:left;padding:11px 13px;border-radius:11px;background:#111827;border:1px solid #1f2937;color:#d1d5db;cursor:pointer;margin-bottom:6px">'
+                      + '<div style="font-size:11px;font-weight:900">' + o[1] + '</div>'
+                      + '<div style="font-size:8px;color:#6b7280;margin-top:1px">' + o[2] + '</div></button>';
+                  }).join('')
+                + '<button id="best-roll-cancel" style="width:100%;margin-top:4px;padding:10px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:9px;text-transform:uppercase;cursor:pointer">Cancelar</button>'
+                + '</div>';
+              document.body.appendChild(ov);
+              ov.querySelectorAll('button[data-modo]').forEach(function (b) {
+                b.onclick = function () { const m = b.getAttribute('data-modo'); ov.remove(); onEscolha(m); };
+              });
+              document.getElementById('best-roll-cancel').onclick = function () { ov.remove(); };
+            };
+
+            // Envia o texto para o webhook da mesa, com o mesmo retorno visual de antes.
+            window._bestEnviar = function (content, btn) {
+              const whUrl = typeof getActiveWebhookUrl==='function' ? getActiveWebhookUrl() : null;
+              if (!whUrl) { alert('Nenhum webhook configurado.\nVá em Admin > Webhooks.'); return; }
+              const orig = btn ? btn.textContent : '';
+              if (btn) btn.textContent = '⏳';
+              fetch(whUrl, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content})})
+                .then(()=>{ if(btn){btn.textContent='✓'; setTimeout(()=>btn.textContent=orig, 1800);} })
+                .catch(()=>{ if(btn){btn.textContent='⚠'; setTimeout(()=>btn.textContent=orig, 1800);} });
+            };
+
             // Função de rolagem exposta globalmente
             window._rollBestiaryAtk = function(monsterName, atkName, atkBonus, dmgExpr, dmgTipo) {
-              const d20 = Math.floor(Math.random()*20)+1;
+              const _btn = event && event.currentTarget;
+              window._bestRollModal(atkName, function (modo) {
+                window._rollBestiaryAtkComModo(monsterName, atkName, atkBonus, dmgExpr, dmgTipo, modo, _btn);
+              });
+            };
+
+            window._rollBestiaryAtkComModo = function(monsterName, atkName, atkBonus, dmgExpr, dmgTipo, modo, btn) {
+              const r = (typeof getRollResult === 'function')
+                ? getRollResult(modo)
+                : { total: Math.floor(Math.random()*20)+1, dice: [], label: 'Normal' };
+              const d20 = r.total;
               const isCrit = d20===20, isFumble = d20===1;
               const atkTotal = d20 + atkBonus;
 
@@ -280,20 +398,34 @@
               const critLabel = isCrit ? ' (CRÍTICO — dados dobrados)' : '';
               const bonusStr = atkBonus >= 0 ? `+${atkBonus}` : `${atkBonus}`;
               const dmgBonusStr = dmgParts && dmgParts[3] ? ` ${dmgParts[3]}${dmgParts[4]}` : '';
+              const dadosStr = (r.dice && r.dice.length > 1) ? `[${r.dice.join(', ')}] → **${d20}**` : `[d20: **${d20}**]`;
+              const modoStr = (r.label && r.label !== 'Normal') ? `  _(${r.label})_` : '';
               const content =
-                ` 🐲 **${monsterName}** — **${atkName}**\n` +
-                `² Ataque: [d20: **${d20}**] ${bonusStr} = **${atkTotal}**${critFlag}\n` +
+                ` 🐲 **${monsterName}** — **${atkName}**${modoStr}\n` +
+                `² Ataque: ${dadosStr} ${bonusStr} = **${atkTotal}**${critFlag}\n` +
                 ` ⚔️ Dano: [${dmgRolls.join(' + ')}]${dmgBonusStr} = **${dmgTotal}** ${dmgTipo}${critLabel}`;
 
-              const whUrl = typeof getActiveWebhookUrl==='function' ? getActiveWebhookUrl() : null;
-              if (!whUrl) { alert('Nenhum webhook configurado.\nVá em Admin > Webhooks.'); return; }
+              window._bestEnviar(content, btn);
+            };
 
-              const btn = event.currentTarget;
-              const orig = btn.textContent;
-              btn.textContent = '⏳';
-              fetch(whUrl, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content})})
-                .then(()=>{ btn.textContent='✓'; setTimeout(()=>btn.textContent=orig, 1800); })
-                .catch(()=>{ btn.textContent='⚠'; setTimeout(()=>btn.textContent=orig, 1800); });
+            // ── 2) Rolagem de PERÍCIA do monstro ────────────────────────────────────
+            // A linha "Perícias: Atletismo +8, Natureza +5" era só texto. Agora cada
+            // perícia é clicável, com o mesmo pop-up de modo, sem mudar a aparência.
+            window._rollBestiaryPericia = function(monsterName, pericia, bonus) {
+              const _btn = event && event.currentTarget;
+              window._bestRollModal(pericia, function (modo) {
+                const r = (typeof getRollResult === 'function')
+                  ? getRollResult(modo)
+                  : { total: Math.floor(Math.random()*20)+1, dice: [], label: 'Normal' };
+                const total = r.total + bonus;
+                const bStr = bonus >= 0 ? `+${bonus}` : `${bonus}`;
+                const dadosStr = (r.dice && r.dice.length > 1) ? `[${r.dice.join(', ')}] → **${r.total}**` : `[d20: **${r.total}**]`;
+                const flag = r.total === 20 ? '  🎯 **CRÍTICO!**' : r.total === 1 ? '  🧨 *Erro Grave*' : '';
+                const modoStr = (r.label && r.label !== 'Normal') ? `  _(${r.label})_` : '';
+                const content = ` 🐲 **${monsterName}** — **${pericia}**${modoStr}\n`
+                  + `🎯 ${dadosStr} ${bStr} = **${total}**${flag}`;
+                window._bestEnviar(content, _btn);
+              });
             };
 
             // limpa modal anterior se existir
@@ -316,6 +448,35 @@
         style="background:#ffffff15;border:1px solid #ffffff20;border-radius:8px;color:#94a3b8;padding:6px 10px;cursor:pointer;font-size:16px;flex-shrink:0;line-height:1">✕</button>
     </div>
     <span style="display:inline-block;background:${cc}22;border:1px solid ${cc}55;border-radius:4px;padding:1px 6px;font-size:8px;font-weight:700;color:${cc};margin-top:6px">${m.cat}</span>
+    ${(() => {
+      // ── 3) Controle de Bando ─────────────────────────────────────────────────
+      // Quando o tipo traz "Bandos de N" ou "Bando de N+", o mestre precisa marcar
+      // quantos já caíram. Mostramos N marcadores clicáveis: coração cheio = vivo,
+      // coração partido = derrotado, com a contagem ao lado.
+      // O estado é da SESSÃO (state), não da ficha do monstro: o bestiário é um
+      // catálogo compartilhado e marcar mortos nele bagunçaria para todos.
+      const mt = String(m.tipo || '').match(/bandos?\s+de\s+(\d+)/i);
+      if (!mt) return '';
+      const n = Math.min(20, parseInt(mt[1]) || 0);
+      if (n <= 0) return '';
+      const chave = 'bando_' + String(m.nome).replace(/\s+/g, '_');
+      if (!state.bandoStatus) state.bandoStatus = {};
+      const mortos = state.bandoStatus[chave] || [];
+      const vivos = n - mortos.length;
+      const marcadores = Array.from({ length: n }, (_, i) => {
+        const morto = mortos.indexOf(i) >= 0;
+        return `<span onclick="window._bestToggleBando('${chave}', ${i})" title="${morto ? 'Derrotado — clique para reviver' : 'Vivo — clique para marcar derrotado'}"
+          style="font-size:20px;cursor:pointer;line-height:1;user-select:none;opacity:${morto ? '.45' : '1'};filter:${morto ? 'grayscale(.7)' : 'none'}">${morto ? '💔' : '❤️'}</span>`;
+      }).join('');
+      return `<div style="margin-top:8px;background:#ffffff08;border:1px solid #ffffff15;border-radius:9px;padding:8px 10px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px">
+          <span style="font-size:9px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:1px">Bando de ${n}</span>
+          <span style="font-size:9px;font-weight:700;color:${vivos > 0 ? '#4ade80' : '#f87171'}">${vivos} vivo(s) · ${mortos.length} derrotado(s)</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px">${marcadores}</div>
+        ${mortos.length ? `<button onclick="window._bestResetBando('${chave}')" style="margin-top:7px;padding:4px 9px;border-radius:6px;background:transparent;border:1px solid #ffffff20;color:#94a3b8;font-size:8px;font-weight:700;text-transform:uppercase;cursor:pointer">Restaurar bando</button>` : ''}
+      </div>`;
+    })()}
   </div>
 
   <!-- Combate -->
@@ -343,7 +504,18 @@
 
   <!-- Info -->
   <div style="padding:10px 16px;font-size:11px;line-height:1.7;border-bottom:1px solid #ffffff10;display:flex;flex-direction:column;gap:2px">
-    ${m.pericias ? `<div><span style="color:#64748b">Perícias:</span> <span style="color:#cbd5e1">${m.pericias}</span></div>` : ''}
+    ${m.pericias ? `<div><span style="color:#64748b">Perícias:</span> <span style="color:#cbd5e1">${(() => {
+      // Cada "Nome +N" vira botão clicável. O texto fica idêntico ao de antes:
+      // sem borda, sem fundo, mesma cor e tamanho — só ganha cursor e sublinhado leve.
+      const esc = s => String(s).replace(/'/g, "\\'").replace(/`/g, '\\`');
+      return String(m.pericias).split(',').map(parte => {
+        const p = parte.trim();
+        const mt = p.match(/^(.+?)\s*([+\-]\d+)$/);
+        if (!mt) return p;
+        const nome = mt[1].trim(), bonus = parseInt(mt[2]);
+        return `<span onclick="window._rollBestiaryPericia('${esc(m.nome)}','${esc(nome)}',${bonus})" style="cursor:pointer;text-decoration:underline;text-decoration-color:#64748b;text-underline-offset:3px" title="Rolar ${nome}">${p}</span>`;
+      }).join(', ');
+    })()}</span></div>` : ''}
     ${m.trs ? `<div><span style="color:#64748b">TRs:</span> <span style="color:#cbd5e1">${m.trs}</span></div>` : ''}
     ${m.imunidades ? `<div><span style="color:#64748b">Imunidades:</span> <span style="color:#a3e635">${m.imunidades}</span></div>` : ''}
     ${m.resistencias ? `<div><span style="color:#64748b">Resistências:</span> <span style="color:#60a5fa">${m.resistencias}</span></div>` : ''}
