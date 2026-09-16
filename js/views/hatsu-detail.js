@@ -1130,6 +1130,25 @@ function renderHatsuDetail(container) {
         // Consolidados num card só por id: quem escala por cópia não aparece repetido.
         const REPETIVEIS_POR_COPIA = Object.keys(window.DANO_PROPRIO_ESCALA || {});
         const idsJaRenderizados = new Set();
+        // ── O atributo entra UMA vez só, no fim ─────────────────────────────────────
+        // Cada efeito de dano próprio foi escrito como se fosse um Hatsu inteiro, então
+        // a linha dele imprimia "+ ATRIBUTO" também. Somados no mesmo Hatsu, isso mostrava
+        // o atributo duas ou três vezes, sugerindo 4d8+FOR+1d8+FOR quando o correto é
+        // 4d8+1d8+FOR.
+        //
+        // Quando NÃO existe dano base (Hatsu sem Dano/Cura Focal nem Forjar Arma), o dado
+        // extra É o dano do Hatsu — aí ele precisa mostrar o atributo, e só o primeiro
+        // extra com dado o faz. Valor bruto (Penetração Dolorosa) nunca mostra: não é
+        // rolagem própria, é número somado ao total.
+        const _mostraAttrNoExtra = !_hatsuFinalDice;
+        const _primeiroExtraComDado = (function () {
+            const p = efeitosComDanoProprio.find(function (e) {
+                const d = DANO_PROPRIO_MAP[e.id];
+                return d && /\d+d\d+/.test(String(d.dado));
+            });
+            return p ? p.id : null;
+        })();
+
         efeitosComDanoProprio.forEach(e => {
             const d = DANO_PROPRIO_MAP[e.id];
             if (!d) return;
@@ -1192,7 +1211,7 @@ function renderHatsuDetail(container) {
                 <span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:${ec}22;color:${ec}">${d.tipo}</span>
                 <span style="font-size:9px;color:#4b5563">${d.desc}${copiasLabel}${!isHostil && !catDmg && totalGraus > 0 ? ` (+${totalGraus} grau)` : ''}</span>
                 ${reservadoLabel ? `<span style="font-size:8px;font-weight:900;padding:1px 6px;border-radius:8px;background:#fbbf2422;color:#fbbf24">${reservadoLabel}</span>` : ''}
-                <span style="font-size:9px;color:#6b7280">+ ${baseAttr}</span>
+                ${_mostraAttrNoExtra && _primeiroExtraComDado === e.id ? `<span style="font-size:9px;color:#6b7280">+ ${baseAttr}</span>` : ''}
             </div>`;
         });
 
