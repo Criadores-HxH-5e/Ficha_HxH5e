@@ -772,3 +772,89 @@ window.calcReacoesMax = function (char) {
     const analitica = ((char.combatInclinations || {}).analitica || 0) >= 1 ? 2 : 0;
     return 7 + Math.floor((sab - 10) / 2) + analitica;
 };
+
+// ── Bônus de Nen em atributos e perícias ──────────────────────────────────────
+// Antes cada efeito aplicava seu bônus no lugar onde era exibido, o que gerava
+// incoerência: o GYO subia o valor do atributo (e a CA acompanhava), mas o
+// "Aumento de Atributo" (ri_e1) só somava na Jogada de Ataque e na CD do Hatsu —
+// perícias, CA, iniciativa e TRs ficavam de fora, contrariando o livro, que diz
+// "aumenta VALOR de atributo em 2 (mod. +1)".
+//
+// Agora existe um ponto único. Tudo que mexe em atributo passa por aqui, e quem
+// desenha a ficha só pergunta o resultado.
+//
+// Há duas naturezas de bônus, e misturá-las dá número errado:
+//   • bônus de VALOR  — ri_e1: +2 no valor, o que dá +1 no modificador
+//   • bônus de MODIFICADOR — GYO: "+3 temporário ao MODIFICADOR de FOR, DES ou CON"
+window.calcAtributoEfetivo = function (char, attr) {
+    const base = (((char || {}).attributes || {})[attr] || {}).value || 10;
+    let bonusValor = 0, bonusMod = 0;
+    const fontes = [];
+
+    // GYO ativo na parte do corpo: +3 no MODIFICADOR (livro v2.0, "GYO = Focar").
+    // O livro ressalta que esse aumento NÃO provoca efeitos de Atributos Evoluídos.
+    const at = (char && char.principiosAtivos) || {};
+    if (at.gyo && char.gyoAlvo === attr) {
+        const b = window.calcAvancadoBonus ? window.calcAvancadoBonus(char, 'gyo') : { attrBonus: 3 };
+        const v = b.attrBonus || 3;
+        bonusMod += v;
+        fontes.push({ nome: 'GYO', valor: '+' + v + ' no mod.' });
+    }
+
+    // Aumento de Atributo (ri_e1) dos Hatsus ATIVOS: +2 no valor por cópia.
+    // Só conta com o Hatsu ligado — é efeito de Hatsu, não traço permanente.
+    const ativos = (char && char.hatsusAtivos) || {};
+    ((char && char.hatsus) || []).forEach(function (h, i) {
+        if (!ativos[i]) return;
+        const sc = h.specialChoices || {};
+        const copias = (h.efeitos || []).filter(function (id) { return id === 'ri_e1'; }).length;
+        let n = 0;
+        for (let c = 0; c < copias; c++) {
+            const escolhido = sc[c > 0 ? ('ri_e1_attr#' + c) : 'ri_e1_attr'];
+            if (escolhido === attr) n++;
+        }
+        if (n > 0) {
+            bonusValor += n * 2;
+            fontes.push({ nome: 'Aumento de Atributo (' + (h.nome || ('Hatsu ' + (i + 1))) + ')', valor: '+' + (n * 2) });
+        }
+    });
+
+    const valor = base + bonusValor;
+    return {
+        base: base, valor: valor,
+        mod: Math.floor((valor - 10) / 2) + bonusMod,
+        bonusValor: bonusValor, bonusMod: bonusMod, fontes: fontes,
+    };
+};
+
+// Bônus de Nen em perícias específicas.
+// REN (livro v2.0, Domínio de REN): 2º nível dá +3 em Intimidação ou
+// Arcanismo/Religião; 3º nível dá +6, uma vez por dia sem gastar aura.
+// ZETSU: +3/+3/+6 em Furtividade conforme o nível investido.
+window.NEN_PERICIA_BONUS = {
+    ren:   { pericias: ['Intimidação', 'Arcanismo', 'Religião'], porNivel: { 2: 3, 3: 6 } },
+    zetsu: { pericias: ['Furtividade'] },
+};
+
+window.calcBonusPericiaNen = function (char, skillName) {
+    if (!char) return { total: 0, fontes: [] };
+    const at = char.principiosAtivos || {};
+    const dom = char.nenDominio || {};
+    const fontes = [];
+
+    // REN ativo: vale nas três perícias da regra, do 2º nível para cima.
+    if (at.ren && (window.NEN_PERICIA_BONUS.ren.pericias || []).indexOf(skillName) >= 0) {
+        const nv = parseInt(dom.ren) || 0;
+        const v = window.NEN_PERICIA_BONUS.ren.porNivel[nv >= 3 ? 3 : nv] || 0;
+        if (v > 0) fontes.push({ nome: 'REN', valor: v });
+    }
+
+    // ZETSU concede Furtividade ao COMPLETAR a carga, então o bônus vale enquanto
+    // ele estiver ligado (a contagem em andamento ou a rodada recém-concluída).
+    if (at.zetsu && skillName === 'Furtividade' && window.calcZetsuBonus) {
+        const z = window.calcZetsuBonus(char);
+        if (z.furtividade > 0) fontes.push({ nome: 'ZETSU', valor: z.furtividade });
+    }
+
+    return { total: fontes.reduce(function (s, f) { return s + f.valor; }, 0), fontes: fontes };
+};

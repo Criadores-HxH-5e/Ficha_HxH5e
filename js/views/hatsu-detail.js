@@ -1005,7 +1005,8 @@ function renderHatsuDetail(container) {
             ${ALL_ATTRS.map(a => {
                 const active = baseAttr === a;
                 const isSugest = modSugest.includes(a);
-                const mod = getMod(char.attributes?.[a]?.value || 10);
+                // Atributo EFETIVO: inclui GYO e Aumento de Atributo dos Hatsus ativos.
+        const mod = window.calcAtributoEfetivo ? window.calcAtributoEfetivo(char, a).mod : getMod(char.attributes?.[a]?.value || 10);
                 return `<button onclick="state.currentChar.hatsus[${idx}].dmgMod='${a}';saveCharacter(state.currentChar);renderHatsuInPlace()"
                     style="flex:1;min-width:52px;padding:7px 4px;border-radius:9px;font-size:9px;font-weight:900;cursor:pointer;border:1.5px solid ${active?tc:isSugest?tc+'66':'#1f2937'};background:${active?tc+'22':'transparent'};color:${active?tc:isSugest?tc:'#6b7280'};transition:all .15s">
                     ${isSugest?'★ ':''}${a} <span style="font-size:8px;opacity:.8">(${mod>=0?'+'+mod:mod})</span>
@@ -1509,7 +1510,8 @@ function renderHatsuDetail(container) {
                 ${ALL_ATTRS.map(a => {
                     const active = baseAttrAtk === a;
                     const isSugest = modSugest.includes(a);
-                    const mod = getMod(char.attributes?.[a]?.value || 10);
+                    // Atributo EFETIVO: inclui GYO e Aumento de Atributo dos Hatsus ativos.
+        const mod = window.calcAtributoEfetivo ? window.calcAtributoEfetivo(char, a).mod : getMod(char.attributes?.[a]?.value || 10);
                     return `<button onclick="event.stopPropagation();state.currentChar.hatsus[${idx}].atkMod='${a}';saveCharacter(state.currentChar);renderHatsuInPlace()"
                         style="flex:1;min-width:52px;padding:6px 4px;border-radius:9px;font-size:9px;font-weight:900;cursor:pointer;border:1.5px solid ${active?tc:isSugest?tc+'66':'#1f2937'};background:${active?tc+'22':'transparent'};color:${active?tc:isSugest?tc:'#6b7280'};transition:all .15s">
                         ${isSugest?'★ ':''}${a} <span style="font-size:8px;opacity:.8">(${mod>=0?'+'+mod:mod})</span>
