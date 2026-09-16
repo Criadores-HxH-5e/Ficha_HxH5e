@@ -1500,12 +1500,22 @@
                 const num = parseInt(clean);
                 if (!isNaN(num)) { flatBonus += num; flatParts.push(clean); }
             });
+            // Dados extras (Golpe Reforçado, Fúria Potencializada...) somam no MESMO total.
+            // Antes eles eram rolados e exibidos numa linha à parte, mas NÃO entravam na
+            // conta: o Discord recebia um total sem o 1d8. E o atributo entra uma vez só,
+            // no fim — é o mesmo Hatsu, não duas instâncias de dano.
+            let extraDiceTotal = 0;
             (rs.dmgExtras || []).forEach(e => {
                 if (e.dado === '(contínuo)') return;
-                const rollable = /^\+?\d+d\d+$/.test(e.dado);
+                // A regex exigia o "+" colado no dado, mas o catálogo grava "+ 1d8" COM
+                // espaço. Nenhum extra casava, então caía no ramo de valor bruto, o
+                // parseInt dava NaN e o dado simplesmente desaparecia: nunca era rolado
+                // nem somado. Agora o espaço é aceito.
+                const rollable = /^\+?\s*\d+d\d+$/.test(String(e.dado).trim());
                 if (rollable) {
-                    const er = rollDiceExpr(e.dado.replace(/^\+/, ''));
-                    extraLines.push(`💥 ${e.tipo}: [${er.rolls.join('+')}] = **${er.total}**`);
+                    const er = rollDiceExpr(String(e.dado).replace(/^\+?\s*/, '').trim());
+                    extraDiceTotal += er.total;
+                    extraLines.push(`💥 ${e.tipo} (${e.desc}): [${er.rolls.join('+')}] = **${er.total}**`);
                 } else {
                     const clean = e.dado.replace(/\/\w+$/, '');
                     const num = parseInt(clean);
@@ -1513,11 +1523,11 @@
                 }
             });
 
-            const total = dmgResult.total + mod + flatBonus;
+            const total = dmgResult.total + extraDiceTotal + mod + flatBonus;
             const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
             const modeLabel = effectiveMode === 'NORMAL' ? '' : ` (${effectiveMode.charAt(0) + effectiveMode.slice(1).toLowerCase()})`;
             const renLabel = useRen ? ' 💪REN' : '';
-            char.history.push({ time, label: `⚡ ${rs.nome} (${rs.attr})${modeLabel}${renLabel}`, dice: dmgResult.rolls.join(', '), mod: mod + flatBonus, total, img: state.pendingRollImage || '' });
+            char.history.push({ time, label: `⚡ ${rs.nome} (${rs.attr})${modeLabel}${renLabel}`, dice: dmgResult.rolls.join(', ') + (extraDiceTotal > 0 ? ` (+${extraDiceTotal} extra)` : ''), mod: mod + flatBonus, total, img: state.pendingRollImage || '' });
             if (char.history.length > 50) char.history.shift();
             saveCharacter(char);
 
@@ -1526,7 +1536,15 @@
             const allModStr = (mod !== 0 || flatBonus !== 0)
                 ? ` ${(mod + flatBonus) >= 0 ? '+' : ''}${mod + flatBonus}`
                 : '';
-            const formula = `${renDice} + ${rs.attr}${flatStr}`;
+            // Fórmula com os dados extras somados e o atributo uma vez só.
+            const extraDiceStr = (rs.dmgExtras || [])
+                .filter(e => /^\+?\s*\d+d\d+$/.test(String(e.dado).trim()))
+                .map(e => String(e.dado).replace(/^\+?\s*/, '').trim())
+                .join(' + ');
+            // Sem dado principal (Hatsu sem dano base), a fórmula começa pelo extra,
+            // para não sair um "+ 1d8 + FOR" com sobra à esquerda.
+            const _partes = [renDice, extraDiceStr].filter(Boolean);
+            const formula = `${_partes.join(' + ')}${_partes.length ? ' + ' : ''}${rs.attr}${flatStr}`;
             const extrasText = extraLines.length > 0 ? '\n' + extraLines.join('\n') : '';
 
             // ── Rolagem de Ataque ─────────────────────────────────────────────
