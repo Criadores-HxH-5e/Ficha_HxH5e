@@ -414,3 +414,60 @@ window.HATSU_DB.categorias['CONJURAÇÃO'] = window.HATSU_DB.categorias['MATERIA
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  renderHatsuCreator — wizard multi-etapas
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  NÍVEL DAS CONDIÇÕES — livro v2.0, "Aplicação de Condições utilizando
+//  Condição Perigosa" e "Nível das Condições".
+//
+//  A lista que existia no criador era inventada: colocava Cego no nível 1 e
+//  Paralisado no nível 3, e criava condições que não existem no livro
+//  ("Sangramento Leve", "Coma", "Morte Imediata"...). Um personagem nível 3
+//  conseguia liberar condições Fortes e Extremas comprando cópias do efeito.
+//
+//  A regra real amarra o nível da condição ao ACESSO DO PERSONAGEM A NÍVEIS DE
+//  EFEITO, que sobe com Restrições Extremas (+2 níveis cada) — não ao nível cru.
+// ══════════════════════════════════════════════════════════════════════════════
+window.CONDICOES_POR_NIVEL = {
+    fracas: [
+        'Abalado', 'Afogado/Asfixiado (Natural)', 'Caído', 'Desorientado',
+        'Desprevenido', 'Empurrado/Puxado', 'Envenenado', 'Lento', 'Molhado',
+        'Mudo', 'Ofuscado', 'Sangramento',
+    ],
+    medias: [
+        'Afogado/Asfixiado (Combate)', 'Agarrado', 'Amedrontado/Assustado',
+        'Confuso', 'Esmagado', 'Enjoado', 'Enredado/Preso', 'Exausto (Variável)',
+        'Furtivo/Oculto', 'Imóvel', 'Queimado', 'Surdo',
+    ],
+    fortes: [
+        'Cego', 'Condenado', 'Exposto', 'Fascinado', 'Flanqueado',
+        'Fragilizado', 'Invisível', 'Manipulado', 'Resistente',
+    ],
+    extremas: [
+        'Amaldiçoado', 'Atordoado', 'Desmembrado', 'Imune', 'Incapacitado',
+        'Inconsciente', 'Paralisado', 'Possuído', 'Selado', 'Vulnerável',
+    ],
+};
+
+// Faixas de acesso do livro: 1-3 Fracas, 3-6 Médias, 7-10 Fortes, 11-12 Extremas.
+// O 3 aparece nas duas primeiras faixas; o exemplo da regra resolve o empate — um
+// personagem nível 3 não alcança Fortes nem Extremas, logo o 3 vale como Médias.
+window.CONDICAO_FAIXAS = [
+    { tier: 'fracas',   nome: 'Fracas',   min: 1,  max: 2  },
+    { tier: 'medias',   nome: 'Médias',   min: 3,  max: 6  },
+    { tier: 'fortes',   nome: 'Fortes',   min: 7,  max: 10 },
+    { tier: 'extremas', nome: 'Extremas', min: 11, max: 12 },
+];
+
+// Condições que o personagem alcança, pelo ACESSO a níveis de efeito.
+// acessoNivel deve vir de calcCategoryAccess (já inclui as Restrições Extremas).
+window.condicoesDisponiveis = function (acessoNivel) {
+    const n = parseInt(acessoNivel) || 0;
+    const out = [];
+    (window.CONDICAO_FAIXAS || []).forEach(function (f) {
+        const liberada = n >= f.min;
+        (window.CONDICOES_POR_NIVEL[f.tier] || []).forEach(function (c) {
+            out.push({ nome: c, tier: f.tier, faixa: f.nome, min: f.min, liberada: liberada });
+        });
+    });
+    return out;
+};
