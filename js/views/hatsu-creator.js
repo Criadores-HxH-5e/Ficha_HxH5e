@@ -630,13 +630,13 @@ function renderHatsuCreator(container) {
 
                 // eg3: Condição Perigosa — show condition picker based on level
                 if (item.id === 'eg3') {
-                    const CONDITIONS_BY_LEVEL = {
-                        1: ['Caído','Cego','Surdo','Mudo','Lento (−3m)','Assustado','Envenenado'],
-                        2: ['Agarrado','Imobilizado','Atordoado','Sangramento Leve (2d4)','Fragilizado','Desorientado'],
-                        3: ['Paralisado','Incapacitado','Sangramento Médio (2d6)','Exaustão Nível 1','Inconsciente'],
-                        5: ['Sangramento Forte (2d10)','Exaustão Nível 2','Dano Permanente (1d4)'],
-                        7: ['Morte Imediata (CD 20 CON)','Exaustão Nível 3','Coma'],
-                    };
+                    // As condições e as faixas vêm de CONDICOES_POR_NIVEL (js/data/hatsu-db.js),
+                    // que segue o livro. A tabela que existia aqui era inventada: liberava Cego
+                    // no nível 1 e Paralisado no nível 3, e criava condições inexistentes.
+                    //
+                    // O portão é o ACESSO DO PERSONAGEM A NÍVEIS DE EFEITO — o mesmo que a
+                    // categoria usa, e que sobe +2 por Restrição Extrema. Não é o nível cru:
+                    // um nível 1 com Restrição Extrema tem acesso 3 e alcança as Médias.
                     // hb.specialChoices['eg3'] é uma lista "flat" de condições — 1 entrada por rodada
                     // alocada, na ordem em que foi adicionada. Ex: ['Surdo','Surdo','Cego'] = Surdo
                     // com 2 rodadas + Cego com 1 rodada. Total de entradas ≤ cópias compradas do eg3.
@@ -647,24 +647,43 @@ function renderHatsuCreator(container) {
                     const pontosUsados = eg3Points.length;
                     const pontosRestantes = Math.max(0, totalCopies - pontosUsados);
 
-                    const allAvail = [];
-                    Object.entries(CONDITIONS_BY_LEVEL).forEach(([lvl, conds]) => {
-                        if (charLevel >= parseInt(lvl)) conds.forEach(c => allAvail.push({c, lvl: parseInt(lvl)}));
-                    });
+                    const _acessoCond = window.calcCategoryAccess
+                        ? window.calcCategoryAccess(charLevel, window.contarRestricoesExtremas ? window.contarRestricoesExtremas(hb) : 0).pct100
+                        : charLevel;
+                    const _todasCond = window.condicoesDisponiveis ? window.condicoesDisponiveis(_acessoCond) : [];
+                    const allAvail = _todasCond.filter(function (x) { return x.liberada; })
+                        .map(function (x) { return { c: x.nome, lvl: x.min, faixa: x.faixa }; });
+                    // Bloqueadas ficam visíveis, em cinza, com o acesso que exigem — assim o
+                    // jogador entende que existe e o que falta para alcançar.
+                    const _bloqueadas = _todasCond.filter(function (x) { return !x.liberada; });
                     // Category suggestions
+                    // Sugestões por categoria, agora só com condições que existem no livro.
                     const catSuggestions = {
-                        'MANIPULAÇÃO': ['Agarrado','Atordoado','Paralisado'],
-                        'EMISSÃO': ['Caído','Sangramento Leve (2d4)','Cego'],
-                        'TRANSMUTAÇÃO': ['Envenenado','Sangramento Leve (2d4)','Lento (−3m)'],
-                        'INTENSIFICAÇÃO': ['Caído','Atordoado','Fragilizado'],
-                        'MATERIALIZAÇÃO': ['Agarrado','Imobilizado','Paralisado'],
+                        'MANIPULAÇÃO':    ['Imóvel', 'Confuso', 'Manipulado', 'Possuído'],
+                        'EMISSÃO':        ['Caído', 'Sangramento', 'Ofuscado', 'Cego'],
+                        'TRANSMUTAÇÃO':   ['Envenenado', 'Molhado', 'Queimado', 'Lento'],
+                        'INTENSIFICAÇÃO': ['Caído', 'Abalado', 'Esmagado', 'Atordoado'],
+                        'REFORÇO':        ['Caído', 'Abalado', 'Esmagado', 'Atordoado'],
+                        'MATERIALIZAÇÃO': ['Agarrado', 'Enredado/Preso', 'Imóvel', 'Desmembrado'],
+                        'ESPECIALIZAÇÃO': ['Amaldiçoado', 'Selado', 'Fascinado', 'Condenado'],
                     };
                     const suggestions = catSuggestions[char.class] || [];
 
+                    // Hatsus criados antes desta correção podem ter condições que não
+                    // existem no livro ("Sangramento Leve", "Coma"...) ou acima do acesso.
+                    // Elas continuam aparecendo, marcadas, para o jogador trocar — não
+                    // apagamos escolha de ninguém sem avisar.
+                    const _nomesValidos = _todasCond.map(function (x) { return x.nome; });
                     const chosenRowsHtml = Object.keys(eg3Counts).map(c => {
                         const rodadas = eg3Counts[c];
+                        const _info = _todasCond.find(function (x) { return x.nome === c; });
+                        const _alerta = !_info
+                            ? ' <span style="font-size:7px;font-weight:900;padding:1px 5px;border-radius:6px;background:#f8717122;color:#f87171">fora do livro</span>'
+                            : (!_info.liberada
+                                ? ` <span style="font-size:7px;font-weight:900;padding:1px 5px;border-radius:6px;background:#fbbf2422;color:#fbbf24">${_info.faixa} — exige acesso ${_info.min}</span>`
+                                : '');
                         return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
-                            <span style="flex:1;font-size:9px;font-weight:700;color:${color}">${c}</span>
+                            <span style="flex:1;font-size:9px;font-weight:700;color:${color}">${c}${_alerta}</span>
                             <span style="font-size:8px;color:#9ca3af">${rodadas} rodada${rodadas>1?'s':''}</span>
                             <button onclick="event.stopPropagation();window._hEg3RemovePonto('${c}')"
                                 style="width:20px;height:20px;border-radius:5px;background:#1f2937;border:1px solid #374151;color:#f87171;font-size:12px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">−</button>
@@ -673,12 +692,12 @@ function renderHatsuCreator(container) {
                         </div>`;
                     }).join('');
 
-                    const addButtonsHtml = allAvail.filter(({c}) => !eg3Counts[c]).map(({c, lvl}) => {
+                    const addButtonsHtml = allAvail.filter(({c}) => !eg3Counts[c]).map(({c, lvl, faixa}) => {
                         const isSugg = suggestions.includes(c);
                         const canAdd = pontosRestantes > 0;
                         return `<button onclick="event.stopPropagation();${canAdd?`window._hEg3AddPonto('${c}')`:'void(0)'}"
                             style="padding:4px 8px;border-radius:7px;font-size:8px;font-weight:600;cursor:${canAdd?'pointer':'not-allowed'};opacity:${canAdd?1:0.4};border:1.5px solid ${isSugg?color+'66':'#1f2937'};background:${isSugg?color+'11':'transparent'};color:${isSugg?color+'cc':'#9ca3af'};white-space:nowrap">
-                            ${isSugg?'⭐':''}${c}${lvl>1?` <span style="font-size:7px;opacity:.6">Lv${lvl}+</span>`:''}
+                            ${isSugg?'⭐':''}${c}${faixa && faixa !== 'Fracas'?` <span style="font-size:7px;opacity:.6">${faixa}</span>`:''}
                         </button>`;
                     }).join('');
 
@@ -692,6 +711,19 @@ function renderHatsuCreator(container) {
                             ${pontosRestantes>0 ? `Nova condição (${pontosRestantes} rodada${pontosRestantes>1?'s':''} livre${pontosRestantes>1?'s':''}):` : 'Sem rodadas livres — evolua o efeito pra escolher mais'}
                         </div>
                         <div style="display:flex;flex-wrap:wrap;gap:4px">${addButtonsHtml}</div>
+                        ${_bloqueadas.length ? `
+                        <div style="font-size:7px;font-weight:700;color:#4b5563;text-transform:uppercase;letter-spacing:1px;margin:10px 0 4px">
+                            🔒 Fora do seu alcance (acesso atual: nível ${_acessoCond})
+                        </div>
+                        <div style="font-size:8px;color:#4b5563;margin-bottom:5px">Restrições Extremas somam +2 no acesso cada uma.</div>
+                        <div style="display:flex;flex-wrap:wrap;gap:4px">
+                            ${(window.CONDICAO_FAIXAS || []).filter(f => _bloqueadas.some(b => b.tier === f.tier)).map(f => `
+                                <div style="width:100%;font-size:7px;font-weight:700;color:#374151;margin-top:3px">${f.nome} — exige acesso ${f.min}</div>
+                                ${_bloqueadas.filter(b => b.tier === f.tier).map(b => `
+                                    <span style="padding:4px 8px;border-radius:7px;font-size:8px;border:1px solid #1f2937;background:#0d1117;color:#374151">${b.nome}</span>
+                                `).join('')}
+                            `).join('')}
+                        </div>` : ''}
                     </div>`;
                 }
 
