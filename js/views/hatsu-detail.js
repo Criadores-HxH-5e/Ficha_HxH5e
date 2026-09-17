@@ -1061,17 +1061,43 @@ function renderHatsuDetail(container) {
             }
             // Se Flagelo Puro: graus extras de cópias somam ao dano base também
             const flageloGrauPuro = isPuroFlagelo ? (flageloCopias - 1) : 0;
+
+            // ── TETO DE GRAU/PASSO NO DANO PRINCIPAL ────────────────────────────────
+            // O teto já existia, mas só era aplicado nos efeitos de dano EXTRA (Golpe
+            // Reforçado, Penetração Dolorosa). O dano principal somava os graus e subia a
+            // escada sem limite nenhum — por isso um nível 3 chegava a 4d8 sem aviso.
+            //
+            // O teto conta o DADO BASE como o primeiro degrau: teto 1 = 2d6 (o próprio
+            // base), teto 2 = 2d8, teto 5 = 3d10. Então os degraus que podem ser subidos
+            // são (teto − 1), e não o teto inteiro.
+            const _tetoDanoBase = window.calcMaxGrauPorCaracteristica
+                ? window.calcMaxGrauPorCaracteristica(char.level, h.classe || char.class, 'dano')
+                : Infinity;
+            const _grausQuerBase = totalGraus + flageloGrauPuro;
+            const _grausPodeBase = (_tetoDanoBase === Infinity)
+                ? _grausQuerBase
+                : Math.min(_grausQuerBase, Math.max(0, _tetoDanoBase - 1));
+            const _grausEsperaBase = Math.max(0, _grausQuerBase - _grausPodeBase);
+
             // Step 2: apply graus on top
-            const rawIdx = baseIdx + totalGraus + flageloGrauPuro;
+            const rawIdx = baseIdx + _grausPodeBase;
             const finalIdx = Math.max(0, Math.min(rawIdx, DAMAGE_TABLE.length - 1));
             // rev. Manual 2.0: ao ultrapassar o fim da tabela (20d20), cada grau excedente vira +5 de dano fixo
             const overflowSteps = Math.max(0, rawIdx - (DAMAGE_TABLE.length - 1));
             const overflowBonus = overflowSteps * DAMAGE_OVERFLOW_STEP;
-            let finalDice = afterDadoNote && (totalGraus + flageloGrauPuro) === 0 ? afterDadoNote : DAMAGE_TABLE[finalIdx];
+            let finalDice = afterDadoNote && _grausPodeBase === 0 ? afterDadoNote : DAMAGE_TABLE[finalIdx];
             if (overflowBonus > 0) finalDice = finalDice + '+' + overflowBonus;
             _hatsuFinalDice = finalDice;
             // Build info breakdown for popup
             const _danoInfo = [{ l: 'Base', v: _baseLabel, c: '#9ca3af' }];
+            if (_grausEsperaBase > 0) {
+                _danoInfo.push({
+                    l: 'Teto do nível',
+                    v: 'máx. ' + DAMAGE_TABLE[Math.min(baseIdx + Math.max(0, _tetoDanoBase - 1), DAMAGE_TABLE.length - 1)]
+                        + ' — ' + _grausEsperaBase + ' grau(s) em espera',
+                    c: '#fbbf24',
+                });
+            }
             if (!isPuroFlagelo && !_temDanoFocal) {
                 _danoInfo.push({ l: 'Sem Dano/Cura Focal', v: 'compre o efeito (ou Forjar Arma) para partir de 2d6', c: '#fbbf24' });
             }
@@ -1189,8 +1215,11 @@ function renderHatsuDetail(container) {
                     : Infinity;
                 if (_esc.tipo === 'dado') {
                     // Cada cópia extra vale 1 degrau na tabela, e 1 grau contra o teto.
+                    // O teto conta o dado base como primeiro degrau, então dá para subir
+                    // (teto − 1) degraus — mesma contagem do dano principal.
                     const degrausQuer = copias - 1;
-                    const degrausPode = (_tetoDano === Infinity) ? degrausQuer : Math.min(degrausQuer, _tetoDano);
+                    const _tetoPassos = (_tetoDano === Infinity) ? Infinity : Math.max(0, _tetoDano - 1);
+                    const degrausPode = (_tetoPassos === Infinity) ? degrausQuer : Math.min(degrausQuer, _tetoPassos);
                     const bIdx = DAMAGE_TABLE.indexOf(_esc.base);
                     if (bIdx >= 0) {
                         displayDado = DAMAGE_TABLE[Math.min(bIdx + degrausPode, DAMAGE_TABLE.length - 1)];
