@@ -2055,16 +2055,28 @@
         function setRollMode(mode) { state.rollMode = mode; render(true); }
         function updateSheetAttr(key, delta) {
             const char = state.currentChar;
-            const pending = char.pendingAttrPoints;
+            // ── Pontos de atributo pendentes ────────────────────────────────────────────
+            // O campo pendingAttrPoints NÃO é criado na ficha nova: ele só passa a existir
+            // quando o personagem sobe de nível e ganha pontos. Antes, o controle inteiro
+            // ficava dentro de "if (pending !== undefined && pending !== null)" — ou seja,
+            // numa ficha onde o campo ainda não existia, a verificação era PULADA e o
+            // atributo subia sem limite nenhum, a cada clique.
+            //
+            // Agora um campo ausente vale ZERO ponto pendente, que é o correto: quem não
+            // ganhou ponto não tem ponto para gastar.
+            const pending = (char.pendingAttrPoints === undefined || char.pendingAttrPoints === null)
+                ? 0
+                : char.pendingAttrPoints;
             if (delta > 0) {
-                if (pending !== undefined && pending !== null) {
-                    if (pending <= 0 && !state.isAdmin) {
-                        window._showXpToast('⚠️ Sem pontos de atributo para distribuir!');
-                        return;
-                    }
-                    char.pendingAttrPoints = Math.max(0, pending - 1);
+                if (pending <= 0 && !state.isAdmin) {
+                    window._showXpToast('⚠️ Sem pontos de atributo para distribuir!');
+                    return;
                 }
-            } else if (delta < 0 && pending !== undefined && pending !== null) {
+                // Admin pode corrigir fichas e montar NPC sem gastar pontos.
+                if (!state.isAdmin || pending > 0) char.pendingAttrPoints = Math.max(0, pending - 1);
+            } else if (delta < 0) {
+                // Devolver o ponto só faz sentido até o valor inicial do atributo; abaixo
+                // disso o jogador estaria "criando" pontos ao rebaixar o que nunca subiu.
                 char.pendingAttrPoints = pending + 1;
             }
             char.attributes[key].value += delta;
