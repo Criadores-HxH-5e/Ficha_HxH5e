@@ -588,7 +588,13 @@ function renderHatsuCreator(container) {
                     : `❌ Requisito não atendido\\n\\n${blockReason}\\n\\nReq. original: ${item.req}`;
                 clickAction = `alert('${msg.replace(/'/g, "\\'")}')`;
             } else if (!afford) {
-                clickAction = 'void(0)';
+                // Antes o clique era void(0): o card simplesmente não respondia, sem dizer
+                // nada. O jogador achava que o app estava travado ("abre mas não deixa
+                // adicionar efeito"). Agora explica quanto custa e quanto sobrou.
+                const _msgPn = `💠 P.N insuficiente\\n\\nEste efeito custa ${item.pn} P.N e você tem ${pnLeft} disponível(is) neste Hatsu.\\n\\n`
+                    + `Base: ${pnBaseLeft} · Restrições: ${pnBonusLeft}\\n\\n`
+                    + `Lembre: o P.N das restrições vale só neste Hatsu, e o P.N base é dividido com os Princípios de Nen e os outros Hatsus.`;
+                clickAction = `alert('${_msgPn.replace(/'/g, "\\'")}')`;
             } else {
                 // Sem extrema pura: toggle normal (sem duplicatas no mesmo nível)
                 clickAction = `window._hToggleE('${item.id}','${tipo}',${item.pn})`;
@@ -3135,7 +3141,10 @@ window._hSetTag = function (tagId) {
         const char = state.currentChar || {};
         const jaExistentes = (char.hatsus || []).length;
         // Editando um Hatsu existente, ele não conta duas vezes.
-        const editando = hb.editIdx != null && hb.editIdx >= 0;
+        // O builder grava o índice em editingIdx (ver openHatsuEdit em js/init.js).
+        // Eu havia escrito editIdx, então ao EDITAR o próprio Hatsu era contado duas vezes
+        // e a trava disparava com só um Hatsu existente.
+        const editando = hb.editingIdx != null && hb.editingIdx >= 0;
         const totalComEste = editando ? jaExistentes : jaExistentes + 1;
         if (totalComEste > 2) {
             alert('🏷 ' + def.nome + '\n\n' + (window.HATSU_TAG_AVISO || ''));

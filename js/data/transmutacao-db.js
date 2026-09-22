@@ -192,16 +192,21 @@
     ]
 };
 
+// P.N acumulado por nível — tabela "XP: Sobreviver, Evoluir e Caçar" (livro v2.0).
+// Ganho por nível: 6 no 1º, +2 do 2º ao 5º, +3 do 6º ao 12º.
+//
+// Os valores do 6 ao 12 estavam TODOS 10 pontos abaixo do livro, e o nível 6 chegava a
+// ser MENOR que o 5 (7 contra 14): o personagem perdia metade do P.N ao subir de nível.
 window.calcularPHBase = function(level) {
     const lvl = parseInt(level) || 1;
-    if (lvl >= 12) return 25;  // 6+2+2+2+2+3+3+3+1 (aprox)
-    if (lvl >= 11) return 22;
-    if (lvl >= 10) return 19;
-    if (lvl >= 9)  return 16;
-    if (lvl >= 8)  return 13;
-    if (lvl >= 7)  return 10;
-    if (lvl >= 6)  return 7;
-    if (lvl >= 5)  return 14; // nível 5 = 6+2+2+2+2 = 14
+    if (lvl >= 12) return 35;  // 6 +2+2+2+2 +3+3+3+3+3+3+3
+    if (lvl >= 11) return 32;
+    if (lvl >= 10) return 29;
+    if (lvl >= 9)  return 26;
+    if (lvl >= 8)  return 23;
+    if (lvl >= 7)  return 20;
+    if (lvl >= 6)  return 17;
+    if (lvl >= 5)  return 14; // 6+2+2+2+2
     if (lvl >= 4)  return 12;
     if (lvl >= 3)  return 10;
     if (lvl >= 2)  return 8;
