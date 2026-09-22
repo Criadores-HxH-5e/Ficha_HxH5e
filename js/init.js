@@ -27,6 +27,18 @@ function openHatsuEdit(idx) {
         specialChoices: {...(h.specialChoices||{})},
         efeitoNiveis: JSON.parse(JSON.stringify(h.efeitoNiveis||{})),
         juramentoImutavelNivelBase: h.juramentoImutavelNivelBase != null ? h.juramentoImutavelNivelBase : undefined,
+        // Campos das tags P/M/E/B. Sem eles a edição APAGAVA a tag e todo o conteúdo de
+        // Maldição, Exorcismo e Besta: ao salvar, tag voltava para 'P' e os dados sumiam.
+        tag: h.tag || 'P',
+        em: [].concat(h.efeitosMaldicao || []),
+        temporizador: h.temporizador || '',
+        maldicaoPositiva: !!h.maldicaoPositiva,
+        reqMaldicao: {...(h.reqMaldicao || {})},
+        ex: [].concat(h.efeitosExorcismo || []),
+        be: [].concat(h.efeitosBesta || []),
+        bestaCategoria: h.bestaCategoria || '',
+        bestaManifestacao: h.bestaManifestacao || '',
+        bestaLendario: h.bestaLendario || '',
         editingIdx: idx
     };
     state.view = 'HATSU_CREATOR';
