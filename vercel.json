@@ -1,5 +1,19 @@
 {
   "rewrites": [
     { "source": "/", "destination": "/HxH5e.html" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)\\.(js|html|css)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/(.*)\\.(png|jpg|jpeg|gif|svg|webp|woff|woff2|ttf|ico)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=604800" }
+      ]
+    }
   ]
 }
