@@ -4,14 +4,12 @@
   ],
   "headers": [
     {
-      "//": "Os arquivos de codigo e o HTML sao carregados por nome fixo, sem versao na URL. Sem cabecalho de cache, o navegador podia servir uma copia guardada por muito tempo, e o jogador continuava com a versao antiga depois de um deploy — o classico 'para mim funciona'. no-cache NAO desliga o cache: obriga o navegador a confirmar com o servidor se o arquivo mudou antes de usar a copia local, o que mantem o carregamento rapido e garante que a correcao chegue.",
       "source": "/(.*)\\.(js|html|css)",
       "headers": [
         { "key": "Cache-Control", "value": "no-cache, must-revalidate" }
       ]
     },
     {
-      "//": "Imagens e fontes podem ser guardadas por muito tempo: elas mudam de nome quando mudam de conteudo.",
       "source": "/(.*)\\.(png|jpg|jpeg|gif|svg|webp|woff|woff2|ttf|ico)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=604800" }
