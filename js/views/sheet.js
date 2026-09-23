@@ -1079,16 +1079,61 @@
 
         // Compra/ajuste de um Princípio de Nen, validando o P.N disponível.
         // Subir um nível custa a diferença; descer devolve e é sempre permitido.
+        // P.N livre do personagem: total do nível menos o gasto em Princípios e Hatsus.
+        window._pnLivreDoPersonagem = function (char) {
+            const pnTotal = window.calcularPHBase ? window.calcularPHBase(char.level) : 6;
+            const pnDominio = window.calcPNSpentInDominio ? window.calcPNSpentInDominio(char) : 0;
+            const pnHatsu = (char.hatsus || []).reduce(function (s, h) { return s + (h.pnUsados || 0); }, 0);
+            return pnTotal - pnDominio - pnHatsu;
+        };
+
         window._comprarPrincipio = function (key, val) {
             const char = state.currentChar;
             if (!char.nenDominio) char.nenDominio = {};
+
+            // Os Princípios Avançados (EN, IN, GYO, SHU, KEN, KO, RYU) e o nível Superior
+            // são gravados como BOOLEANO (true/false), não como número de nível — só os
+            // Fundamentais (TEN, REN, ZETSU) usam 0..3.
+            //
+            // A validação que eu escrevi convertia tudo com parseInt. Para os avançados,
+            // parseInt(true) dá NaN e caía no "|| 0", então comprar gravava 0: o botão
+            // respondia, o P.N não era cobrado e o princípio simplesmente não ligava.
+            // Por isso os Fundamentais funcionavam e as Técnicas não.
+            if (typeof val === 'boolean') {
+                if (val) {
+                    const livre = window._pnLivreDoPersonagem(char);
+                    if (livre < 1) {
+                        alert('P.N insuficiente\n\nEste avanço custa 1 P.N e você tem ' + Math.max(0, livre) + ' livre(s).\n\n'
+                            + 'Lembre: o P.N concedido por restrições vale apenas dentro do Hatsu e não pode ser usado em Princípios de Nen.');
+                        return;
+                    }
+                }
+                char.nenDominio[key] = val;
+                saveCharacter(char);
+                render(true);
+                return;
+            }
+
+            // ── Chaves que NÃO custam P.N ───────────────────────────────────────────
+            // "_opcao" é uma ESCOLHA entre dois benefícios do mesmo aprimoramento já pago
+            // (ex.: EN — menos reações OU mais alcance). Trocar de opção não compra nada.
+            // Como a validação compara o valor novo com o antigo, ir da opção 1 para a 2
+            // era lido como "subiu 1 nível" e cobrava 1 P.N — chegando a bloquear a troca
+            // quando o pool estava esgotado.
+            if (/_opcao$/.test(key)) {
+                char.nenDominio[key] = parseInt(val) || 1;
+                saveCharacter(char);
+                render(true);
+                return;
+            }
+
+            // "_pn" é o Aprimoramento: P.N extra investido depois da Maestria (Fundamentais,
+            // até 7) ou do Superior (Avançados, até 8). Somado ao desbloqueio, cada princípio
+            // aceita no máximo 10 P.N. Aqui ele é número e segue o caminho normal de custo.
             const atual = parseInt(char.nenDominio[key]) || 0;
             const novo = parseInt(val) || 0;
             if (novo > atual) {
-                const pnTotal = window.calcularPHBase ? window.calcularPHBase(char.level) : 6;
-                const pnDominio = window.calcPNSpentInDominio ? window.calcPNSpentInDominio(char) : 0;
-                const pnHatsu = (char.hatsus || []).reduce(function (s, h) { return s + (h.pnUsados || 0); }, 0);
-                const livre = pnTotal - pnDominio - pnHatsu;
+                const livre = window._pnLivreDoPersonagem(char);
                 const custo = novo - atual;
                 if (custo > livre) {
                     alert('P.N insuficiente\n\n'
