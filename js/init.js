@@ -395,7 +395,11 @@ function closeHatsuCreator() {
             // já deram à mesma característica (ex: Distância Segura, Interação Sensorial Simples).
             // O teto por característica (calcMaxGrauPorCaracteristica: +5 nas peculiaridades da
             // categoria, mesmo em nível 1-2) é sobre o TOTAL combinado, não sobre este pool isolado.
-            const TRACKED_KEYS = ['dano', 'alcance', 'area', 'duracao', 'acerto', 'cd'];
+            // Todas as características agora são rastreadas. Atributos, Redução de Custo e
+            // Número de Alvos entram sem teto — a regra não define limite para elas —, mas
+            // o grau investido aparece no painel e conta nos cálculos.
+            const TRACKED_KEYS = ['dano', 'alcance', 'area', 'duracao', 'acerto', 'cd',
+                                  'atributos', 'custo', 'alvos'];
             const baseShim = Object.assign({}, h, { primeiroHatsuGraus: null });
             const baseTotals = window.calcGrausPotenciaPorCaracteristica ? window.calcGrausPotenciaPorCaracteristica(baseShim, char.level) : {};
             const grauMaxByKey = {};

@@ -2269,7 +2269,7 @@
         const LEVEL_REWARDS = {
             1:  { titulo: 'Batismo & Despertar',          attr: 1, auraP: 5,  pn: 6, pi: 0, prof: 0, extras: ['Criação de Hatsu(s) e Domínio de Nen'] },
             2:  { titulo: 'Inclinações & Proficiências',  attr: 0, auraP: 0,  pn: 2, pi: 2, prof: 0, extras: ['Inclinações de Combate/Gerais', 'Proficiência em Armas e Equipamentos'] },
-            3:  { titulo: 'Eficiência de Aura 1',         attr: 2, auraP: 5,  pn: 2, pi: 0, prof: 0, extras: ['Eficiência de Aura 1'] },
+            3:  { titulo: 'Eficiência de Aura 1',         attr: 2, auraP: 10, pn: 2, pi: 0, prof: 0, extras: ['Eficiência de Aura 1'] },
             4:  { titulo: 'Foco de Caça & Renome',        attr: 0, auraP: 0,  pn: 2, pi: 3, prof: 0, extras: ['Foco de Caça', 'Renome', 'Inclinações de Combate/Gerais'] },
             5:  { titulo: '+1 Proficiência',               attr: 0, auraP: 0,  pn: 2, pi: 0, prof: 1, extras: ['+1 Ponto de Proficiência'] },
             6:  { titulo: 'Evolução de Atributos',         attr: 2, auraP: 10, pn: 3, pi: 0, prof: 0, extras: ['Aumento de Atributo ou Aura'] },
