@@ -2112,6 +2112,14 @@
             const pending = (char.pendingAttrPoints === undefined || char.pendingAttrPoints === null)
                 ? 0
                 : char.pendingAttrPoints;
+            // ── Quanto já foi ALOCADO em cada atributo depois da criação ────────────────
+            // A devolução era incondicional: baixar qualquer atributo gerava 1 ponto. Dava
+            // para rebaixar um atributo que nunca foi aumentado — inclusive abaixo do valor
+            // de criação — e FABRICAR pontos, que depois iam para CON antes de rolar o PV.
+            // Agora só se devolve o que foi alocado aqui, atributo por atributo.
+            if (!char.attrAlocados) char.attrAlocados = {};
+            const alocado = parseInt(char.attrAlocados[key]) || 0;
+
             if (delta > 0) {
                 if (pending <= 0 && !state.isAdmin) {
                     window._showXpToast('⚠️ Sem pontos de atributo para distribuir!');
@@ -2119,10 +2127,16 @@
                 }
                 // Admin pode corrigir fichas e montar NPC sem gastar pontos.
                 if (!state.isAdmin || pending > 0) char.pendingAttrPoints = Math.max(0, pending - 1);
+                char.attrAlocados[key] = alocado + 1;
             } else if (delta < 0) {
-                // Devolver o ponto só faz sentido até o valor inicial do atributo; abaixo
-                // disso o jogador estaria "criando" pontos ao rebaixar o que nunca subiu.
-                char.pendingAttrPoints = pending + 1;
+                if (alocado <= 0 && !state.isAdmin) {
+                    window._showXpToast('⚠️ Nada a devolver: este atributo não foi aumentado por pontos.');
+                    return;
+                }
+                if (alocado > 0) {
+                    char.pendingAttrPoints = pending + 1;
+                    char.attrAlocados[key] = alocado - 1;
+                }
             }
             char.attributes[key].value += delta;
             saveCharacter(char);
