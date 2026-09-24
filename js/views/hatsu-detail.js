@@ -131,11 +131,11 @@ window.GRAU_ESCOLHA_PARA_CHAVE = {
     'Área': 'area',
     'Alcance/Área': 'alcance',
     'Duração': 'duracao',
-    // Sem teto rastreado: Redução de Custo, Atributos e Número de Alvos não entram
-    // na conta de Grau de Potência por característica.
-    'Redução de Custo': null,
-    'Atributos': null,
-    'Número de Alvos': null,
+    // Estas três não têm TETO, mas agora SÃO rastreadas: o grau investido nelas aparece
+    // nos painéis e recebe o piso da categoria e o +4 do Juramento Imutável.
+    'Redução de Custo': 'custo',
+    'Atributos': 'atributos',
+    'Número de Alvos': 'alvos',
 };
 
 // +1 DADO: aumenta a QUANTIDADE de dados (ex: 2d6 → 3d6), aplicado ANTES dos graus
@@ -215,22 +215,44 @@ window.CD_GRAU_MAP = {
     'rma_p1': 5, // +10% Aura por Rodada (Manipulação): +5 Grau/Passo na CD do TR
 };
 
-// Características de Grau de Potência afetadas por categoria (mesma lista de "Peculiaridades da
-// Categoria" usada em GRAUS_POR_CAT/js/init.js, restrita às 6 chaves rastreadas aqui).
+// Características de Grau de Potência por categoria — lista completa das "Peculiaridades
+// da Categoria" do manual, igual à de GRAUS_POR_CAT (js/init.js).
+//
+// Antes esta lista era RESTRITA às 6 características com teto rastreado, deixando de fora
+// Atributos, Redução de Custo e Número de Alvos. Isso tinha duas consequências: o piso de
+// +5 e o +4 do Juramento Imutável nunca chegavam nelas, e elas não apareciam em painel
+// nenhum. Agora as três são rastreadas — sem teto, porque a regra não define um para elas.
+//
+// Acerto saiu de Intensificação/Reforço junto com a mesma decisão tomada em
+// GRAU_OPCOES_POR_CATEGORIA: aumentar Atributos já melhora a jogada de ataque.
 window.CATEGORIA_CARACTERISTICAS_GRAU = {
-    'INTENSIFICAÇÃO': ['acerto', 'dano'],
-    'TRANSMUTAÇÃO':   ['area', 'dano'],
-    'MATERIALIZAÇÃO': ['alcance', 'area', 'duracao'],
-    'CONJURAÇÃO':     ['alcance', 'area', 'duracao'],
-    'ESPECIALIZAÇÃO': ['alcance', 'area', 'dano', 'duracao', 'cd'],
-    'MANIPULAÇÃO':    ['alcance', 'area', 'duracao', 'cd'],
-    'EMISSÃO':        ['acerto', 'alcance', 'area'],
+    'INTENSIFICAÇÃO': ['atributos', 'dano', 'custo'],
+    'REFORÇO':        ['atributos', 'dano', 'custo'],
+    'TRANSMUTAÇÃO':   ['area', 'dano', 'custo'],
+    'MATERIALIZAÇÃO': ['alcance', 'area', 'duracao', 'custo'],
+    'CONJURAÇÃO':     ['alcance', 'area', 'duracao', 'custo'],
+    'ESPECIALIZAÇÃO': ['alcance', 'area', 'dano', 'duracao', 'cd', 'custo'],
+    'MANIPULAÇÃO':    ['alcance', 'area', 'alvos', 'duracao', 'cd', 'custo'],
+    'EMISSÃO':        ['acerto', 'alcance', 'area', 'custo'],
+};
+
+// Características SEM teto: a regra não define limite para elas, então o Grau investido
+// vale inteiro e nenhum excedente fica "em espera".
+window.CARACTERISTICAS_SEM_TETO = ['atributos', 'custo', 'alvos'];
+
+// Rótulo legível de cada característica, usado nos painéis.
+window.CARACTERISTICA_LABEL = {
+    dano: 'Dano/Cura', alcance: 'Alcance', area: 'Área', duracao: 'Duração',
+    acerto: 'Acerto', cd: 'CD do TR',
+    atributos: 'Atributos', custo: 'Redução de Custo', alvos: 'Número de Alvos',
 };
 
 // Peculiaridades da Categoria: TODAS as características da lista acima (não só uma) já nascem com
 // piso de +5 no Grau de Potência, mesmo quando calcMaxGrauPorNivel ainda travaria em +3 (nível 1-2).
 // Fora dessas características (ou fora da categoria), vale o limite normal por nível.
 window.calcMaxGrauPorCaracteristica = function(charLevel, classe, caracteristica) {
+    // Atributos, Redução de Custo e Número de Alvos não têm teto definido na regra.
+    if ((window.CARACTERISTICAS_SEM_TETO || []).includes(caracteristica)) return Infinity;
     const base = window.calcMaxGrauPorNivel(charLevel);
     if (base === Infinity) return base;
     const peculiares = window.CATEGORIA_CARACTERISTICAS_GRAU[classe] || [];
@@ -249,7 +271,8 @@ window.calcJuramentoImutavelNivelAtivo = function(h) {
 // charLevel: nível ATUAL do personagem (necessário para resolver o Juramento Imutável, que só ativa
 // 3 níveis após ser adquirido). Se omitido, usa h.nivel (nível salvo do Hatsu) como aproximação.
 window.calcGrausPotenciaPorCaracteristica = function(h, charLevel) {
-    const totals = { dano: 0, alcance: 0, area: 0, duracao: 0, acerto: 0, cd: 0 };
+    const totals = { dano: 0, alcance: 0, area: 0, duracao: 0, acerto: 0, cd: 0,
+                     atributos: 0, custo: 0, alvos: 0 };
     if (!h) return totals;
     const allIds = [...(h.restricoes||[]), ...(h.efeitos||[])];
     const bc = h.beneficioChoices || {};
