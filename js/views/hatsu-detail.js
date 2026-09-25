@@ -436,6 +436,35 @@ window._checkJuramentoImutavelLevelUp = function(char, previousLevel) {
 // mesmo número para ativar o Hatsu sem abrir, então a regra vive aqui.
 // Constante = sem contagem: Relíquia Viva, Vínculo Sustentado, Concentração Total,
 // Canalizar com Concentração e Maldição (que tem temporizador próprio).
+// ── Extremas que mudam a ROLAGEM ────────────────────────────────────────────
+// Só valem quando o jogador fica com o BENEFÍCIO: marcando a restrição como pura,
+// ele trocou o efeito pelos 4 P.N e não recebe nada disto.
+//
+//  rg_e2 Condição Hostil — dados de dano MAXIMIZADOS (não rolados) e área dobrada
+//  rg_e8 Vida ou Morte   — só ativa com PV ou Sanidade abaixo de 10%; o dano conta
+//                          como crítico (dobra o resultado dos dados)
+window.hatsuDanoMaximizado = function (h) {
+    return (h.restricoes || []).includes('rg_e2') && !((h.pureRestrictions || {})['rg_e2']);
+};
+window.hatsuDanoCritico = function (h) {
+    return (h.restricoes || []).includes('rg_e8') && !((h.pureRestrictions || {})['rg_e8']);
+};
+// Requisito do Vida ou Morte: basta UMA das duas barras abaixo de 10%, o que vier
+// primeiro. Devolve { exige, liberado, motivo }.
+window.hatsuVidaOuMorte = function (h, char) {
+    if (!window.hatsuDanoCritico(h)) return { exige: false, liberado: true, motivo: '' };
+    const v = (char && char.vitals) || {};
+    const pvPct = (v.hpMax > 0) ? (v.hp / v.hpMax) * 100 : 100;
+    const sanPct = (v.sanMax > 0) ? (v.san / v.sanMax) * 100 : 100;
+    const lib = pvPct < 10 || sanPct < 10;
+    return {
+        exige: true, liberado: lib,
+        motivo: lib
+            ? ('Liberado: ' + (pvPct < 10 ? 'PV em ' + Math.round(pvPct) + '%' : 'Sanidade em ' + Math.round(sanPct) + '%'))
+            : ('Bloqueado: exige PV ou Sanidade abaixo de 10% (PV ' + Math.round(pvPct) + '% · SAN ' + Math.round(sanPct) + '%)'),
+    };
+};
+
 window.calcDuracaoHatsu = function (h, char) {
     if (!h) return { rodadas: 0, constante: false };
     const efeitos = h.efeitos || [];
@@ -1738,6 +1767,12 @@ function renderHatsuDetail(container) {
             const b = (CDB.RESTRICAO_PV || {})[id];
             if (b) { pvRestricoes += b; const rObj = restricoesSel.find(r => r.id === id); pvFontes.push({ nome: rObj ? rObj.nome : id, bonus: b }); }
         });
+        // rg_l14 Objeto Canalizador: "+2 CA ou +5 PV" — benefício de escolha que não
+        // estava ligado. Só conta a metade que o jogador escolheu.
+        if ((h.restricoes || []).includes('rg_l14')) {
+            const escL14 = String((h.beneficioChoices || {})['rg_l14'] || '').toLowerCase();
+            if (escL14.includes('pv')) { pvRestricoes += 5; pvFontes.push({ nome: 'Objeto Canalizador (PV)', bonus: 5 }); }
+        }
         const pvTotal = pvBase + pvEfeitos + pvRestricoes + robustezBonus;
 
         // ── CA ──
@@ -1761,6 +1796,10 @@ function renderHatsuDetail(container) {
             const b = (CDB.RESTRICAO_CA || {})[id];
             if (b) { caRestricoes += b; const rObj = restricoesSel.find(r => r.id === id); caFontes.push({ nome: rObj ? rObj.nome : id, bonus: b }); }
         });
+        if ((h.restricoes || []).includes('rg_l14')) {
+            const escL14ca = String((h.beneficioChoices || {})['rg_l14'] || '').toLowerCase();
+            if (escL14ca.includes('ca')) { caRestricoes += 2; caFontes.push({ nome: 'Objeto Canalizador (CA)', bonus: 2 }); }
+        }
         // rev. — regra homebrew do projeto: além do RAW (13 + INT do usuário), o CON distribuído no
         // constructo também soma na CA. Não conta quando a CA é null (material Gasoso não tem CA).
         const caConBonus = atributosDist.CON;
@@ -2018,6 +2057,10 @@ function renderHatsuDetail(container) {
         return v.includes('rodada') || v.includes('dura');
     };
     // +2 rodadas fixas, sem escolha
+    // Condição Hostil também DOBRA a área de efeito.
+    if (window.hatsuDanoMaximizado && window.hatsuDanoMaximizado(h)) {
+        areaBonus.push({ valor: null, fonte: 'Condição Hostil (área dobrada)', unidade: 'dobro' });
+    }
     if ((h.restricoes||[]).includes('rc_l3')) duracaoBonus.push({ valor: 2, fonte: 'Uma Invocação por Combate', unidade: 'rodada' });
     if ((h.restricoes||[]).includes('rma_l2')) duracaoBonus.push({ valor: 1, fonte: 'Dano Quebra o Efeito', unidade: 'rodada' });
     // Benefício de escolha: "+2 Rodadas ou −15% de aura"
@@ -2461,12 +2504,24 @@ function renderHatsuDetail(container) {
     const _barraAtivarHtml = (function () {
         if (!_ativoH) {
             const rod = _duracaoInfo.constante ? 'null' : (_duracaoInfo.rodadas || 0);
+            // Vida ou Morte: o botão fica vermelho e travado até PV ou Sanidade cair
+            // abaixo de 10%. A verificação é automática, sem o jogador declarar nada.
+            const _vm = window.hatsuVidaOuMorte ? window.hatsuVidaOuMorte(h, char) : { exige: false, liberado: true, motivo: '' };
+            if (_vm.exige && !_vm.liberado) {
+                return `<div style="margin:0 16px 12px;background:#7f1d1d22;border:1px solid #ef444455;border-radius:12px;padding:11px 13px;display:flex;align-items:center;gap:10px">
+                    <div style="flex:1;min-width:0">
+                        <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:10px;color:#f87171;text-transform:uppercase;letter-spacing:1px">🩸 Vida ou Morte</div>
+                        <div style="font-size:9px;color:#9ca3af;margin-top:2px">${_vm.motivo}</div>
+                    </div>
+                    <button disabled style="flex-shrink:0;padding:9px 14px;border-radius:9px;background:#374151;border:none;color:#6b7280;font-family:'Orbitron',sans-serif;font-weight:900;font-size:9px;text-transform:uppercase;cursor:not-allowed">Travado</button>
+                </div>`;
+            }
             return `<div class="aviso-tag-piscando" style="margin:0 16px 12px;background:${tc}15;border:1px solid ${tc}55;border-radius:12px;padding:11px 13px;display:flex;align-items:center;gap:10px">
                 <div style="flex:1;min-width:0">
                     <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:10px;color:${tc};text-transform:uppercase;letter-spacing:1px">Hatsu desativado</div>
                     <div style="font-size:9px;color:#6b7280;margin-top:2px">Duração: ${_duracaoInfo.texto}${_duracaoInfo.nota ? ' — ' + _duracaoInfo.nota : ''}</div>
                 </div>
-                <button onclick="window._ativarHatsu(${idx}, ${rod}, ${_duracaoInfo.constante})" style="flex-shrink:0;padding:9px 14px;border-radius:9px;background:${tc};border:none;color:#000;font-family:'Orbitron',sans-serif;font-weight:900;font-size:9px;text-transform:uppercase;letter-spacing:1px;cursor:pointer">⚡ Ativar</button>
+                <button onclick="window._abrirAtivacaoHatsu(${idx}, ${rod}, ${_duracaoInfo.constante})" style="flex-shrink:0;padding:9px 14px;border-radius:9px;background:${tc};border:none;color:#000;font-family:'Orbitron',sans-serif;font-weight:900;font-size:9px;text-transform:uppercase;letter-spacing:1px;cursor:pointer">⚡ Ativar</button>
             </div>`;
         }
         const restante = _ativoH.constante ? null : (_ativoH.rodadas || 0);

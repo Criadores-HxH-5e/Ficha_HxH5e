@@ -53,8 +53,15 @@ window.CONSTRUCTO_DB = {
     },
 
     // Bônus de restrições de conjuração relevantes para PV/CA
-    RESTRICAO_PV: { rc_p3: 10 },           // Sacrifício Ritual: +2 CA e +10 PV ao ser criada
-    RESTRICAO_CA: { rc_l1: 1, rc_p3: 2 },  // Vínculo de Alcance: +1 na CA / Sacrifício Ritual: +2 CA
+    RESTRICAO_PV: {
+        rc_p3: 10,   // Sacrifício Ritual — "+2 em CA e +10 PV ao ser criada"
+        rm_p3: 10,   // Componentes Materiais — mesmo benefício, não estava ligado
+    },           // Sacrifício Ritual: +2 CA e +10 PV ao ser criada
+    RESTRICAO_CA: {
+        rc_l1: 1,
+        rc_p3: 2,    // Sacrifício Ritual
+        rm_p3: 2,    // Componentes Materiais — mesmo benefício, não estava ligado
+    },  // Vínculo de Alcance: +1 na CA / Sacrifício Ritual: +2 CA
 
     // Valor ABSOLUTO (não cumulativo) por nº de vezes que a Característica foi escolhida.
     // Índice 0 = 1ª escolha, índice 1 = 2ª escolha, etc. Além do array, mantém o último valor.

@@ -965,16 +965,198 @@ function closeHatsuCreator() {
         // desconta de tudo que tem duração contada e desliga o que chegou a zero.
         // O que tem duração constante (Relíquia Viva, Vínculo Sustentado, Maldição pelo
         // temporizador) não entra na contagem e só sai no desligamento manual.
-        window._ativarHatsu = function (idx, rodadas, constante) {
+        // ── Ativação do Hatsu: agora PAGA a aura ────────────────────────────────────
+        // Rolar o Hatsu sempre descontou aura, mas o botão de ativar (criado junto com o
+        // contador de rodadas) só registrava o estado. Um Hatsu de suporte, sem rolagem,
+        // podia ficar ativo de graça.
+        //
+        // Regra: quem tem DURAÇÃO paga na ativação, e a rolagem seguinte não cobra de novo
+        // (ver _hatsuJaPago). Hatsu instantâneo não é ativado pelo botão — cada rolagem é
+        // uma ativação —, então para ele nada muda.
+        window._ativarHatsu = function (idx, rodadas, constante, extras) {
             const char = state.currentChar;
+            const h = (char.hatsus || [])[idx];
+            const custoBase = (h && window.calcHatsuAuraCostFinal)
+                ? (window.calcHatsuAuraCostFinal(h, idx).pct || 0) : 0;
+            const custoExtra = (extras && parseInt(extras.auraExtra)) || 0;
+            const custo = custoBase + custoExtra;
+            const aura = char.vitals.aura || 0;
+            if (custo > 0 && aura < custo) {
+                alert('Aura insuficiente\n\nAtivar este Hatsu custa ' + custo + '%'
+                    + (custoExtra ? ' (' + custoBase + '% + ' + custoExtra + '% extra)' : '')
+                    + ' e você tem ' + aura + '%.');
+                return false;
+            }
+            if (custo > 0) char.vitals.aura = Math.max(0, aura - custo);
+
             if (!char.hatsusAtivos) char.hatsusAtivos = {};
             char.hatsusAtivos[idx] = {
                 constante: !!constante,
                 rodadas: constante ? null : Math.max(0, parseInt(rodadas) || 0),
                 max: constante ? null : Math.max(0, parseInt(rodadas) || 0),
+                auraPaga: custo,
+                // Benefícios variáveis escolhidos na ativação (ver _abrirAtivacaoHatsu).
+                extras: extras || null,
             };
             saveCharacter(char);
             render(true);
+            if (custo > 0 && window._showXpToast) {
+                window._showXpToast('⚡ Hatsu ativado — ' + custo + '% de aura'
+                    + (custoExtra ? ' (inclui ' + custoExtra + '% extra)' : ''));
+            }
+            return true;
+        };
+
+        // ── Restrições com benefício VARIÁVEL, decidido na ativação ─────────────────
+        // Estas restrições dão um benefício proporcional a algo que o jogador escolhe na
+        // hora de usar. O balão de ativação pergunta e aplica, respeitando o teto do nível.
+        //   rg_v11 Cálculo Pensado Variável 1 — +1 por 10% de aura A MAIS gastos
+        //   rg_v13 Cálculo Pensado Variável 3 — troca graus de uma característica por outra
+        //   rg_v9  Troca Perigosa — reações consumidas viram aura (1:1) ou alvos (2:1)
+        //   rg_p13 Zetsu Penalizante — só avisa a troca; o efeito é narrado na mesa
+        window.RESTR_ATIVACAO = {
+            rg_v11: { tipo: 'aura10',   nome: 'Cálculo Pensado Variável 1' },
+            rg_v13: { tipo: 'trocaGrau', nome: 'Cálculo Pensado Variável 3' },
+            rg_v9:  { tipo: 'reacoes',  nome: 'Troca Perigosa (Reações)' },
+            rg_p13: { tipo: 'aviso',    nome: 'Zetsu Penalizante' },
+        };
+
+        // Abre o balão de ativação quando o Hatsu tem alguma dessas restrições; se não
+        // tiver, ativa direto. Pura não entra: o jogador trocou o benefício por P.N.
+        window._abrirAtivacaoHatsu = function (idx, rodadas, constante) {
+            const char = state.currentChar;
+            const h = (char.hatsus || [])[idx];
+            if (!h) return;
+            const puras = h.pureRestrictions || {};
+            const comBalao = (h.restricoes || []).filter(function (id) {
+                return window.RESTR_ATIVACAO[id] && !puras[id];
+            });
+            if (!comBalao.length) { window._ativarHatsu(idx, rodadas, constante); return; }
+
+            const tc = getComputedStyle(document.documentElement).getPropertyValue('--theme-color-hex').trim() || '#00ff9d';
+            const custoBase = window.calcHatsuAuraCostFinal ? (window.calcHatsuAuraCostFinal(h, idx).pct || 0) : 0;
+            const tetoGrau = window.calcMaxGrauPorNivel ? window.calcMaxGrauPorNivel(char.level) : 5;
+            const reaMax = window.calcReacoesMax ? window.calcReacoesMax(char) : 7;
+            const reaAtual = (char.vitals.rea !== undefined) ? char.vitals.rea : reaMax;
+
+            window._ativState = { auraExtra: 0, graus: 0, reacoes: 0, grauDe: '' };
+
+            let blocos = '';
+            comBalao.forEach(function (id) {
+                const def = window.RESTR_ATIVACAO[id];
+                const escolha = String((h.beneficioChoices || {})[id] || '');
+                if (def.tipo === 'aura10') {
+                    blocos += _ativBloco('auraExtra', 10,
+                        'Quanto de aura A MAIS irá gastar?',
+                        def.nome + ' — cada 10% dá +1 em ' + (escolha || 'seu benefício')
+                            + (tetoGrau !== Infinity ? ' (teto do nível: ' + tetoGrau + ')' : ''));
+                } else if (def.tipo === 'trocaGrau') {
+                    blocos += _ativBloco('graus', 1,
+                        'Quantos Graus de Potência irá reduzir?',
+                        def.nome + ' — cada grau removido vira +1 em ' + (escolha || 'seu benefício'));
+                } else if (def.tipo === 'reacoes') {
+                    blocos += _ativBloco('reacoes', 1,
+                        'Quantas Reações irá consumir?',
+                        def.nome + ' — 1 reação = −5% de aura · 2 reações = +1 alvo. Você tem ' + reaAtual + '.');
+                } else if (def.tipo === 'aviso') {
+                    blocos += '<div style="background:#f9731615;border:1px solid #f9731644;border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:9px;color:#fb923c;line-height:1.55">'
+                        + '⚠ <b>' + def.nome + '</b><br>Você pode reduzir o TR dos alvos em até <b>' + tetoGrau + '</b> (teto de Grau do seu nível), '
+                        + 'mas em troca fica em <b>Zetsu</b> por horas correspondentes à duração <b>ou</b> até o fim de uma batalha contra mais alvos — o que durar mais.</div>';
+                }
+            });
+
+            const ov = document.createElement('div');
+            ov.id = 'ativ-hatsu-overlay';
+            ov.style.cssText = 'position:fixed;inset:0;background:#000000ee;display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;font-family:Rajdhani,sans-serif';
+            ov.innerHTML = '<div style="background:#0d1117;border:2px solid ' + tc + ';border-radius:20px;padding:20px;width:100%;max-width:400px;max-height:86vh;overflow-y:auto">'
+                + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:12px;color:' + tc + ';text-transform:uppercase;letter-spacing:2px;margin-bottom:4px">⚡ Ativar ' + (h.nome || 'Hatsu') + '</div>'
+                + '<div style="font-size:9px;color:#6b7280;margin-bottom:12px">Custo base: <b style="color:' + tc + '">' + custoBase + '%</b> de aura</div>'
+                + blocos
+                + '<div id="ativ-resumo" style="text-align:center;font-size:10px;color:#9ca3af;margin:10px 0;min-height:18px"></div>'
+                + '<div style="display:flex;gap:8px">'
+                + '<button onclick="document.getElementById(\'ativ-hatsu-overlay\').remove()" style="flex:1;padding:11px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Cancelar</button>'
+                + '<button onclick="window._ativConfirmar(' + idx + ',' + (constante ? 'null' : (parseInt(rodadas) || 0)) + ',' + !!constante + ')" style="flex:2;padding:11px;border-radius:10px;background:' + tc + ';border:none;color:#000;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Ativar</button>'
+                + '</div></div>';
+            document.body.appendChild(ov);
+            window._ativAtualizar(custoBase, reaAtual, tetoGrau);
+        };
+
+        function _ativBloco(campo, passo, titulo, sub) {
+            return '<div style="background:#0f1117;border:1px solid #1f2937;border-radius:11px;padding:11px;margin-bottom:8px">'
+                + '<div style="font-size:10px;font-weight:700;color:#d1d5db;margin-bottom:3px">' + titulo + '</div>'
+                + '<div style="font-size:8px;color:#6b7280;margin-bottom:8px;line-height:1.45">' + sub + '</div>'
+                + '<div style="display:flex;align-items:center;gap:10px;justify-content:center">'
+                + '<button onclick="window._ativMudar(\'' + campo + '\',-' + passo + ')" style="width:34px;height:34px;border-radius:9px;background:#1f2937;border:1px solid #374151;color:#d1d5db;font-size:16px;font-weight:900;cursor:pointer">−</button>'
+                + '<div id="ativ-val-' + campo + '" style="min-width:56px;text-align:center;font-family:Orbitron,sans-serif;font-weight:900;font-size:17px;color:#fff">0</div>'
+                + '<button onclick="window._ativMudar(\'' + campo + '\',' + passo + ')" style="width:34px;height:34px;border-radius:9px;background:#1f2937;border:1px solid #374151;color:#d1d5db;font-size:16px;font-weight:900;cursor:pointer">+</button>'
+                + '</div></div>';
+        }
+
+        // Ajusta um dos contadores do balão, respeitando os limites de cada um.
+        window._ativMudar = function (campo, delta) {
+            const s = window._ativState; if (!s) return;
+            const char = state.currentChar;
+            const h = (char.hatsus || [])[state.hatsuDetailIdx];
+            const tetoGrau = window.calcMaxGrauPorNivel ? window.calcMaxGrauPorNivel(char.level) : 5;
+            const reaMax = window.calcReacoesMax ? window.calcReacoesMax(char) : 7;
+            const reaAtual = (char.vitals.rea !== undefined) ? char.vitals.rea : reaMax;
+            const custoBase = (h && window.calcHatsuAuraCostFinal) ? (window.calcHatsuAuraCostFinal(h, state.hatsuDetailIdx).pct || 0) : 0;
+
+            let v = (s[campo] || 0) + delta;
+            if (v < 0) v = 0;
+            if (campo === 'auraExtra') {
+                // Teto duplo: o grau ganho não passa do teto do nível, e não dá para
+                // gastar mais aura do que se tem.
+                const maxPorTeto = (tetoGrau === Infinity) ? 999 : tetoGrau * 10;
+                const maxPorAura = Math.max(0, (char.vitals.aura || 0) - custoBase);
+                v = Math.min(v, maxPorTeto, Math.floor(maxPorAura / 10) * 10);
+            }
+            if (campo === 'graus' && tetoGrau !== Infinity) v = Math.min(v, tetoGrau);
+            if (campo === 'reacoes') v = Math.min(v, reaAtual);
+            s[campo] = v;
+            const el = document.getElementById('ativ-val-' + campo);
+            if (el) el.textContent = (campo === 'auraExtra') ? (v + '%') : v;
+            window._ativAtualizar(custoBase, reaAtual, tetoGrau);
+        };
+
+        // Resumo do que a ativação vai custar e conceder.
+        window._ativAtualizar = function (custoBase, reaAtual, tetoGrau) {
+            const s = window._ativState; if (!s) return;
+            const el = document.getElementById('ativ-resumo'); if (!el) return;
+            // Troca Perigosa: cada reação vale −5% de aura; a cada 2, +1 alvo.
+            const descontoReacoes = (s.reacoes || 0) * 5;
+            const custoFinal = Math.max(0, custoBase + (s.auraExtra || 0) - descontoReacoes);
+            const partes = ['Custo final: <b style="color:#fff">' + custoFinal + '%</b>'];
+            if (s.auraExtra > 0) partes.push('+' + Math.floor(s.auraExtra / 10) + ' de benefício');
+            if (s.graus > 0) partes.push('+' + s.graus + ' trocado(s)');
+            if (s.reacoes > 0) partes.push(s.reacoes + ' reação(ões) · +' + Math.floor(s.reacoes / 2) + ' alvo(s)');
+            el.innerHTML = partes.join(' &nbsp;·&nbsp; ');
+        };
+
+        window._ativConfirmar = function (idx, rodadas, constante) {
+            const s = window._ativState || {};
+            const char = state.currentChar;
+            // Consome as reações trocadas de verdade.
+            if (s.reacoes > 0) {
+                const reaMax = window.calcReacoesMax ? window.calcReacoesMax(char) : 7;
+                const atual = (char.vitals.rea !== undefined) ? char.vitals.rea : reaMax;
+                char.vitals.rea = Math.max(0, atual - s.reacoes);
+            }
+            const extras = {
+                auraExtra: Math.max(0, (s.auraExtra || 0) - (s.reacoes || 0) * 5),
+                bonusVariavel: Math.floor((s.auraExtra || 0) / 10) + (s.graus || 0),
+                grausTrocados: s.graus || 0,
+                reacoes: s.reacoes || 0,
+                alvosExtra: Math.floor((s.reacoes || 0) / 2),
+            };
+            const ok = window._ativarHatsu(idx, rodadas, constante, extras);
+            if (ok !== false) document.getElementById('ativ-hatsu-overlay')?.remove();
+        };
+
+        // A rolagem não cobra de novo quando o Hatsu já está ativo e pagou.
+        window._hatsuJaPago = function (char, idx) {
+            const a = ((char || {}).hatsusAtivos || {})[idx];
+            return !!(a && a.auraPaga > 0);
         };
 
         // Ativar direto da aba Ficha, sem abrir o Hatsu. A duração vem da mesma regra
@@ -984,7 +1166,9 @@ function closeHatsuCreator() {
             const h = (char.hatsus || [])[idx];
             if (!h) return;
             const info = window.calcDuracaoHatsu ? window.calcDuracaoHatsu(h, char) : { rodadas: 0, constante: false };
-            window._ativarHatsu(idx, info.rodadas, info.constante);
+            // Passa pelo balão: ele decide se pergunta algo ou ativa direto.
+            state.hatsuDetailIdx = idx;
+            window._abrirAtivacaoHatsu(idx, info.rodadas, info.constante);
         };
 
         window._desativarHatsu = function (idx) {
