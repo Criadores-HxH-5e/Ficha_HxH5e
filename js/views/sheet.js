@@ -2294,8 +2294,24 @@
             saveCharacter(char);
             render(true);
 
-            if (levelsToProcess.length > 0) {
-                window._processLevelQueue(levelsToProcess, 0, xpMultiplier > 1, finalGained);
+            // Níveis já celebrados não disparam o modal de novo. Sem isso, o admin que
+            // baixa o nível para corrigir uma ficha e depois sobe de novo recebia todas as
+            // recompensas outra vez — pontos de atributo, P.N, aura e PV em dobro.
+            const jaCelebrado = parseInt(char.nivelMaxCelebrado) || 0;
+            const novos = levelsToProcess.filter(function (lv) { return lv > jaCelebrado; });
+            const repetidos = levelsToProcess.length - novos.length;
+            if (repetidos > 0) {
+                window._showXpToast('↩️ ' + repetidos + ' nível(is) já celebrado(s) — recompensas não repetidas.');
+            }
+            if (novos.length > 0) {
+                char.nivelMaxCelebrado = Math.max(jaCelebrado, novos[novos.length - 1]);
+                saveCharacter(char);
+                window._processLevelQueue(novos, 0, xpMultiplier > 1, finalGained);
+            } else if (levelsToProcess.length > 0) {
+                // Subiu de nível, mas todos já tinham sido celebrados: aplica só o nível.
+                char.level = levelsToProcess[levelsToProcess.length - 1];
+                saveCharacter(char);
+                render(true);
             } else {
                 if (xpMultiplier > 1) window._showXpToast(`+${finalGained} XP ${xpMultiplier === 2 ? '👑 (×2 Ultimate)' : '✨ (×1.5 Gênio)'}`);
                 else window._showXpToast(`+${finalGained} XP`);
@@ -2482,6 +2498,9 @@
                 // Aplica exatamente este nível (um por vez)
                 const _previousLevel = char.level;
                 char.level = targetLevel;
+                // Registra o nível celebrado, para não repetir as recompensas se o nível
+                // for reduzido pelo admin e subido de novo.
+                char.nivelMaxCelebrado = Math.max(parseInt(char.nivelMaxCelebrado) || 0, targetLevel);
                 if (window._checkJuramentoImutavelLevelUp) window._checkJuramentoImutavelLevelUp(char, _previousLevel);
                 if (isAttrChoice) {
                     if (overlay._attrChoice === 'aura') {
@@ -2994,6 +3013,9 @@
 
         function changeLevel(delta) {
             const char = state.currentChar;
+            // Fichas criadas antes deste controle não têm o registro. O nível em que já
+            // estão conta como celebrado, senão baixar e subir daria recompensa de novo.
+            if (char.nivelMaxCelebrado == null) char.nivelMaxCelebrado = parseInt(char.level) || 0;
             const newLevel = char.level + delta;
             if (newLevel < 0) return;
             if (delta > 0) {

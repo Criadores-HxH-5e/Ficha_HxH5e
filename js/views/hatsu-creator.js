@@ -502,11 +502,22 @@ function renderHatsuCreator(container) {
                 if (hasReforcoAccess) return { ok: true, reason: '', bypassedByReforco: true }; // bypass level cap too
             }
 
-            // Nível X — sempre verificado, mesmo com Kamikaze ativo
+            // Nível X — sempre verificado, mesmo com Kamikaze ativo.
+            //
+            // Usa o nível EFETIVO, não o cru: cada Restrição Extrema vale +2 níveis de
+            // acesso a efeitos. O acesso a OUTRAS categorias já considerava isso (via
+            // acessoMaxPorCategoria), mas a própria categoria não — então um nível 1 com
+            // Extrema enxergava efeitos nível 3 de outra categoria e não os da dele.
             const lvlMatch = req.match(/N[ií]vel\s+(\d+)/i);
             if (lvlMatch) {
                 const needed = parseInt(lvlMatch[1]);
-                if (charLevel < needed) reasons.push(`Nível ${needed} (você está no Nível ${charLevel})`);
+                const extremas = window.contarRestricoesExtremas ? window.contarRestricoesExtremas(hb) : 0;
+                const nivelEfetivo = Math.min(12, charLevel + extremas * 2);
+                if (nivelEfetivo < needed) {
+                    reasons.push(extremas > 0
+                        ? `Nível ${needed} (seu acesso é ${nivelEfetivo}: nível ${charLevel} + ${extremas * 2} por Restrição Extrema)`
+                        : `Nível ${needed} (você está no Nível ${charLevel})`);
+                }
             }
 
             // Kamikaze ignora todos os outros requisitos (atributos, pré-requisitos de efeitos), mas não o nível
