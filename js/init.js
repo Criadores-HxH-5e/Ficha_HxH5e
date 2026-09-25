@@ -1019,6 +1019,13 @@ function closeHatsuCreator() {
             rg_v13: { tipo: 'trocaGrau', nome: 'Cálculo Pensado Variável 3' },
             rg_v9:  { tipo: 'reacoes',  nome: 'Troca Perigosa (Reações)' },
             rg_p13: { tipo: 'aviso',    nome: 'Zetsu Penalizante' },
+            // O Hatsu DEPENDE de um princípio (TEN ou REN) para funcionar, e em troca
+            // esse princípio dura +2 rodadas. Pode ser pego mais de uma vez, para
+            // princípios diferentes — por isso o jogador escolhe qual no momento do uso.
+            rg_m14: { tipo: 'principio', nome: 'Princípio Elementar' },
+            // Par da anterior, para as Técnicas: o Hatsu depende de uma técnica avançada
+            // (EN, IN, GYO, SHU, KO ou RYU) e, em troca, ESSA TÉCNICA custa metade da aura.
+            rg_p14: { tipo: 'tecnica', nome: 'Técnica Elementar' },
         };
 
         // Abre o balão de ativação quando o Hatsu tem alguma dessas restrições; se não
@@ -1039,7 +1046,9 @@ function closeHatsuCreator() {
             const reaMax = window.calcReacoesMax ? window.calcReacoesMax(char) : 7;
             const reaAtual = (char.vitals.rea !== undefined) ? char.vitals.rea : reaMax;
 
-            window._ativState = { auraExtra: 0, graus: 0, reacoes: 0, grauDe: '' };
+            window._ativState = { auraExtra: 0, graus: 0, reacoes: 0, grauDe: '', principio: '', tecnica: '' };
+            // Guardados para o balão poder se redesenhar ao trocar o princípio escolhido.
+            window._ativIdx = idx; window._ativRod = rodadas; window._ativConst = constante;
 
             let blocos = '';
             comBalao.forEach(function (id) {
@@ -1058,6 +1067,42 @@ function closeHatsuCreator() {
                     blocos += _ativBloco('reacoes', 1,
                         'Quantas Reações irá consumir?',
                         def.nome + ' — 1 reação = −5% de aura · 2 reações = +1 alvo. Você tem ' + reaAtual + '.');
+                } else if (def.tipo === 'principio') {
+                    const escolhidoP = window._ativState.principio || '';
+                    const ativos = char.principiosAtivos || {};
+                    blocos += '<div style="background:#0f1117;border:1px solid #1f2937;border-radius:11px;padding:11px;margin-bottom:8px">'
+                        + '<div style="font-size:10px;font-weight:700;color:#d1d5db;margin-bottom:3px">De qual Princípio este Hatsu depende?</div>'
+                        + '<div style="font-size:8px;color:#6b7280;margin-bottom:8px;line-height:1.45">' + def.nome + ' — o princípio escolhido dura <b>+2 rodadas</b>. Ele precisa estar ativo para o Hatsu funcionar.</div>'
+                        + '<div style="display:flex;gap:6px">'
+                        + ['ten', 'ren'].map(function (k) {
+                            const sel = escolhidoP === k;
+                            const on = !!ativos[k];
+                            return '<button onclick="window._ativSetPrincipio(\'' + k + '\')" style="flex:1;padding:9px 6px;border-radius:9px;border:2px solid '
+                                + (sel ? tc : '#1f2937') + ';background:' + (sel ? tc + '22' : 'transparent') + ';cursor:pointer">'
+                                + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:12px;color:' + (sel ? tc : '#6b7280') + '">' + k.toUpperCase() + '</div>'
+                                + '<div style="font-size:7px;color:' + (on ? '#4ade80' : '#f87171') + ';margin-top:2px">' + (on ? 'ativo' : 'desligado') + '</div></button>';
+                        }).join('')
+                        + '</div></div>';
+                } else if (def.tipo === 'tecnica') {
+                    const escolhidaT = window._ativState.tecnica || '';
+                    const ativosT = char.principiosAtivos || {};
+                    const domT = char.nenDominio || {};
+                    const TECS = [['en','EN'],['inp','IN'],['gyo','GYO'],['shu','SHU'],['ko','KO'],['ryu','RYU']];
+                    blocos += '<div style="background:#0f1117;border:1px solid #1f2937;border-radius:11px;padding:11px;margin-bottom:8px">'
+                        + '<div style="font-size:10px;font-weight:700;color:#d1d5db;margin-bottom:3px">De qual Técnica este Hatsu depende?</div>'
+                        + '<div style="font-size:8px;color:#6b7280;margin-bottom:8px;line-height:1.45">' + def.nome + ' — a técnica escolhida custa <b>metade da aura</b>. Ela precisa estar ativa para o Hatsu funcionar.</div>'
+                        + '<div style="display:flex;gap:5px;flex-wrap:wrap">'
+                        + TECS.filter(function (p) { return domT[p[0]]; }).map(function (p) {
+                            const sel = escolhidaT === p[0];
+                            const on = !!ativosT[p[0]];
+                            return '<button onclick="window._ativSetTecnica(\'' + p[0] + '\')" style="flex:1;min-width:58px;padding:8px 4px;border-radius:9px;border:2px solid '
+                                + (sel ? tc : '#1f2937') + ';background:' + (sel ? tc + '22' : 'transparent') + ';cursor:pointer">'
+                                + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:11px;color:' + (sel ? tc : '#6b7280') + '">' + p[1] + '</div>'
+                                + '<div style="font-size:7px;color:' + (on ? '#4ade80' : '#f87171') + ';margin-top:2px">' + (on ? 'ativa' : 'desligada') + '</div></button>';
+                        }).join('')
+                        + '</div>'
+                        + (TECS.some(function (p) { return domT[p[0]]; }) ? '' : '<div style="font-size:8px;color:#f87171;margin-top:5px">Você ainda não comprou nenhuma Técnica avançada.</div>')
+                        + '</div>';
                 } else if (def.tipo === 'aviso') {
                     blocos += '<div style="background:#f9731615;border:1px solid #f9731644;border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:9px;color:#fb923c;line-height:1.55">'
                         + '⚠ <b>' + def.nome + '</b><br>Você pode reduzir o TR dos alvos em até <b>' + tetoGrau + '</b> (teto de Grau do seu nível), '
@@ -1133,9 +1178,67 @@ function closeHatsuCreator() {
             el.innerHTML = partes.join(' &nbsp;·&nbsp; ');
         };
 
+        window._ativSetTecnica = function (k) {
+            if (!window._ativState) return;
+            window._ativState.tecnica = (window._ativState.tecnica === k) ? '' : k;
+            window._ativRedesenhar();
+        };
+
+        window._ativSetPrincipio = function (k) {
+            if (!window._ativState) return;
+            window._ativState.principio = (window._ativState.principio === k) ? '' : k;
+            window._ativRedesenhar();
+        };
+
+        // Redesenha o balão preservando o que já foi escolhido nos contadores.
+        window._ativRedesenhar = function () {
+            const ov = document.getElementById('ativ-hatsu-overlay');
+            if (!ov) return;
+            const s = window._ativState;
+            ov.remove();
+            window._abrirAtivacaoHatsu(window._ativIdx, window._ativRod, window._ativConst);
+            window._ativState = s;
+            ['auraExtra', 'graus', 'reacoes'].forEach(function (c) {
+                const el = document.getElementById('ativ-val-' + c);
+                if (el) el.textContent = (c === 'auraExtra') ? (s[c] + '%') : s[c];
+            });
+        };
+
         window._ativConfirmar = function (idx, rodadas, constante) {
             const s = window._ativState || {};
             const char = state.currentChar;
+
+            // Técnica Elementar: a técnica escolhida custa METADE da aura. Como a técnica
+            // já foi paga quando o jogador a ativou, devolvemos metade do custo dela agora.
+            // Se estiver desligada, o Hatsu não funciona — ele depende dela.
+            if (s.tecnica) {
+                const ativosT = char.principiosAtivos || {};
+                if (!ativosT[s.tecnica]) {
+                    alert('⚠ ' + s.tecnica.toUpperCase() + ' está desligada.\n\n'
+                        + 'Este Hatsu depende dessa Técnica para funcionar. Ative-a antes (aba Ficha) e volte aqui.');
+                    return;
+                }
+                const custoTec = (window.NEN_CUSTO_TECNICA || {})[s.tecnica] || 0;
+                const devolve = Math.floor(custoTec / 2);
+                if (devolve > 0) {
+                    char.vitals.aura = Math.min(char.vitals.auraMax || 100, (char.vitals.aura || 0) + devolve);
+                    if (window._showXpToast) window._showXpToast('🔮 ' + s.tecnica.toUpperCase() + ' pela metade — +' + devolve + '% de aura devolvidos');
+                }
+            }
+
+            // Princípio Elementar: o princípio escolhido ganha +2 rodadas. Se ele não
+            // estiver ativo, o Hatsu não funciona — a restrição diz que ele DEPENDE dele.
+            if (s.principio) {
+                const ativos = char.principiosAtivos || {};
+                if (!ativos[s.principio]) {
+                    alert('⚠ ' + s.principio.toUpperCase() + ' está desligado.\n\n'
+                        + 'Este Hatsu depende desse Princípio para funcionar. Ative-o antes (aba Ficha) e volte aqui.');
+                    return;
+                }
+                if (!char.principiosRodadas) char.principiosRodadas = {};
+                const atual = char.principiosRodadas[s.principio];
+                if (atual != null) char.principiosRodadas[s.principio] = atual + 2;
+            }
             // Consome as reações trocadas de verdade.
             if (s.reacoes > 0) {
                 const reaMax = window.calcReacoesMax ? window.calcReacoesMax(char) : 7;

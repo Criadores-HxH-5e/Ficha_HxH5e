@@ -208,8 +208,10 @@ window.calcAuraCost = function(hb) {
 
         // rg_m10: Limite de Uso Definitivo — "+2 Rodadas ou −15% de aura"
         if (id === 'rg_m10' && escolheuAura) custo -= 15;
-        // rg_p14: Técnica Elementar — a técnica custa metade da aura
-        if (id === 'rg_p14') custo = Math.max(5, Math.floor(custo / 2));
+        // rg_p14: Técnica Elementar — o desconto é na TÉCNICA, não no Hatsu.
+        // (Leitura anterior estava errada: eu cortava o custo do Hatsu pela metade.
+        //  A regra diz "o Hatsu depende de uma Técnica" e "A TÉCNICA custa metade
+        //  da aura" — o desconto é aplicado na ativação da técnica, ver _ativConfirmar.)
         // rg_v9: Troca Perigosa — −5% por reação trocada (nº definido em beneficioChoices)
         if (id === 'rg_v9' && escolheuAura) {
             const reacoes = parseInt(String((hb.beneficioChoices || {})[id] || '').replace(/\D/g, '')) || 0;

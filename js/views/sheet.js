@@ -1602,6 +1602,13 @@
             // Sem dado principal (Hatsu sem dano base), a fórmula começa pelo extra,
             // para não sair um "+ 1d8 + FOR" com sobra à esquerda.
             const _partes = [renDice, extraDiceStr].filter(Boolean);
+            // Linha de CURA, rolada junto e mostrada separada na mensagem.
+            let _curaLinha = '';
+            if (rs.curaDice) {
+                const cr = _hMax ? maximizarExpr(rs.curaDice) : rollDiceExpr(rs.curaDice);
+                const curaTotal = (_hCrit ? cr.total * 2 : cr.total) + mod;
+                _curaLinha = `\n💚 Cura: [${cr.rolls.join('+')}] ${mod >= 0 ? '+' : ''}${mod} = **${curaTotal}** de vida`;
+            }
             const _selo = _hMax ? '  **[DANO MAXIMIZADO POR RESTRIÇÃO]**' : (_hCrit ? '  **[CRÍTICO — VIDA OU MORTE]**' : '');
             const formula = `${_partes.join(' + ')}${_partes.length ? ' + ' : ''}${rs.attr}${flatStr}${_selo}`;
             const extrasText = extraLines.length > 0 ? '\n' + extraLines.join('\n') : '';
@@ -1631,7 +1638,7 @@
             // ── Fim rolagem de ataque ─────────────────────────────────────────
 
             const renNote = useRen ? `\n💪 **REN ativado** — +${renGraus} Grau${renGraus>1?'s':''} de dano${renUsedFree ? ' (1º grátis no dia)' : ''}` : '';
-            const content = `⚡ **${char.name}** usou **${rs.nome}**${modeLabel}${attackLine}\nDano: [${dmgResult.rolls.join('+')}]${allModStr} = **${total}** (${formula})${extrasText}${renNote}`;
+            const content = `⚡ **${char.name}** usou **${rs.nome}**${modeLabel}${attackLine}\nDano: [${dmgResult.rolls.join('+')}]${allModStr} = **${total}** (${formula})${_curaLinha}${extrasText}${renNote}`;
             sendRollToDiscord(content, state.pendingRollImage);
             state.pendingRollImage = '';
             if (state.activeTab !== 'DADOS') state.unreadRolls = true;
