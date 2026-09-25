@@ -1529,11 +1529,18 @@
                 renCost = grausPagos * 5;
                 if (renUsedFree && window.marcarRenFreeUsoConsumido) window.marcarRenFreeUsoConsumido(char);
             }
-            const totalAuraCost = _auraCost + renCost;
+            // Se o Hatsu já está ATIVO, a aura foi paga na ativação — não cobra de novo.
+            // O custo do REN continua sendo cobrado, porque é decidido na rolagem.
+            const _jaPago = window._hatsuJaPago && window._hatsuJaPago(char, state.hatsuDetailIdx);
+            const totalAuraCost = (_jaPago ? 0 : _auraCost) + renCost;
             const auraAntes = char.vitals.aura || 0;
             char.vitals.aura = Math.max(0, auraAntes - totalAuraCost);
 
-            const dmgResult = rollDiceExpr(renDice);
+            const _hAtualRoll = (state.currentChar.hatsus || [])[state.hatsuDetailIdx] || {};
+            // ── Condição Hostil: dados MAXIMIZADOS (não rolados) ───────────────────
+            // Em vez de rolar, cada dado entrega o valor máximo. 3d10 vira 30.
+            const _hMax = window.hatsuDanoMaximizado && window.hatsuDanoMaximizado(_hAtualRoll || {});
+            const dmgResult = _hMax ? maximizarExpr(renDice) : rollDiceExpr(renDice);
 
             // Separar extras: valores fixos (somam ao total) vs dados (linha extra)
             let flatBonus = 0;
@@ -1550,6 +1557,7 @@
             // conta: o Discord recebia um total sem o 1d8. E o atributo entra uma vez só,
             // no fim — é o mesmo Hatsu, não duas instâncias de dano.
             let extraDiceTotal = 0;
+            const _maximizar = _hMax;
             (rs.dmgExtras || []).forEach(e => {
                 if (e.dado === '(contínuo)') return;
                 // A regex exigia o "+" colado no dado, mas o catálogo grava "+ 1d8" COM
@@ -1558,7 +1566,8 @@
                 // nem somado. Agora o espaço é aceito.
                 const rollable = /^\+?\s*\d+d\d+$/.test(String(e.dado).trim());
                 if (rollable) {
-                    const er = rollDiceExpr(String(e.dado).replace(/^\+?\s*/, '').trim());
+                    const _expr = String(e.dado).replace(/^\+?\s*/, '').trim();
+                    const er = _maximizar ? maximizarExpr(_expr) : rollDiceExpr(_expr);
                     extraDiceTotal += er.total;
                     extraLines.push(`💥 ${e.tipo} (${e.desc}): [${er.rolls.join('+')}] = **${er.total}**`);
                 } else {
@@ -1568,7 +1577,11 @@
                 }
             });
 
-            const total = dmgResult.total + extraDiceTotal + mod + flatBonus;
+            // ── Vida ou Morte: o dano conta como CRÍTICO ───────────────────────────
+            // Dobra o resultado dos DADOS (não dos bônus fixos nem do atributo).
+            const _hCrit = window.hatsuDanoCritico && window.hatsuDanoCritico(_hAtualRoll || {});
+            const _dadosTotal = dmgResult.total + extraDiceTotal;
+            const total = (_hCrit ? _dadosTotal * 2 : _dadosTotal) + mod + flatBonus;
             const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
             const modeLabel = effectiveMode === 'NORMAL' ? '' : ` (${effectiveMode.charAt(0) + effectiveMode.slice(1).toLowerCase()})`;
             const renLabel = useRen ? ' 💪REN' : '';
@@ -1589,7 +1602,8 @@
             // Sem dado principal (Hatsu sem dano base), a fórmula começa pelo extra,
             // para não sair um "+ 1d8 + FOR" com sobra à esquerda.
             const _partes = [renDice, extraDiceStr].filter(Boolean);
-            const formula = `${_partes.join(' + ')}${_partes.length ? ' + ' : ''}${rs.attr}${flatStr}`;
+            const _selo = _hMax ? '  **[DANO MAXIMIZADO POR RESTRIÇÃO]**' : (_hCrit ? '  **[CRÍTICO — VIDA OU MORTE]**' : '');
+            const formula = `${_partes.join(' + ')}${_partes.length ? ' + ' : ''}${rs.attr}${flatStr}${_selo}`;
             const extrasText = extraLines.length > 0 ? '\n' + extraLines.join('\n') : '';
 
             // ── Rolagem de Ataque ─────────────────────────────────────────────
@@ -2036,6 +2050,16 @@
             fetch(getActiveWebhookUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content }) }).catch(() => {});
         }
         function rollDice(attrName, mod, mode) { const roll = getRollResult(mode || state.rollMode); const total = roll.total + mod; const entry = { time: new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}), label: `${attrName} (${roll.label})`, dice: roll.dice.join(', '), mod: mod, total: total }; state.currentChar.history.push(entry); if (state.currentChar.history.length > 50) state.currentChar.history.shift(); saveCharacter(state.currentChar); state.rollResult = { name: attrName, total: total, diceVal: roll.total, mod: mod, label: roll.label }; if (state.activeTab !== 'DADOS') state.unreadRolls = true; sendToDiscord(`${attrName} (${roll.label})`, roll.dice, mod, total, state.currentChar.name || 'Personagem'); render(true); }
+        // Entrega o valor MÁXIMO de cada dado em vez de rolar. Usado pela Condição
+        // Hostil, cuja regra diz "os dados de dano são maximizados (não rolados)".
+        function maximizarExpr(expr) {
+            const m = String(expr || '').match(/^(\d+)d(\d+)$/);
+            if (!m) return { total: 0, rolls: [] };
+            const n = parseInt(m[1]), faces = parseInt(m[2]);
+            const rolls = Array.from({ length: n }, () => faces);
+            return { total: n * faces, rolls: rolls };
+        }
+
         function rollSkill(skillName, attrKey, mode, zetsuBonus) { const char = state.currentChar; const _efS = window.calcAtributoEfetivo ? window.calcAtributoEfetivo(char, attrKey) : null; const mod = _efS ? _efS.mod : getMod(char.attributes[attrKey].value); const isTrained = char.skills.includes(skillName); const isExpert = (char.expertise || []).includes(skillName); const pb = getProficiencyBonus(char.level); let totalMod = mod; if (isExpert) { totalMod += (pb * 2); } else if (isTrained) { totalMod += pb; } const zb = zetsuBonus || 0; totalMod += zb; const zetsuTag = zb > 0 ? ' 👁️Zetsu' : ''; const _ini = (skillName === 'Iniciativa' && window.calcIniciativaBonus) ? window.calcIniciativaBonus(char) : { total: 0, fontes: [] }; totalMod += _ini.total; const _nb = window.calcBonusPericiaNen ? window.calcBonusPericiaNen(char, skillName) : { total: 0 }; totalMod += _nb.total; const roll = getRollResult(mode || state.rollMode); const total = roll.total + totalMod; const entry = { time: new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}), label: `${skillName} ${isExpert ? "(Exp)" : ""}${zetsuTag} (${roll.label})`, dice: roll.dice.join(', '), mod: totalMod, total: total }; state.currentChar.history.push(entry); if (state.currentChar.history.length > 50) state.currentChar.history.shift(); saveCharacter(state.currentChar); state.rollResult = { name: skillName, total: total, diceVal: roll.total, mod: totalMod, label: roll.label }; if (state.activeTab !== 'DADOS') state.unreadRolls = true; sendToDiscord(`${skillName}${isExpert ? ' (Exp)' : ''}${zetsuTag} (${roll.label})`, roll.dice, totalMod, total, char.name || 'Personagem'); render(true); }
         function closeRollModal() { state.rollResult = null; render(true); }
         function copyToClipboard(idx) { const h = state.currentChar.history[idx]; if(!h) return; const text = `**${h.label}**\nRolagem: [${h.dice}] ${h.mod>=0?'+':''}${h.mod} = **${h.total}**`; navigator.clipboard.writeText(text).then(() => { const btn = document.activeElement; if(btn && btn.tagName === 'BUTTON') { const originalHTML = btn.innerHTML; btn.innerHTML = '<i data-lucide="check" size="14"></i>'; btn.classList.add('text-green-500'); setTimeout(() => { btn.innerHTML = originalHTML; btn.classList.remove('text-green-500'); lucide.createIcons(); }, 1000); } }); }
