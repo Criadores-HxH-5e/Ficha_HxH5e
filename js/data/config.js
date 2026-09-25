@@ -858,3 +858,11 @@ window.calcBonusPericiaNen = function (char, skillName) {
 
     return { total: fontes.reduce(function (s, f) { return s + f.valor; }, 0), fontes: fontes };
 };
+
+// Custo de aura de cada Técnica avançada, para a restrição Técnica Elementar
+// (rg_p14) poder devolver metade. Mesmos valores da barra de Princípios na ficha.
+// KEN varia com o aprimoramento comprado, por isso fica de fora daqui e é lido
+// na hora por calcAvancadoBonus.
+window.NEN_CUSTO_TECNICA = {
+    en: 10, inp: 5, gyo: 10, shu: 10, ko: 30, ryu: 30,
+};

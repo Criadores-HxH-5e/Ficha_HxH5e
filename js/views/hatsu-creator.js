@@ -942,6 +942,40 @@ function renderHatsuCreator(container) {
                         + '</div>';
                 }
 
+                // ── eg15: Dano/Cura Focal — cada cópia é DANO ou CURA ───────────────────────
+                // O efeito serve para os dois, e um Hatsu pode ter as duas coisas (bater num
+                // inimigo e curar um aliado). Antes todas as cópias somavam numa escada só.
+                // Agora cada cópia recebe uma tag, e cada tag tem a PRÓPRIA escada: a
+                // primeira cópia da tag libera a base 2d6 e as seguintes sobem um degrau.
+                // Chaves: cópia 0 em 'eg15_tag', extras em 'eg15_tag#1', '#2'…
+                if (item.id === 'eg15') {
+                    const _copiasT = [].concat(hb.eg || [], hb.ec || []).filter(function (x) { return x === item.id; }).length;
+                    const _kTag = function (i) { return i > 0 ? ('eg15_tag#' + i) : 'eg15_tag'; };
+                    let _blocosT = '';
+                    for (let _i = 0; _i < _copiasT; _i++) {
+                        const _ch = _kTag(_i);
+                        const _at = specialChoices[_ch] || '';
+                        _blocosT += '<div style="' + (_i > 0 ? 'margin-top:7px;padding-top:7px;border-top:1px dashed ' + color + '33;' : '') + '">'
+                            + '<div style="font-size:8px;font-weight:700;color:#9ca3af;margin-bottom:4px">Compra ' + (_i + 1) + '</div>'
+                            + '<div style="display:flex;gap:6px">'
+                            + [['dano', '🔥 Dano', '#f87171'], ['cura', '💚 Cura', '#4ade80']].map(function (par) {
+                                const sel = _at === par[0];
+                                return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\'' + _ch + '\',\'' + par[0] + '\')" '
+                                    + 'style="flex:1;padding:8px 4px;border-radius:8px;font-size:9px;font-weight:900;cursor:pointer;border:1.5px solid '
+                                    + (sel ? par[2] : '#1f2937') + ';background:' + (sel ? par[2] + '22' : 'transparent')
+                                    + ';color:' + (sel ? par[2] : '#9ca3af') + '">' + par[1] + '</button>';
+                            }).join('')
+                            + '</div>'
+                            + (_at ? '' : '<div style="font-size:8px;color:#f87171;margin-top:4px">⚠ Escolha se esta compra é Dano ou Cura.</div>')
+                            + '</div>';
+                    }
+                    specialHtml = '<div style="margin-top:8px;background:#0a0f1a;border:1px solid ' + color + '33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
+                        + '<div style="font-size:8px;font-weight:900;color:' + color + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">🎯 Esta compra é Dano ou Cura?</div>'
+                        + '<div style="font-size:8px;color:#6b7280;margin-bottom:8px">Cada tag tem a própria escada. Ex.: 1 compra em Dano e 2 em Cura = 2d6 de dano e 2d8 de cura.</div>'
+                        + _blocosT
+                        + '</div>';
+                }
+
                 // ── rm_e1: Forjar Objeto, Arma ou Equipamento — o quê, exatamente? ──────────
                 // A descrição do efeito diz que causa 2d6 "ao escolher arma". Só nessa escolha o
                 // Hatsu ganha o dano básico 2d6; Objeto e Equipamento não concedem dano.

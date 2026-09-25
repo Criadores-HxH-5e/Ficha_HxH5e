@@ -465,6 +465,23 @@ window.hatsuVidaOuMorte = function (h, char) {
     };
 };
 
+// ── Dano/Cura Focal separado por TAG ─────────────────────────────────────────
+// Cada cópia do efeito recebe a tag "dano" ou "cura" (specialChoices.eg15_tag…).
+// Cada tag tem a PRÓPRIA escada: a primeira cópia da tag libera a base 2d6 e cada
+// cópia seguinte sobe um degrau. Assim um Hatsu pode causar 2d6 de dano E curar 2d8.
+// Cópia sem tag conta como "dano", para não quebrar Hatsus criados antes disso.
+window.contarTagsFocal = function (h, efeitosSel) {
+    const sc = (h && h.specialChoices) || {};
+    const lista = efeitosSel || [];
+    const copias = lista.filter(function (e) { return e.id === 'eg15'; }).length;
+    const out = { dano: 0, cura: 0 };
+    for (let i = 0; i < copias; i++) {
+        const tag = sc[i > 0 ? ('eg15_tag#' + i) : 'eg15_tag'];
+        if (tag === 'cura') out.cura++; else out.dano++;
+    }
+    return out;
+};
+
 window.calcDuracaoHatsu = function (h, char) {
     if (!h) return { rodadas: 0, constante: false };
     const efeitos = h.efeitos || [];
@@ -1094,6 +1111,8 @@ function renderHatsuDetail(container) {
     </div>` : '';
 
     let _hatsuFinalDice = null;
+    // Dado da linha de CURA (Dano/Cura Focal com tag cura). Null quando não há cura.
+    let _hatsuCuraDice = null, _hatsuCuraEspera = 0;
     let calcDanoHtml = '';
     if (hasBaseDmg) {
         const danoColor = totalGraus > 0 ? '#f87171' : '#d1d5db';
@@ -1117,7 +1136,10 @@ function renderHatsuDetail(container) {
             // Intenção, Efeito Alternativo e Imbuir Conjuração, e já respeita o modo ativo.
             const _temForjarArma = efeitosSel.some(function (e) { return e.id === 'rm_e1'; })
                 && (h.specialChoices || {})['rm_e1_tipo'] === 'Arma';
-            const _temDanoFocal = efeitosSel.some(function (e) { return e.id === 'eg15'; }) || _temForjarArma;
+            // Contagem por tag: define se existe dano, cura, ou os dois.
+            const _tags = window.contarTagsFocal(h, efeitosSel);
+            const _temDanoFocal = _tags.dano > 0 || _temForjarArma;
+            const _temCuraFocal = _tags.cura > 0;
             const _idxSemFocal = DAMAGE_TABLE.indexOf('1d8');
             const _baseLabel = isPuroFlagelo ? '1d10' : (_temDanoFocal ? '2d6' : '1d8');
             let baseIdx = isPuroFlagelo ? 3 : (_temDanoFocal ? BASE_DAMAGE_IDX : _idxSemFocal);
@@ -1165,6 +1187,21 @@ function renderHatsuDetail(container) {
             let finalDice = afterDadoNote && _grausPodeBase === 0 ? afterDadoNote : DAMAGE_TABLE[finalIdx];
             if (overflowBonus > 0) finalDice = finalDice + '+' + overflowBonus;
             _hatsuFinalDice = finalDice;
+
+            // ── Linha de CURA, quando há cópias do Focal marcadas como cura ─────────
+            // A cura tem escada própria: base 2d6 na primeira cópia e +1 degrau por cópia
+            // seguinte. Os graus gerais do Hatsu (restrições, Bônus Talentoso...) valem
+            // para as duas linhas, porque são graus da característica Dano/Cura.
+            // O teto do nível vale igual, e o excedente fica em espera.
+            if (_temCuraFocal) {
+                const _grausCura = (_tags.cura - 1) + totalGraus;
+                const _curaPode = (_tetoDanoBase === Infinity)
+                    ? _grausCura
+                    : Math.min(_grausCura, Math.max(0, _tetoDanoBase - 1));
+                const _idxCura = Math.max(0, Math.min(BASE_DAMAGE_IDX + _curaPode, DAMAGE_TABLE.length - 1));
+                _hatsuCuraDice = DAMAGE_TABLE[_idxCura];
+                _hatsuCuraEspera = Math.max(0, _grausCura - _curaPode);
+            }
             // Build info breakdown for popup
             const _danoInfo = [{ l: 'Base', v: _baseLabel, c: '#9ca3af' }];
             if (_grausEsperaBase > 0) {
@@ -1341,6 +1378,18 @@ function renderHatsuDetail(container) {
               </div>`
             : '';
 
+        // Linha de CURA: escada própria, exibida logo abaixo do dano. O Hatsu pode ter
+        // as duas — causa X de dano e recupera Y de vida.
+        const _curaSection = _hatsuCuraDice ? `
+            <div style="display:flex;align-items:center;gap:10px;margin-top:10px;padding-top:10px;border-top:1px dashed #1f2937">
+                <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:26px;color:#4ade80;text-shadow:0 0 18px #4ade8055">${_hatsuCuraDice}</div>
+                <div style="flex:1">
+                    <div style="font-size:11px;font-weight:700;color:#4ade80">💚 de Cura <span style="font-size:9px;color:#6b7280">+ ${baseAttr}</span></div>
+                    <div style="font-size:8px;color:#6b7280;margin-top:2px">Dano/Cura Focal com tag Cura (base 2d6)</div>
+                </div>
+                ${_hatsuCuraEspera > 0 ? `<span style="flex-shrink:0;font-size:7px;font-weight:900;padding:2px 8px;border-radius:10px;background:#fbbf2422;color:#fbbf24">+${_hatsuCuraEspera} em espera ⏳</span>` : ''}
+            </div>` : '';
+
         calcDanoHtml = `<div style="margin-top:12px;padding-top:12px;border-top:1px solid #1f2937">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
                 <div style="font-size:8px;color:#374151;text-transform:uppercase;font-weight:700;letter-spacing:1px">💥 Dano Final</div>
@@ -1351,6 +1400,7 @@ function renderHatsuDetail(container) {
             </div>
             ${modPickerHtml}
             ${baseDmgSection}
+            ${_curaSection}
             ${extraDmgSection}
             ${sourcesHtml}
         </div>`;
@@ -1461,6 +1511,9 @@ function renderHatsuDetail(container) {
 
     window._hatsuRollState = {
         dice: _hatsuFinalDice,
+        // Linha de CURA separada, quando o Dano/Cura Focal tem cópias marcadas como cura.
+        curaDice: _hatsuCuraDice,
+        curaEspera: _hatsuCuraEspera,
         attr: baseAttr,
         atkAttr: baseAttrAtk,
         nome: h.nome,
