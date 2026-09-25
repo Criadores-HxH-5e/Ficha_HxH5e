@@ -262,8 +262,16 @@ window.calcMaxGrauPorCaracteristica = function(charLevel, classe, caracteristica
 // Nível em que o bônus do Juramento Imutável (rg_e5) passa a valer: 3 níveis após a restrição
 // ter sido adquirida (h.juramentoImutavelNivelBase, gravado quando o jogador seleciona rg_e5).
 window.calcJuramentoImutavelNivelAtivo = function(h) {
-    if (!h || h.juramentoImutavelNivelBase == null) return null;
-    return h.juramentoImutavelNivelBase + 3;
+    if (!h) return null;
+    // O nível base só passou a ser gravado depois que a mecânica foi escrita. Hatsus
+    // criados antes disso ficavam com o campo vazio, e a função devolvia null — o bônus
+    // de +4 NUNCA era aplicado neles, mesmo com a restrição comprada e o nível cumprido.
+    // Sem o registro, usamos o nível em que o Hatsu foi criado, que é o mais próximo da
+    // realidade: a restrição foi escolhida na criação dele.
+    const base = (h.juramentoImutavelNivelBase != null)
+        ? h.juramentoImutavelNivelBase
+        : (parseInt(h.nivel) || 1);
+    return base + 3;
 };
 
 // Soma os Graus de Potência já comprometidos por característica de um Hatsu — usado para
@@ -364,12 +372,20 @@ window.calcGrausPotenciaPorCaracteristica = function(h, charLevel) {
         totals.cd += _aa.cd;
     }
 
-    // Juramento Imutável (rg_e5): +4 em TODAS as características da categoria, mas só a partir de
-    // 3 níveis após a restrição ter sido adquirida (h.juramentoImutavelNivelBase).
+    // ── Juramento Imutável (rg_e5) ──────────────────────────────────────────────
+    // Benefício do manual: "+4 Graus de potência em TODAS as características possíveis
+    // da sua categoria". Não há escolha: aplica em todas de uma vez. Funciona como o
+    // efeito Intensificação, mas sem perguntar onde vai.
+    //
+    // NOTA 3 do manual: o benefício só é recebido APÓS 3 NÍVEIS cumprindo a restrição.
+    // Vale só quando o jogador escolhe o BENEFÍCIO — marcando como pura, ele troca os
+    // +4 graus pelos 4 P.N, e aí não recebe os graus.
     if (allIds.includes('rg_e5') && !pr['rg_e5']) {
         const nivelAtivo = window.calcJuramentoImutavelNivelAtivo(h);
         if (nivelAtivo != null && nivelAtual >= nivelAtivo) {
-            const caracts = window.CATEGORIA_CARACTERISTICAS_GRAU[h.classe] || Object.keys(totals);
+            const caracts = window.CATEGORIA_CARACTERISTICAS_GRAU[h.classe]
+                || window.CATEGORIA_CARACTERISTICAS_GRAU[(h.classe || '').toUpperCase()]
+                || Object.keys(totals);
             caracts.forEach(k => { if (totals[k] !== undefined) totals[k] += 4; });
         }
     }
@@ -433,6 +449,15 @@ window.calcDuracaoHatsu = function (h, char) {
     rod += efeitos.filter(function (id) { return id === 'eg2'; }).length;  // Aumento de Duração
     if (restr.includes('rg_p2')) rod += 3;                                 // Boneca Russa
     if (restr.includes('rm_l3')) rod += 2;                                 // 1 Item por Combate
+    if (restr.includes('rc_l3')) rod += 2;                                 // Uma Invocação por Combate
+    if (restr.includes('rma_l2')) rod += 1;                                // Dano Quebra o Efeito
+    const _escolheuRod = function (id) {
+        const v = String((h.beneficioChoices || {})[id] || '').toLowerCase();
+        return v.includes('rodada') || v.includes('dura');
+    };
+    if (restr.includes('rg_m10') && _escolheuRod('rg_m10')) rod += 2;      // Limite de Uso Definitivo
+    if (restr.includes('rm_p2') && _escolheuRod('rm_p2')) rod += 2;        // Conjuração Controlável
+    if (restr.includes('rc_p2') && _escolheuRod('rc_p2')) rod += 2;        // Criatura Incontrolável
     const bc = h.beneficioChoices || {};
     if (restr.includes('rg_m13')) {
         const esc = String(bc.rg_m13 || '').toLowerCase();
@@ -1981,6 +2006,34 @@ function renderHatsuDetail(container) {
     if (rg_v2Count > 0) duracaoBonus.push({ valor: null, fonte: 'Canalizar com Concentração (+X rodadas)', unidade: 'variável' });
     if ((h.restricoes||[]).includes('rg_v3')) duracaoBonus.push({ valor: null, fonte: 'Confirmação de Duas Etapas (Leve+1r/Mod+2r/Pes+3r/Ext+4r)', unidade: 'variável' });
     if ((h.restricoes||[]).includes('rm_l3')) duracaoBonus.push({ valor: 2, fonte: '1 Item por Combate', unidade: 'rodada' });
+
+    // ── Restrições com benefício de DURAÇÃO que não estavam ligadas ─────────────
+    // Elas tinham o benefício escrito no banco ("+2 Rodadas"), mas nada no cálculo lia.
+    // O Hatsu continuava marcado como Instantâneo mesmo com a restrição comprada.
+    // Quando o benefício é uma ESCOLHA ("+2 Rodadas ou -15% de aura"), só conta se o
+    // jogador tiver escolhido a opção de rodadas em beneficioChoices.
+    const _bc = h.beneficioChoices || {};
+    const _escolheuRodadas = function (id) {
+        const v = String(_bc[id] || '').toLowerCase();
+        return v.includes('rodada') || v.includes('dura');
+    };
+    // +2 rodadas fixas, sem escolha
+    if ((h.restricoes||[]).includes('rc_l3')) duracaoBonus.push({ valor: 2, fonte: 'Uma Invocação por Combate', unidade: 'rodada' });
+    if ((h.restricoes||[]).includes('rma_l2')) duracaoBonus.push({ valor: 1, fonte: 'Dano Quebra o Efeito', unidade: 'rodada' });
+    // Benefício de escolha: "+2 Rodadas ou −15% de aura"
+    if ((h.restricoes||[]).includes('rg_m10') && _escolheuRodadas('rg_m10')) {
+        duracaoBonus.push({ valor: 2, fonte: 'Limite de Uso Definitivo (Rodadas)', unidade: 'rodada' });
+    }
+    // Benefícios de escolha múltipla que incluem duração
+    ['rm_p2', 'rc_p2'].forEach(function (id) {
+        if ((h.restricoes||[]).includes(id) && _escolheuRodadas(id)) {
+            duracaoBonus.push({ valor: 2, fonte: (id === 'rm_p2' ? 'Conjuração Controlável' : 'Criatura Incontrolável') + ' (Duração)', unidade: 'rodada' });
+        }
+    });
+    // Condição Alheia ou Simbiótica: +4 rodadas POR MEMBRO — quantidade definida na mesa
+    if ((h.restricoes||[]).includes('rg_e1') && _escolheuRodadas('rg_e1')) {
+        duracaoBonus.push({ valor: null, fonte: 'Condição Alheia ou Simbiótica (+4 rodadas por membro)', unidade: 'variável' });
+    }
     // rg_m13: Zetsu Protetivo — só conta se beneficioChoice for "Rodadas"
     if ((h.restricoes||[]).includes('rg_m13')) {
         const m13choice = (h.beneficioChoices||{})['rg_m13'] || '';
