@@ -195,6 +195,31 @@ window.calcAuraCost = function(hb) {
         if (id === 'rg_m2') custo -= 10;
         // ri_e18 (Intensificação): Estabilização de Aura — Diminui 15%
         if (id === 'ri_e18') custo = Math.max(10, custo - 15);
+
+        // ── Benefícios de CUSTO DE AURA que nunca eram lidos ────────────────────
+        // O cálculo reconhecia só três identificadores. Restrições com benefício de
+        // aura escrito no banco (ex.: "−15% de aura") simplesmente não faziam nada:
+        // o jogador escolhia a opção e o custo continuava igual.
+        //
+        // Quando o benefício é uma ESCOLHA ("+2 Rodadas OU −15% de aura"), só conta
+        // se o jogador tiver marcado a opção de aura em beneficioChoices.
+        const esc = String((hb.beneficioChoices || {})[id] || '').toLowerCase();
+        const escolheuAura = esc.includes('aura') || esc.includes('%');
+
+        // rg_m10: Limite de Uso Definitivo — "+2 Rodadas ou −15% de aura"
+        if (id === 'rg_m10' && escolheuAura) custo -= 15;
+        // rg_p14: Técnica Elementar — a técnica custa metade da aura
+        if (id === 'rg_p14') custo = Math.max(5, Math.floor(custo / 2));
+        // rg_v9: Troca Perigosa — −5% por reação trocada (nº definido em beneficioChoices)
+        if (id === 'rg_v9' && escolheuAura) {
+            const reacoes = parseInt(String((hb.beneficioChoices || {})[id] || '').replace(/\D/g, '')) || 0;
+            custo -= reacoes * 5;
+        }
+        // rg_v12: Cálculo Pensado Variável 2 — −5% a cada 2 Graus/Passos reduzidos
+        if (id === 'rg_v12') {
+            const graus = parseInt(String((hb.beneficioChoices || {})[id] || '').replace(/\D/g, '')) || 0;
+            custo -= Math.floor(graus / 2) * 5;
+        }
     });
 
     // eg8: Redução de Custo — soma todas as reduções aplicáveis
