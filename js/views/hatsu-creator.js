@@ -799,6 +799,10 @@ function renderHatsuCreator(container) {
                     // No Efeito Alternativo o que está fora do alcance é OCULTADO, não mostrado
                     // com cadeado: a lista já é longa e o jogador só precisa ver o que pode pegar.
                     // O teto por categoria já considera as Restrições Extremas (+2 níveis cada).
+                    // Nível efetivo: cada Restrição Extrema vale +2 níveis de acesso.
+                    // Os Efeitos Gerais e o Imbuir Conjuração também precisam dele.
+                    const _nivelEfetivoG = Math.min(12, charLevel
+                        + (window.contarRestricoesExtremas ? window.contarRestricoesExtremas(hb) : 0) * 2);
                     function eg4Alcancavel(e, tetoNivel) {
                         var nivelEf = window.nivelDoEfeito ? window.nivelDoEfeito(e) : 1;
                         return nivelEf <= tetoNivel && checkReq(e.req).ok;
@@ -821,7 +825,7 @@ function renderHatsuCreator(container) {
                         const cats = (window.HATSU_DB && window.HATSU_DB.categorias) || {};
                         const ordem = ['INTENSIFICAÇÃO','TRANSMUTAÇÃO','MATERIALIZAÇÃO','EMISSÃO','MANIPULAÇÃO'];
                         const geraisVis = gerais.filter(function (e) {
-                            return e.id !== 'eg4' && e.id !== 'eg6' && eg4Alcancavel(e, charLevel);
+                            return e.id !== 'eg4' && e.id !== 'eg6' && eg4Alcancavel(e, _nivelEfetivoG);
                         });
                         let html = geraisVis.length
                             ? '<div style="font-size:7px;font-weight:700;color:#9ca3af;margin:2px 0;text-transform:uppercase;letter-spacing:1px">🌐 Efeitos Gerais</div>'
@@ -1435,7 +1439,10 @@ function renderHatsuCreator(container) {
                         if (e.id === 'rm_e8') return false;
                         if (!window.efeitoSemPreRequisito || !window.efeitoSemPreRequisito(e)) return false;
                         const nv = window.nivelDoEfeito ? window.nivelDoEfeito(e) : 1;
-                        return nv <= charLevel;
+                        // Também pelo nível efetivo, para o Imbuir Conjuração acompanhar.
+                        const _nvEf = Math.min(12, charLevel
+                            + (window.contarRestricoesExtremas ? window.contarRestricoesExtremas(hb) : 0) * 2);
+                        return nv <= _nvEf;
                     }
                     function btn8(e) {
                         const active = chosen8 === e.nome;
@@ -3729,10 +3736,26 @@ function _hTryComprarEfeito(hb, item, id, tipo, pn, isRepetivel) {
                  (window.CATEGORY_AFFINITY[char.class]['REFORÇO'] || window.CATEGORY_AFFINITY[char.class]['INTENSIFICAÇÃO']));
         }
 
-        // Nível sempre verificado (mesmo com Kamikaze)
+        // Nível sempre verificado (mesmo com Kamikaze).
+        //
+        // Esta é a SEGUNDA validação de nível do criador: a primeira (checkReq) decide se
+        // o card aparece desbloqueado, e esta decide se a compra é efetivada. Elas estavam
+        // divergindo — o card já usava o nível efetivo com Restrição Extrema, e aqui ainda
+        // era o nível cru. O efeito aparecia liberado, aceitava o clique e a compra era
+        // recusada EM SILÊNCIO, sem nenhuma mensagem.
         if (!bypassedByReforco) {
             const lvlMatch = req.match(/N[ií]vel\s+(\d+)/i);
-            if (lvlMatch && charLevel < parseInt(lvlMatch[1])) return false;
+            if (lvlMatch) {
+                const extremas = window.contarRestricoesExtremas ? window.contarRestricoesExtremas(hb) : 0;
+                const nivelEfetivo = Math.min(12, charLevel + extremas * 2);
+                const needed = parseInt(lvlMatch[1]);
+                if (nivelEfetivo < needed) {
+                    alert('❌ Nível insuficiente\n\nEste efeito exige Nível ' + needed + '.\n'
+                        + 'Seu acesso é ' + nivelEfetivo
+                        + (extremas > 0 ? ' (nível ' + charLevel + ' + ' + (extremas * 2) + ' por Restrição Extrema).' : '.'));
+                    return false;
+                }
+            }
         }
 
         // Kamikaze ignora atributos e pré-requisitos de efeitos, mas não o nível (já verificado acima)
