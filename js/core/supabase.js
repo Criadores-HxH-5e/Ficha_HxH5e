@@ -483,3 +483,124 @@ function renderNenHexagon(selectedId, interactive) {
         </div>
     `;
 }
+
+// ── Transferência de posse de ficha ───────────────────────────────────────────
+// Admin e Mestre podem PEGAR PARA SI uma ficha de outro jogador (para corrigir um
+// erro) ou ENTREGAR uma ficha que criaram (para quem só quer jogar). A posse é o
+// user_id da linha no Supabase mais o char.userId dentro do JSON — os dois precisam
+// andar juntos, senão a ficha some da lista do dono (foi o que causou o problema
+// das fichas invisíveis).
+//
+// Apagar continua com a regra de sempre: o dono ATUAL sempre pode; um terceiro só
+// se for admin. Mestre que entregou a ficha deixa de poder apagá-la.
+window.podeTransferirFicha = function () {
+    return !!(state.isAdmin || state.isMestre);
+};
+
+window.transferirFicha = async function (charId, novoDonoId, novoDonoNome) {
+    if (!window.podeTransferirFicha()) return false;
+    if (!charId || !novoDonoId) return false;
+
+    // A ficha pode estar na minha lista ou na do jogador que estou visualizando.
+    const origem = (state.characters || []).find(c => c.id === charId)
+        || (state.viewingChars || []).find(c => c.id === charId);
+    if (!origem) { alert('Ficha não encontrada.'); return false; }
+
+    const copia = JSON.parse(JSON.stringify(origem));
+    copia.userId = novoDonoId;
+    copia.lastMod = new Date().toISOString();
+    // Histórico de quem passou a ficha para quem, para o mestre poder auditar depois.
+    copia.transferencias = [].concat(copia.transferencias || [], [{
+        de: origem.userId || null,
+        para: novoDonoId,
+        porUsuario: state.user ? state.user.id : null,
+        quando: copia.lastMod,
+    }]);
+
+    const ok = await sbUpsert('characters', {
+        id: copia.id, user_id: novoDonoId, data: copia, last_mod: copia.lastMod,
+    });
+    if (!ok) { alert('Não foi possível transferir. Tente de novo.'); return false; }
+
+    const minha = state.user && novoDonoId === state.user.id;
+    if (minha) {
+        // Peguei para mim: entra no meu cache local e na minha lista.
+        try { localStorage.setItem('hxhrpg_' + copia.id, JSON.stringify(copia)); }
+        catch (e) { state._quotaCheia = true; }
+        if (!Array.isArray(state._cloudChars)) state._cloudChars = [];
+        const i = state._cloudChars.findIndex(c => c && c.id === copia.id);
+        if (i >= 0) state._cloudChars[i] = copia; else state._cloudChars.push(copia);
+    } else {
+        // Entreguei: sai do meu cache, senão continuaria aparecendo para mim.
+        localStorage.removeItem('hxhrpg_' + copia.id);
+        state._cloudChars = (state._cloudChars || []).filter(c => !c || c.id !== copia.id);
+    }
+    loadCharacters();
+    render(true);
+    if (window._showXpToast) {
+        window._showXpToast(minha
+            ? ('📥 "' + (copia.name || 'Ficha') + '" agora é sua')
+            : ('📤 "' + (copia.name || 'Ficha') + '" entregue para ' + (novoDonoNome || novoDonoId)));
+    }
+    return true;
+};
+
+// Pegar uma ficha do jogador visualizado para si (mestre/admin corrigindo um erro).
+window._pegarFicha = function (charId) {
+    if (!state.user) return;
+    const c = (state.viewingChars || []).find(x => x.id === charId);
+    const nome = (c && c.name) || 'esta ficha';
+    const dono = (state.viewingUser && state.viewingUser.username) || 'o jogador';
+    if (!confirm('Pegar "' + nome + '" para você?\n\n'
+        + 'A ficha sai da conta de ' + dono + ' e passa a ser sua. '
+        + 'Você pode devolvê-la depois pelo botão de entregar, na sua lista.')) return;
+    window.transferirFicha(charId, state.user.id, state.user.username);
+};
+
+// Entregar uma ficha própria para outro jogador (mestre criou e passa ao dono).
+// A lista de destinatários vem do registro de usuários, o mesmo do painel de admin.
+window._entregarFicha = function (charId) {
+    if (!window.podeTransferirFicha()) return;
+    const c = (state.characters || []).find(x => x.id === charId);
+    if (!c) return;
+    const reg = state.adminRegistry || { users: [] };
+    const outros = (reg.users || []).filter(u => !state.user || u.id !== state.user.id);
+    if (!outros.length) { alert('Nenhum outro usuário registrado para receber a ficha.'); return; }
+
+    const tc = getComputedStyle(document.documentElement).getPropertyValue('--theme-color-hex').trim() || '#00ff9d';
+    const ov = document.createElement('div');
+    ov.id = 'entregar-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:#000000ee;display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;font-family:Rajdhani,sans-serif';
+    ov.innerHTML = '<div style="background:#0d1117;border:2px solid ' + tc + ';border-radius:20px;padding:18px;width:100%;max-width:400px;max-height:82vh;display:flex;flex-direction:column">'
+        + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:12px;color:' + tc + ';text-transform:uppercase;letter-spacing:2px;margin-bottom:4px">📤 Entregar ficha</div>'
+        + '<div style="font-size:10px;color:#9ca3af;margin-bottom:10px">"' + (c.name || 'Ficha') + '" passa a ser de quem você escolher. Depois disso, só o novo dono (ou um admin) pode apagá-la.</div>'
+        + '<input id="entregar-busca" type="text" placeholder="🔎 Buscar jogador..." oninput="window._entregarFiltrar(this.value)" style="width:100%;box-sizing:border-box;padding:9px 11px;background:#0a0a0f;border:1px solid #374151;border-radius:9px;color:#fff;font-size:12px;outline:none;margin-bottom:8px">'
+        + '<div id="entregar-lista" style="flex:1;overflow-y:auto"></div>'
+        + '<button onclick="document.getElementById(\'entregar-overlay\').remove()" style="width:100%;margin-top:8px;padding:10px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:9px;text-transform:uppercase;cursor:pointer">Cancelar</button>'
+        + '</div>';
+    document.body.appendChild(ov);
+    window._entregarCharId = charId;
+    window._entregarFiltrar('');
+};
+
+window._entregarFiltrar = function (termo) {
+    const el = document.getElementById('entregar-lista'); if (!el) return;
+    const reg = state.adminRegistry || { users: [] };
+    const t = String(termo || '').toLowerCase();
+    const lista = (reg.users || [])
+        .filter(u => !state.user || u.id !== state.user.id)
+        .filter(u => !t || String(u.username || '').toLowerCase().includes(t) || String(u.id).toLowerCase().includes(t));
+    el.innerHTML = lista.length ? lista.map(u => {
+        const g = String(u.id).startsWith('google_');
+        return '<div onclick="window._entregarPara(\'' + u.id + '\',\'' + String(u.username || u.id).replace(/'/g, "\\'") + '\')" '
+            + 'style="display:flex;align-items:center;gap:8px;background:#111827;border:1px solid #1f2937;border-radius:10px;padding:9px 11px;margin-bottom:6px;cursor:pointer">'
+            + '<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (u.username || u.id) + (g ? ' <span style="font-size:8px;color:#9ca3af">Google</span>' : '') + '</div>'
+            + '<div style="font-size:8px;color:#4b5563;font-family:monospace">' + u.id + '</div></div></div>';
+    }).join('') : '<div style="font-size:10px;color:#4b5563;text-align:center;padding:20px 0;font-style:italic">Nenhum jogador encontrado.</div>';
+};
+
+window._entregarPara = function (userId, username) {
+    if (!confirm('Entregar a ficha para ' + username + '?\n\nEla sai da sua lista e você deixa de poder apagá-la.')) return;
+    document.getElementById('entregar-overlay')?.remove();
+    window.transferirFicha(window._entregarCharId, userId, username);
+};

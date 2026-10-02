@@ -43,6 +43,11 @@
                 const avatar = char.imageUrl
                     ? `<img src="${char.imageUrl}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:1px solid #374151">`
                     : `<div style="width:44px;height:44px;border-radius:50%;background:#1f2937;display:flex;align-items:center;justify-content:center;color:#6b7280"><i data-lucide="user" size="18"></i></div>`;
+                // Pegar para si: traz a ficha do jogador visualizado para o mestre/admin,
+                // que é como se corrige um erro sem pedir a conta do jogador.
+                const pegarBtn = (window.podeTransferirFicha && window.podeTransferirFicha())
+                    ? `<button onclick="event.stopPropagation(); window._pegarFicha('${char.id}')" title="Pegar esta ficha para mim" style="background:none;border:none;color:#4b5563;flex-shrink:0;cursor:pointer;padding:6px" onmouseover="this.style.color='#4ade80'" onmouseout="this.style.color='#4b5563'"><i data-lucide="download" size="16"></i></button>`
+                    : '';
                 const deleteBtn = state.isAdmin
                     ? `<button onclick="event.stopPropagation(); deleteCharacter('${char.id}', true)" class="p-2" style="color:#4b5563;flex-shrink:0" onmouseover="this.style.color='#f87171'" onmouseout="this.style.color='#4b5563'" title="Apagar ficha (admin)"><i data-lucide="trash-2" size="16"></i></button>`
                     : '';
@@ -52,7 +57,7 @@
                         <div style="font-weight:900;color:#fff;font-size:13px">${char.name}</div>
                         <div style="font-size:9px;color:#9ca3af;text-transform:uppercase">${char.race || ''} • <span style="color:${color}">${char.class || ''}</span> ${char.level > 0 ? `• Lv ${char.level}` : ''}</div>
                     </div>
-                    ${deleteBtn}
+                    ${pegarBtn}${deleteBtn}
                 </div>`;
             };
 
