@@ -1,20 +1,42 @@
-﻿        function renderAdmin(container) {
+﻿        // Busca do painel sem perder o foco — mesmo cuidado da busca do bestiário.
+        window._adminBuscar = function (el) {
+            state.adminBusca = el.value;
+            const pos = el.selectionStart;
+            render();
+            const novo = document.getElementById('admin-busca-input');
+            if (novo) { novo.focus(); try { novo.setSelectionRange(pos, pos); } catch (e) {} }
+        };
+
+        function renderAdmin(container) {
             if (!state.isAdmin) { state.view = 'LIST'; render(); return; }
             const registry = state.adminRegistry || { admins: [], mestres: {}, users: [] };
             const users = registry.users || [];
             const admins = registry.admins || [];
             const mestres = registry.mestres || {};
 
-            const userRows = users.map(u => {
+            // Busca por NOME ou ID. Antes só dava para achar pelo ID do Discord, que
+            // ninguém decora — o mestre tinha que rolar a lista inteira.
+            const busca = (state.adminBusca || '').trim().toLowerCase();
+            const usersFiltrados = busca
+                ? users.filter(u => String(u.username || '').toLowerCase().includes(busca)
+                                 || String(u.id || '').toLowerCase().includes(busca))
+                : users;
+
+            const userRows = usersFiltrados.map(u => {
+                // Quem entra pelo Google tem o id prefixado com "google_" (ver auth.js),
+                // então dá para distinguir sem guardar nada novo no banco.
+                const isGoogle = String(u.id || '').startsWith('google_');
                 const isAdm = admins.includes(u.id) || ADMIN_USERS.includes(u.id);
                 const isHardcoded = ADMIN_USERS.includes(u.id);
                 const isMst = !!mestres[u.id];
-                const avatar = u.avatar ? `<img src="https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png" style="width:32px;height:32px;border-radius:50%;border:1px solid #374151">` : `<div style="width:32px;height:32px;border-radius:50%;background:#1f2937;display:flex;align-items:center;justify-content:center;color:#6b7280;font-size:14px">?</div>`;
+                const avatar = isGoogle
+                    ? `<div style="width:32px;height:32px;border-radius:50%;background:#1f2937;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px" title="Entrou com Google">🅖</div>`
+                    : u.avatar ? `<img src="https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png" style="width:32px;height:32px;border-radius:50%;border:1px solid #374151">` : `<div style="width:32px;height:32px;border-radius:50%;background:#1f2937;display:flex;align-items:center;justify-content:center;color:#6b7280;font-size:14px">?</div>`;
                 return `<div style="background:#111827;border:1px solid #1f2937;border-radius:12px;padding:12px 14px;margin-bottom:8px">
                     <div style="display:flex;align-items:center;gap:10px">
                         ${avatar}
                         <div style="flex:1;min-width:0">
-                            <div style="font-weight:900;color:#fff;font-size:12px">${u.username || u.id}</div>
+                            <div style="font-weight:900;color:#fff;font-size:12px">${u.username || u.id}${isGoogle ? ' <span style="font-size:8px;background:#1f2937;color:#9ca3af;border-radius:4px;padding:1px 5px;font-weight:700">Google</span>' : ''}</div>
                             <div style="font-size:9px;color:#4b5563;font-family:monospace">${u.id}</div>
                             <div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap">
                                 ${isAdm ? `<span style="font-size:8px;background:#dc262633;color:#f87171;border-radius:4px;padding:2px 6px;font-weight:900">🛡️ ADMIN${isHardcoded?' (fixo)':''}</span>` : ''}
@@ -55,6 +77,12 @@
                                 <input id="new-admin-id-input" type="text" placeholder="Discord User ID (ex: 123456789012345678)" style="flex:1;padding:8px 12px;background:#0d1117;border:1px solid #374151;border-radius:8px;color:#e5e7eb;font-size:11px;font-family:monospace;outline:none" />
                                 <button onclick="window._addAdminById()" style="padding:8px 14px;background:#7f1d1d;border:1px solid #991b1b;border-radius:8px;color:#fca5a5;font-size:9px;font-weight:900;text-transform:uppercase;cursor:pointer;font-family:'Orbitron',sans-serif;white-space:nowrap">+ Admin</button>
                             </div>
+                        </div>
+                        <div style="margin-bottom:12px">
+                            <input id="admin-busca-input" type="text" placeholder="🔎 Buscar por nome ou ID..." value="${(state.adminBusca||'').replace(/"/g,'&quot;')}"
+                                oninput="window._adminBuscar(this)"
+                                style="width:100%;box-sizing:border-box;padding:9px 12px;background:#0a0a0f;border:1px solid #374151;border-radius:9px;color:#fff;font-size:12px;outline:none">
+                            ${busca ? `<div style="font-size:9px;color:#6b7280;margin-top:5px">${usersFiltrados.length} de ${users.length} usuário(s)</div>` : ''}
                         </div>
                         <div style="font-size:9px;color:#6b7280;font-weight:900;text-transform:uppercase;letter-spacing:.15em;margin-bottom:12px">Usuários Registrados (${users.length})</div>
                         ${users.length === 0 ? '<div style="text-align:center;color:#4b5563;font-style:italic;padding:32px 0;border:2px dashed #1f2937;border-radius:12px;font-size:11px">Nenhum usuário registrado ainda.</div>' : userRows}
