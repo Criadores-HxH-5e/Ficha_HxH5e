@@ -158,8 +158,11 @@ window.DANO_PROPRIO_MAP = {
     'rc_e9':  { dado: '1d8',      tipo: 'Corporal',   desc: 'Metamorfose Corporal' },
     'em_e1':  { dado: '1d8',      tipo: 'Projétil',   desc: 'Projétil de Aura' },
     'em_e3':  { dado: '2d6',      tipo: 'Potente',    desc: 'Disparo Potente' },
-    'em_e6':  { dado: '3d6',      tipo: 'Linha',      desc: 'Canhão de Aura' },
-    'em_e9':  { dado: '4d6',      tipo: 'Área',       desc: 'Bomba de Aura' },
+    // 'em_e6' e 'em_e9' saíram daqui. O mapa dizia "Canhão de Aura 3d6" e "Bomba de
+    // Aura 4d6", mas esses efeitos NÃO EXISTEM — nem no livro, nem no banco. Os ids
+    // pertencem a "Transporte de Cargas" (teleporte de 3m) e "Troca Estratégica"
+    // (troca de lugar com constructo), que não causam dano nenhum. Os dados 3d6 e 4d6
+    // também não estão na tabela de grau/passo, o que confirmava a inconsistência.
     'rt_e16': { dado: '+5 dano',  tipo: 'Ferida',     desc: 'Ferida Interna' },
     'ri_e12': { dado: '+5',       tipo: 'Perfurante', desc: 'Penetração Dolorosa' },
 };
@@ -530,6 +533,21 @@ window.calcDuracaoHatsu = function (h, char) {
     const ph = h.primeiroHatsuGraus || {};
     rod += ph.duracao || 0;
     if (h.bonusGraus && h.bonusGraus.tipo === 'duracao') rod += h.bonusGraus.valor || 0;
+
+    // ── Fontes que só existiam na tela do Hatsu ─────────────────────────────────
+    // Esta função era uma SEGUNDA implementação da duração, criada para a aba Ficha
+    // poder ativar o Hatsu sem abrir a tela. Ela nasceu com menos fontes e foi ficando
+    // para trás: a tela somava 16 e aqui eram 11, então o mesmo Hatsu podia mostrar 6
+    // rodadas na tela e ser ativado com 4 pela Ficha.
+    if (restr.includes('rg_m2')) rod += 2;   // Experiência Comprovada
+    // Confirmação de Duas Etapas: +1 por Leve, +2 Moderada, +3 Pesada, +4 Extrema
+    if (restr.includes('rg_m6')) {
+        const peso = String((h.beneficioChoices || {})['rg_m6'] || '').toLowerCase();
+        rod += peso.includes('extrem') ? 4 : peso.includes('pesad') ? 3 : peso.includes('moder') ? 2 : 1;
+    }
+    // Dor pra Disgrama: ativar custa 1/3 da duração já acumulada.
+    if (efeitos.includes('eg17')) rod = Math.max(0, rod - Math.floor(rod / 3));
+
     return { rodadas: Math.max(0, rod), constante: false };
 };
 
@@ -1550,10 +1568,38 @@ function renderHatsuDetail(container) {
         acertoVantagem,
         nivel: parseInt(h.nivel || char.level || 1),
         sanExtras: sanidadeExtras.map(e => ({ dado: e._san.dado, desc: e._san.desc })),
-        dmgExtras: efeitosComDanoProprio.map(e => {
-            const d = DANO_PROPRIO_MAP[e.id];
-            return d ? { dado: d.dado, tipo: d.tipo, desc: d.desc } : null;
-        }).filter(Boolean)
+        // ── Extras que vão para a ROLAGEM ───────────────────────────────────────────
+        // A TELA consolidava as cópias (Golpe Reforçado 2x = 1d10), mas a rolagem montava
+        // uma entrada por CÓPIA, então o Discord recebia duas linhas de 1d8. Os dois lados
+        // precisam usar a mesma escada.
+        dmgExtras: (function () {
+            const vistos = new Set();
+            const out = [];
+            efeitosComDanoProprio.forEach(function (e) {
+                const d = DANO_PROPRIO_MAP[e.id];
+                if (!d) return;
+                const esc = (window.DANO_PROPRIO_ESCALA || {})[e.id];
+                if (!esc) { out.push({ dado: d.dado, tipo: d.tipo, desc: d.desc }); return; }
+                if (vistos.has(e.id)) return;
+                vistos.add(e.id);
+                const copias = (h.efeitos || []).filter(function (id) { return id === e.id; }).length;
+                const quer = Math.max(0, copias - 1);
+                const teto = window.calcMaxGrauPorCaracteristica
+                    ? window.calcMaxGrauPorCaracteristica(char.level, h.classe || char.class, 'dano')
+                    : Infinity;
+                const pode = (teto === Infinity) ? quer : Math.min(quer, Math.max(0, teto - 1));
+                if (esc.tipo === 'dado') {
+                    const bIdx = DAMAGE_TABLE.indexOf(esc.base);
+                    const dado = (bIdx >= 0)
+                        ? DAMAGE_TABLE[Math.min(bIdx + pode, DAMAGE_TABLE.length - 1)]
+                        : String(d.dado).replace(/^\+\s*/, '');
+                    out.push({ dado: '+ ' + dado, tipo: d.tipo, desc: d.desc });
+                } else {
+                    out.push({ dado: '+' + (esc.base + esc.passo * pode), tipo: d.tipo, desc: d.desc });
+                }
+            });
+            return out;
+        })()
     };
     // ── Fim cálculo de dano ────────────────────────────────────────────────────
 
