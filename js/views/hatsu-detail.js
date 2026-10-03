@@ -13,7 +13,9 @@ window.DAMAGE_TABLE = [
     '14d10','12d12','15d10','13d12','16d10','14d12',
     '17d10','15d12','19d10','16d12','20d10','17d12',
     '18d12','19d12','20d12','13d20','14d20','15d20',
-    '16d20','18d20','20d20'
+    '16d20','18d20','20d20',
+    // Fim da tabela do manual: depois do 20d20 cada degrau soma +5 fixo.
+    '20d20+5','20d20+10','20d20+15'
 ];
 window.BASE_DAMAGE_IDX = 5; // 2d6
 window.DAMAGE_OVERFLOW_STEP = 5; // ao passar do fim da tabela (20d20), cada grau extra vira +5 de dano fixo (REN)
@@ -170,10 +172,26 @@ window.DANO_PROPRIO_MAP = {
 //  - tipo 'bruto': valor fixo que cresce de 'passo' por cópia extra (+5 → +6 → +7)
 // O teto de Dano/Cura do nível limita o quanto cada efeito entrega: com teto 3, a
 // Penetração Dolorosa libera +3 em vez de +5, e o resto fica reservado até o nível subir.
+// Regra geral: TODO efeito que trabalha com dados usa a MESMA tabela de grau/passo
+// (DAMAGE_TABLE). O que muda é o ponto de partida — o primeiro passo é o dado do
+// próprio efeito. Comprar de novo SOBE UM DEGRAU, nunca acrescenta outro dado.
+//   Dano/Cura Focal parte de 2d6 · Golpe Reforçado e Recuperação Veloz de 1d8 · etc.
+// Antes só três efeitos tinham escada; os outros viravam linhas separadas a cada
+// cópia, o que dava "mais dados" em vez de subir na escala.
 window.DANO_PROPRIO_ESCALA = {
     'ri_e11': { tipo: 'dado',  base: '1d8' },          // Golpe Reforçado
     'ri_e20': { tipo: 'dado',  base: '1d6' },          // Fúria Potencializada
+    'ri_e3':  { tipo: 'dado',  base: '1d8', cura: true }, // Recuperação Veloz
+    'rm_e1':  { tipo: 'dado',  base: '2d6' },          // Forjar Objeto/Arma
+    'rc_e1':  { tipo: 'dado',  base: '1d6' },          // Invocar Criatura
+    'rc_e9':  { tipo: 'dado',  base: '1d8' },          // Metamorfose Corporal
+    'em_e1':  { tipo: 'dado',  base: '1d8' },          // Projétil de Aura
+    'em_e3':  { tipo: 'dado',  base: '2d6' },          // Disparo Potente
+    'eg10':   { tipo: 'dado',  base: '1d8' },          // Flagelo da Mente
+    // Valor BRUTO sobe de 1 em 1, qualquer que seja a base: +5 vira +6, não +10.
+    // Só os efeitos com DADO usam a tabela de grau/passo.
     'ri_e12': { tipo: 'bruto', base: 5, passo: 1 },    // Penetração Dolorosa
+    'rt_e16': { tipo: 'bruto', base: 5, passo: 1 },    // Ferida Interna
 };
 
 // ── Graus/Passo em outras características (Alcance, Área, Duração, Acerto, CD) ──
@@ -1193,12 +1211,20 @@ function renderHatsuDetail(container) {
             // seguinte. Os graus gerais do Hatsu (restrições, Bônus Talentoso...) valem
             // para as duas linhas, porque são graus da característica Dano/Cura.
             // O teto do nível vale igual, e o excedente fica em espera.
-            if (_temCuraFocal) {
-                const _grausCura = (_tags.cura - 1) + totalGraus;
+            // Recuperação Veloz também é cura: entra na MESMA linha, somando os degraus
+            // dela aos do Dano/Cura Focal marcado como cura. Duas fontes de cura no mesmo
+            // Hatsu sobem juntas na escada, em vez de virarem linhas separadas.
+            const _copiasRecup = efeitosSel.filter(function (e) { return e.id === 'ri_e3'; }).length;
+            if (_temCuraFocal || _copiasRecup > 0) {
+                // Sem o Focal marcado como cura, a base é a do próprio efeito de cura.
+                const _baseCuraIdx = _temCuraFocal ? BASE_DAMAGE_IDX : DAMAGE_TABLE.indexOf('1d8');
+                const _grausCura = Math.max(0, (_tags.cura - (_temCuraFocal ? 1 : 0)))
+                    + Math.max(0, _copiasRecup - (_temCuraFocal ? 0 : 1))
+                    + totalGraus;
                 const _curaPode = (_tetoDanoBase === Infinity)
                     ? _grausCura
                     : Math.min(_grausCura, Math.max(0, _tetoDanoBase - 1));
-                const _idxCura = Math.max(0, Math.min(BASE_DAMAGE_IDX + _curaPode, DAMAGE_TABLE.length - 1));
+                const _idxCura = Math.max(0, Math.min(_baseCuraIdx + _curaPode, DAMAGE_TABLE.length - 1));
                 _hatsuCuraDice = DAMAGE_TABLE[_idxCura];
                 _hatsuCuraEspera = Math.max(0, _grausCura - _curaPode);
             }
