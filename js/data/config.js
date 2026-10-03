@@ -770,7 +770,15 @@ window.calcReacoesMax = function (char) {
     if (!char || !char.attributes) return 7;
     const sab = ((char.attributes.SAB || {}).value) || 10;
     const analitica = ((char.combatInclinations || {}).analitica || 0) >= 1 ? 2 : 0;
-    return 7 + Math.floor((sab - 10) / 2) + analitica;
+    // Noção do Perigo soma +3 Reações — o bônus estava escrito na inclinação e
+    // nunca era aplicado.
+    let incl = 0;
+    if (window.inclinacoesGeraisDoPersonagem) {
+        window.inclinacoesGeraisDoPersonagem(char).forEach(function (n2) {
+            incl += (window.INCLINACAO_REACOES || {})[n2] || 0;
+        });
+    }
+    return 7 + Math.floor((sab - 10) / 2) + analitica + incl;
 };
 
 // ── Bônus de Nen em atributos e perícias ──────────────────────────────────────
@@ -865,4 +873,41 @@ window.calcBonusPericiaNen = function (char, skillName) {
 // na hora por calcAvancadoBonus.
 window.NEN_CUSTO_TECNICA = {
     en: 10, inp: 5, gyo: 10, shu: 10, ko: 30, ryu: 30,
+};
+
+// ── Bônus passivos das Inclinações Gerais ─────────────────────────────────────
+// Três inclinações concediam números que nunca eram aplicados em lugar nenhum:
+//   Sentidos Aguçados    — +2 em testes de sentido (Percepção, Investigação, Intuição)
+//   Resistência a Venenos — +10 em testes de CON contra veneno (situacional)
+//   Noção do Perigo      — +3 em Percepção Passiva e +3 Reações
+// A de veneno é situacional: só vale quando o teste é contra veneno, então ela é
+// exposta como aviso e não somada automaticamente em todo TR de CON.
+window.INCLINACAO_PERICIA_BONUS = {
+    'Sentidos Aguçados': { valor: 2, pericias: ['Percepção', 'Investigação', 'Intuição'] },
+    'Noção do Perigo':   { valor: 3, pericias: ['Percepção'] },
+};
+window.INCLINACAO_REACOES = { 'Noção do Perigo': 3 };
+window.INCLINACAO_SITUACIONAL = {
+    'Resistência a Venenos': '+10 em testes de CON contra venenos não produzidos por aura',
+};
+
+// Lista plana das inclinações gerais do personagem, de todas as origens.
+window.inclinacoesGeraisDoPersonagem = function (char) {
+    const nome = i => String((i && i.nome) || i || '').split(':')[0].trim();
+    return [].concat(
+        ((char || {}).inclinations || {}).positive || [],
+        ((char || {}).inclinations || {}).negative || [],
+        (char || {}).generalIncByPoints || [],
+        (char || {}).generalNegByPoints || []
+    ).map(nome);
+};
+
+// Bônus de perícia vindo das Inclinações Gerais.
+window.calcBonusPericiaInclinacao = function (char, skillName) {
+    const fontes = [];
+    window.inclinacoesGeraisDoPersonagem(char).forEach(function (n) {
+        const def = window.INCLINACAO_PERICIA_BONUS[n];
+        if (def && def.pericias.indexOf(skillName) >= 0) fontes.push({ nome: n, valor: def.valor });
+    });
+    return { total: fontes.reduce(function (s, f) { return s + f.valor; }, 0), fontes: fontes };
 };
