@@ -346,6 +346,23 @@
   .atk-b button { flex: 1; min-width: 74px; height: 30px; border-radius: var(--r-sm); border: 1px solid color-mix(in srgb, var(--c, #f87171) 45%, transparent); background: color-mix(in srgb, var(--c, #f87171) 12%, var(--surface)); color: var(--text); font: 700 11px/1 var(--f-display); letter-spacing: .04em; cursor: pointer; }
   .atk-b button:hover { border-color: var(--c, #f87171); }
   .atk.off { opacity: .55; }
+  /* bestiário */
+  .bcats { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0 12px; }
+  .bcats button { padding: 5px 9px; border-radius: var(--r-sm); border: 1px solid var(--border-2); background: transparent; font: 700 11px/1 var(--f-body); letter-spacing: .03em; color: var(--text-3); cursor: pointer; }
+  .bcats button.on { border-color: var(--c); color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); }
+  .bcard { border-radius: var(--r-md); border: 1px solid var(--border); border-left: 3px solid var(--c); background: var(--surface-2); padding: 10px; }
+  .bcard-h { display: flex; gap: 10px; align-items: center; }
+  .bthumb { width: 46px; height: 46px; border-radius: 50%; flex: none; object-fit: cover; background: color-mix(in srgb, var(--c) 22%, var(--bg-2)); display: grid; place-items: center; font: 700 18px/1 var(--f-display); color: var(--c); box-shadow: 0 0 0 2px var(--c); }
+  .bcard-h b { display: block; font: 700 13px/1.2 var(--f-display); }
+  .bcard .tiny { line-height: 1.3; }
+  .bstat { display: flex; gap: 10px; margin-top: 3px; font-size: 12px; color: var(--text-2); }
+  .bcard .row { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .bdet { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 13px; color: var(--text-2); line-height: 1.4; }
+  .bdet .attrs6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; text-align: center; margin-bottom: 8px; }
+  .bdet .attrs6 div { padding: 4px 0; border-radius: 8px; background: var(--bg-2); font: 700 11px/1.2 var(--f-body); }
+  .bdet .attrs6 small { display: block; color: var(--text-3); font-size: 9px; letter-spacing: .08em; }
+  .bdet p { margin: 0 0 6px; }
+  .bdet b { color: var(--text); }
   .atk-sec { font: 800 10px/1 var(--f-body); letter-spacing: .12em; text-transform: uppercase; color: var(--text-3); margin: 6px 0 2px; }
   .res { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 8px; margin-bottom: 8px; }
   .res > span { font: 800 11px/1 var(--f-body); letter-spacing: .06em; }
@@ -371,6 +388,8 @@
 
 <!-- config.js do HxH5e: ADMIN_USERS e as cores das categorias de Nen (SYSTEM_DB.classes) -->
 <script src="../js/data/config.js"></script>
+<!-- Bestiário do HxH5e (window.BESTIARY_DATA): a aba Bestiário do narrador -->
+<script src="../js/data/bestiary-data.js"></script>
 <script src="assets/nuvem-hxh.js"></script>
 <script src="assets/blocos.js"></script>
 <script src="assets/mapgen.js"></script>
@@ -674,7 +693,7 @@
     const pct = (a, b) => Math.max(0, Math.min(100, b ? a / b * 100 : 0));
     const ini = (t.nome || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
     return `<div class="tok ${t.tipo} ${podeMover(t) ? 'mine' : ''} ${S.sel === t.id ? 'sel' : ''}" data-id="${t.id}" style="left:${t.x * CELL}px;top:${t.y * CELL}px;width:${sz}px;height:${sz}px;--c:${esc(t.cor || '#1f5ae0')}">
-      ${vis ? `<div class="bars ${t.barras_publicas ? '' : 'priv'}"><i class="hp"><b style="width:${pct(t.hp, t.hp_max)}%"></b></i><i class="au"><b style="width:${pct(t.aura, t.aura_max)}%"></b></i></div>` : ''}
+      ${vis ? `<div class="bars ${t.barras_publicas ? '' : 'priv'}"><i class="hp"><b style="width:${pct(t.hp, t.hp_max)}%"></b></i>${t.aura_max > 0 ? `<i class="au"><b style="width:${pct(t.aura, t.aura_max)}%"></b></i>` : ''}</div>` : ''}
       <div class="disc">${t.img_url ? `<img src="${esc(t.img_url)}" alt="" draggable="false">` : esc(ini)}</div>
       <div class="lbl">${esc(t.nome)}</div></div>`;
   }
@@ -837,6 +856,7 @@
   const ATR_COR = { FOR: '#f87171', DES: '#34d399', CON: '#fbbf24', INT: '#60a5fa', SAB: '#a78bfa', PRE: '#f472b6' };
   // Valores base da ficha: bônus de Hatsu e princípios ficam fora por enquanto.
   function atributosHTML(t) {
+    const bm = bestDe(t); if (bm) return bestTokHTML(t, bm);
     if (t.tipo !== 'pj' || !t.personagem_id) return '';
     if (!(S.gm || t.owner === NV.user.id)) return '';
     const d = FICHAS[t.personagem_id];
@@ -971,7 +991,7 @@
       <div><b>${esc(t.nome)}</b><div class="tiny">${t.tipo === 'npc' ? 'NPC do narrador' : esc((S.perfis[t.owner] || {}).nome || 'Jogador')}</div></div>
       <button class="btn btn-icon btn-ghost x" id="tpX" aria-label="Fechar"><i class="ph-bold ph-x"></i></button></div>
       ${atributosHTML(t)}
-      ${vis ? res('hp', 'PV', COR_PV) + res('aura', 'AURA', COR_AURA) + (pode ? `<div class="tiny" style="margin:-2px 0 8px">Máximo: ${t.hp_max} PV · ${t.aura_max} Aura${t.tipo === 'pj' ? ' · não altera a ficha' : ''}</div>` : '') : '<p class="hint">As barras deste token estão escondidas.</p>'}
+      ${vis ? res('hp', 'PV', COR_PV) + (t.aura_max > 0 ? res('aura', 'AURA', COR_AURA) : '') + (pode ? `<div class="tiny" style="margin:-2px 0 8px">Máximo: ${t.hp_max} PV${t.aura_max > 0 ? ` · ${t.aura_max} Aura` : ''}${t.tipo === 'pj' ? ' · não altera a ficha' : ''}</div>` : '') : '<p class="hint">As barras deste token estão escondidas.</p>'}
       ${pode ? `<label class="chk"><input type="checkbox" id="tpPub" ${t.barras_publicas ? 'checked' : ''}> Barras visíveis para todos</label>
       <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
         ${S.gm ? `<select class="input" id="tpSz" style="height:34px;width:auto;font-size:13px;padding:0 30px 0 10px">${[1, 2, 3, 4].map(n => `<option value="${n}" ${t.tamanho === n ? 'selected' : ''}>${n}×${n}</option>`).join('')}</select>` : ''}
@@ -983,7 +1003,7 @@
     $$('#tokPanel [data-tpaba]').forEach(b => b.onclick = () => {
       S.tpAba = b.dataset.tpaba; renderTokPanel();
       // Busca a ficha de novo: o jogador pode ter aberto um Hatsu na ficha agora há pouco.
-      if (S.tpAba === 'atk' && t.personagem_id) NV.obter(t.personagem_id).then(f => {
+      if (S.tpAba === 'atk' && t.personagem_id && !bestDe(t)) NV.obter(t.personagem_id).then(f => {
         if (!f) return;
         FICHAS[t.personagem_id] = f.dados;
         const p = S.meus.find(x => x.id === t.personagem_id); if (p) p.dados = f.dados;
@@ -992,6 +1012,8 @@
     });
     $$('#tokPanel [data-arma]').forEach(b => b.onclick = () => { const w = armasDaFicha(FICHAS[t.personagem_id] || {})[+b.dataset.arma]; if (w) rolarArma(t, w, b.dataset.armaAt); });
     $$('#tokPanel [data-hatsu]').forEach(b => b.onclick = () => rolarHatsu(t, +b.dataset.hatsu));
+    $$('#tokPanel [data-bmod]').forEach(b => b.onclick = () => rolarD20(+b.dataset.bmod, b.dataset.blbl, t.nome));
+    $$('#tokPanel [data-bacao]').forEach(b => b.onclick = () => { const m = bestDe(t), a = m && bestAcoes(m)[+b.dataset.bacao]; if (a) rolarAcaoBest(t, a); });
     $$('#tokPanel [data-rola]').forEach(b => b.onclick = () => { const r = NV.resumo(FICHAS[t.personagem_id] || {}); rolarD20(r.attrs[b.dataset.rola].mod, `Teste de ${b.dataset.rola}`, t.nome); });
     const salvar = async patch => { Object.assign(t, patch); atualizarToken(t); renderTokPanel(); if (channel) channel.send({ type: 'broadcast', event: 'tok', payload: Object.assign({ id: t.id }, patch) }); const { error } = await sb.from('tokens').update(patch).eq('id', t.id); if (error) toast(errMsg(error), 'warning'); };
     $$('#tokPanel .ctl button').forEach(b => b.onclick = () => { const k = b.dataset.k; salvar({ [k]: Math.max(0, Math.min(t[k + '_max'], t[k] + +b.dataset.d)) }); });
@@ -1012,7 +1034,7 @@
   function abas() {
     const dados = ['dados', '<i class="ph ph-dice-five"></i> Dados'];
     const chat = ['chat', `<i class="ph ph-chat-circle-dots"></i> Chat${S.naoLidas ? `<span class="badge">${S.naoLidas > 99 ? '99+' : S.naoLidas}</span>` : ''}`];
-    return S.gm ? [['cenas', 'Cenas'], ['mapa', 'Mapa'], ['tokens', 'Tokens'], dados, chat, ['ninja', 'Personagem'], ['grupo', 'Grupo']]
+    return S.gm ? [['cenas', 'Cenas'], ['mapa', 'Mapa'], ['tokens', 'Tokens'], ['best', '<i class="ph ph-paw-print"></i> Bestiário'], dados, chat, ['ninja', 'Personagem'], ['grupo', 'Grupo']]
       : [dados, chat, ['ninja', 'Meu personagem'], ['tokens', 'Tokens'], ['grupo', 'Grupo']];
   }
   function renderTabs() {
@@ -1024,7 +1046,7 @@
     if (S.tab === 'chat') S.naoLidas = 0;
     renderTabs();
     P().classList.toggle('pane-chat', S.tab === 'chat');
-    ({ cenas: paneCenas, mapa: paneMapa, tokens: paneTokens, dados: paneDados, chat: paneChat, ninja: paneNinja, grupo: paneGrupo })[S.tab]();
+    ({ cenas: paneCenas, mapa: paneMapa, tokens: paneTokens, best: paneBest, dados: paneDados, chat: paneChat, ninja: paneNinja, grupo: paneGrupo })[S.tab]();
   }
   const P = () => $('#pane');
 
@@ -1205,12 +1227,148 @@
     esquerda(); previa();
   }
 
-  function centroLivre() {
+  // Procura, a partir do centro, um lugar onde caiba um token de "tam"×"tam" sem
+  // encostar em nenhum outro (cada token ocupa todos os quadrados do seu tamanho).
+  function centroLivre(tam = 1) {
     const m = S.mapa || { cols: 30, rows: 30 };
-    const ocup = new Set(Object.values(S.tokens).map(t => `${Math.round(t.x)},${Math.round(t.y)}`));
+    const ocup = new Set();
+    Object.values(S.tokens).forEach(t => { const n = t.tamanho || 1, x0 = Math.round(t.x), y0 = Math.round(t.y); for (let a = 0; a < n; a++) for (let b = 0; b < n; b++) ocup.add(`${x0 + a},${y0 + b}`); });
+    const cabe = (x, y) => { for (let a = 0; a < tam; a++) for (let b = 0; b < tam; b++) if (ocup.has(`${x + a},${y + b}`)) return false; return true; };
     const cx = Math.floor(m.cols / 2), cy = Math.floor(m.rows / 2);
-    for (let r = 0; r < 12; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { const k = `${cx + dx},${cy + dy}`; if (!ocup.has(k)) return { x: cx + dx, y: cy + dy }; }
+    for (let r = 0; r < 16; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) if (cabe(cx + dx, cy + dy)) return { x: cx + dx, y: cy + dy };
     return { x: cx, y: cy };
+  }
+
+  /* ---------- Bestiário (só narrador) ---------- */
+  // Criaturas de js/data/bestiary-data.js, o mesmo Bestiário da ficha. Cada uma vira um
+  // token de NPC ligado à criatura por personagem_id = "bestiario:<nome>" (sem coluna nova).
+  const BEST = window.BESTIARY_DATA || [];
+  const BEST_CATS = ['TODOS', 'BESTA NATURAL', 'BESTA MÁGICA', 'BESTA DE NEN', 'ABERRAÇÃO', 'MONSTRUOSIDADE', 'PLAYTEST'];
+  const BEST_COR = { 'BESTA NATURAL': '#22c55e', 'BESTA MÁGICA': '#a855f7', 'BESTA DE NEN': '#06b6d4', 'ABERRAÇÃO': '#f97316', 'MONSTRUOSIDADE': '#ef4444', 'PLAYTEST': '#f59e0b', 'PLANTA': '#4ade80', 'TODOS': '#00ff9d' };
+  const BEST_PREFIXO = 'bestiario:';
+  const BEST_ATR = [['for', 'FOR'], ['des', 'DES'], ['con', 'CON'], ['int', 'INT'], ['sab', 'SAB'], ['car', 'CAR']];
+  const BB = { busca: '', cat: 'TODOS', aberto: null, imgs: null };
+  const bestDe = t => (t && typeof t.personagem_id === 'string' && t.personagem_id.startsWith(BEST_PREFIXO)) ? (BEST.find(m => m.nome === t.personagem_id.slice(BEST_PREFIXO.length)) || null) : null;
+  const bestImg = m => (BB.imgs || {})[NV.slugBest(m.nome)] || null;
+  const bestPV = m => { const n = parseInt(String(m.pv || '')); return n > 0 ? n : 10; };
+  // Tamanho do token pela categoria de tamanho do tipo ("Besta Enorme, Neutro" → 3×3).
+  const bestTamanho = m => { const t = String(m.tipo || ''); return /Colossal|Imens/.test(t) ? 4 : /Enorme/.test(t) ? 3 : /Grande/.test(t) ? 2 : 1; };
+  const bestMod = v => { const m = String(v || '').replace(/−/g, '-').match(/\(([+\-]\d+)\)/); return m ? parseInt(m[1]) : 0; };
+  // "Atletismo +11, Furtividade +1" → [{ n: 'Atletismo', v: 11 }, …]
+  const bestLista = s => String(s || '').replace(/−/g, '-').split(',').map(x => x.trim().match(/^(.+?)\s*([+\-]\d+)$/)).filter(Boolean).map(m => ({ n: m[1].trim(), v: parseInt(m[2]) }));
+  // Mesma leitura das ações do bestiario.js: "+11 para atingir" e o dado entre parênteses;
+  // além disso pega a CD ("TR DES CD 22" ou "CD 20 FOR") para ações sem jogada de ataque.
+  function bestAcoes(m) {
+    return (m.acoes || []).map(a => {
+      const atk = a.d.match(/([+\-]\d+) para (atingir|acertar)/i);
+      const dmg = a.d.match(/\((\d+d\d+(?:\s*[+\-]\s*\d+)?)\)/);
+      const tipo = a.d.match(/\(\d+d\d+(?:\s*[+\-]\s*\d+)?\)\s+([a-záéíóúàãõâêîôûç]+)/i);
+      const c1 = a.d.match(/TR\s+(?:de\s+)?(FOR|DES|CON|INT|SAB|CAR)\s+CD\s*(\d+)/i), c2 = a.d.match(/CD\s*(\d+)\s+(FOR|DES|CON|INT|SAB|CAR)/i);
+      const cd = c1 ? { a: c1[1].toUpperCase(), v: +c1[2] } : c2 ? { a: c2[2].toUpperCase(), v: +c2[1] } : null;
+      return { n: a.n, atk: atk ? parseInt(atk[1]) : null, dmg: dmg ? dmg[1].replace(/\s+/g, '') : null, tipo: tipo ? tipo[1] : '', cd };
+    }).filter(a => a.atk != null || a.dmg || a.cd);
+  }
+  async function carregarImgsBest() {
+    if (BB.imgs) return;
+    try { BB.imgs = await NV.imagensBestiario(); } catch (e) { BB.imgs = {}; }
+  }
+  function paneBest() {
+    P().innerHTML = `<h4>Bestiário</h4>
+      <input class="input" id="bBusca" placeholder="Buscar criatura, tipo ou categoria…" value="${esc(BB.busca)}" autocomplete="off" aria-label="Buscar criatura">
+      <div class="bcats">${BEST_CATS.map(c => `<button data-bcat="${c}" class="${BB.cat === c ? 'on' : ''}" style="--c:${BEST_COR[c]}">${c === 'TODOS' ? 'TODAS' : c}</button>`).join('')}</div>
+      <div class="stack" id="bLista"></div>
+      <p class="hint">As imagens enviadas aqui valem para todas as mesas. A criatura entra com PV cheio e com as barras escondidas dos jogadores.</p>`;
+    // Redesenha só a lista: o campo de busca não perde o foco enquanto digita.
+    $('#bBusca').oninput = e => { BB.busca = e.target.value; listaBest(); };
+    $$('[data-bcat]').forEach(b => b.onclick = () => { BB.cat = b.dataset.bcat; paneBest(); });
+    listaBest();
+    if (!BB.imgs) carregarImgsBest().then(() => { if (S.tab === 'best') listaBest(); });
+  }
+  function listaBest() {
+    const el = $('#bLista'); if (!el) return;
+    const q = BB.busca.trim().toLowerCase();
+    const lista = BEST.filter(m => (BB.cat === 'TODOS' || m.cat === BB.cat) && (!q || [m.nome, m.tipo, m.cat].some(x => String(x).toLowerCase().includes(q))));
+    el.innerHTML = lista.length ? lista.map(m => {
+      const cor = BEST_COR[m.cat] || '#94a3b8', img = bestImg(m), ab = BB.aberto === m.nome;
+      const noMapa = Object.values(S.tokens).filter(t => t.personagem_id === BEST_PREFIXO + m.nome).length;
+      return `<div class="bcard" style="--c:${cor}">
+        <div class="bcard-h">${img ? `<img class="bthumb" src="${esc(img)}" alt="">` : `<span class="bthumb">${esc(m.nome[0])}</span>`}
+          <div style="min-width:0;flex:1"><b>${esc(m.nome)}</b><div class="tiny">${esc(m.tipo)}</div>
+          <div class="bstat"><span>CA ${esc(String(m.ca).split(' ')[0])}</span><span>PV ${bestPV(m)}</span><span>${esc(m.desl)}</span>${noMapa ? `<span style="color:var(--blue-6)">${noMapa} no mapa</span>` : ''}</div></div></div>
+        <div class="row"><button class="btn btn-sm btn-primary" data-bput="${esc(m.nome)}"><i class="ph-bold ph-plus"></i> Mapa</button>
+          <button class="btn btn-sm" data-bimg="${esc(m.nome)}"><i class="ph ph-image"></i> ${img ? 'Trocar imagem' : 'Imagem'}</button>
+          <button class="btn btn-sm btn-ghost" data-bver="${esc(m.nome)}">${ab ? 'Fechar' : 'Ficha'}</button></div>
+        ${ab ? bestDetalhe(m) : ''}</div>`;
+    }).join('') : '<p class="hint">Nenhuma criatura encontrada.</p>';
+    const acha = n => BEST.find(m => m.nome === n);
+    $$('[data-bver]').forEach(b => b.onclick = () => { BB.aberto = BB.aberto === b.dataset.bver ? null : b.dataset.bver; listaBest(); });
+    $$('[data-bput]').forEach(b => b.onclick = () => colocarBest(acha(b.dataset.bput), b));
+    $$('[data-bimg]').forEach(b => b.onclick = () => imagemBest(acha(b.dataset.bimg), b));
+  }
+  function bestDetalhe(m) {
+    const linha = (l, v) => v ? `<p><b>${l}:</b> ${esc(v)}</p>` : '';
+    return `<div class="bdet">
+      ${m.for !== '—' ? `<div class="attrs6">${BEST_ATR.map(([k, l]) => `<div><small>${l}</small>${esc(m[k])}</div>`).join('')}</div>` : ''}
+      ${linha('CA', m.ca)}${linha('PV', m.pv)}${linha('Reações', m.reacoes)}${linha('Perícias', m.pericias)}${linha('TRs', m.trs)}${linha('Imunidades', m.imunidades)}${linha('Resistências', m.resistencias)}${linha('Vulnerabilidades', m.vulnerabilidades)}${linha('Sentidos', m.sentidos)}${linha('Língua', m.lingua)}
+      ${(m.tracos || []).length ? `<h4 style="margin-top:10px">Traços</h4>${m.tracos.map(t => `<p><b>${esc(t.n)}.</b> ${esc(t.d)}</p>`).join('')}` : ''}
+      ${(m.acoes || []).length ? `<h4 style="margin-top:10px">Ações</h4>${m.acoes.map(a => `<p><b>${esc(a.n)}.</b> ${esc(a.d)}</p>`).join('')}` : ''}
+    </div>`;
+  }
+  async function colocarBest(m, btn) {
+    if (!m) return;
+    btn.disabled = true;
+    // Bando: a segunda criatura igual vira "Corvo Ventríloquo 2", e assim por diante.
+    const iguais = Object.values(S.tokens).filter(t => t.personagem_id === BEST_PREFIXO + m.nome).length;
+    const hp = bestPV(m), pos = centroLivre(bestTamanho(m));
+    const row = { mesa_id: S.mesa.id, tipo: 'npc', owner: NV.user.id, personagem_id: BEST_PREFIXO + m.nome, nome: iguais ? `${m.nome} ${iguais + 1}` : m.nome,
+      img_url: bestImg(m), cor: BEST_COR[m.cat] || '#ef4444', tamanho: bestTamanho(m), hp, hp_max: hp, aura: 0, aura_max: 0, barras_publicas: false, x: pos.x, y: pos.y };
+    const { data, error } = await sb.from('tokens').insert(row).select('*').single();
+    btn.disabled = false;
+    if (error) return toast(esc(errMsg(error)), 'warning');
+    S.tokens[data.id] = data; S.sel = data.id;
+    if (vistaAtual() !== 'mapa') { S.view = 'mapa'; renderStage(); } else renderTokens();
+    listaBest(); toast(esc(`${data.nome} entrou no mapa`), 'paw-print');
+  }
+  async function imagemBest(m, btn) {
+    if (!m) return;
+    const f = await pickFile(); if (!f) return;
+    btn.disabled = true; btn.textContent = 'Enviando…';
+    try {
+      const url = await NV.enviarBestiario(f, m.nome);
+      BB.imgs = Object.assign({}, BB.imgs, { [NV.slugBest(m.nome)]: url });
+      // Os tokens dessa criatura que já estão nesta mesa ganham a imagem nova.
+      const ids = Object.values(S.tokens).filter(t => t.personagem_id === BEST_PREFIXO + m.nome).map(t => t.id);
+      if (ids.length) {
+        const { error } = await sb.from('tokens').update({ img_url: url }).in('id', ids);
+        if (!error) ids.forEach(id => { S.tokens[id].img_url = url; if (channel) channel.send({ type: 'broadcast', event: 'tok', payload: { id, img_url: url } }); });
+        renderTokens();
+      }
+      toast(esc(`Imagem de ${m.nome} salva`), 'image');
+    } catch (e) { toast(esc(errMsg(e)), 'warning'); }
+    listaBest();
+  }
+  // Painel do token da criatura: só o narrador vê os dados (os jogadores veem o nome).
+  function bestTokHTML(t, m) {
+    if (!S.gm) return '';
+    const aba = S.tpAba === 'atk' ? 'atk' : 'atr';
+    const acoes = bestAcoes(m), trs = bestLista(m.trs), per = bestLista(m.pericias);
+    const atr = m.for !== '—' ? `<div class="tp-tres">${BEST_ATR.map(([k, l]) => { const v = bestMod(m[k]); return `<button class="tp-a" data-bmod="${v}" data-blbl="Teste de ${l}" style="--c:${ATR_COR[l === 'CAR' ? 'PRE' : l]}" title="${esc(m[k])}"><small>${l}</small><b>${sinal(v)}</b></button>`; }).join('')}</div>` : '';
+    const chips = (lista, pre, tit) => lista.length ? `<div class="tiny" style="margin:10px 0 6px">${tit}</div><div class="quick">${lista.map(x => `<button class="btn btn-sm" data-bmod="${x.v}" data-blbl="${esc(pre + x.n)}">${esc(x.n)} ${sinal(x.v)}</button>`).join('')}</div>` : '';
+    const atks = acoes.length ? `<div class="atks">${acoes.map((a, i) => `<div class="atk"><div class="atk-h"><b title="${esc(a.n)}">${esc(a.n)}</b>${a.dmg ? `<span class="dn">${esc(a.dmg)}</span>` : ''}</div>
+        <div class="atk-s">${[a.atk != null ? `Ataque ${sinal(a.atk)}` : '', a.cd ? `TR de ${a.cd.a} CD ${a.cd.v}` : '', a.tipo].filter(Boolean).map(esc).join(' · ')}</div>
+        <div class="atk-b"><button data-bacao="${i}" style="--c:${esc(t.cor || '#f87171')}"><i class="ph-bold ph-sword"></i> Rolar</button></div></div>`).join('')}</div>`
+      : '<div class="atk-s">Nenhuma ação com ataque, dano ou CD para rolar. Veja a ficha na aba Bestiário.</div>';
+    return `<div class="tp-atr">
+      <div class="tp-sub"><span style="color:${BEST_COR[m.cat] || 'inherit'}">${esc(m.cat)}</span> · CA ${esc(String(m.ca).split(' ')[0])} · ${esc(m.desl)}</div>
+      <div class="tp-abas"><button data-tpaba="atr" class="${aba === 'atr' ? 'on' : ''}">Atributos</button><button data-tpaba="atk" class="${aba === 'atk' ? 'on' : ''}">Ataques</button></div>
+      ${aba === 'atr' ? `<div class="atks">${atr}${chips(trs, 'TR de ', 'Resistência (TR)')}${chips(per, '', 'Perícias')}</div>` : atks}
+      <div class="tp-def"><span class="tiny">Modo: ${DADO.modo}</span><span class="tiny" style="margin-left:auto">Só o narrador vê</span></div>
+    </div>`;
+  }
+  async function rolarAcaoBest(t, a) {
+    if (a.atk != null) await rolarAtaque(a.atk, `Ataque · ${a.n}`, t.nome);
+    if (a.dmg) await rolarDano(a.dmg, 0, `Dano · ${a.n}${a.tipo ? ' · ' + a.tipo : ''}${a.cd && a.atk == null ? ` · TR de ${a.cd.a} CD ${a.cd.v}` : ''}`, t.nome);
+    else if (a.cd) toast(esc(`${a.n}: TR de ${a.cd.a} CD ${a.cd.v}`), 'target');
   }
 
   function paneTokens() {
@@ -1226,7 +1384,7 @@
       <button class="btn btn-primary" id="npAdd" style="width:100%;margin-top:12px">Colocar no mapa</button>
       <div class="sep"></div>` : '') + `<h4>Tokens no mapa</h4><div class="stack">${lista.length ? lista.map(t => `<div class="item" style="display:flex;align-items:center;gap:10px;cursor:pointer" data-sel="${t.id}">
         ${t.img_url ? `<img class="av" src="${esc(t.img_url)}" alt="">` : `<span class="av" style="background:${esc(t.cor)};color:#fff">${esc((t.nome || '?')[0])}</span>`}
-        <div style="flex:1;min-width:0"><b>${esc(t.nome)}</b><div class="tiny">${t.tipo === 'npc' ? 'NPC' : 'Jogador'}${barrasVisiveis(t) ? ` · ${t.hp}/${t.hp_max} PV · ${t.aura}/${t.aura_max} Aura` : ''}</div></div></div>`).join('') : '<p class="hint">Nenhum token ainda.</p>'}</div>`;
+        <div style="flex:1;min-width:0"><b>${esc(t.nome)}</b><div class="tiny">${t.tipo === 'npc' ? 'NPC' : 'Jogador'}${barrasVisiveis(t) ? ` · ${t.hp}/${t.hp_max} PV${t.aura_max > 0 ? ` · ${t.aura}/${t.aura_max} Aura` : ''}` : ''}</div></div></div>`).join('') : '<p class="hint">Nenhum token ainda.</p>'}</div>`;
     let img = null;
     const up = $('#npUp');
     if (up) up.onclick = async e => { e.preventDefault(); const f = await pickFile(); if (!f) return; $('#npLbl').textContent = 'Enviando…'; try { img = await NV.enviarToken(f); $('#npPrev').innerHTML = `<img src="${esc(img)}" alt="" style="width:36px;height:36px;border-radius:50%">`; $('#npLbl').textContent = 'Imagem pronta'; } catch (err) { toast(errMsg(err), 'warning'); } };
@@ -1234,7 +1392,7 @@
     if (add) add.onclick = async () => {
       // PV do 5e não anda de 5 em 5 como o HP do Shinobi: valor exato.
       const hp = Math.max(1, Math.round(+$('#npH').value || 30)), aura = Math.max(0, Math.round(+$('#npC').value || 0));
-      const pos = centroLivre();
+      const pos = centroLivre(+$('#npS').value || 1);
       const row = { mesa_id: S.mesa.id, tipo: 'npc', owner: NV.user.id, nome: $('#npN').value.trim() || 'Inimigo', img_url: img, cor: $('#npK').value, tamanho: +$('#npS').value, hp, hp_max: hp, aura, aura_max: aura, barras_publicas: $('#npPub').checked, x: pos.x, y: pos.y };
       const { data, error } = await sb.from('tokens').insert(row).select('*').single();
       if (error) return toast(errMsg(error), 'warning');
@@ -1542,6 +1700,7 @@
         if (eventType === 'DELETE') { delete S.tokens[o.id]; if (S.sel === o.id) S.sel = null; if ($('#tokLayer')) renderTokens(); }
         else { S.tokens[n.id] = n; if ($('#tokLayer')) atualizarToken(n); if (S.sel === n.id) renderTokPanel(); }
         if (S.tab === 'tokens' || S.tab === 'ninja' || S.tab === 'grupo') renderSide();
+        else if (S.tab === 'best') listaBest();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'mesas', filter: `id=eq.${id}` }, ({ eventType, new: n }) => {
         if (eventType === 'DELETE') { toast('O narrador encerrou esta mesa', 'flag-checkered'); setTimeout(() => location.href = 'mesa.html', 1500); return; }

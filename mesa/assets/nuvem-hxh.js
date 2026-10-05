@@ -148,12 +148,35 @@
     c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
     return paraBlob(c, 0.86);
   }
-  async function subir(blob, pasta) {
+  async function subir(blob, pasta, caminho) {
     const id = (user ? user.id : 'anon').replace(/[^\w-]/g, '_');
-    const path = `${pasta}/${id}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}.webp`;
+    const path = caminho || `${pasta}/${id}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}.webp`;
     const { error } = await sb.storage.from(BUCKET).upload(path, blob, { contentType: 'image/webp', upsert: false });
     if (error) throw error;
     return sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+  }
+
+  /* ---------- Imagens do Bestiário (compartilhadas entre todas as mesas) ----------
+     O bucket não deixa sobrescrever nem apagar (só inserir e ler), então cada envio
+     vira um arquivo novo "bestiario/<slug>--<timestamp>.webp" e vale o mais recente.
+     Assim não precisa de tabela: uma listagem da pasta já diz a imagem de cada criatura. */
+  const slugBest = nome => String(nome || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  async function imagensBestiario() {
+    const { data, error } = await sb.storage.from(BUCKET).list('bestiario', { limit: 1000, sortBy: { column: 'name', order: 'asc' } });
+    if (error) throw error;
+    const mapa = {};
+    (data || []).forEach(f => {
+      const m = f.name.match(/^(.+)--(\d+)\.webp$/);
+      if (!m) return;
+      if (!mapa[m[1]] || +m[2] > mapa[m[1]].ts) mapa[m[1]] = { ts: +m[2], url: sb.storage.from(BUCKET).getPublicUrl('bestiario/' + f.name).data.publicUrl };
+    });
+    const out = {}; Object.keys(mapa).forEach(k => out[k] = mapa[k].url);
+    return out;
+  }
+  async function enviarBestiario(file, nome) {
+    validar(file);
+    const url = URL.createObjectURL(file);
+    try { return await subir(await quadrado(url, 320), null, `bestiario/${slugBest(nome)}--${Date.now()}.webp`); } finally { URL.revokeObjectURL(url); }
   }
   function validar(file) {
     if (!user) throw new Error('Entre no HxH5e primeiro.');
@@ -200,5 +223,6 @@
     onAuth(fn) { listeners.add(fn); return () => listeners.delete(fn); },
     entrar, sair, perfis, listar, obter, resumo, classe,
     enviarToken, enviarImagem, tokenDaFicha, montarMenu,
+    slugBest, imagensBestiario, enviarBestiario,
   };
 })();
