@@ -86,6 +86,7 @@ function loginGoogle() {
                     avatar: profile.picture,
                     loginProvider: 'google'
                 };
+                if (await verificarBloqueio(state.user.id)) { negarAcessoBloqueado(); return; }
                 state.authorized = true;
                 state.view = 'LIST';
                 writeTorreSession(state.user, ["1100984179845505044", "1100415887971991572"]);
@@ -158,6 +159,7 @@ async function checkDiscordAuth() {
                     avatar: profile.picture,
                     loginProvider: 'google'
                 };
+                if (await verificarBloqueio(state.user.id)) { negarAcessoBloqueado(); return; }
                 state.authorized = true;
                 state.view = 'LIST';
                 writeTorreSession(state.user, ["1100984179845505044", "1100415887971991572"]);
@@ -202,6 +204,8 @@ async function checkDiscordAuth() {
         if (!userRes.ok) throw new Error('Invalid Token');
         const user = await userRes.json();
         state.user = user;
+
+        if (await verificarBloqueio(user.id)) { negarAcessoBloqueado(); return; }
 
         if (PAID_USERS.includes(user.id) || ADMIN_USERS.includes(user.id)) {
             state.authorized = true;
@@ -262,10 +266,11 @@ async function checkDiscordAuth() {
 // ══════════════════════════════════════════════════════════
 
 async function loadAdminRegistry() {
-    const [usersData, adminsData, mestresData] = await Promise.all([
+    const [usersData, adminsData, mestresData, bloqueadosData] = await Promise.all([
         sbSelect('users', 'select=*'),
         sbSelect('admins', 'select=*'),
-        sbSelect('mestres', 'select=*')
+        sbSelect('mestres', 'select=*'),
+        sbSelect('bloqueados', 'select=*')
     ]);
     if (!usersData || !adminsData || !mestresData) return null;
     const mestreMap = {};
@@ -273,7 +278,46 @@ async function loadAdminRegistry() {
         if (!mestreMap[m.mestre_id]) mestreMap[m.mestre_id] = [];
         mestreMap[m.mestre_id].push(m.player_id);
     });
-    return { admins: adminsData.map(a => a.user_id), mestres: mestreMap, users: usersData };
+    // bloqueados é opcional: se a leitura falhar, o painel continua funcionando sem a marcação.
+    const bloqueados = {};
+    (bloqueadosData || []).forEach(b => { bloqueados[b.user_id] = b; });
+    return { admins: adminsData.map(a => a.user_id), mestres: mestreMap, users: usersData, bloqueados };
+}
+
+// ══════════════════════════════════════════════════════════
+//  BLOQUEIO — quem recebeu o link mas não faz parte do ciclo
+//  de playtesters/apoiadores. Checado antes de liberar o acesso.
+// ══════════════════════════════════════════════════════════
+
+async function verificarBloqueio(userId) {
+    if (!userId || ADMIN_USERS.includes(userId)) return false;
+    const rows = await sbSelect('bloqueados', `user_id=eq.${encodeURIComponent(userId)}&select=user_id`);
+    // Falha de rede/tabela não bloqueia ninguém — melhor deixar entrar do que trancar todo mundo.
+    return !!(rows && rows.length);
+}
+
+function negarAcessoBloqueado() {
+    alert('Acesso bloqueado: sua conta não tem permissão para usar este app. Se acha que é um engano, fale com a administração.');
+    logout();
+}
+
+async function adminBlockUser(targetUserId, motivo) {
+    if (ADMIN_USERS.includes(targetUserId) || targetUserId === (state.user && state.user.id)) return;
+    const ok = await sbUpsert('bloqueados', {
+        user_id: targetUserId,
+        bloqueado_por: state.user ? state.user.id : null,
+        motivo: motivo || null
+    });
+    if (!ok) alert('Não foi possível bloquear. Tente novamente.');
+    state.adminRegistry = await loadAdminRegistry();
+    render(true);
+}
+
+async function adminUnblockUser(targetUserId) {
+    const ok = await sbDelete('bloqueados', `user_id=eq.${encodeURIComponent(targetUserId)}`);
+    if (!ok) alert('Não foi possível desbloquear. Tente novamente.');
+    state.adminRegistry = await loadAdminRegistry();
+    render(true);
 }
 
 async function registerUserInRegistry() {

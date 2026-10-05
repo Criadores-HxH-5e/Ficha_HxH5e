@@ -1,0 +1,1601 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>HxH5e · Mesa</title>
+<meta name="description" content="Mesa virtual do HxH5e: cenas, battlemap ao vivo e tokens com PV e Aura.">
+<link rel="stylesheet" href="assets/hxh-mesa.css">
+<style>
+  html, body { height: 100%; }
+  body.in-mesa { overflow: hidden; }
+  .toasts { position: fixed; z-index: 300; left: 50%; bottom: 24px; transform: translateX(-50%); display: grid; gap: 8px; justify-items: center; pointer-events: none; }
+  .toast { display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-radius: var(--r-pill); background: #1b1d2a; color: #fff; font-weight: 700; font-size: 14px; box-shadow: var(--sh-3); animation: rise .4s var(--ease-spring) both; }
+
+  /* ---------- Lobby ---------- */
+  .lobby { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 0 24px 80px; }
+  .topbar { display: flex; align-items: center; gap: 14px; height: 72px; }
+  .brand { display: flex; align-items: center; gap: 10px; font: 700 18px/1 var(--f-display); color: var(--text); }
+  .brand:hover { color: var(--text); }
+  .brand-mark { width: 36px; height: 36px; border-radius: 12px; background: var(--grad-orange); display: grid; place-items: center; box-shadow: var(--sh-orange); flex: none; }
+  .brand-mark svg { width: 24px; height: 24px; color: #fff; animation: spin 14s linear infinite; }
+  .topbar .right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  .me { display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px 4px 4px; border-radius: var(--r-pill); background: var(--surface); border: 1px solid var(--border); font-weight: 800; font-size: 13px; }
+  .av { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; background: var(--bg-2); display: inline-grid; place-items: center; font: 700 13px/1 var(--f-display); color: var(--text-2); flex: none; }
+  .lob-head { margin: 24px 0 24px; }
+  .lob-head .kicker { font: 700 13px/1 var(--f-display); letter-spacing: .14em; text-transform: uppercase; color: var(--orange-7); }
+  .lob-head h1 { font-size: clamp(32px, 4.4vw, 46px); margin-top: 8px; }
+  .lob-head p { color: var(--text-2); font-size: 17px; margin: 10px 0 0; max-width: 620px; }
+  .lob-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 32px; }
+  .lob-card { padding: 22px; border-radius: var(--r-xl); background: var(--surface); border: 1px solid var(--border); box-shadow: var(--sh-1); }
+  .lob-card h3 { font-size: 20px; margin-bottom: 4px; }
+  .lob-card p { color: var(--text-2); font-size: 14px; margin: 0 0 14px; }
+  .lob-card .row { display: flex; gap: 8px; }
+  .lob-card .row .input { height: 46px; }
+  .lob-card.gm { background: linear-gradient(135deg, var(--orange-1), var(--surface)); border-color: var(--orange-2); }
+  @media (max-width: 760px) { .lob-actions { grid-template-columns: 1fr; } }
+  .mesas { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+  .mcard { display: block; padding: 20px; border-radius: var(--r-xl); background: var(--surface); border: 1px solid var(--border); color: var(--text); transition: transform var(--t-med) var(--ease-out), box-shadow var(--t-med); position: relative; overflow: hidden; }
+  .mcard:hover { transform: translateY(-3px); box-shadow: var(--sh-3); color: var(--text); }
+  .mcard .k { position: absolute; right: -6px; bottom: -26px; font-size: 96px; opacity: .07; }
+  .mcard h3 { font-size: 20px; }
+  .mcard .tags { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+  .gate { padding: 40px; border-radius: var(--r-xl); background: var(--grad-hero); color: #fff; text-align: center; }
+  .gate h2 { color: #fff; }
+  .gate p { color: rgba(255,255,255,.92); }
+  .gbtn { display: inline-flex; align-items: center; gap: 12px; height: 50px; padding: 0 22px; border-radius: var(--r-pill); background: #fff; color: #1f1f1f; border: 0; font: 700 16px/1 var(--f-display); cursor: pointer; margin-top: 10px; }
+
+  /* ---------- Mesa ---------- */
+  .app { position: fixed; inset: 0; z-index: 1; display: grid; grid-template-rows: 60px 1fr; grid-template-columns: 1fr var(--side-w, 360px); background: var(--bg); }
+  /* alça para redimensionar a barra lateral (só desktop) */
+  .side-grip { position: absolute; left: -4px; top: 0; bottom: 0; width: 9px; cursor: col-resize; z-index: 5; touch-action: none; }
+  .side-grip::after { content: ''; position: absolute; left: 3px; top: 50%; width: 3px; height: 44px; transform: translateY(-50%); border-radius: 3px; background: var(--border-2); transition: background var(--t-fast), height var(--t-fast); }
+  .side-grip:hover::after, body.resizing .side-grip::after { background: var(--blue-6); height: 72px; }
+  body.resizing, body.resizing * { cursor: col-resize !important; user-select: none !important; }
+  .app.side-off { grid-template-columns: 1fr 0; }
+  .mbar { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 0 14px; background: var(--surface); border-bottom: 1px solid var(--border); min-width: 0; }
+  .mbar .title { font: 700 18px/1.1 var(--f-display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .role { font: 800 11px/1 var(--f-body); letter-spacing: .08em; text-transform: uppercase; padding: 5px 9px; border-radius: var(--r-pill); background: var(--orange-1); color: var(--orange-8); border: 1px solid var(--orange-2); white-space: nowrap; }
+  .role.pl { background: var(--blue-1); color: var(--blue-7); border-color: var(--blue-2); }
+  .live { display: inline-flex; align-items: center; gap: 6px; font: 800 11px/1 var(--f-body); letter-spacing: .08em; text-transform: uppercase; color: var(--red-6); white-space: nowrap; }
+  .live::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--red-6); animation: pulse 1.6s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .3 } }
+  .mbar .right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .faces { display: flex; }
+  .faces .av { width: 30px; height: 30px; border: 2px solid var(--surface); margin-left: -8px; }
+  .faces .av:first-child { margin-left: 0; }
+  .code { font: 700 13px/1 var(--f-display); letter-spacing: .12em; padding: 8px 12px; border-radius: var(--r-pill); background: var(--bg-2); border: 1px dashed var(--border-2); cursor: pointer; white-space: nowrap; }
+  .code:hover { border-color: var(--blue-5); color: var(--blue-6); }
+  @media (max-width: 860px) { .faces, .mbar .hide-sm { display: none; } }
+
+  .stage { position: relative; overflow: hidden; background: #171925; min-width: 0; }
+  .side { position: relative; border-left: 1px solid var(--border); background: var(--surface); display: flex; flex-direction: column; min-width: 0; overflow: visible; }
+  .side > .pane, .side > .tabs { min-width: 0; }
+  .app.side-off .side { display: none; }
+  .tabs { display: flex; gap: 2px; padding: 8px; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; flex: none; }
+  .tabs button { flex: 1; border: 0; background: transparent; padding: 9px 8px; border-radius: var(--r-md); font: 700 13px/1 var(--f-body); color: var(--text-2); cursor: pointer; white-space: nowrap; }
+  .tabs button.on { background: var(--blue-1); color: var(--blue-7); }
+  .pane { flex: 1; overflow-y: auto; padding: 16px; }
+  /* chat: lista rola sozinha, campo de mensagem fica preso embaixo */
+  .pane.pane-chat { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+  .chat-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 16px 0; }
+  .chat-head h4 { margin: 0; }
+  .chat-list { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+  .chat-vazio { margin: auto; text-align: center; color: var(--text-3); font-size: 14px; padding: 20px; }
+  .msg { display: grid; grid-template-columns: 30px 1fr; gap: 0 10px; padding: 6px 8px; border-radius: var(--r-md); }
+  .msg.mine { background: var(--blue-1); }
+  .msg.cont { padding-top: 0; }
+  .msg .av { width: 30px; height: 30px; }
+  .msg-h { display: flex; align-items: baseline; gap: 8px; font: 700 15px/1.2 var(--f-body); min-width: 0; }
+  .msg-h b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .msg-h time { font-size: 11px; font-weight: 600; color: var(--text-3); }
+  .msg-h .gm { font: 800 9px/1 var(--f-body); letter-spacing: .08em; text-transform: uppercase; padding: 3px 6px; border-radius: 6px; background: var(--orange-1); color: var(--orange-7); border: 1px solid var(--orange-2); }
+  .msg-t { white-space: pre-wrap; word-break: break-word; font-size: 15px; line-height: 1.35; color: var(--text); }
+  .chat-list .roll { margin: 4px 0; }
+  .chat-form { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--border); background: var(--surface); flex: none; }
+  .chat-form .input { height: 42px; }
+  .chat-form .btn { width: 42px; padding: 0; flex: none; }
+  .tabs .badge { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 4px; border-radius: 9px; background: var(--red-6); color: #fff; font: 800 11px/1 var(--f-body); }
+  .pane h4 { font-size: 15px; margin: 4px 0 10px; }
+  .pane .hint { font-size: 13px; color: var(--text-3); margin: 6px 0 0; }
+  .pane .field { margin-bottom: 12px; }
+  .pane .input { height: 42px; font-size: 14px; }
+  .pane textarea.input { min-height: 70px; }
+  .stack { display: grid; gap: 10px; }
+  .sep { height: 1px; background: var(--border); margin: 18px 0; }
+  .item { padding: 12px; border-radius: var(--r-md); border: 1px solid var(--border); background: var(--surface-2); }
+  .item.on { border-color: var(--red-6); box-shadow: 0 0 0 3px color-mix(in srgb, var(--red-6) 14%, transparent); }
+  .item .thumb { width: 100%; aspect-ratio: 16/9; border-radius: 10px; background: var(--bg-2) center/cover; margin-bottom: 10px; }
+  .item .row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .item b { font-family: var(--f-display); }
+  .upl { display: flex; align-items: center; gap: 10px; padding: 10px; border: 2px dashed var(--border-2); border-radius: var(--r-md); cursor: pointer; font-size: 13px; font-weight: 700; color: var(--text-2); }
+  .upl:hover { border-color: var(--blue-5); color: var(--blue-6); }
+  .upl img { width: 52px; height: 36px; object-fit: cover; border-radius: 6px; }
+  .modesw { display: flex; gap: 4px; padding: 4px; border-radius: var(--r-pill); background: var(--bg-2); border: 1px solid var(--border); margin: 4px 0 4px; }
+  .modesw button { flex: 1; border: 0; background: transparent; padding: 8px; border-radius: var(--r-pill); font: 700 13px/1 var(--f-body); color: var(--text-2); cursor: pointer; }
+  .modesw button.on { background: var(--surface); color: var(--blue-7); box-shadow: var(--sh-1); }
+  .geo { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
+  .geo button { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px; border-radius: var(--r-md); border: 2px solid var(--border); background: var(--surface); font: 700 12px/1.1 var(--f-body); color: var(--text-2); cursor: pointer; transition: border-color var(--t-fast), transform var(--t-fast) var(--ease-spring); }
+  .geo button span { font-size: 22px; }
+  .geo button:hover { border-color: var(--blue-4); transform: translateY(-1px); }
+  .geo button.on { border-color: var(--blue-6); color: var(--blue-7); box-shadow: 0 0 0 3px color-mix(in srgb, var(--blue-6) 15%, transparent); }
+  .dens { display: flex; align-items: center; gap: 8px; font: 700 12px/1 var(--f-body); color: var(--text-3); }
+  .dens button { width: var(--s); height: var(--s); border-radius: 50%; border: 2px solid var(--border-2); background: var(--surface); cursor: pointer; padding: 0; transition: transform var(--t-fast) var(--ease-spring), background var(--t-fast); }
+  .dens button:hover { transform: scale(1.2); }
+  .dens button.on { background: var(--blue-6); border-color: var(--blue-6); }
+  .mm-ov { position: fixed; inset: 0; z-index: 200; background: rgba(10,12,22,.55); backdrop-filter: blur(4px); display: grid; place-items: center; padding: 20px; opacity: 0; transition: opacity .2s; }
+  .mm-ov.on { opacity: 1; }
+  .mm { width: min(1180px, 100%); max-height: calc(100vh - 40px); display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: 24px; box-shadow: var(--sh-3); overflow: hidden; transform: translateY(10px); transition: transform .25s var(--ease-out); }
+  .mm-ov.on .mm { transform: none; }
+  .mm-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+  .mm-h h3 { font-size: 22px; margin-top: 4px; }
+  .mm-b { flex: 1; min-height: 0; display: grid; grid-template-columns: 430px 1fr; }
+  .mm-l { overflow-y: auto; padding: 16px 20px 24px; border-right: 1px solid var(--border); }
+  .mm-r { padding: 18px; display: flex; flex-direction: column; gap: 10px; min-width: 0; background: var(--bg-2); }
+  .mm-step { display: flex; align-items: center; gap: 8px; margin: 18px 0 10px; font: 700 15px/1 var(--f-display); }
+  .mm-step:first-child { margin-top: 0; }
+  .mm-step span { width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; background: var(--orange-6, #ff7a00); color: #fff; font-size: 12px; }
+  .mm-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .mm-chips button { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: var(--r-pill); border: 1.5px solid var(--border-2); background: var(--surface); font: 700 13px/1 var(--f-body); color: var(--text-2); cursor: pointer; }
+  .mm-chips button i { font-size: 16px; }
+  .mm-chips button:hover { border-color: var(--blue-4); color: var(--text); }
+  .mm-chips button.on { border-color: var(--blue-6); background: var(--blue-1); color: var(--blue-7); }
+  .mm-plantas { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .mm-plantas button { display: flex; flex-direction: column; gap: 4px; padding: 8px; border-radius: 14px; border: 1.5px solid var(--border); background: var(--surface); cursor: pointer; text-align: left; color: var(--text); }
+  .mm-plantas button.on { border-color: var(--blue-6); box-shadow: 0 0 0 3px color-mix(in srgb, var(--blue-6) 16%, transparent); }
+  .mm-plantas .mini { aspect-ratio: 4 / 3; border-radius: 9px; background: #fff; display: grid; place-items: center; overflow: hidden; padding: 6px; }
+  .mm-plantas .mini svg { width: 100%; height: 100%; }
+  .mm-plantas b { font: 700 13px/1.2 var(--f-display); }
+  .mm-plantas small { font-size: 11.5px; color: var(--text-3); }
+  .mm-vert { display: grid; gap: 8px; }
+  .vt { padding: 10px 12px; border-radius: 14px; border: 1.5px solid var(--border); background: var(--surface); }
+  .vt.on { border-color: var(--blue-5); }
+  .vt .chk span { display: flex; flex-direction: column; }
+  .vt .chk small { font-weight: 600; color: var(--text-3); font-size: 12px; }
+  .vt .sl { margin: 8px 0 0; grid-template-columns: 1fr; }
+  .vt .sl-l { display: none; }
+  .sl { display: grid; grid-template-columns: 128px 1fr; gap: 12px; align-items: end; margin-bottom: 12px; }
+  .sl-l { text-align: right; padding-bottom: 2px; }
+  .sl-l b { display: block; font: 700 14px/1.15 var(--f-display); }
+  .sl-l small { display: block; font-size: 11.5px; color: var(--text-3); line-height: 1.25; }
+  .sl-n { display: flex; justify-content: space-between; font: 700 10px/1 var(--f-body); color: var(--text-3); margin: 0 1px 6px; }
+  .sl input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 6px; border-radius: 6px; margin: 6px 0; cursor: pointer;
+    background: linear-gradient(90deg, #ff8a1f var(--p), color-mix(in srgb, var(--text) 16%, transparent) var(--p)); }
+  .sl input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #ff8a1f; border: 0; box-shadow: 0 0 0 4px color-mix(in srgb, #ff8a1f 25%, transparent); }
+  .sl input[type=range]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: #ff8a1f; border: 0; }
+  .mm-prev { position: relative; width: 100%; border-radius: 14px; overflow: hidden; background: #171925; box-shadow: inset 0 0 0 1px var(--border); }
+  .mm-cv { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  .mm-grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(31,45,82,.11) 1px, transparent 1px), linear-gradient(90deg, rgba(31,45,82,.11) 1px, transparent 1px); background-size: 64px 64px; pointer-events: none; }
+  .mm-leg { display: flex; flex-wrap: wrap; gap: 6px 14px; font: 700 12px/1.2 var(--f-body); color: var(--text-2); }
+  .mm-leg span { display: inline-flex; align-items: center; gap: 6px; }
+  .mm-leg i { width: 12px; height: 12px; border-radius: 4px; border: 2px solid var(--c); background: color-mix(in srgb, var(--c) 18%, #f4f2ec); }
+  .mm-acts { display: flex; align-items: center; gap: 12px; justify-content: space-between; }
+  .mm-f { display: flex; align-items: center; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--border); }
+  @media (max-width: 900px) {
+    .mm-ov { padding: 0; }
+    .mm { max-height: 100vh; height: 100%; border-radius: 0; }
+    .mm-b { grid-template-columns: 1fr; overflow-y: auto; }
+    .mm-l { overflow: visible; border-right: 0; order: 2; }
+    .mm-r { order: 1; }
+    .sl { grid-template-columns: 1fr; gap: 4px; } .sl-l { text-align: left; }
+  }
+  .prevnote { margin-top: 12px; padding: 10px 12px; border-radius: var(--r-md); background: var(--orange-1); border: 1px solid var(--orange-2); font-size: 13px; font-weight: 700; color: var(--orange-8); }
+  .sel2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .side-toggle { display: none; }
+  @media (max-width: 860px) {
+    .app { grid-template-columns: 1fr; grid-template-rows: 56px 1fr; }
+    .side-grip, #sideWide { display: none; }
+    .side { position: fixed; left: 0; right: 0; bottom: 0; height: 62vh; z-index: 40; border-left: 0; border-top: 1px solid var(--border); border-radius: 22px 22px 0 0; box-shadow: var(--sh-3); transform: translateY(100%); transition: transform var(--t-med) var(--ease-out); }
+    .app.side-open .side { transform: none; }
+    .app.side-off .side { display: flex; }
+    .side-toggle { display: inline-flex; }
+  }
+
+  /* palco: espera e cena */
+  .wait { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; color: #e9e6df; padding: 24px; }
+  .wait svg { width: 90px; height: 90px; color: var(--orange-6); animation: spin 8s linear infinite; opacity: .9; }
+  .wait h2 { color: #fff; margin-top: 16px; font-size: 28px; }
+  .wait p { color: #b7b9c9; margin-top: 6px; }
+  .scene { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; }
+  .scene img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 14px; box-shadow: 0 30px 80px -20px rgba(0,0,0,.7); animation: rise .5s var(--ease-out); }
+  .scene .cap { position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); padding: 12px 22px; border-radius: var(--r-pill); background: rgba(15,17,30,.72); backdrop-filter: blur(8px); color: #fff; font: 700 18px/1.2 var(--f-display); max-width: 80%; text-align: center; }
+  .viewsw { position: absolute; top: 12px; left: 12px; z-index: 6; display: flex; gap: 4px; padding: 4px; border-radius: var(--r-pill); background: rgba(15,17,30,.72); backdrop-filter: blur(8px); }
+  .viewsw button { border: 0; background: transparent; color: #cfd1dc; padding: 7px 12px; border-radius: var(--r-pill); font: 700 12px/1 var(--f-body); cursor: pointer; }
+  .viewsw button.on { background: #fff; color: #1b1d2a; }
+  .viewsw .prev { font: 800 10px/1 var(--f-body); letter-spacing: .08em; color: #ffb24d; align-self: center; padding: 0 8px; }
+
+  /* battlemap */
+  .vp { position: absolute; inset: 0; overflow: hidden; touch-action: none; cursor: grab;
+    --g: 64px; --gx: 0px; --gy: 0px;
+    background-color: #171925;
+    background-image: linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+    background-size: var(--g) var(--g); background-position: var(--gx) var(--gy); }
+  .vp.panning, .vp.grab.panning { cursor: grabbing; }
+  .vp.grab, .vp.grab .tok { cursor: grab; }
+  .world { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
+  .area { position: absolute; left: 0; top: 0; border-radius: 6px; box-shadow: 0 0 0 2px rgba(255,255,255,.12), 0 40px 120px -30px rgba(0,0,0,.8);
+    background: #3b4a3a center / 100% 100% no-repeat; }
+  .area.blank { background-color: #2d3548; background-image: radial-gradient(120% 90% at 30% 20%, rgba(255,255,255,.06), transparent 60%); }
+  .area.blank .gl { background-image: linear-gradient(rgba(255,255,255,.09) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.09) 1px, transparent 1px); }
+  .area .gl { position: absolute; inset: 0; pointer-events: none;
+    background-image: linear-gradient(rgba(0,0,0,.28) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,.28) 1px, transparent 1px);
+    background-size: 64px 64px; }
+  .area.gen { box-shadow: 0 0 0 1px rgba(31,45,82,.25), 0 40px 120px -30px rgba(0,0,0,.8); }
+  .area.gen .gl { background-image: linear-gradient(rgba(31,45,82,.11) 1px, transparent 1px), linear-gradient(90deg, rgba(31,45,82,.11) 1px, transparent 1px); }
+  .mlegend { position: absolute; top: 60px; left: 50%; transform: translateX(-50%); z-index: 5; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; max-width: min(760px, calc(100% - 140px)); padding: 7px 14px; border-radius: var(--r-pill); background: rgba(247,245,240,.92); backdrop-filter: blur(8px); color: #3b3f52; box-shadow: 0 6px 20px -8px rgba(0,0,0,.5); font: 700 11px/1.2 var(--f-body); pointer-events: none; }
+  .mlegend span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .mlegend i { width: 12px; height: 12px; border-radius: 4px; border: 2px solid var(--c); background: color-mix(in srgb, var(--c) 18%, transparent); }
+  @media (max-width: 860px) { .mlegend { top: 56px; max-width: calc(100% - 24px); border-radius: 14px; } }
+  .tok { position: absolute; touch-action: none; user-select: none; }
+  .tok .disc { position: absolute; inset: 6%; border-radius: 50%; overflow: hidden; background: var(--c); box-shadow: 0 0 0 3px var(--c), 0 0 0 5px rgba(0,0,0,.45), 0 8px 18px rgba(0,0,0,.5); display: grid; place-items: center; color: #fff; font: 700 22px/1 var(--f-display); transition: box-shadow var(--t-fast); }
+  .tok .disc img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+  .tok.mine { cursor: grab; }
+  .tok.drag { z-index: 50; cursor: grabbing; }
+  .tok.drag .disc { box-shadow: 0 0 0 3px var(--c), 0 0 0 7px rgba(255,255,255,.55), 0 18px 30px rgba(0,0,0,.55); }
+  .tok.sel .disc { box-shadow: 0 0 0 3px var(--c), 0 0 0 7px #ffb24d, 0 8px 18px rgba(0,0,0,.5); }
+  .tok .lbl { position: absolute; left: 50%; top: 100%; transform: translate(-50%, 2px); white-space: nowrap; padding: 2px 8px; border-radius: 999px; background: rgba(15,17,30,.82); color: #fff; font: 700 11px/1.3 var(--f-body); pointer-events: none; }
+  .tok .bars { position: absolute; left: 8%; right: 8%; bottom: 100%; transform: translateY(-4px); display: grid; gap: 2px; pointer-events: none; }
+  .tok .bars i { display: block; height: 7px; border-radius: 4px; background: rgba(0,0,0,.6); overflow: hidden; box-shadow: 0 0 0 1px rgba(0,0,0,.5); }
+  .tok .bars b { display: block; height: 100%; border-radius: 4px; transition: width var(--t-med) var(--ease-out); }
+  .tok .bars .hp b { background: linear-gradient(90deg, #ff6b6b, #e5383b); }
+  .tok .bars .au b { background: linear-gradient(90deg, #67e8f9, #00b8d4); }
+  .roll-d i.x { opacity: .35; text-decoration: line-through; }
+  .modo { display: flex; gap: 4px; padding: 4px; border-radius: var(--r-md); background: var(--bg-2); border: 1px solid var(--border); margin-top: 10px; }
+  .modo button { flex: 1; border: 0; background: transparent; padding: 7px 4px; border-radius: var(--r-sm); font: 700 12px/1 var(--f-body); color: var(--text-2); cursor: pointer; }
+  .modo button.on { background: var(--blue-1); color: var(--blue-7); box-shadow: inset 0 0 0 1px var(--blue-3); }
+  .tok .bars.priv::after { content: '\e224'; font-family: 'Phosphor-Fill'; position: absolute; right: -16px; top: -4px; font-size: 12px; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.8); }
+  .tok.npc .lbl { background: rgba(140,20,20,.85); }
+  .tools { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 6; display: flex; gap: 4px; padding: 4px; border-radius: var(--r-pill); background: rgba(15,17,30,.78); backdrop-filter: blur(8px); }
+  .tools button { border: 0; background: transparent; color: #d9dbe6; padding: 8px 14px; border-radius: var(--r-pill); font: 700 13px/1 var(--f-body); cursor: pointer; white-space: nowrap; }
+  .tools button:hover { background: rgba(255,255,255,.1); }
+  .tools button.on { background: #00ff9d; color: #04120b; }
+  .vp.ruler, .vp.ruler .tok { cursor: crosshair; }
+  .ovl { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; z-index: 40; }
+  .measure small { font-weight: 700; opacity: .8; }
+  .dice { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .die { position: relative; aspect-ratio: 1; border: 0; border-radius: 16px; cursor: pointer; color: #fff; font: 700 15px/1 var(--f-display); background: var(--grad-blue); box-shadow: var(--sh-blue); transition: transform var(--t-fast) var(--ease-spring); }
+  .die:hover { transform: translateY(-2px) rotate(-4deg); }
+  .die.d20 { background: var(--grad-orange); box-shadow: var(--sh-orange); }
+  .die.d100 { background: linear-gradient(135deg, #8b5cf6, #5b21b6); }
+  .die.spin span { display: inline-block; animation: dspin .5s var(--ease-out); }
+  @keyframes dspin { from { transform: rotate(-360deg) scale(.6); } to { transform: none; } }
+  .dice-opts { display: flex; gap: 10px; margin-top: 12px; }
+  .stp { flex: 1; display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--border); }
+  .stp b { flex: 1; text-align: center; font: 700 16px/1 var(--f-display); }
+  .stp button { width: 28px; height: 28px; border-radius: 9px; border: 1px solid var(--border-2); background: var(--surface); cursor: pointer; font: 700 15px/1 var(--f-display); color: var(--text); }
+  .dice-form { display: flex; gap: 8px; margin-top: 10px; }
+  .quick { display: flex; flex-wrap: wrap; gap: 6px; }
+  .rolls { display: grid; gap: 8px; margin-top: 10px; }
+  .roll { padding: 10px 12px; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--border); animation: rise .35s var(--ease-out); }
+  .roll.crit { border-color: #3f9142; box-shadow: 0 0 0 3px rgba(63,145,66,.15); }
+  .roll.fail { border-color: var(--red-6); box-shadow: 0 0 0 3px rgba(229,56,59,.12); }
+  .roll-h { display: flex; align-items: center; gap: 10px; }
+  .roll-h .av { width: 28px; height: 28px; }
+  .roll-t { font: 700 26px/1 var(--f-display); color: var(--blue-6); }
+  .roll.crit .roll-t { color: #2f7a33; } .roll.fail .roll-t { color: var(--red-6); }
+  .roll-d { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 8px; }
+  .roll-d .dg { display: inline-flex; gap: 3px; }
+  .roll-d i { font-style: normal; min-width: 24px; height: 24px; padding: 0 5px; border-radius: 7px; display: inline-grid; place-items: center; background: var(--surface); border: 1px solid var(--border-2); font: 700 12px/1 var(--f-display); }
+  .roll-d i.max { background: #e8f7ea; border-color: #3f9142; color: #2f7a33; }
+  .roll-d i.min { background: #fdecec; border-color: var(--red-6); color: var(--red-6); }
+  .roll-d .dk { font: 700 13px/1 var(--f-display); color: var(--text-2); }
+  .droll { position: absolute; left: 50%; bottom: 26px; padding-bottom: 26px !important; transform: translateX(-50%); z-index: 9; display: flex; align-items: flex-end; gap: 22px; padding: 18px 20px 16px 24px; border-radius: 24px; background: rgba(15,17,30,.86); backdrop-filter: blur(10px); color: #fff; box-shadow: var(--sh-3); pointer-events: none; animation: rise .3s var(--ease-out); max-width: calc(100% - 24px); }
+  .droll.out { opacity: 0; transform: translateX(-50%) translateY(8px); transition: opacity .4s, transform .4s; }
+  .dr-tray { display: flex; align-items: flex-end; gap: 10px; }
+  .dr-die { position: relative; width: 78px; height: 78px; }
+  .dr-body { position: absolute; inset: 0; animation: dtumble .85s cubic-bezier(.25,.75,.35,1) both; animation-delay: calc(var(--i) * 90ms); filter: drop-shadow(0 8px 10px rgba(0,0,0,.45)); }
+  .dr-body svg { width: 100%; height: 100%; display: block; }
+  .dr-body.land .dnum { animation: dnum .35s var(--ease-spring); transform-origin: 50% 55%; transform-box: fill-box; }
+  .dr-smoke { position: absolute; z-index: 2; left: -50px; right: -50px; bottom: -30px; height: 96px; opacity: 0; transform-origin: 50% 80%; animation: dsmoke .9s ease-out both; animation-delay: calc(560ms + var(--i) * 90ms); pointer-events: none; }
+  .dr-smoke svg { width: 100%; height: 100%; overflow: visible; }
+  .dr-neg { position: absolute; left: -12px; top: 50%; transform: translateY(-50%); font: 700 22px/1 var(--f-display); }
+  .dr-more { font: 700 18px/1 var(--f-display); opacity: .8; margin: 0 0 26px 4px; }
+  .dr-info { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; min-width: 120px; }
+  .dr-n { font: 700 15px/1.2 var(--f-display); text-align: right; }
+  .dr-n small { display: block; font: 700 12px/1.3 var(--f-body); opacity: .75; }
+  .dr-total { display: flex; align-items: baseline; gap: 10px; padding: 8px 16px; border-radius: 16px; background: rgba(255,255,255,.08); opacity: 0; animation: dtotal .4s var(--ease-spring) both; animation-delay: 1.05s; }
+  .dr-total span { font: 700 15px/1 var(--f-display); opacity: .85; }
+  .dr-total b { font: 700 44px/1 var(--f-display); }
+  .droll.crit .dr-total { background: linear-gradient(135deg, #43b05c, #2f7a33); }
+  .droll.fail .dr-total { background: linear-gradient(135deg, #ff6b6b, #b91c1c); }
+  @keyframes dtumble {
+    0% { transform: translate(var(--sx), -260px) rotate(var(--rot)) scale(.55); opacity: 0; }
+    15% { opacity: 1; }
+    62% { transform: translate(0, 0) rotate(-14deg) scale(1.04); }
+    74% { transform: translate(0, -26px) rotate(9deg) scale(1); }
+    86% { transform: translate(0, 0) rotate(-4deg); }
+    93% { transform: translate(0, -6px) rotate(1deg); }
+    100% { transform: none; opacity: 1; }
+  }
+  @keyframes dsmoke { 0% { opacity: 0; transform: scale(.5, .3); } 20% { opacity: 1; transform: scale(1, .85); } 70% { opacity: .9; } 100% { opacity: 0; transform: scale(1.45, 1.1) translateY(-18px); } }
+  @keyframes dnum { 0% { transform: scale(1.6); } 100% { transform: scale(1); } }
+  @keyframes dtotal { 0% { opacity: 0; transform: scale(.6); } 100% { opacity: 1; transform: none; } }
+  .droll.still .dr-body, .droll.still .dr-total { animation: none; opacity: 1; }
+  .droll.still .dr-smoke { display: none; }
+  @media (max-width: 600px) { .droll { flex-direction: column; align-items: center; gap: 12px; bottom: 12px; } .dr-die { width: 56px; height: 56px; } .dr-info { align-items: center; } .dr-n { text-align: center; } }
+  .zoombar { position: absolute; right: 12px; bottom: 12px; z-index: 6; display: grid; gap: 4px; padding: 4px; border-radius: 16px; background: rgba(15,17,30,.72); backdrop-filter: blur(8px); }
+  .zoombar button { width: 38px; height: 38px; border: 0; border-radius: 12px; background: transparent; color: #fff; font: 700 18px/1 var(--f-display); cursor: pointer; }
+  .zoombar button:hover { background: rgba(255,255,255,.12); }
+  .measure { position: absolute; z-index: 7; padding: 6px 10px; border-radius: 999px; background: #ffb24d; color: #1b1d2a; font: 800 12px/1 var(--f-body); pointer-events: none; transform: translate(14px, -30px); box-shadow: var(--sh-2); }
+  .tokpanel { position: absolute; left: 12px; bottom: 12px; z-index: 8; width: 300px; max-width: calc(100% - 24px); padding: 14px; border-radius: 18px; background: var(--surface); border: 1px solid var(--border); box-shadow: var(--sh-3); animation: rise .3s var(--ease-out); }
+  .tokpanel .h { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .tokpanel .h .av { width: 40px; height: 40px; }
+  .tokpanel .h b { font: 700 16px/1.1 var(--f-display); }
+  .tokpanel .x { margin-left: auto; }
+  .tp-atr { margin: -2px 0 12px; padding: 10px; border-radius: 14px; background: var(--bg-2); border: 1px solid var(--border); }
+  .tp-atr.carregando { font-size: 12px; color: var(--text-3); }
+  .tp-sub { font: 700 11px/1 var(--f-body); letter-spacing: .04em; color: var(--text-3); margin-bottom: 8px; }
+  .tp-tres { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .tp-a { display: flex; align-items: baseline; justify-content: center; gap: 6px; padding: 7px 4px; border-radius: 10px; border: 1.5px solid color-mix(in srgb, var(--c) 45%, transparent); background: color-mix(in srgb, var(--c) 12%, var(--surface)); color: var(--text); cursor: pointer; transition: transform var(--t-fast) var(--ease-spring); }
+  .tp-a:hover { transform: translateY(-1px); border-color: var(--c); }
+  .tp-a small { font: 800 10px/1 var(--f-body); letter-spacing: .06em; color: var(--c); }
+  .tp-a b { font: 700 18px/1 var(--f-display); }
+  .tp-def { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 8px; font-size: 12px; color: var(--text-2); }
+  .tp-def b { font: 700 13px/1 var(--f-display); color: var(--text); margin-left: 2px; }
+  .tp-ficha { margin-left: auto; font-weight: 800; font-size: 12px; }
+  .tp-abas { display: flex; gap: 4px; margin: -2px 0 10px; padding: 3px; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--border); }
+  .tp-abas button { flex: 1; border: 0; background: transparent; padding: 6px; border-radius: var(--r-sm); font: 700 12px/1 var(--f-display); letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); cursor: pointer; }
+  .tp-abas button.on { background: var(--blue-1); color: var(--blue-7); box-shadow: inset 0 0 0 1px var(--blue-3); }
+  .atks { display: grid; gap: 6px; max-height: 280px; overflow-y: auto; margin-right: -4px; padding-right: 4px; }
+  .atk { padding: 8px 10px; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--border); }
+  .atk-h { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+  .atk-h b { font: 700 13px/1.2 var(--f-display); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .atk-h .dn { margin-left: auto; font: 700 13px/1 var(--f-display); color: #f87171; white-space: nowrap; }
+  .atk-s { font-size: 12px; color: var(--text-3); margin-top: 3px; line-height: 1.3; }
+  .atk-b { display: flex; gap: 6px; margin-top: 7px; flex-wrap: wrap; }
+  .atk-b button { flex: 1; min-width: 74px; height: 30px; border-radius: var(--r-sm); border: 1px solid color-mix(in srgb, var(--c, #f87171) 45%, transparent); background: color-mix(in srgb, var(--c, #f87171) 12%, var(--surface)); color: var(--text); font: 700 11px/1 var(--f-display); letter-spacing: .04em; cursor: pointer; }
+  .atk-b button:hover { border-color: var(--c, #f87171); }
+  .atk.off { opacity: .55; }
+  .atk-sec { font: 800 10px/1 var(--f-body); letter-spacing: .12em; text-transform: uppercase; color: var(--text-3); margin: 6px 0 2px; }
+  .res { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .res > span { font: 800 11px/1 var(--f-body); letter-spacing: .06em; }
+  .res .ctl { display: flex; gap: 4px; align-items: center; }
+  .res .ctl button { width: 32px; height: 30px; border-radius: 9px; border: 1px solid var(--border-2); background: var(--surface); font: 700 12px/1 var(--f-display); cursor: pointer; color: var(--text); }
+  .res .ctl button:hover { border-color: var(--blue-5); color: var(--blue-6); }
+  .res .ctl input { width: 52px; height: 30px; border-radius: 9px; border: 1px solid var(--border-2); background: var(--surface); text-align: center; font: 700 13px/1 var(--f-display); color: var(--text); }
+  .res .bar { height: 8px; border-radius: 4px; background: var(--bg-2); overflow: hidden; }
+  .res .bar b { display: block; height: 100%; }
+  .chk { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: var(--text-2); cursor: pointer; }
+  .chk input { width: 18px; height: 18px; accent-color: var(--blue-6); }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <!-- Hexágono do diagrama de Nen (as 6 categorias) no lugar do espiral do Shinobi; o id foi mantido -->
+  <symbol id="spiral" viewBox="0 0 100 100"><polygon points="50,6 88,28 88,72 50,94 12,72 12,28" fill="none" stroke="currentColor" stroke-width="6" stroke-linejoin="round"/><polygon points="50,28 69,39 69,61 50,72 31,61 31,39" fill="currentColor" opacity=".35"/></symbol>
+</defs></svg>
+<div id="root"></div>
+<input type="file" id="fileIn" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+<div class="toasts" id="toasts" role="status"></div>
+
+<!-- config.js do HxH5e: ADMIN_USERS e as cores das categorias de Nen (SYSTEM_DB.classes) -->
+<script src="../js/data/config.js"></script>
+<script src="assets/nuvem-hxh.js"></script>
+<script src="assets/blocos.js"></script>
+<script src="assets/mapgen.js"></script>
+<script>
+(() => {
+  const NV = window.Nuvem, sb = NV.sb;
+  const COR_PV = '#f87171', COR_AURA = '#00b8d4';
+  const $ = (s, el = document) => el.querySelector(s);
+  const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const CELL = 64;
+  const root = $('#root');
+  function toast(msg, e = 'spiral') {
+    const t = document.createElement('div'); t.className = 'toast'; t.innerHTML = `${/^[a-z-]+$/.test(e) ? `<i class="ph-fill ph-${e}" style="font-size:18px"></i>` : `<span>${e}</span>`}${msg}`;
+    $('#toasts').appendChild(t); setTimeout(() => t.remove(), 2800);
+  }
+  const errMsg = e => (e && (e.message || e.error_description)) || String(e);
+  function pickFile() {
+    return new Promise(res => { const f = $('#fileIn'); f.value = ''; f.onchange = () => res(f.files[0] || null); f.click(); });
+  }
+  function avatar(p, cls = 'av') {
+    if (p && p.avatar_url) return `<img class="${cls}" src="${esc(p.avatar_url)}" alt="" referrerpolicy="no-referrer" title="${esc(p.nome || '')}">`;
+    return `<span class="${cls}" title="${esc(p && p.nome || '')}">${esc(((p && p.nome) || '?')[0])}</span>`;
+  }
+  const qs = new URLSearchParams(location.search);
+
+  /* =================== LOBBY =================== */
+  async function lobby() {
+    document.body.classList.remove('in-mesa');
+    const me = NV.perfil();
+    root.innerHTML = `<div class="lobby">
+      <header class="topbar">
+        <a class="brand" href="${NV.APP_URL}"><span class="brand-mark"><svg><use href="#spiral"/></svg></span>HxH5e · Mesa</a>
+        <div class="right"><a class="btn btn-ghost btn-sm" href="${NV.APP_URL}"><i class="ph-bold ph-arrow-left"></i> Voltar para o HxH5e</a><div id="userMenu"></div></div>
+      </header>
+      <div class="lob-head"><div class="kicker">Mesa virtual</div><h1>Mesas</h1><p>O mestre cria a mesa e manda o convite; os jogadores entram com o código. Quem cria a mesa é o narrador dela.</p></div>
+      <div id="lobBody"></div>
+    </div>`;
+    NV.montarMenu($('#userMenu'));
+    if (!NV.user) {
+      $('#lobBody').innerHTML = `<div class="gate"><h2>Entre para jogar</h2><p>A mesa usa a mesma conta do HxH5e (Discord ou Google). Entre por lá e volte para cá.</p><a class="gbtn" href="${NV.APP_URL}">Ir para o HxH5e</a></div>`;
+      return;
+    }
+    // Criar mesa é só para mestre e admin; jogador entra por código ou convite.
+    $('#lobBody').innerHTML = `
+      <div class="lob-actions" ${NV.podeNarrar ? '' : 'style="grid-template-columns:1fr"'}>
+        ${NV.podeNarrar ? `<div class="lob-card gm"><h3>Criar mesa</h3><p>Você vira o narrador: escolhe cenas, monta o battlemap e controla os inimigos.</p>
+          <div class="row"><input class="input" id="nmMesa" maxlength="60" placeholder="Ex.: Exame Hunter"><button class="btn btn-orange" id="mkMesa">Criar</button></div></div>` : ''}
+        <div class="lob-card"><h3>Entrar com código</h3><p>O mestre te passa um código de 6 letras (ou o link do convite).</p>
+          <div class="row"><input class="input" id="cdMesa" maxlength="6" placeholder="Ex.: 7F3A9C" style="text-transform:uppercase;letter-spacing:.15em"><button class="btn btn-primary" id="inMesa">Entrar</button></div></div>
+      </div>
+      <h3 style="margin-bottom:12px">Suas mesas</h3>
+      <div class="mesas" id="mesas"><div class="item">Carregando…</div></div>`;
+    const mk = $('#mkMesa');
+    if (mk) mk.onclick = async () => {
+      const nome = $('#nmMesa').value.trim() || 'Nova mesa';
+      const { data, error } = await sb.from('mesas').insert({ nome, owner: NV.user.id }).select('id').single();
+      if (error) return toast(errMsg(error), 'warning');
+      location.href = 'mesa.html?m=' + data.id;
+    };
+    const entrar = async cod => {
+      const { data, error } = await sb.rpc('entrar_mesa', { cod, uid: NV.user.id });
+      if (error) return toast(/encontrada/.test(error.message) ? 'Código não encontrado' : errMsg(error), 'warning');
+      location.href = 'mesa.html?m=' + data;
+    };
+    $('#inMesa').onclick = () => entrar($('#cdMesa').value);
+    $('#cdMesa').onkeydown = e => { if (e.key === 'Enter') entrar(e.target.value); };
+    // Sem RLS por usuário, o filtro "minhas mesas" é explícito: as que eu narro + as que eu entrei.
+    const mb = await sb.from('mesa_membros').select('mesa_id').eq('user_id', NV.user.id);
+    const ids = (mb.data || []).map(x => x.mesa_id);
+    let q = sb.from('mesas').select('id, nome, codigo, owner, exibindo, created_at').order('created_at', { ascending: false });
+    q = ids.length ? q.or(`owner.eq.${NV.user.id},id.in.(${ids.join(',')})`) : q.eq('owner', NV.user.id);
+    const { data, error } = await q;
+    if (error) { $('#mesas').innerHTML = `<div class="item">Erro: ${esc(errMsg(error))}</div>`; return; }
+    $('#mesas').innerHTML = data.length ? data.map(m => `<a class="mcard" href="mesa.html?m=${m.id}"><i class="ph ph-hexagon k"></i><h3>${esc(m.nome)}</h3>
+      <div class="tags"><span class="tag">${m.owner === NV.user.id ? '<i class="ph ph-crown-simple"></i> Narrador' : '<i class="ph ph-user"></i> Jogador'}</span><span class="tag">Código ${m.codigo}</span>${m.exibindo !== 'nada' ? `<span class="tag" style="color:var(--red-6)"><i class="ph-fill ph-broadcast"></i> Ao vivo</span>` : ''}</div></a>`).join('')
+      : `<div class="item">Nenhuma mesa ainda. ${NV.podeNarrar ? 'Crie uma ou entre com um código.' : 'Peça o código ao seu mestre.'}</div>`;
+  }
+
+  /* =================== MESA =================== */
+  const S = { mesa: null, gm: false, membros: [], perfis: {}, cenas: [], mapa: null, tokens: {}, meus: [], view: null, sel: null, tab: null, rolagens: [], tool: 'mover', rulers: {}, chat: [], chatOk: false, naoLidas: 0 };
+  let cam = { x: 40, y: 40, z: 1 };
+  let channel = null;
+
+  async function abrirMesa(id) {
+    if (!NV.user) return lobby();
+    document.body.classList.add('in-mesa');
+    root.innerHTML = `<div class="wait" style="position:fixed"><div><svg><use href="#spiral"/></svg><h2>Abrindo a mesa…</h2></div></div>`;
+    const [m, mb, cs, mp, tk, rl, ch] = await Promise.all([
+      sb.from('mesas').select('*').eq('id', id).maybeSingle(),
+      sb.from('mesa_membros').select('*').eq('mesa_id', id),
+      sb.from('cenas').select('*').eq('mesa_id', id).order('created_at'),
+      sb.from('mapas').select('*').eq('mesa_id', id).maybeSingle(),
+      sb.from('tokens').select('*').eq('mesa_id', id),
+      sb.from('rolagens').select('*').eq('mesa_id', id).order('created_at', { ascending: false }).limit(50),
+      sb.from('mensagens').select('*').eq('mesa_id', id).order('created_at', { ascending: false }).limit(150),
+    ]);
+    // Se a tabela de chat não existir, a mesa funciona normalmente, só sem chat.
+    S.chatOk = !ch.error; S.chat = (ch.data || []).reverse(); S.naoLidas = 0;
+    if (m.error || !m.data) { toast('Mesa não encontrada ou sem acesso', 'warning'); history.replaceState(null, '', 'mesa.html'); return lobby(); }
+    S.mesa = m.data; S.gm = m.data.owner === NV.user.id;
+    S.membros = mb.data || []; S.cenas = cs.data || []; S.mapa = mp.data || null;
+    S.tokens = {}; (tk.data || []).forEach(t => S.tokens[t.id] = t);
+    S.rolagens = (rl.data || []).filter(podeVerRolagem);
+    S.tab = S.tab || (S.gm ? 'cenas' : 'ninja');
+    try { const c = JSON.parse(localStorage.getItem('hxh-mesa-cam-' + id) || 'null'); if (c) cam = c; } catch (e) {}
+    await carregarPerfis();
+    try { S.meus = await NV.listar(); } catch (e) { S.meus = []; }
+    montarMesa();
+    assinar(id);
+    assinarChat(id);
+  }
+  async function carregarPerfis() {
+    const ids = [...new Set([S.mesa.owner, ...S.membros.map(x => x.user_id)])];
+    (await NV.perfis(ids)).forEach(p => S.perfis[p.id] = p);
+  }
+  // Rolagem secreta: só quem rolou e o narrador veem. É só na tela — com a chave
+  // pública, o banco não esconde nada (mesmo nível do resto do app).
+  function podeVerRolagem(r) { return !r.secreta || S.gm || r.user_id === NV.user.id; }
+
+  function montarMesa() {
+    root.innerHTML = `<div class="app" id="app">
+      <header class="mbar">
+        <a class="brand-mark" href="mesa.html" title="Voltar às mesas"><svg><use href="#spiral"/></svg></a>
+        <span class="title" id="mTitle"></span>
+        <span class="role ${S.gm ? '' : 'pl'}">${S.gm ? 'Narrador' : 'Jogador'}</span>
+        <span id="liveTag"></span>
+        <div class="right">
+          <div class="faces" id="faces"></div>
+          <span class="code hide-sm" id="codeBtn" title="Copiar link do convite">CONVITE · ${S.mesa.codigo}</span>
+          <button class="btn btn-sm btn-icon btn-ghost" id="sideWide"></button>
+          <button class="btn btn-sm side-toggle" id="sideBtn">Painel</button>
+        </div>
+      </header>
+      <section class="stage" id="stage"></section>
+      <aside class="side" id="side"><div class="side-grip" id="sideGrip" title="Arraste para mudar a largura · duplo clique volta ao padrão"></div><nav class="tabs" id="tabs"></nav><div class="pane" id="pane"></div></aside>
+    </div>`;
+    $('#codeBtn').onclick = () => { navigator.clipboard.writeText(location.origin + location.pathname.replace(/[^/]*$/, '') + 'mesa.html?entrar=' + S.mesa.codigo).then(() => toast('Link do convite copiado', 'link')); };
+    $('#sideBtn').onclick = () => $('#app').classList.toggle('side-open');
+    montarLargura();
+    renderBar(); renderStage(); renderSide();
+  }
+
+  /* ---------- Largura da barra lateral ---------- */
+  // Arrastar a borda esquerda redimensiona; o botão no topo alterna entre o
+  // padrão e "expandida" (metade da tela). A largura fica salva neste navegador.
+  const SIDE_PADRAO = 360, SIDE_KEY = 'hxh-mesa-side-w';
+  const sideMax = () => Math.max(SIDE_PADRAO, Math.min(innerWidth - 320, innerWidth * 0.75));
+  const sideLarga = () => Math.round(Math.max(SIDE_PADRAO + 160, innerWidth * 0.5));
+  let sideW = SIDE_PADRAO;
+  try { sideW = +localStorage.getItem(SIDE_KEY) || SIDE_PADRAO; } catch (e) {}
+  function aplicarLargura(w, salvar) {
+    sideW = Math.round(Math.max(300, Math.min(sideMax(), w)));
+    const app = $('#app'); if (!app) return;
+    app.style.setProperty('--side-w', sideW + 'px');
+    const b = $('#sideWide');
+    if (b) {
+      const larga = sideW > SIDE_PADRAO + 40;
+      b.innerHTML = `<i class="ph-bold ph-${larga ? 'arrows-in-line-horizontal' : 'arrows-out-line-horizontal'}"></i>`;
+      b.title = larga ? 'Voltar o painel ao tamanho normal' : 'Expandir o painel lateral';
+    }
+    if (salvar) { try { localStorage.setItem(SIDE_KEY, sideW); } catch (e) {} }
+    // o palco mudou de largura: a régua/rotas usam coordenadas da tela
+    if (typeof desenharOverlay === 'function') desenharOverlay();
+  }
+  function montarLargura() {
+    aplicarLargura(sideW);
+    $('#sideWide').onclick = () => aplicarLargura(sideW > SIDE_PADRAO + 40 ? SIDE_PADRAO : sideLarga(), true);
+    const g = $('#sideGrip');
+    g.ondblclick = () => aplicarLargura(SIDE_PADRAO, true);
+    g.onpointerdown = e => {
+      e.preventDefault(); g.setPointerCapture(e.pointerId); document.body.classList.add('resizing');
+      g.onpointermove = ev => aplicarLargura(innerWidth - ev.clientX);
+      g.onpointerup = g.onpointercancel = () => { g.onpointermove = null; document.body.classList.remove('resizing'); aplicarLargura(sideW, true); };
+    };
+  }
+  addEventListener('resize', () => { if ($('#app')) aplicarLargura(sideW); });
+  function renderBar() {
+    $('#mTitle').textContent = S.mesa.nome;
+    $('#liveTag').innerHTML = S.mesa.exibindo === 'nada' ? '' : `<span class="live">Ao vivo: ${S.mesa.exibindo === 'cena' ? 'cena' : 'battlemap'}</span>`;
+    const ids = [S.mesa.owner, ...S.membros.map(x => x.user_id).filter(u => u !== S.mesa.owner)];
+    $('#faces').innerHTML = ids.slice(0, 8).map(u => avatar(S.perfis[u])).join('');
+  }
+
+  /* ---------- Palco ---------- */
+  function vistaAtual() { return S.gm && S.view ? S.view : S.mesa.exibindo; }
+  function renderStage() {
+    const st = $('#stage'); if (!st) return;
+    const v = vistaAtual();
+    let html = '';
+    if (S.gm) html += `<div class="viewsw">${['cena', 'mapa'].map(k => `<button data-v="${k}" class="${v === k ? 'on' : ''}">${k === 'cena' ? 'Cena' : 'Battlemap'}</button>`).join('')}${v !== S.mesa.exibindo || (v === 'mapa' && S.mapaPreview) ? '<span class="prev">PRÉVIA · SÓ VOCÊ VÊ</span>' : ''}</div>`;
+    if (v === 'cena') {
+      const c = S.cenas.find(x => x.id === (S.gm && S.view === 'cena' && S.previewCena ? S.previewCena : S.mesa.cena_id));
+      html += c ? `<div class="scene">${c.imagem_url ? `<img src="${esc(c.imagem_url)}" alt="${esc(c.titulo)}">` : ''}${c.titulo ? `<div class="cap">${esc(c.titulo)}</div>` : ''}</div>`
+        : `<div class="wait"><div><svg><use href="#spiral"/></svg><h2>Nenhuma cena escolhida</h2><p>${S.gm ? 'Crie uma cena no painel ao lado.' : 'O narrador ainda vai mostrar algo.'}</p></div></div>`;
+      st.innerHTML = html;
+    } else if (v === 'mapa') {
+      st.innerHTML = html + `<div class="tools" id="tools"><button data-tool="mover" class="${S.tool === 'mover' ? 'on' : ''}" title="Mover (M)"><i class="ph ph-hand"></i> Mover</button><button data-tool="regua" class="${S.tool === 'regua' ? 'on' : ''}" title="Régua (R) · segure o esquerdo e clique com o direito para quebrar a rota"><i class="ph ph-ruler"></i> Régua</button><button data-tool="dados" title="Dados"><i class="ph ph-dice-five"></i> Dados</button></div>
+        <div class="vp ${S.tool === 'regua' ? 'ruler' : ''}" id="vp"><div class="world" id="world"><div class="area" id="area"><div class="gl"></div></div><svg class="ovl" id="ovl" width="1" height="1"></svg><div id="tokLayer"></div></div>
+        <div class="zoombar"><button id="zIn" title="Aproximar (+ ou Cmd/Ctrl + scroll)" aria-label="Aproximar"><i class="ph-bold ph-plus"></i></button><button id="zOut" title="Afastar (−)" aria-label="Afastar"><i class="ph-bold ph-minus"></i></button><button id="zOne" title="Tamanho real (1)" style="font-size:12px">1:1</button><button id="zFit" title="Ver o mapa inteiro (0)" aria-label="Ver o mapa inteiro"><i class="ph ph-crosshair"></i></button></div></div>`;
+      montarMapa();
+    } else {
+      st.innerHTML = html + `<div class="wait"><div><svg><use href="#spiral"/></svg><h2>${S.gm ? 'Nada ao vivo ainda' : 'Aguardando o narrador…'}</h2><p>${S.gm ? 'Escolha uma cena ou monte o battlemap e clique em "Exibir para os jogadores".' : 'Pegue seus dados. A missão já vai começar.'}</p></div></div>`;
+    }
+    $$('.viewsw button').forEach(b => b.onclick = () => { S.view = b.dataset.v; S.previewCena = null; renderStage(); });
+    $$('#tools button').forEach(b => b.onclick = () => {
+      if (b.dataset.tool === 'dados') { S.tab = 'dados'; renderSide(); $('#app').classList.add('side-open'); return; }
+      setTool(b.dataset.tool);
+    });
+    renderDiceToast();
+  }
+  function setTool(t) {
+    S.tool = t; $$('#tools button[data-tool]').forEach(x => x.classList.toggle('on', x.dataset.tool === t));
+    const v = $('#vp'); if (v) v.classList.toggle('ruler', t === 'regua');
+  }
+  addEventListener('keyup', e => { if (e.code === 'Space') { espaco = false; const v = $('#vp'); if (v) v.classList.remove('grab'); } });
+  addEventListener('keydown', e => {
+    if (!document.body.classList.contains('in-mesa') || /input|textarea|select/i.test(e.target.tagName)) return;
+    const v = $('#vp');
+    if (v && (e.key === '+' || e.key === '=')) { e.preventDefault(); const r = v.getBoundingClientRect(); zoomEm(r.width / 2, r.height / 2, 1.4); }
+    if (v && (e.key === '-' || e.key === '_')) { e.preventDefault(); const r = v.getBoundingClientRect(); zoomEm(r.width / 2, r.height / 2, 1 / 1.4); }
+    if (v && e.key === '0') { e.preventDefault(); centralizar(); }
+    if (v && e.key === '1') { e.preventDefault(); const r = v.getBoundingClientRect(); zoomEm(r.width / 2, r.height / 2, 1 / cam.z); }
+    if (v && e.code === 'Space' && !espaco) { e.preventDefault(); espaco = true; v.classList.add('grab'); }
+    if (e.key === 'r' || e.key === 'R') setTool(S.tool === 'regua' ? 'mover' : 'regua');
+    if (e.key === 'm' || e.key === 'M') setTool('mover');
+    if (e.key === 'Escape' && rul) { rul = null; desenharOverlay(); enviarRegua(null); }
+  });
+
+  /* ---------- Battlemap ---------- */
+  let vp, world, drag = null, pointers = new Map(), pinch = null;
+  function aplicarCam() {
+    if (!world) return;
+    world.style.transform = `translate(${cam.x}px, ${cam.y}px) scale(${cam.z})`;
+    vp.style.setProperty('--g', CELL * cam.z + 'px');
+    vp.style.setProperty('--gx', cam.x + 'px'); vp.style.setProperty('--gy', cam.y + 'px');
+    clearTimeout(aplicarCam.t);
+    aplicarCam.t = setTimeout(() => { try { localStorage.setItem('hxh-mesa-cam-' + S.mesa.id, JSON.stringify(cam)); } catch (e) {} }, 400);
+  }
+  function zoomEm(px, py, f) {
+    const z = Math.max(0.2, Math.min(8, cam.z * f));
+    const k = z / cam.z;
+    cam.x = px - (px - cam.x) * k; cam.y = py - (py - cam.y) * k; cam.z = z; aplicarCam(); desenharOverlay();
+  }
+  function mapaVisivel() { return (S.gm && S.mapaPreview && vistaAtual() === 'mapa') ? S.mapaPreview : (S.mapa || { cols: 30, rows: 30, fundo_url: null, config: {} }); }
+  function centralizar() {
+    const m = mapaVisivel();
+    const r = vp.getBoundingClientRect();
+    const z = Math.max(0.25, Math.min(1.5, Math.min(r.width / (m.cols * CELL + 80), r.height / (m.rows * CELL + 80))));
+    cam = { z, x: (r.width - m.cols * CELL * z) / 2, y: (r.height - m.rows * CELL * z) / 2 }; aplicarCam(); desenharOverlay();
+  }
+  function toWorld(cx, cy) { const r = vp.getBoundingClientRect(); return { x: (cx - r.left - cam.x) / cam.z, y: (cy - r.top - cam.y) / cam.z }; }
+
+  function montarMapa() {
+    vp = $('#vp'); world = $('#world');
+    const m = mapaVisivel();
+    const area = $('#area');
+    area.style.width = m.cols * CELL + 'px'; area.style.height = m.rows * CELL + 'px';
+    const gen = m.config && m.config.gen;
+    area.classList.toggle('blank', !m.fundo_url && !gen);
+    area.classList.toggle('gen', !!gen);
+    area.querySelectorAll('svg').forEach(x => x.remove());
+    const oldLeg = $('#mLegend'); if (oldLeg) oldLeg.remove();
+    if (gen) {
+      area.style.background = MapGen.fundo(gen.tipo);
+      area.insertAdjacentHTML('afterbegin', MapGen.svg(gen, m.cols, m.rows));
+      const leg = document.createElement('div'); leg.id = 'mLegend'; leg.className = 'mlegend';
+      leg.innerHTML = MapGen.legenda(gen.tipo).map(l => `<span><i style="--c:${l.cor};${l.fundo ? `background:${l.fundo}` : ''}"></i>${l.nome}</span>`).join('');
+      $('#stage').appendChild(leg);
+    } else {
+      area.style.background = '';
+      area.style.backgroundImage = m.fundo_url ? `url("${m.fundo_url}")` : '';
+    }
+    aplicarCam();
+    if (!localStorage.getItem('hxh-mesa-cam-' + S.mesa.id)) requestAnimationFrame(centralizar);
+    renderTokens();
+    $('#zIn').onclick = () => { const r = vp.getBoundingClientRect(); zoomEm(r.width / 2, r.height / 2, 1.4); };
+    $('#zOne').onclick = () => { const r = vp.getBoundingClientRect(); zoomEm(r.width / 2, r.height / 2, 1 / cam.z); };
+    $('#zOut').onclick = () => { const r = vp.getBoundingClientRect(); zoomEm(r.width / 2, r.height / 2, 1 / 1.4); };
+    $('#zFit').onclick = centralizar;
+    vp.addEventListener('wheel', e => {
+      e.preventDefault();
+      const r = vp.getBoundingClientRect();
+      const k = e.deltaMode === 1 ? 16 : 1;
+      if (e.metaKey || e.ctrlKey) { const d = e.deltaY * k; zoomEm(e.clientX - r.left, e.clientY - r.top, Math.abs(d) >= 40 ? (d < 0 ? 1.2 : 1 / 1.2) : Math.exp(-d * 0.01)); }
+      else { cam.x -= (e.shiftKey && !e.deltaX ? e.deltaY : e.deltaX) * k; cam.y -= (e.shiftKey && !e.deltaX ? 0 : e.deltaY) * k; aplicarCam(); desenharOverlay(); }
+    }, { passive: false });
+    vp.addEventListener('pointerdown', onDown);
+    vp.addEventListener('pointermove', onMove);
+    vp.addEventListener('pointerup', onUp);
+    vp.addEventListener('pointercancel', onUp);
+    vp.addEventListener('mousedown', onRightDown, true);
+    vp.addEventListener('contextmenu', e => e.preventDefault());
+    desenharOverlay();
+  }
+  function podeMover(t) { return S.gm || t.owner === NV.user.id; }
+  function barrasVisiveis(t) { return t.barras_publicas || S.gm || t.owner === NV.user.id; }
+  function tokenHTML(t) {
+    const sz = (t.tamanho || 1) * CELL;
+    const vis = barrasVisiveis(t);
+    const pct = (a, b) => Math.max(0, Math.min(100, b ? a / b * 100 : 0));
+    const ini = (t.nome || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+    return `<div class="tok ${t.tipo} ${podeMover(t) ? 'mine' : ''} ${S.sel === t.id ? 'sel' : ''}" data-id="${t.id}" style="left:${t.x * CELL}px;top:${t.y * CELL}px;width:${sz}px;height:${sz}px;--c:${esc(t.cor || '#1f5ae0')}">
+      ${vis ? `<div class="bars ${t.barras_publicas ? '' : 'priv'}"><i class="hp"><b style="width:${pct(t.hp, t.hp_max)}%"></b></i><i class="au"><b style="width:${pct(t.aura, t.aura_max)}%"></b></i></div>` : ''}
+      <div class="disc">${t.img_url ? `<img src="${esc(t.img_url)}" alt="" draggable="false">` : esc(ini)}</div>
+      <div class="lbl">${esc(t.nome)}</div></div>`;
+  }
+  function renderTokens() {
+    const L = $('#tokLayer'); if (!L) return;
+    L.innerHTML = Object.values(S.tokens).sort((a, b) => (a.tipo === 'npc') - (b.tipo === 'npc')).map(tokenHTML).join('');
+    renderTokPanel();
+  }
+  function atualizarToken(t) {
+    const el = $(`.tok[data-id="${t.id}"]`);
+    if (!el) return renderTokens();
+    if (drag && drag.id === t.id) return;
+    el.outerHTML = tokenHTML(t);
+  }
+  /* ---------- Régua e rotas quebradas ---------- */
+  let rul = null, lastRul = 0;
+  const centro = w => ({ x: Math.floor(w.x / CELL) + .5, y: Math.floor(w.y / CELL) + .5 });
+  // Diagonais alternadas (Pathfinder): 1ª diagonal = 1 quadrado, 2ª = 2, 3ª = 1, 4ª = 2…
+  // A contagem continua entre os trechos da rota. Reta = 1 quadrado. 1 quadrado = 1,5 m.
+  function distQ(pts) {
+    let q = 0, diag = 0;
+    for (let i = 1; i < pts.length; i++) {
+      const dx = Math.round(Math.abs(pts[i].x - pts[i - 1].x)), dy = Math.round(Math.abs(pts[i].y - pts[i - 1].y));
+      const d = Math.min(dx, dy), reto = Math.max(dx, dy) - d;
+      q += reto + d + (Math.floor((diag + d) / 2) - Math.floor(diag / 2));
+      diag += d;
+    }
+    return q;
+  }
+  const txtDist = q => `${q} ${q === 1 ? 'quadrado' : 'quadrados'} · ${(q * 1.5).toLocaleString('pt-BR')} m`;
+  function rotaSVG(pts, cor, nome) {
+    if (!pts || pts.length < 2) return '';
+    const P = pts.map(p => `${p.x * CELL},${p.y * CELL}`).join(' ');
+    const fim = pts[pts.length - 1], k = 1 / cam.z;
+    return `<polyline points="${P}" fill="none" stroke="rgba(0,0,0,.55)" stroke-width="${9 * k}" stroke-linecap="round" stroke-linejoin="round"/>
+      <polyline points="${P}" fill="none" stroke="${cor}" stroke-width="${5 * k}" stroke-dasharray="${14 * k} ${9 * k}" stroke-linecap="round" stroke-linejoin="round"/>
+      ${pts.map((p, i) => `<circle cx="${p.x * CELL}" cy="${p.y * CELL}" r="${(i === 0 || i === pts.length - 1 ? 8 : 6) * k}" fill="${cor}" stroke="#1b1d2a" stroke-width="${2.5 * k}"/>`).join('')}
+      ${nome ? `<text x="${fim.x * CELL + 14 * k}" y="${fim.y * CELL - 14 * k}" font-size="${14 * k}" font-family="Nunito, sans-serif" font-weight="800" fill="#fff" stroke="#1b1d2a" stroke-width="${4 * k}" paint-order="stroke">${esc(nome)} · ${txtDist(distQ(pts))}</text>` : ''}`;
+  }
+  function desenharOverlay() {
+    const o = $('#ovl'); if (!o) return;
+    let h = '';
+    const agora = Date.now();
+    Object.entries(S.rulers).forEach(([u, r]) => { if (agora - r.t > 4000) delete S.rulers[u]; else h += rotaSVG(r.pts, '#4d9dff', r.nome); });
+    if (rul) h += rotaSVG(rul.pts.concat([rul.cur]), '#ffb24d');
+    if (drag && drag.kind === 'tok' && drag.path && drag.moved && drag.can) h += rotaSVG(drag.path.concat([drag.cur]), '#ffb24d');
+    o.innerHTML = h;
+  }
+  function enviarRegua(pts) {
+    if (!channel) return;
+    channel.send({ type: 'broadcast', event: 'ruler', payload: { u: NV.user.id, nome: (NV.perfil() || {}).nome || '', pts } });
+  }
+  function rotuloMedida(cx, cy, pts) {
+    let me = $('#measure'); if (!me) { me = document.createElement('div'); me.id = 'measure'; me.className = 'measure'; vp.appendChild(me); }
+    const r = vp.getBoundingClientRect();
+    me.style.left = (cx - r.left) + 'px'; me.style.top = (cy - r.top) + 'px';
+    const q = distQ(pts);
+    me.innerHTML = `${txtDist(q)}${pts.length > 2 ? ` <small>· ${pts.length - 2} curva${pts.length > 3 ? 's' : ''}</small>` : ''}`;
+  }
+  let ultDireito = 0, botoesAnt = 0;
+  function onRightDown(e) {
+    if (e.button !== 2) return;
+    e.preventDefault(); e.stopPropagation();
+    if (performance.now() - ultDireito < 120) return;
+    ultDireito = performance.now();
+    if (rul) { rul.pts.push(rul.cur); desenharOverlay(); return; }
+    if (drag && drag.kind === 'tok' && drag.can && drag.moved) { drag.path.push(drag.cur); desenharOverlay(); }
+  }
+  let lastBroadcast = 0;
+  let espaco = false;
+  function onDown(e) {
+    if (e.button === 2) return;
+    if (e.target.closest('.zoombar, .tools, .viewsw, .tokpanel')) return;
+    // botão do meio ou espaço segurado = pan, em qualquer ferramenta
+    if (e.button === 1 || espaco) {
+      e.preventDefault(); try { vp.setPointerCapture(e.pointerId); } catch (err) {}
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      drag = { kind: 'pan', sx: e.clientX, sy: e.clientY, cx: cam.x, cy: cam.y, moved: false }; vp.classList.add('panning'); return;
+    }
+    try { vp.setPointerCapture(e.pointerId); } catch (err) {}
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size === 2) { const [a, b] = [...pointers.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: cam.z }; drag = null; return; }
+    if (S.tool === 'regua' && e.pointerType !== 'touch' || S.tool === 'regua' && pointers.size === 1 && e.pointerType === 'touch') {
+      const c = centro(toWorld(e.clientX, e.clientY)); rul = { pts: [c], cur: c }; desenharOverlay(); return;
+    }
+    const tokEl = e.target.closest('.tok');
+    if (tokEl) {
+      const t = S.tokens[tokEl.dataset.id];
+      const w = toWorld(e.clientX, e.clientY);
+      const tam = (t.tamanho || 1) / 2;
+      drag = { kind: 'tok', id: t.id, el: tokEl, ox: w.x - t.x * CELL, oy: w.y - t.y * CELL, sx: e.clientX, sy: e.clientY, x0: t.x, y0: t.y, moved: false, can: podeMover(t), path: [{ x: t.x + tam, y: t.y + tam }], cur: { x: t.x + tam, y: t.y + tam } };
+      return;
+    }
+    drag = { kind: 'pan', sx: e.clientX, sy: e.clientY, cx: cam.x, cy: cam.y, moved: false };
+    vp.classList.add('panning');
+  }
+  function onMove(e) {
+    // botão direito apertado com o esquerdo segurado (eventos "chorded") = nova curva na rota
+    if ((e.buttons & 2) && !(botoesAnt & 2) && (rul || drag)) onRightDown({ button: 2, preventDefault() {}, stopPropagation() {} });
+    botoesAnt = e.buttons;
+    if (!pointers.has(e.pointerId)) return;
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch && pointers.size === 2) {
+      const [a, b] = [...pointers.values()]; const r = vp.getBoundingClientRect();
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      zoomEm((a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top, (pinch.z * d / pinch.d) / cam.z); return;
+    }
+    if (rul) {
+      rul.cur = centro(toWorld(e.clientX, e.clientY)); desenharOverlay(); rotuloMedida(e.clientX, e.clientY, rul.pts.concat([rul.cur]));
+      const now = performance.now(); if (now - lastRul > 90) { lastRul = now; enviarRegua(rul.pts.concat([rul.cur])); }
+      return;
+    }
+    if (!drag) return;
+    const dist = Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy);
+    if (dist > 4) drag.moved = true;
+    if (drag.kind === 'pan') { cam.x = drag.cx + e.clientX - drag.sx; cam.y = drag.cy + e.clientY - drag.sy; aplicarCam(); return; }
+    if (!drag.can || !drag.moved) return;
+    const w = toWorld(e.clientX, e.clientY);
+    const px = w.x - drag.ox, py = w.y - drag.oy;
+    drag.el.classList.add('drag');
+    drag.el.style.left = px + 'px'; drag.el.style.top = py + 'px';
+    const tam = (S.tokens[drag.id].tamanho || 1) / 2;
+    drag.cur = { x: Math.round(px / CELL) + tam, y: Math.round(py / CELL) + tam };
+    desenharOverlay(); rotuloMedida(e.clientX, e.clientY, drag.path.concat([drag.cur]));
+    const now = performance.now();
+    if (channel && now - lastBroadcast > 70) { lastBroadcast = now; channel.send({ type: 'broadcast', event: 'move', payload: { id: drag.id, x: px / CELL, y: py / CELL } }); }
+  }
+  async function onUp(e) {
+    pointers.delete(e.pointerId);
+    if (pointers.size < 2) pinch = null;
+    vp.classList.remove('panning');
+    const m = $('#measure'); if (m) m.remove();
+    if (rul) { rul = null; desenharOverlay(); enviarRegua(null); return; }
+    const d = drag; drag = null; desenharOverlay();
+    if (!d) return;
+    if (d.kind === 'pan') { if (!d.moved && S.sel) { S.sel = null; renderTokens(); } return; }
+    const t = S.tokens[d.id];
+    if (!d.moved || !d.can) { S.sel = d.id; renderTokens(); if (!d.can && d.moved) toast('Esse token não é seu', 'hand'); return; }
+    const w = toWorld(e.clientX, e.clientY);
+    const nx = Math.round((w.x - d.ox) / CELL), ny = Math.round((w.y - d.oy) / CELL);
+    t.x = nx; t.y = ny; S.sel = t.id;
+    renderTokens();
+    if (channel) channel.send({ type: 'broadcast', event: 'move', payload: { id: t.id, x: nx, y: ny } });
+    const { error } = await sb.from('tokens').update({ x: nx, y: ny }).eq('id', t.id);
+    if (error) { toast(errMsg(error), 'warning'); t.x = d.x0; t.y = d.y0; renderTokens(); }
+  }
+
+  /* painel do token selecionado */
+  const FICHAS = {};
+  async function carregaFicha(pid) {
+    if (!pid || FICHAS[pid] !== undefined) return;
+    FICHAS[pid] = null;
+    const meu = S.meus.find(p => p.id === pid);
+    if (meu) FICHAS[pid] = meu.dados || {};
+    else { try { const f = await NV.obter(pid); FICHAS[pid] = f ? f.dados : false; } catch (e) { FICHAS[pid] = false; } }
+    await null;
+    if (S.sel && S.tokens[S.sel] && S.tokens[S.sel].personagem_id === pid) renderTokPanel();
+  }
+  const sinal = n => (n >= 0 ? '+' : '') + n;
+  const ATR_COR = { FOR: '#f87171', DES: '#34d399', CON: '#fbbf24', INT: '#60a5fa', SAB: '#a78bfa', PRE: '#f472b6' };
+  // Valores base da ficha: bônus de Hatsu e princípios ficam fora por enquanto.
+  function atributosHTML(t) {
+    if (t.tipo !== 'pj' || !t.personagem_id) return '';
+    if (!(S.gm || t.owner === NV.user.id)) return '';
+    const d = FICHAS[t.personagem_id];
+    if (d === undefined) { carregaFicha(t.personagem_id); return '<div class="tp-atr carregando">Carregando atributos…</div>'; }
+    if (d === null) return '<div class="tp-atr carregando">Carregando atributos…</div>';
+    if (d === false) return '';
+    const r = NV.resumo(d), cl = r.classe;
+    const aba = S.tpAba === 'atk' ? 'atk' : 'atr';
+    const pill = k => `<button class="tp-a" data-rola="${k}" style="--c:${ATR_COR[k]}" title="Rolar d20 ${sinal(r.attrs[k].mod)} (${k} ${r.attrs[k].valor})"><small>${k}</small><b>${sinal(r.attrs[k].mod)}</b></button>`;
+    return `<div class="tp-atr">
+      <div class="tp-sub">${cl ? `<span style="color:${cl.color}">${esc(cl.label)}</span> · ` : ''}Nível ${r.nivel} · Prof. +${r.pb}</div>
+      <div class="tp-abas"><button data-tpaba="atr" class="${aba === 'atr' ? 'on' : ''}">Atributos</button><button data-tpaba="atk" class="${aba === 'atk' ? 'on' : ''}">Ataques</button></div>
+      ${aba === 'atr' ? `<div class="tp-tres">${Object.keys(ATR_COR).map(pill).join('')}</div>` : ataquesHTML(d, r)}
+      <div class="tp-def"><span>Iniciativa <b>${sinal(r.iniciativa)}</b></span><span class="tiny">Modo: ${DADO.modo}</span><a class="tp-ficha" href="${NV.APP_URL}" target="_blank" rel="noopener">Ficha <i class="ph-bold ph-arrow-square-out"></i></a></div>
+    </div>`;
+  }
+
+  /* ---------- Ataques: armas e Hatsus da ficha ---------- */
+  // Armas: mesma regra da seção de Ataques da ficha (sheet.js) — itens do inventário
+  // que existem no ITEM_DB com dano, mais o Ataque Desarmado (1d6 com Artista Marcial/Monge).
+  function armasDaFicha(d) {
+    const db = typeof ITEM_DB !== 'undefined' ? ITEM_DB : null;
+    const acha = nome => {
+      if (!db) return null;
+      const n = String(nome || '').toLowerCase();
+      for (const cat in db.armas) { const f = db.armas[cat].find(i => i.nome.toLowerCase() === n || n.includes(i.nome.toLowerCase())); if (f) return f; }
+      return null;
+    };
+    const armas = (d.inventory || []).map(it => {
+      const x = acha(it.name);
+      if (!x || !x.dano || x.dano === '-' || String(x.dano).startsWith('+')) return null;
+      return { nome: it.name, dano: x.dano, tipo: x.tipo_dano || '' };
+    }).filter(Boolean);
+    const feat = typeof d.backgroundFeature === 'string' ? d.backgroundFeature : ((d.backgroundFeature || {}).nome || '');
+    const marcial = ['Artista Marcial', 'Monge'].includes(String(feat).trim());
+    return [{ nome: 'Ataque Desarmado' + (marcial ? ' (Marcial)' : ''), dano: marcial ? '1d6' : '1d4', tipo: 'Impacto' }, ...armas];
+  }
+  function ataquesHTML(d, r) {
+    const armas = armasDaFicha(d), hatsus = d.hatsus || [];
+    const atkStr = k => sinal(r.attrs[k].mod + r.pb);
+    let h = `<div class="atks"><div class="atk-sec">Armas</div>` + armas.map((w, i) => `<div class="atk">
+        <div class="atk-h"><b title="${esc(w.nome)}">${esc(w.nome)}</b><span class="dn">${esc(w.dano)}</span></div>
+        ${w.tipo ? `<div class="atk-s">${esc(w.tipo)}</div>` : ''}
+        <div class="atk-b"><button data-arma="${i}" data-arma-at="FOR" style="--c:${ATR_COR.FOR}">FOR ${atkStr('FOR')}</button><button data-arma="${i}" data-arma-at="DES" style="--c:${ATR_COR.DES}">DES ${atkStr('DES')}</button></div></div>`).join('');
+    h += `<div class="atk-sec">Hatsus</div>`;
+    h += hatsus.length ? hatsus.map((x, i) => {
+      const m = x.mesaRolagem, nome = esc(x.nome || 'Hatsu ' + (i + 1));
+      if (!m) return `<div class="atk off"><div class="atk-h"><b>${nome}</b></div><div class="atk-s">Abra este Hatsu uma vez na ficha do HxH5e para liberar a rolagem aqui.</div></div>`;
+      if (!m.hasBaseDmg && !m.cd) return `<div class="atk off"><div class="atk-h"><b>${nome}</b></div><div class="atk-s">Sem dano nem CD para rolar.</div></div>`;
+      const linha = [m.hasAttack ? `Ataque ${sinal((r.attrs[m.atkAttr] || { mod: 0 }).mod + prof(m.nivel) + (m.acertoBonus || 0))}${m.acertoVantagem ? ' (vantagem)' : ''}` : m.cd ? `CD ${m.cd} (TR de ${m.attr})` : '', m.aura ? `${m.aura} de Aura` : '', m.curaDice ? `Cura ${m.curaDice}` : ''].filter(Boolean).join(' · ');
+      return `<div class="atk"><div class="atk-h"><b title="${nome}">${nome}</b>${m.hasBaseDmg ? `<span class="dn">${esc(m.dice || '')} + ${esc(m.attr)}</span>` : ''}</div>
+        <div class="atk-s">${linha}${m.maximizado ? ' · dano maximizado' : m.critico ? ' · dano crítico' : ''}</div>
+        <div class="atk-b"><button data-hatsu="${i}" style="--c:${(r.classe || {}).color || '#00ff9d'}"><i class="ph-bold ph-lightning"></i> Rolar</button></div></div>`;
+    }).join('') : '<div class="atk-s">Nenhum Hatsu na ficha.</div>';
+    return h + '</div>';
+  }
+  const prof = nivel => Math.max(2, Math.floor(((nivel || 0) - 1) / 4) + 2);
+  // Dados de uma expressão "2d10", "1d8+2"… Maximizar entrega o valor máximo de cada dado
+  // (Condição Hostil), igual ao maximizarExpr da ficha.
+  function dadosExpr(expr, maximizar) {
+    const det = []; let soma = 0;
+    String(expr || '').replace(/\s+/g, '').split(/(?=[+-])/).forEach(t => {
+      const s = t[0] === '-' ? -1 : 1, c = t.replace(/^[+-]/, ''), m = c.match(/^(\d*)d(\d+)$/);
+      if (m) {
+        const n = Math.max(1, +(m[1] || 1)), l = +m[2];
+        const rr = Array.from({ length: Math.min(n, 60) }, () => maximizar ? l : 1 + Math.floor(crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296 * l));
+        det.push({ d: l, s, r: rr }); soma += s * rr.reduce((a, b) => a + b, 0);
+      } else if (/^\d+$/.test(c)) { det.push({ k: s * +c }); soma += s * +c; }
+    });
+    return { det, soma, dadosSoma: det.filter(x => x.d).reduce((a, x) => a + x.s * x.r.reduce((p, q) => p + q, 0), 0) };
+  }
+  async function rolarAtaque(mod, rotulo, nome, forcarVantagem) {
+    const antes = DADO.modo;
+    if (forcarVantagem && DADO.modo === 'Normal') DADO.modo = 'Vantagem';
+    try { await rolarD20(mod, rotulo, nome); } finally { DADO.modo = antes; }
+  }
+  async function rolarDano(expr, mod, rotulo, nome, opts = {}) {
+    const e = dadosExpr(expr, opts.maximizar);
+    const extra = opts.extra || 0;
+    // Vida ou Morte (crítico): dobra só os dados, não o atributo nem os fixos — igual à ficha.
+    const total = (opts.critico ? e.dadosSoma * 2 + (e.soma - e.dadosSoma) : e.soma) + mod + extra;
+    const det = e.det.slice(); if (mod + extra) det.push({ k: mod + extra });
+    const formula = expr + (mod + extra ? sinal(mod + extra) : '') + (opts.maximizar ? ' · maximizado' : opts.critico ? ' · crítico (dados ×2)' : '');
+    return gravarRolagem({ total, det, formula }, rotulo, nome);
+  }
+  async function rolarArma(t, w, at) {
+    const r = NV.resumo(FICHAS[t.personagem_id] || {});
+    await rolarAtaque(r.attrs[at].mod + r.pb, `Ataque · ${w.nome} (${at})`, t.nome);
+    await rolarDano(w.dano, r.attrs[at].mod, `Dano · ${w.nome}${w.tipo ? ' · ' + w.tipo : ''}`, t.nome);
+  }
+  // Hatsu: usa o resumo gravado pela ficha (h.mesaRolagem, ver hatsu-detail.js).
+  // REN não entra aqui: escalonar graus continua sendo feito na ficha.
+  async function rolarHatsu(t, i) {
+    const d = FICHAS[t.personagem_id] || {}, x = (d.hatsus || [])[i], m = x && x.mesaRolagem;
+    if (!m) return;
+    const r = NV.resumo(d), nome = x.nome || 'Hatsu';
+    const modAt = k => (r.attrs[k] || { mod: 0 }).mod;
+    if (m.hasAttack) await rolarAtaque(modAt(m.atkAttr) + prof(m.nivel) + (m.acertoBonus || 0), `Ataque · ${nome}`, t.nome, m.acertoVantagem);
+    if (m.hasBaseDmg) {
+      // Extras: dados ("+ 1d8") entram na mesma expressão; números fixos somam no fim.
+      let expr = m.dice || '', fixo = 0;
+      [...(m.dmgExtras || []), ...(m.sanExtras || [])].forEach(e => {
+        const v = String(e.dado || '').trim();
+        if (v === '(contínuo)') return;
+        if (/^\+?\s*\d+d\d+$/.test(v)) expr += (expr ? '+' : '') + v.replace(/^\+?\s*/, '');
+        else { const n = parseInt(v.replace(/\/\w+$/, '')); if (!isNaN(n)) fixo += n; }
+      });
+      await rolarDano(expr || '0', modAt(m.attr), `Dano · ${nome}${m.cd && !m.hasAttack ? ` · CD ${m.cd} (TR de ${m.attr})` : ''}`, t.nome, { maximizar: m.maximizado, critico: m.critico, extra: fixo });
+    } else if (m.cd) {
+      toast(esc(`${nome}: CD ${m.cd} (TR de ${m.attr})`), 'target');
+    }
+    if (m.curaDice) await rolarDano(m.curaDice, modAt(m.attr), `Cura · ${nome}`, t.nome, { maximizar: m.maximizado, critico: m.critico });
+    // Custo de Aura sai do token (a ficha não muda, como o resto da mesa).
+    if (m.aura && podeMover(t)) {
+      const novo = Math.max(0, (t.aura || 0) - m.aura);
+      Object.assign(t, { aura: novo }); atualizarToken(t); renderTokPanel();
+      if (channel) channel.send({ type: 'broadcast', event: 'tok', payload: { id: t.id, aura: novo } });
+      const { error } = await sb.from('tokens').update({ aura: novo }).eq('id', t.id);
+      if (error) toast(errMsg(error), 'warning'); else toast(esc(`${nome}: −${m.aura} de Aura`), 'lightning');
+    }
+  }
+  function renderTokPanel() {
+    const old = $('#tokPanel'); if (old) old.remove();
+    const t = S.sel && S.tokens[S.sel]; const st = $('.vp') && $('#stage');
+    if (!t || !st) return;
+    const pode = podeMover(t), vis = barrasVisiveis(t);
+    const el = document.createElement('div'); el.className = 'tokpanel'; el.id = 'tokPanel';
+    const res = (k, lbl, cor) => `<div class="res"><span style="color:${cor}">${lbl}</span>
+      <div class="bar"><b style="width:${Math.max(0, Math.min(100, t[k + '_max'] ? t[k] / t[k + '_max'] * 100 : 0))}%;background:${cor}"></b></div>
+      ${pode ? `<div class="ctl"><button data-k="${k}" data-d="-10">−10</button><button data-k="${k}" data-d="-5">−5</button><input data-k="${k}" value="${t[k]}" inputmode="numeric" aria-label="${lbl} atual"><button data-k="${k}" data-d="5">+5</button></div>` : `<b>${t[k]}/${t[k + '_max']}</b>`}</div>`;
+    el.innerHTML = `<div class="h">${t.img_url ? `<img class="av" src="${esc(t.img_url)}" alt="">` : `<span class="av" style="background:${esc(t.cor)};color:#fff">${esc((t.nome || '?')[0])}</span>`}
+      <div><b>${esc(t.nome)}</b><div class="tiny">${t.tipo === 'npc' ? 'NPC do narrador' : esc((S.perfis[t.owner] || {}).nome || 'Jogador')}</div></div>
+      <button class="btn btn-icon btn-ghost x" id="tpX" aria-label="Fechar"><i class="ph-bold ph-x"></i></button></div>
+      ${atributosHTML(t)}
+      ${vis ? res('hp', 'PV', COR_PV) + res('aura', 'AURA', COR_AURA) + (pode ? `<div class="tiny" style="margin:-2px 0 8px">Máximo: ${t.hp_max} PV · ${t.aura_max} Aura${t.tipo === 'pj' ? ' · não altera a ficha' : ''}</div>` : '') : '<p class="hint">As barras deste token estão escondidas.</p>'}
+      ${pode ? `<label class="chk"><input type="checkbox" id="tpPub" ${t.barras_publicas ? 'checked' : ''}> Barras visíveis para todos</label>
+      <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+        ${S.gm ? `<select class="input" id="tpSz" style="height:34px;width:auto;font-size:13px;padding:0 30px 0 10px">${[1, 2, 3, 4].map(n => `<option value="${n}" ${t.tamanho === n ? 'selected' : ''}>${n}×${n}</option>`).join('')}</select>` : ''}
+        <button class="btn btn-sm" id="tpAv"><i class="ph ph-image"></i> Avatar</button>
+        ${t.owner === NV.user.id && (NV.perfil() || {}).avatar ? '<button class="btn btn-sm btn-ghost" id="tpG" title="Usar a foto da sua conta (Discord ou Google)">Usar minha foto</button>' : ''}
+        <button class="btn btn-sm btn-ghost" id="tpDel" style="margin-left:auto;color:var(--red-6)">Remover</button></div>` : ''}`;
+    st.appendChild(el);
+    $('#tpX').onclick = () => { S.sel = null; renderTokens(); };
+    $$('#tokPanel [data-tpaba]').forEach(b => b.onclick = () => {
+      S.tpAba = b.dataset.tpaba; renderTokPanel();
+      // Busca a ficha de novo: o jogador pode ter aberto um Hatsu na ficha agora há pouco.
+      if (S.tpAba === 'atk' && t.personagem_id) NV.obter(t.personagem_id).then(f => {
+        if (!f) return;
+        FICHAS[t.personagem_id] = f.dados;
+        const p = S.meus.find(x => x.id === t.personagem_id); if (p) p.dados = f.dados;
+        if (S.sel === t.id && S.tpAba === 'atk') renderTokPanel();
+      }).catch(() => {});
+    });
+    $$('#tokPanel [data-arma]').forEach(b => b.onclick = () => { const w = armasDaFicha(FICHAS[t.personagem_id] || {})[+b.dataset.arma]; if (w) rolarArma(t, w, b.dataset.armaAt); });
+    $$('#tokPanel [data-hatsu]').forEach(b => b.onclick = () => rolarHatsu(t, +b.dataset.hatsu));
+    $$('#tokPanel [data-rola]').forEach(b => b.onclick = () => { const r = NV.resumo(FICHAS[t.personagem_id] || {}); rolarD20(r.attrs[b.dataset.rola].mod, `Teste de ${b.dataset.rola}`, t.nome); });
+    const salvar = async patch => { Object.assign(t, patch); atualizarToken(t); renderTokPanel(); if (channel) channel.send({ type: 'broadcast', event: 'tok', payload: Object.assign({ id: t.id }, patch) }); const { error } = await sb.from('tokens').update(patch).eq('id', t.id); if (error) toast(errMsg(error), 'warning'); };
+    $$('#tokPanel .ctl button').forEach(b => b.onclick = () => { const k = b.dataset.k; salvar({ [k]: Math.max(0, Math.min(t[k + '_max'], t[k] + +b.dataset.d)) }); });
+    $$('#tokPanel .ctl input').forEach(i => i.onchange = () => { const k = i.dataset.k; const v = parseInt(i.value, 10); if (!isNaN(v)) salvar({ [k]: Math.max(0, Math.min(t[k + '_max'], v)) }); });
+    const pub = $('#tpPub'); if (pub) pub.onchange = () => salvar({ barras_publicas: pub.checked });
+    const sz = $('#tpSz'); if (sz) sz.onchange = () => salvar({ tamanho: +sz.value });
+    // Só o token muda: a foto da ficha no HxH5e continua a mesma.
+    const trocaAvatar = async url => {
+      await salvar({ img_url: url });
+      toast('Avatar atualizado', 'image');
+    };
+    const av = $('#tpAv'); if (av) av.onclick = async () => { const f = await pickFile(); if (!f) return; toast('Enviando avatar…', 'hourglass'); try { await trocaAvatar(await NV.enviarToken(f)); } catch (err) { toast(errMsg(err), 'warning'); } };
+    const gg = $('#tpG'); if (gg) gg.onclick = () => trocaAvatar(NV.perfil().avatar);
+    const del = $('#tpDel'); if (del) del.onclick = async () => { if (!confirm(`Remover ${t.nome} do mapa?`)) return; const { error } = await sb.from('tokens').delete().eq('id', t.id); if (error) return toast(errMsg(error), 'warning'); delete S.tokens[t.id]; S.sel = null; renderTokens(); };
+  }
+
+  /* ---------- Painel lateral ---------- */
+  function abas() {
+    const dados = ['dados', '<i class="ph ph-dice-five"></i> Dados'];
+    const chat = ['chat', `<i class="ph ph-chat-circle-dots"></i> Chat${S.naoLidas ? `<span class="badge">${S.naoLidas > 99 ? '99+' : S.naoLidas}</span>` : ''}`];
+    return S.gm ? [['cenas', 'Cenas'], ['mapa', 'Mapa'], ['tokens', 'Tokens'], dados, chat, ['ninja', 'Personagem'], ['grupo', 'Grupo']]
+      : [dados, chat, ['ninja', 'Meu personagem'], ['tokens', 'Tokens'], ['grupo', 'Grupo']];
+  }
+  function renderTabs() {
+    $('#tabs').innerHTML = abas().map(([k, l]) => `<button data-t="${k}" class="${S.tab === k ? 'on' : ''}">${l}</button>`).join('');
+    $$('#tabs button').forEach(b => b.onclick = () => { S.tab = b.dataset.t; renderSide(); });
+  }
+  function renderSide() {
+    if (!abas().some(t => t[0] === S.tab)) S.tab = abas()[0][0];
+    if (S.tab === 'chat') S.naoLidas = 0;
+    renderTabs();
+    P().classList.toggle('pane-chat', S.tab === 'chat');
+    ({ cenas: paneCenas, mapa: paneMapa, tokens: paneTokens, dados: paneDados, chat: paneChat, ninja: paneNinja, grupo: paneGrupo })[S.tab]();
+  }
+  const P = () => $('#pane');
+
+  async function exibir(tipo, cenaId) {
+    const patch = { exibindo: tipo }; if (cenaId !== undefined) patch.cena_id = cenaId;
+    const { error } = await sb.from('mesas').update(patch).eq('id', S.mesa.id);
+    if (error) return toast(errMsg(error), 'warning');
+    Object.assign(S.mesa, patch); S.view = null; renderBar(); renderStage(); renderSide();
+    toast(tipo === 'nada' ? 'Nada ao vivo' : 'Ao vivo para os jogadores', tipo === 'nada' ? 'pause' : 'broadcast');
+  }
+
+  function paneCenas() {
+    P().innerHTML = `<h4>Nova cena</h4>
+      <div class="field"><input class="input" id="cnT" maxlength="80" placeholder="Título (ex.: A ponte de Tazuna)"></div>
+      <label class="upl" id="cnUp"><span id="cnPrev"><i class="ph ph-image"></i></span><span id="cnLbl">Escolher imagem</span></label>
+      <div class="field" style="margin-top:12px"><textarea class="input" id="cnN" placeholder="Anotações do narrador (só você vê)"></textarea></div>
+      <button class="btn btn-primary" id="cnAdd" style="width:100%">Adicionar cena</button>
+      <div class="sep"></div>
+      <h4>Cenas da mesa</h4>
+      <div class="stack" id="cnList"></div>
+      ${S.mesa.exibindo !== 'nada' ? `<button class="btn btn-sm" id="stopLive" style="margin-top:14px;width:100%"><i class="ph ph-pause"></i> Parar de exibir</button>` : ''}`;
+    let img = null;
+    $('#cnUp').onclick = async e => { e.preventDefault(); const f = await pickFile(); if (!f) return; $('#cnLbl').textContent = 'Enviando…'; try { img = await NV.enviarImagem(f); $('#cnPrev').innerHTML = `<img src="${esc(img)}" alt="">`; $('#cnLbl').textContent = 'Imagem pronta · trocar'; } catch (err) { toast(errMsg(err), 'warning'); $('#cnLbl').textContent = 'Escolher imagem'; } };
+    $('#cnAdd').onclick = async () => {
+      const titulo = $('#cnT').value.trim(), notas = $('#cnN').value.trim();
+      if (!titulo && !img) return toast('Dê um título ou escolha uma imagem', 'pencil-simple');
+      const { data, error } = await sb.from('cenas').insert({ mesa_id: S.mesa.id, titulo, notas, imagem_url: img }).select('*').single();
+      if (error) return toast(errMsg(error), 'warning');
+      if (!S.cenas.some(c => c.id === data.id)) S.cenas.push(data);
+      paneCenas(); toast('Cena criada', 'film-slate');
+    };
+    const st = $('#stopLive'); if (st) st.onclick = () => exibir('nada');
+    $('#cnList').innerHTML = S.cenas.length ? S.cenas.slice().reverse().map(c => {
+      const ao = S.mesa.exibindo === 'cena' && S.mesa.cena_id === c.id;
+      return `<div class="item ${ao ? 'on' : ''}">${c.imagem_url ? `<div class="thumb" style="background-image:url('${esc(c.imagem_url)}')"></div>` : ''}
+        <b>${esc(c.titulo || 'Sem título')}</b>${ao ? ' <span class="live" style="margin-left:6px">Ao vivo</span>' : ''}
+        <textarea class="input" data-notas="${c.id}" style="margin-top:8px;min-height:60px" placeholder="Anotações (só você vê)">${esc(c.notas)}</textarea>
+        <div class="row"><button class="btn btn-sm btn-orange" data-show="${c.id}"><i class="ph ph-broadcast"></i> Exibir para os jogadores</button><button class="btn btn-sm btn-ghost" data-prev="${c.id}">Prévia</button><button class="btn btn-sm btn-ghost" data-del="${c.id}" style="color:var(--red-6)">Apagar</button></div></div>`;
+    }).join('') : '<p class="hint">Nenhuma cena ainda.</p>';
+    $$('[data-show]').forEach(b => b.onclick = () => exibir('cena', b.dataset.show));
+    $$('[data-prev]').forEach(b => b.onclick = () => { S.view = 'cena'; S.previewCena = b.dataset.prev; renderStage(); });
+    $$('[data-notas]').forEach(t => t.onchange = async () => { const { error } = await sb.from('cenas').update({ notas: t.value }).eq('id', t.dataset.notas); if (error) toast(errMsg(error), 'warning'); else { const c = S.cenas.find(x => x.id === t.dataset.notas); if (c) c.notas = t.value; toast('Anotação salva', 'note-pencil'); } });
+    $$('[data-del]').forEach(b => b.onclick = async () => { if (!confirm('Apagar esta cena?')) return; const { error } = await sb.from('cenas').delete().eq('id', b.dataset.del); if (error) return toast(errMsg(error), 'warning'); S.cenas = S.cenas.filter(c => c.id !== b.dataset.del); paneCenas(); });
+  }
+
+  /* ---------- Mapa: painel lateral + pop-up de criação ---------- */
+  const IMG = { aberto: false };
+  function paneMapa() {
+    const m = S.mapaPreview || S.mapa || null;
+    const gen = m && m.config && m.config.gen;
+    const tipo = gen && MapGen.TIPOS.find(t => t.id === MapGen.normaliza(gen).tipo);
+    const ops = [10, 15, 20, 25, 30, 35, 40, 50, 60, 80, 100];
+    P().innerHTML = `<h4>Battlemap</h4>
+      <p class="hint" style="margin:0 0 12px">Cada quadrado tem 1,5 m. Um mapa por vez: salvar um novo substitui o atual (os tokens continuam).</p>
+      <div class="item" style="display:flex;align-items:center;gap:10px">
+        <span class="av" style="width:40px;height:40px;border-radius:12px"><i class="ph ph-${tipo ? tipo.ico : m && m.fundo_url ? 'image' : 'map-trifold'}" style="font-size:20px"></i></span>
+        <div style="flex:1;min-width:0"><b>${tipo ? esc(tipo.nome) : m && m.fundo_url ? 'Imagem própria' : 'Sem mapa ainda'}</b><div class="tiny">${m ? `${m.cols} × ${m.rows} quadrados` : 'Crie um mapa ou envie uma imagem'}</div></div>
+      </div>
+      <button class="btn btn-primary" id="mpCriar" style="width:100%;margin-top:12px"><i class="ph ph-sparkle"></i> ${gen ? 'Editar ou criar mapa' : 'Criar mapa'}</button>
+      <button class="btn btn-ghost btn-sm" id="mpImgT" style="width:100%;margin-top:8px"><i class="ph ph-image"></i> Usar uma imagem minha</button>
+      <div id="mpImg" ${IMG.aberto ? '' : 'hidden'}>
+        <div class="sel2" style="margin-top:10px"><div class="field"><label class="tiny">Colunas</label><select class="input" id="mpC">${ops.map(n => `<option ${(m ? m.cols : 30) === n ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
+        <div class="field"><label class="tiny">Linhas</label><select class="input" id="mpR">${ops.map(n => `<option ${(m ? m.rows : 30) === n ? 'selected' : ''}>${n}</option>`).join('')}</select></div></div>
+        <label class="upl" id="mpUp"><span id="mpPrev"><i class="ph ph-map-trifold"></i></span><span id="mpLbl">Escolher imagem do mapa</span></label>
+        <p class="hint">A imagem estica para cobrir o grid inteiro. Ajuste colunas e linhas para bater com o desenho.</p>
+      </div>
+      <div class="sep"></div>
+      <button class="btn btn-orange" id="mpLive" style="width:100%" ${m ? '' : 'disabled'}><i class="ph ph-broadcast"></i> Exibir battlemap para os jogadores</button>
+      ${S.mesa.exibindo !== 'nada' ? `<button class="btn btn-sm" id="stopLive" style="margin-top:10px;width:100%"><i class="ph ph-pause"></i> Parar de exibir</button>` : ''}`;
+    $('#mpCriar').onclick = () => abrirCriador(gen ? Object.assign({ cols: m.cols, rows: m.rows }, gen) : null);
+    $('#mpImgT').onclick = () => { IMG.aberto = !IMG.aberto; paneMapa(); };
+    const up = $('#mpUp');
+    if (up) up.onclick = async e => {
+      e.preventDefault(); const f = await pickFile(); if (!f) return; $('#mpLbl').textContent = 'Enviando…';
+      try { const url = await NV.enviarImagem(f, 4096); await salvarMapa({ cols: +$('#mpC').value, rows: +$('#mpR').value, fundo_url: url, config: {} }); IMG.aberto = false; toast('Mapa salvo', 'map-trifold'); paneMapa(); } catch (err) { toast(errMsg(err), 'warning'); $('#mpLbl').textContent = 'Escolher imagem do mapa'; }
+    };
+    $('#mpLive').onclick = () => exibir('mapa');
+    const st = $('#stopLive'); if (st) st.onclick = () => exibir('nada');
+  }
+  async function salvarMapa(row) {
+    const { data, error } = await sb.from('mapas').upsert(Object.assign({ mesa_id: S.mesa.id }, row)).select('*').single();
+    if (error) { toast(errMsg(error), 'warning'); return false; }
+    S.mapa = data; S.mapaPreview = null; S.view = 'mapa';
+    renderStage(); setTimeout(() => vp && centralizar(), 50);
+    return true;
+  }
+
+  // Pop-up: 1) urbano/natureza 2) tipo 3) planta (quando houver) 4) quanto de cada elemento 5) tamanho
+  const TAMANHOS = [10, 15, 20, 25, 30, 35, 40, 50, 60];
+  function abrirCriador(base) {
+    const E = Object.assign({ tipo: 'floresta', cols: 30, rows: 20, seed: MapGen.novaSemente() }, base || {});
+    const nz = MapGen.normaliza(E);
+    E.tipo = nz.tipo; E.mix = nz.mix; E.layout = nz.layout;
+    E.grupo = (MapGen.TIPOS.find(t => t.id === E.tipo) || {}).grupo || 'Natureza';
+    const ov = document.createElement('div'); ov.className = 'mm-ov'; ov.id = 'mapModal';
+    ov.innerHTML = `<div class="mm" role="dialog" aria-modal="true" aria-labelledby="mmT">
+      <header class="mm-h"><div><div class="tiny" style="font-weight:800;letter-spacing:.12em;color:var(--orange-7)">NOVO BATTLEMAP</div><h3 id="mmT">Criar mapa</h3></div><button class="btn btn-icon btn-ghost" id="mmX" aria-label="Fechar"><i class="ph-bold ph-x"></i></button></header>
+      <div class="mm-b"><div class="mm-l" id="mmL"></div><div class="mm-r"><div class="mm-prev" id="mmPrev"></div><div class="mm-leg" id="mmLeg"></div>
+        <div class="mm-acts"><button class="btn btn-sm" id="mmSeed"><i class="ph ph-dice-five"></i> Outra variação</button><span class="tiny" id="mmTam"></span></div></div></div>
+      <footer class="mm-f"><button class="btn btn-ghost" id="mmCanc">Cancelar</button><span style="flex:1"></span><button class="btn" id="mmSalvar">Salvar mapa</button><button class="btn btn-orange" id="mmVivo"><i class="ph ph-broadcast"></i> Salvar e exibir</button></footer>
+    </div>`;
+    document.body.appendChild(ov);
+    requestAnimationFrame(() => ov.classList.add('on'));
+    const fechar = () => { ov.classList.remove('on'); setTimeout(() => ov.remove(), 200); removeEventListener('keydown', esc_); removeEventListener('resize', ajusta); };
+    const esc_ = e => { if (e.key === 'Escape') fechar(); };
+    addEventListener('keydown', esc_);
+    ov.addEventListener('mousedown', e => { if (e.target === ov) fechar(); });
+    $('#mmX', ov).onclick = $('#mmCanc', ov).onclick = fechar;
+
+    const tipoInfo = () => MapGen.TIPOS.find(t => t.id === E.tipo);
+    const plantas = () => Blocos.PLANTAS.filter(p => p.grupo === E.tipo);
+    const trocaTipo = id => {
+      E.tipo = id; E.mix = Object.assign({}, MapGen.PADRAO[id]);
+      if (tipoInfo().planta) { E.layout = plantas()[0].id; Object.assign(E, MapGen.tamanhoPlanta(E.layout)); } else E.layout = null;
+      E.seed = MapGen.novaSemente();
+    };
+    const slider = (k, v) => {
+      const el = MapGen.ELEMENTOS[k];
+      return `<div class="sl"><div class="sl-l"><b>${el.nome}</b><small>${el.desc}</small></div>
+        <div class="sl-t"><div class="sl-n">${[0, 20, 40, 60, 80, 100].map(n => `<span>${n}</span>`).join('')}</div>
+        <input type="range" min="0" max="100" step="20" value="${v}" data-k="${k}" aria-label="${el.nome}" style="--p:${v}%"></div></div>`;
+    };
+    function esquerda() {
+      const t = tipoInfo(), vert = MapGen.VERTICAL[E.tipo] || [];
+      const chaves = Object.keys(MapGen.PADRAO[E.tipo]).filter(k => !vert.includes(k));
+      let h = `<div class="mm-step"><span>1</span>Ambiente</div>
+        <div class="modesw">${['Urbano', 'Natureza'].map(g => `<button data-g="${g}" class="${E.grupo === g ? 'on' : ''}"><i class="ph ph-${g === 'Urbano' ? 'buildings' : 'tree-evergreen'}"></i> ${g}</button>`).join('')}</div>
+        <div class="mm-step"><span>2</span>Tipo de mapa</div>
+        <div class="mm-chips">${MapGen.TIPOS.filter(x => x.grupo === E.grupo).map(x => `<button data-t="${x.id}" class="${E.tipo === x.id ? 'on' : ''}" title="${esc(x.desc)}"><i class="ph ph-${x.ico}"></i>${x.nome}</button>`).join('')}</div>
+        <p class="hint" style="margin-top:6px">${esc(t.desc)}</p>`;
+      let n = 3;
+      if (t.planta) {
+        h += `<div class="mm-step"><span>${n++}</span>Planta</div><div class="mm-plantas">${plantas().map(p => `<button data-l="${p.id}" class="${E.layout === p.id ? 'on' : ''}"><div class="mini">${MapGen.miniPlanta(p.id)}</div><b>${esc(p.nome)}</b><small>${p.porte} · ${p.w * 1.5} × ${p.h * 1.5} m</small></button>`).join('')}</div>`;
+      }
+      if (vert.length) {
+        h += `<div class="mm-step"><span>${n++}</span>O que tem na água</div><div class="mm-vert">${vert.map(k => { const on = E.mix[k] > 0, el = MapGen.ELEMENTOS[k]; return `<div class="vt ${on ? 'on' : ''}"><label class="chk"><input type="checkbox" data-v="${k}" ${on ? 'checked' : ''}><span><b>${el.nome}</b><small>${el.desc}</small></span></label>${on ? slider(k, E.mix[k]) : ''}</div>`; }).join('')}</div>`;
+      }
+      h += `<div class="mm-step"><span>${n++}</span>Quanto de cada elemento</div><p class="hint" style="margin:-4px 0 10px">0% tira o elemento do mapa.</p>${chaves.map(k => slider(k, E.mix[k])).join('')}`;
+      h += `<div class="mm-step"><span>${n++}</span>Tamanho</div>${t.planta ? `<p class="hint">Ajustado à planta: ${E.cols} × ${E.rows} quadrados (casa + jardim em volta).</p>` : `<div class="sel2"><div class="field"><label class="tiny">Colunas</label><select class="input" id="mmC">${TAMANHOS.map(v => `<option ${E.cols === v ? 'selected' : ''}>${v}</option>`).join('')}</select></div><div class="field"><label class="tiny">Linhas</label><select class="input" id="mmR">${TAMANHOS.map(v => `<option ${E.rows === v ? 'selected' : ''}>${v}</option>`).join('')}</select></div></div>`}`;
+      $('#mmL', ov).innerHTML = h;
+      $$('[data-g]', ov).forEach(b => b.onclick = () => { if (E.grupo === b.dataset.g) return; E.grupo = b.dataset.g; trocaTipo(MapGen.TIPOS.find(x => x.grupo === E.grupo).id); esquerda(); previa(); });
+      $$('[data-t]', ov).forEach(b => b.onclick = () => { trocaTipo(b.dataset.t); esquerda(); previa(); });
+      $$('[data-l]', ov).forEach(b => b.onclick = () => { E.layout = b.dataset.l; Object.assign(E, MapGen.tamanhoPlanta(E.layout)); $$('[data-l]', ov).forEach(x => x.classList.toggle('on', x === b)); esquerda(); previa(); });
+      $$('#mmL input[type=range]', ov).forEach(i => i.oninput = () => { i.style.setProperty('--p', i.value + '%'); E.mix[i.dataset.k] = +i.value; previaDepois(); });
+      $$('[data-v]', ov).forEach(c => c.onchange = () => { E.mix[c.dataset.v] = c.checked ? 40 : 0; esquerda(); previa(); });
+      const mc = $('#mmC', ov), mr = $('#mmR', ov);
+      if (mc) mc.onchange = () => { E.cols = +mc.value; previa(); };
+      if (mr) mr.onchange = () => { E.rows = +mr.value; previa(); };
+    }
+    let tPrev = null;
+    const previaDepois = () => { clearTimeout(tPrev); tPrev = setTimeout(previa, 110); };
+    function ajusta() {
+      const box = $('#mmPrev', ov); if (!box) return;
+      const w = box.clientWidth, k = w / (E.cols * CELL), inner = box.firstElementChild;
+      box.style.height = Math.min(E.rows * CELL * k, innerHeight * .62) + 'px';
+      if (inner) { const kk = Math.min(k, box.clientHeight / (E.rows * CELL)); inner.style.transform = `translate(${(w - E.cols * CELL * kk) / 2}px, 0) scale(${kk})`; }
+    }
+    function previa() {
+      const gen = { tipo: E.tipo, seed: E.seed, mix: E.mix, layout: E.layout };
+      const svg = MapGen.svg(gen, E.cols, E.rows);
+      $('#mmPrev', ov).innerHTML = `<div class="mm-cv" style="width:${E.cols * CELL}px;height:${E.rows * CELL}px;background:${MapGen.fundo(E.tipo)}">${svg}<div class="mm-grid"></div></div>`;
+      $('#mmLeg', ov).innerHTML = MapGen.legenda(E.tipo).map(l => `<span><i style="--c:${l.cor};${l.fundo ? `background:${l.fundo}` : ''}"></i>${l.nome}</span>`).join('');
+      $('#mmTam', ov).textContent = `${E.cols} × ${E.rows} quadrados · ${f1m(E.cols * 1.5)} × ${f1m(E.rows * 1.5)} m`;
+      ajusta();
+    }
+    const f1m = v => v.toLocaleString('pt-BR');
+    addEventListener('resize', ajusta);
+    $('#mmSeed', ov).onclick = () => { E.seed = MapGen.novaSemente(); previa(); };
+    const salvar = async vivo => {
+      if (S.mapa && !confirm('Substituir o battlemap atual?')) return;
+      const ok = await salvarMapa({ cols: E.cols, rows: E.rows, fundo_url: null, config: { gen: { tipo: E.tipo, seed: E.seed, mix: E.mix, layout: E.layout } } });
+      if (!ok) return;
+      fechar(); paneMapa();
+      if (vivo) exibir('mapa'); else toast('Battlemap salvo', 'map-trifold');
+    };
+    $('#mmSalvar', ov).onclick = () => salvar(false);
+    $('#mmVivo', ov).onclick = () => salvar(true);
+    esquerda(); previa();
+  }
+
+  function centroLivre() {
+    const m = S.mapa || { cols: 30, rows: 30 };
+    const ocup = new Set(Object.values(S.tokens).map(t => `${Math.round(t.x)},${Math.round(t.y)}`));
+    const cx = Math.floor(m.cols / 2), cy = Math.floor(m.rows / 2);
+    for (let r = 0; r < 12; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { const k = `${cx + dx},${cy + dy}`; if (!ocup.has(k)) return { x: cx + dx, y: cy + dy }; }
+    return { x: cx, y: cy };
+  }
+
+  function paneTokens() {
+    const lista = Object.values(S.tokens);
+    P().innerHTML = (S.gm ? `<h4>Novo inimigo ou NPC</h4>
+      <div class="field"><input class="input" id="npN" maxlength="40" placeholder="Nome (ex.: Formiga Quimera)"></div>
+      <div class="sel2"><div class="field"><label class="tiny">PV</label><input class="input" id="npH" type="number" min="1" step="1" value="30"></div>
+      <div class="field"><label class="tiny">Aura</label><input class="input" id="npC" type="number" min="0" step="10" value="100"></div></div>
+      <div class="sel2"><div class="field"><label class="tiny">Cor</label><input class="input" id="npK" type="color" value="#ff0055" style="padding:4px"></div>
+      <div class="field"><label class="tiny">Tamanho</label><select class="input" id="npS"><option value="1">1×1 (pessoa)</option><option value="2">2×2 (grande)</option><option value="3">3×3 (enorme)</option><option value="4">4×4 (gigante)</option></select></div></div>
+      <label class="upl" id="npUp"><span id="npPrev"><i class="ph ph-user"></i></span><span id="npLbl">Imagem do token (opcional)</span></label>
+      <label class="chk" style="margin-top:10px"><input type="checkbox" id="npPub"> Barras visíveis para os jogadores</label>
+      <button class="btn btn-primary" id="npAdd" style="width:100%;margin-top:12px">Colocar no mapa</button>
+      <div class="sep"></div>` : '') + `<h4>Tokens no mapa</h4><div class="stack">${lista.length ? lista.map(t => `<div class="item" style="display:flex;align-items:center;gap:10px;cursor:pointer" data-sel="${t.id}">
+        ${t.img_url ? `<img class="av" src="${esc(t.img_url)}" alt="">` : `<span class="av" style="background:${esc(t.cor)};color:#fff">${esc((t.nome || '?')[0])}</span>`}
+        <div style="flex:1;min-width:0"><b>${esc(t.nome)}</b><div class="tiny">${t.tipo === 'npc' ? 'NPC' : 'Jogador'}${barrasVisiveis(t) ? ` · ${t.hp}/${t.hp_max} PV · ${t.aura}/${t.aura_max} Aura` : ''}</div></div></div>`).join('') : '<p class="hint">Nenhum token ainda.</p>'}</div>`;
+    let img = null;
+    const up = $('#npUp');
+    if (up) up.onclick = async e => { e.preventDefault(); const f = await pickFile(); if (!f) return; $('#npLbl').textContent = 'Enviando…'; try { img = await NV.enviarToken(f); $('#npPrev').innerHTML = `<img src="${esc(img)}" alt="" style="width:36px;height:36px;border-radius:50%">`; $('#npLbl').textContent = 'Imagem pronta'; } catch (err) { toast(errMsg(err), 'warning'); } };
+    const add = $('#npAdd');
+    if (add) add.onclick = async () => {
+      // PV do 5e não anda de 5 em 5 como o HP do Shinobi: valor exato.
+      const hp = Math.max(1, Math.round(+$('#npH').value || 30)), aura = Math.max(0, Math.round(+$('#npC').value || 0));
+      const pos = centroLivre();
+      const row = { mesa_id: S.mesa.id, tipo: 'npc', owner: NV.user.id, nome: $('#npN').value.trim() || 'Inimigo', img_url: img, cor: $('#npK').value, tamanho: +$('#npS').value, hp, hp_max: hp, aura, aura_max: aura, barras_publicas: $('#npPub').checked, x: pos.x, y: pos.y };
+      const { data, error } = await sb.from('tokens').insert(row).select('*').single();
+      if (error) return toast(errMsg(error), 'warning');
+      S.tokens[data.id] = data; S.sel = data.id; if (vistaAtual() === 'mapa') renderTokens(); paneTokens(); toast(`${data.nome} entrou no mapa`, 'sword');
+    };
+    $$('[data-sel]').forEach(el => el.onclick = () => { S.sel = el.dataset.sel; if (S.gm && vistaAtual() !== 'mapa') { S.view = 'mapa'; renderStage(); } else renderTokens(); });
+  }
+
+  /* ---------- Dados (estilo Roll20) ---------- */
+  const DADO = { qtd: 1, mod: 0, secreta: false, modo: 'Normal' };
+  const d20 = () => 1 + Math.floor(crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296 * 20);
+  // Mesmos modos do getRollResult da ficha: Vantagem/Desvantagem ficam com o maior/menor;
+  // Ênfase fica com o dado mais longe de 10,5 (o resultado mais extremo).
+  function d20Modo(modo) {
+    const a = d20();
+    if (modo === 'Normal') return { v: a, x: [] };
+    const b = d20();
+    const fica = modo === 'Vantagem' ? Math.max(a, b) : modo === 'Desvantagem' ? Math.min(a, b) : (Math.abs(a - 10.5) > Math.abs(b - 10.5) ? a : b);
+    return { v: fica, x: [fica === a ? b : a] };
+  }
+  function parseRolagem(txt) {
+    const f = String(txt || '').toLowerCase().replace(/\s+/g, '').replace(/^\+/, '');
+    if (!f || !/^[0-9d+\-]+$/.test(f)) throw new Error('Use o formato 1d20+4, 2d6, 3d6-1…');
+    const termos = f.match(/[+\-]?[^+\-]+/g);
+    let total = 0, nd = 0; const det = [];
+    termos.forEach(t => {
+      const sinal = t[0] === '-' ? -1 : 1, corpo = t.replace(/^[+\-]/, '');
+      const m = corpo.match(/^(\d*)d(\d+)$/);
+      if (m) {
+        const n = Math.max(1, +(m[1] || 1)), lados = +m[2];
+        if (lados < 2 || lados > 1000) throw new Error('Dado de 2 a 1000 lados');
+        nd += n; if (nd > 60) throw new Error('No máximo 60 dados por rolagem');
+        const r = Array.from({ length: n }, () => 1 + Math.floor(crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296 * lados));
+        const soma = r.reduce((a, b) => a + b, 0) * sinal; total += soma; det.push({ d: lados, s: sinal, r });
+      } else if (/^\d+$/.test(corpo)) { total += sinal * +corpo; det.push({ k: sinal * +corpo }); }
+      else throw new Error('Não entendi "' + t + '"');
+    });
+    if (!nd) throw new Error('Inclua pelo menos um dado, ex.: 1d20');
+    return { total, det, formula: f };
+  }
+  function meuNome() {
+    const tok = Object.values(S.tokens).find(t => t.tipo === 'pj' && t.owner === NV.user.id);
+    return tok ? tok.nome : ((NV.perfil() || {}).nome || 'Hunter').split(' ')[0];
+  }
+  async function gravarRolagem(r, rotulo, nome) {
+    const row = { mesa_id: S.mesa.id, user_id: NV.user.id, nome: nome || meuNome(), rotulo: rotulo || '', formula: r.formula, total: r.total, detalhe: r.det, secreta: DADO.secreta };
+    const { data, error } = await sb.from('rolagens').insert(row).select('*').single();
+    if (error) return toast(errMsg(error), 'warning');
+    if (!S.rolagens.some(x => x.id === data.id)) { S.rolagens.unshift(data); mostrarRolagem(data); }
+    if (S.tab === 'dados') paneDados(); else if (S.tab === 'chat') renderChatList(true);
+  }
+  async function rolar(formula, rotulo, nome) {
+    let r; try { r = parseRolagem(formula); } catch (e) { return toast(e.message, 'dice-five'); }
+    return gravarRolagem(r, rotulo, nome);
+  }
+  // Teste de d20 + modificador respeitando o modo escolhido na aba Dados.
+  // O dado descartado vai em "x" e aparece riscado no histórico.
+  function rolarD20(mod, rotulo, nome) {
+    const m = DADO.modo, d = d20Modo(m);
+    const det = [{ d: 20, s: 1, r: [d.v], x: d.x }];
+    if (mod) det.push({ k: mod });
+    const formula = (m === 'Normal' ? '1d20' : '2d20') + (mod ? sinal(mod) : '') + (m === 'Normal' ? '' : ' · ' + m.toLowerCase());
+    return gravarRolagem({ total: d.v + mod, det, formula }, rotulo, nome);
+  }
+  function critico(r) {
+    const d20 = (r.detalhe || []).filter(x => x.d === 20);
+    if (d20.length !== 1 || d20[0].r.length !== 1) return '';
+    return d20[0].r[0] === 20 ? 'crit' : d20[0].r[0] === 1 ? 'fail' : '';
+  }
+  function detalheHTML(r) {
+    return (r.detalhe || []).map((x, i) => x.k != null ? `<span class="dk">${x.k > 0 && i ? '+' : ''}${x.k}</span>` : `${i || x.s < 0 ? `<span class="dk">${x.s < 0 ? '−' : '+'}</span>` : ''}<span class="dg">${x.r.map(v => `<i class="${x.d === 20 && v === 20 ? 'max' : x.d === 20 && v === 1 ? 'min' : v === x.d ? 'max' : ''}">${v}</i>`).join('')}${(x.x || []).map(v => `<i class="x" title="Descartado">${v}</i>`).join('')}</span>`).join('');
+  }
+  function rolagemHTML(r) {
+    const c = critico(r), quem = S.perfis[r.user_id] || {};
+    return `<div class="roll ${c}"><div class="roll-h">${avatar(quem)}<div style="min-width:0;flex:1"><b>${esc(r.nome)}</b>${r.rotulo ? ` <span class="tiny">· ${esc(r.rotulo)}</span>` : ''}<div class="tiny">${esc(r.formula)}${r.secreta ? ' · <i class="ph ph-lock"></i> secreta' : ''}</div></div><span class="roll-t">${r.total}</span></div>
+      <div class="roll-d">${detalheHTML(r)}${c === 'crit' ? '<span class="tag" style="margin-left:auto;color:#2f7a33">20 natural!</span>' : c === 'fail' ? '<span class="tag" style="margin-left:auto;color:var(--red-6)">1 natural</span>' : ''}</div></div>`;
+  }
+  function paneDados() {
+    const tok = Object.values(S.tokens).find(t => t.tipo === 'pj' && t.owner === NV.user.id);
+    const p = tok && S.meus.find(x => x.id === tok.personagem_id);
+    const rs = p && NV.resumo(p.dados);
+    const mod = DADO.mod;
+    P().innerHTML = `<div class="dice">
+        ${[4, 6, 8, 10, 12, 20, 100].map(d => `<button data-d="${d}" class="die d${d}" title="Rolar ${DADO.qtd}d${d}${mod ? (mod > 0 ? '+' : '') + mod : ''}"><span>d${d}</span></button>`).join('')}
+      </div>
+      <div class="dice-opts">
+        <div class="stp"><span class="tiny">Qtd.</span><button data-q="-1">−</button><b>${DADO.qtd}</b><button data-q="1">+</button></div>
+        <div class="stp"><span class="tiny">Mod.</span><button data-m="-1">−</button><b>${mod > 0 ? '+' + mod : mod}</b><button data-m="1">+</button></div>
+      </div>
+      <div class="dice-form"><input class="input" id="dfx" placeholder="Fórmula: 1d20+4, 3d6-1…"><button class="btn btn-primary" id="dgo">Rolar</button></div>
+      <label class="chk" style="margin-top:8px"><input type="checkbox" id="dsec" ${DADO.secreta ? 'checked' : ''}> Rolagem secreta (só você e o narrador)</label>
+      <div class="modo" title="Vale para os testes de d20 (atributos, resistência, iniciativa)">${['Normal', 'Vantagem', 'Desvantagem', 'Ênfase'].map(m => `<button data-modo="${m}" class="${DADO.modo === m ? 'on' : ''}">${m}</button>`).join('')}</div>
+      ${rs ? `<div class="sep"></div><h4>Testes de ${esc(p.nome)}</h4><div class="quick">
+        ${Object.keys(ATR_COR).map(k => `<button class="btn btn-sm" data-at="${k}" title="${k} ${rs.attrs[k].valor}">${k} ${sinal(rs.attrs[k].mod)}</button>`).join('')}
+        <button class="btn btn-sm" data-ini="1">Iniciativa ${sinal(rs.iniciativa)}</button></div>
+        <div class="tiny" style="margin:10px 0 6px">Resistência (TR)</div><div class="quick">
+        ${Object.keys(ATR_COR).map(k => `<button class="btn btn-sm ${rs.attrs[k].tr ? '' : 'btn-ghost'}" data-tr="${k}" title="${rs.attrs[k].tr ? 'Proficiente' : 'Sem proficiência'}">TR ${k} ${sinal(rs.attrs[k].save)}</button>`).join('')}</div>
+        <p class="hint">Valores base da ficha (sem bônus de Hatsu ou princípios).</p>` : ''}
+      <div class="sep"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between"><h4 style="margin:0">Histórico da mesa</h4>${S.gm && S.rolagens.length ? '<button class="btn btn-sm btn-ghost" id="dclr">Limpar</button>' : ''}</div>
+      <div class="rolls">${S.rolagens.length ? S.rolagens.map(rolagemHTML).join('') : '<p class="hint">Ninguém rolou ainda. Que tal um d20?</p>'}</div>`;
+    const fm = d => `${DADO.qtd}d${d}${DADO.mod ? (DADO.mod > 0 ? '+' : '') + DADO.mod : ''}`;
+    $$('.die').forEach(b => b.onclick = () => { b.classList.remove('spin'); void b.offsetWidth; b.classList.add('spin'); rolar(fm(b.dataset.d)); });
+    $$('[data-q]').forEach(b => b.onclick = () => { DADO.qtd = Math.max(1, Math.min(20, DADO.qtd + +b.dataset.q)); paneDados(); });
+    $$('[data-m]').forEach(b => b.onclick = () => { DADO.mod = Math.max(-20, Math.min(30, DADO.mod + +b.dataset.m)); paneDados(); });
+    $('#dgo').onclick = () => rolar($('#dfx').value);
+    $('#dfx').onkeydown = e => { if (e.key === 'Enter') rolar(e.target.value); };
+    $('#dsec').onchange = e => { DADO.secreta = e.target.checked; };
+    $$('[data-modo]').forEach(b => b.onclick = () => { DADO.modo = b.dataset.modo; paneDados(); });
+    $$('[data-at]').forEach(b => b.onclick = () => rolarD20(rs.attrs[b.dataset.at].mod, `Teste de ${b.dataset.at}`));
+    $$('[data-tr]').forEach(b => b.onclick = () => rolarD20(rs.attrs[b.dataset.tr].save, `TR de ${b.dataset.tr}`));
+    $$('[data-ini]').forEach(b => b.onclick = () => rolarD20(rs.iniciativa, 'Iniciativa'));
+    const clr = $('#dclr'); if (clr) clr.onclick = async () => { if (!confirm('Apagar o histórico de rolagens da mesa?')) return; const { error } = await sb.from('rolagens').delete().eq('mesa_id', S.mesa.id); if (error) return toast(errMsg(error), 'warning'); S.rolagens = []; paneDados(); };
+  }
+  let diceTimer = null, ultimaRolagem = null;
+  function mostrarRolagem(r) { ultimaRolagem = { r, t: Date.now() }; renderDiceToast(); }
+  /* Dado em vetor: cai girando, levanta fumaça (estilo anime) e para no número */
+  const DADO_COR = { 4: ['#43a047', '#2e7d32'], 6: ['#4fb6c9', '#2f8fa3'], 8: ['#7e3fe0', '#5b2bb0'], 10: ['#d94a9a', '#a8326f'], 12: ['#d64545', '#a52e2e'], 20: ['#8b5cf6', '#6d28d9'], 100: ['#5b6bd6', '#3d49a8'] };
+  function dadoSVG(lados, valor) {
+    const [c1, c2] = DADO_COR[lados] || ['#8c8c8c', '#5f5f5f'];
+    const txt = (y, size = 34) => `<text x="50" y="${y}" text-anchor="middle" font-family="Fredoka, sans-serif" font-weight="700" font-size="${size}" fill="#fff" stroke="rgba(0,0,0,.18)" stroke-width="2" paint-order="stroke" class="dnum">${valor}</text>`;
+    let forma;
+    switch (+lados) {
+      case 4: forma = `<polygon points="50,6 95,90 5,90" fill="${c1}"/><polygon points="50,6 50,90 5,90" fill="${c2}" opacity=".35"/>${txt(76, 30)}`; break;
+      case 6: forma = `<rect x="10" y="10" width="80" height="80" rx="12" fill="${c1}"/><rect x="10" y="10" width="80" height="80" rx="12" fill="none" stroke="${c2}" stroke-width="4"/>${txt(62)}`; break;
+      case 8: forma = `<polygon points="50,4 94,50 50,96 6,50" fill="${c1}"/><polygon points="6,50 94,50 50,96" fill="${c2}" opacity=".45"/>${txt(60, 30)}`; break;
+      case 10: case 100: forma = `<polygon points="50,4 94,40 50,96 6,40" fill="${c1}"/><polygon points="6,40 50,58 94,40 50,96" fill="${c2}" opacity=".45"/>${txt(58, lados == 100 ? 24 : 30)}`; break;
+      case 12: forma = `<polygon points="50,4 93,35 77,90 23,90 7,35" fill="${c1}"/><polygon points="50,24 72,40 64,68 36,68 28,40" fill="${c2}" opacity=".4"/>${txt(60, 28)}`; break;
+      case 20: forma = `<polygon points="50,3 93,27 93,73 50,97 7,73 7,27" fill="${c1}"/><polygon points="50,3 93,27 7,27" fill="#fff" opacity=".12"/><polygon points="7,73 50,97 93,73" fill="${c2}" opacity=".55"/><polygon points="50,24 78,70 22,70" fill="#fff" opacity=".18"/><path d="M7 27 22 70M93 27 78 70M50 3 50 24M22 70 7 73M78 70 93 73M22 70 50 97 78 70" stroke="${c2}" stroke-width="1.5" opacity=".5" fill="none"/>${txt(62, 28)}`; break;
+      default: forma = `<circle cx="50" cy="50" r="44" fill="${c1}"/>${txt(62)}`;
+    }
+    return `<svg viewBox="0 0 100 100" class="dsvg">${forma}</svg>`;
+  }
+  function fumaca() { // nuvem de anime: círculos com contorno único
+    const P = [[22, 70, 16], [40, 78, 20], [62, 78, 18], [80, 70, 14], [32, 62, 12], [70, 62, 12], [52, 66, 14]];
+    return `<svg viewBox="0 0 100 100" class="smoke"><g stroke="#1b1d2a" stroke-width="7">${P.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}"/>`).join('')}</g><g fill="#f4f1ea">${P.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}"/>`).join('')}</g><g fill="#fff">${P.slice(0, 4).map(([x, y, r]) => `<circle cx="${x - r * .3}" cy="${y - r * .3}" r="${r * .35}"/>`).join('')}</g></svg>`;
+  }
+  function renderDiceToast() {
+    const st = $('#stage'); if (!st || !ultimaRolagem || Date.now() - ultimaRolagem.t > 6000) return;
+    const old = $('#diceToast'); if (old) old.remove();
+    const r = ultimaRolagem.r, c = critico(r);
+    const dados = []; let mod = 0;
+    (r.detalhe || []).forEach(x => { if (x.k != null) mod += x.k; else x.r.forEach(v => dados.push({ d: x.d, v, neg: x.s < 0 })); });
+    const vis = dados.slice(0, 6), extra = dados.length - vis.length;
+    const reduz = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const el = document.createElement('div'); el.id = 'diceToast'; el.className = 'droll ' + c + (reduz ? ' still' : '');
+    el.innerHTML = `<div class="dr-tray">${vis.map((x, i) => `<div class="dr-die" style="--i:${i};--sx:${(i % 2 ? 1 : -1) * (120 + i * 30)}px;--rot:${(i % 2 ? 1 : -1) * (540 + i * 90)}deg">
+        <div class="dr-smoke">${fumaca()}</div><div class="dr-body" data-d="${x.d}" data-v="${x.v}">${dadoSVG(x.d, '?')}</div>${x.neg ? '<b class="dr-neg">−</b>' : ''}</div>`).join('')}
+        ${extra > 0 ? `<div class="dr-more">+${extra}</div>` : ''}</div>
+      <div class="dr-info"><div class="dr-n">${esc(r.nome)}${r.rotulo ? ` · ${esc(r.rotulo)}` : ''}<small>${esc(r.formula)}${mod ? ` (${mod > 0 ? '+' : ''}${mod})` : ''}${r.secreta ? ' · <i class="ph ph-lock"></i> secreta' : ''}</small></div>
+        <div class="dr-total"><span>Total</span><b>${r.total}</b></div></div>`;
+    st.appendChild(el);
+    // números trocando enquanto o dado gira; para no valor ao cair
+    $$('.dr-body', el).forEach((b, i) => {
+      const lados = +b.dataset.d, fim = b.dataset.v, para = reduz ? 0 : 820 + i * 90;
+      const t0 = performance.now();
+      const tick = () => {
+        const num = b.querySelector('.dnum'); if (!num || !el.isConnected) return;
+        if (performance.now() - t0 >= para) { num.textContent = fim; b.classList.add('land'); return; }
+        num.textContent = 1 + Math.floor(Math.random() * lados);
+        setTimeout(tick, 70);
+      };
+      tick();
+    });
+    clearTimeout(diceTimer); diceTimer = setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 400); }, 5200);
+  }
+
+  function paneNinja() {
+    const mb = S.membros.find(x => x.user_id === NV.user.id);
+    const meuTok = Object.values(S.tokens).find(t => t.tipo === 'pj' && t.owner === NV.user.id);
+    // Fichas do HxH5e (tabela characters). A foto fica em base64 no JSON da ficha:
+    // aqui ela é só pré-visualizada; o token recebe uma cópia reduzida no Storage.
+    P().innerHTML = `<h4>Seu personagem nesta mesa</h4>
+      ${S.meus.length ? `<div class="stack">${S.meus.map(p => {
+        const r = NV.resumo(p.dados), cl = r.classe, on = meuTok && meuTok.personagem_id === p.id;
+        const foto = (p.dados || {}).imageUrl;
+        return `<div class="item ${on ? 'on' : ''}" style="display:flex;align-items:center;gap:10px;${on ? 'border-color:var(--blue-6);box-shadow:0 0 0 3px color-mix(in srgb, var(--blue-6) 14%, transparent)' : ''}">
+          ${foto ? `<img class="av" src="${esc(foto)}" alt="" style="width:44px;height:44px">` : `<span class="av" style="width:44px;height:44px;color:${cl ? cl.color : 'var(--text-2)'}">${esc((p.nome || '?')[0])}</span>`}
+          <div style="flex:1;min-width:0"><b>${esc(p.nome)}</b><div class="tiny">${cl ? `<span style="color:${cl.color}">${esc(cl.label)}</span>` : 'Sem categoria'} · Nv ${r.nivel} · ${r.hp}/${r.hpMax} PV · ${r.aura}/${r.auraMax} Aura</div></div>
+          ${on ? `<button class="btn btn-sm" data-use="${p.id}" title="Puxar de novo PV, Aura, nome e foto da ficha">Atualizar</button>` : `<button class="btn btn-sm btn-primary" data-use="${p.id}">Usar</button>`}</div>`;
+      }).join('')}</div>` : `<p class="hint">Você ainda não tem fichas salvas na nuvem. Crie uma no HxH5e e volte aqui.</p>`}
+      <a class="btn btn-sm" href="${NV.APP_URL}" target="_blank" rel="noopener" style="margin-top:12px">Abrir o HxH5e</a>
+      ${meuTok ? `<div class="sep"></div><p class="hint">Arraste seu token no battlemap. Clique nele para mexer no PV e na Aura e escolher se as barras aparecem para todos. O que muda no token não altera a sua ficha.</p>` : ''}`;
+    $$('[data-use]').forEach(b => b.onclick = async () => {
+      const p = S.meus.find(x => x.id === b.dataset.use), r = NV.resumo(p.dados), cl = r.classe;
+      b.disabled = true;
+      let img = meuTok && meuTok.personagem_id === p.id ? meuTok.img_url : null;
+      try { img = (await NV.tokenDaFicha(p.dados)) || img; } catch (e) { toast('Não deu para enviar a foto da ficha; o token fica com a inicial.', 'image'); }
+      if (mb) await sb.from('mesa_membros').update({ personagem_id: p.id }).eq('mesa_id', S.mesa.id).eq('user_id', NV.user.id);
+      const row = { nome: p.nome, personagem_id: p.id, img_url: img, cor: cl ? cl.color : '#00ff9d', hp: r.hp, hp_max: r.hpMax, aura: r.aura, aura_max: r.auraMax };
+      let res;
+      if (meuTok) res = await sb.from('tokens').update(row).eq('id', meuTok.id).select('*').single();
+      else { const pos = centroLivre(); res = await sb.from('tokens').insert(Object.assign(row, { mesa_id: S.mesa.id, tipo: 'pj', owner: NV.user.id, x: pos.x, y: pos.y })).select('*').single(); }
+      if (res.error) { b.disabled = false; return toast(errMsg(res.error), 'warning'); }
+      FICHAS[p.id] = p.dados;
+      S.tokens[res.data.id] = res.data; if (vistaAtual() === 'mapa') renderTokens(); paneNinja(); toast(`${p.nome} está na mesa`, 'user');
+    });
+  }
+
+  /* ---------- Chat ---------- */
+  // Mensagens e rolagens aparecem juntas, em ordem (como no Roll20).
+  // "/r 1d20+3" no campo rola o dado em vez de mandar texto.
+  const hora = iso => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  function paneChat() {
+    if (!S.chatOk) {
+      P().innerHTML = `<div class="chat-vazio"><i class="ph ph-chat-circle-slash" style="font-size:32px"></i><p style="margin-top:8px">O chat ainda não está ligado: falta criar a tabela <b>mensagens</b> no Supabase.</p></div>`;
+      return;
+    }
+    P().innerHTML = `<div class="chat-head"><h4>Chat da mesa</h4>${S.gm && S.chat.length ? '<button class="btn btn-sm btn-ghost" id="chatClr" style="color:var(--red-6)">Limpar</button>' : ''}</div>
+      <div class="chat-list" id="chatList"></div>
+      <form class="chat-form" id="chatForm" autocomplete="off"><input class="input" id="chatIn" maxlength="500" placeholder="Mensagem… (/r 1d20+3 rola dado)" aria-label="Mensagem"><button class="btn btn-primary" aria-label="Enviar"><i class="ph-bold ph-paper-plane-right"></i></button></form>`;
+    renderChatList(true);
+    $('#chatForm').onsubmit = e => { e.preventDefault(); enviarMsg(); };
+    // Só foca no desktop: no celular abriria o teclado sozinho.
+    if (matchMedia('(pointer: fine)').matches) $('#chatIn').focus();
+    const clr = $('#chatClr'); if (clr) clr.onclick = async () => {
+      if (!confirm('Apagar todas as mensagens do chat? As rolagens continuam.')) return;
+      const { error } = await sb.from('mensagens').delete().eq('mesa_id', S.mesa.id);
+      if (error) return toast(errMsg(error), 'warning');
+      S.chat = []; paneChat();
+    };
+  }
+  function msgHTML(m, cont) {
+    const quem = S.perfis[m.user_id] || {}, gm = m.user_id === S.mesa.owner, meu = m.user_id === NV.user.id;
+    return `<div class="msg ${meu ? 'mine' : ''} ${cont ? 'cont' : ''}">
+      ${cont ? '<span></span>' : avatar(quem)}
+      <div style="min-width:0">${cont ? '' : `<div class="msg-h"><b title="${esc(quem.nome || '')}">${esc(m.nome || quem.nome || 'Hunter')}</b>${gm ? '<span class="gm">Narrador</span>' : ''}<time>${hora(m.created_at)}</time></div>`}
+      <div class="msg-t">${esc(m.texto)}</div></div></div>`;
+  }
+  function renderChatList(forcar) {
+    const el = $('#chatList'); if (!el) return;
+    const perto = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    const itens = S.chat.map(m => ({ t: 'm', at: m.created_at, m }))
+      .concat(S.rolagens.map(r => ({ t: 'r', at: r.created_at, m: r })))
+      .sort((a, b) => new Date(a.at) - new Date(b.at)).slice(-200);
+    let ant = null;
+    el.innerHTML = itens.length ? itens.map(it => {
+      if (it.t === 'r') { ant = null; return rolagemHTML(it.m); }
+      // Mensagens seguidas da mesma pessoa em até 3 min ficam agrupadas.
+      const cont = ant && ant.user_id === it.m.user_id && new Date(it.m.created_at) - new Date(ant.created_at) < 180000;
+      ant = it.m; return msgHTML(it.m, cont);
+    }).join('') : '<div class="chat-vazio">Ninguém falou nada ainda. Diga oi para a mesa!</div>';
+    if (forcar || perto) el.scrollTop = el.scrollHeight;
+  }
+  function addMsg(n) {
+    if (S.chat.some(x => x.id === n.id)) return false;
+    S.chat.push(n); if (S.chat.length > 300) S.chat = S.chat.slice(-300);
+    return true;
+  }
+  async function enviarMsg() {
+    const inp = $('#chatIn'), txt = inp.value.trim();
+    if (!txt) return;
+    inp.value = '';
+    const cmd = txt.match(/^\/r(?:oll)?\s+(.+)$/i);
+    if (cmd) return rolar(cmd[1]);
+    const { data, error } = await sb.from('mensagens').insert({ mesa_id: S.mesa.id, user_id: NV.user.id, nome: meuNome(), texto: txt.slice(0, 500) }).select('*').single();
+    if (error) { inp.value = txt; return toast(errMsg(error), 'warning'); }
+    addMsg(data); renderChatList(true);
+  }
+  let chatCh = null;
+  // Canal separado do resto da mesa: se o chat falhar, mover token e rolar dado continuam.
+  function assinarChat(id) {
+    if (chatCh) { sb.removeChannel(chatCh); chatCh = null; }
+    if (!S.chatOk) return;
+    chatCh = sb.channel('mesa-chat-' + id)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'mensagens', filter: `mesa_id=eq.${id}` }, ({ eventType, new: n, old: o }) => {
+        if (eventType === 'DELETE') S.chat = S.chat.filter(x => x.id !== o.id);
+        else if (addMsg(n) && n.user_id !== NV.user.id && S.tab !== 'chat') {
+          S.naoLidas++; renderTabs();
+          toast(`<b>${esc(n.nome || 'Hunter')}:</b>&nbsp;${esc(n.texto.length > 60 ? n.texto.slice(0, 60) + '…' : n.texto)}`, 'chat-circle-dots');
+        }
+        if (S.tab === 'chat') renderChatList();
+      })
+      .subscribe();
+  }
+
+  function paneGrupo() {
+    const link = location.origin + location.pathname.replace(/[^/]*$/, '') + 'mesa.html?entrar=' + S.mesa.codigo;
+    const ids = [S.mesa.owner, ...S.membros.map(x => x.user_id).filter(u => u !== S.mesa.owner)];
+    P().innerHTML = `<h4>Convite</h4>
+      <div class="item"><div class="tiny">Código</div><b style="font-size:24px;letter-spacing:.15em">${S.mesa.codigo}</b>
+      <div class="row"><button class="btn btn-sm btn-primary" id="cpLink">Copiar link do convite</button></div></div>
+      <div class="sep"></div><h4>Na mesa</h4>
+      <div class="stack">${ids.map(u => {
+        const p = S.perfis[u] || {}, mb = S.membros.find(x => x.user_id === u), tok = Object.values(S.tokens).find(t => t.tipo === 'pj' && t.owner === u);
+        return `<div class="item" style="display:flex;align-items:center;gap:10px">${avatar(p)}<div style="flex:1;min-width:0"><b>${esc(p.nome || 'Jogador')}</b><div class="tiny">${u === S.mesa.owner ? 'Narrador' : tok ? esc(tok.nome) : 'Sem personagem ainda'}</div></div>
+          ${S.gm && u !== S.mesa.owner && mb ? `<button class="btn btn-sm btn-ghost" data-kick="${u}" style="color:var(--red-6)">Remover</button>` : ''}</div>`;
+      }).join('')}</div>
+      <div class="sep"></div>
+      ${S.gm ? `<h4>Mesa</h4><div class="field"><input class="input" id="mNome" maxlength="60" value="${esc(S.mesa.nome)}"></div><div class="row" style="display:flex;gap:8px"><button class="btn btn-sm" id="mRen">Renomear</button><button class="btn btn-sm btn-ghost" id="mDel" style="color:var(--red-6);margin-left:auto">Apagar mesa</button></div>`
+        : `<button class="btn btn-sm btn-ghost" id="mSair" style="color:var(--red-6)">Sair da mesa</button>`}`;
+    $('#cpLink').onclick = () => navigator.clipboard.writeText(link).then(() => toast('Link copiado', 'link'));
+    $$('[data-kick]').forEach(b => b.onclick = async () => { if (!confirm('Remover este jogador da mesa?')) return; await sb.from('tokens').delete().eq('mesa_id', S.mesa.id).eq('owner', b.dataset.kick); const { error } = await sb.from('mesa_membros').delete().eq('mesa_id', S.mesa.id).eq('user_id', b.dataset.kick); if (error) return toast(errMsg(error), 'warning'); S.membros = S.membros.filter(x => x.user_id !== b.dataset.kick); paneGrupo(); renderBar(); });
+    const ren = $('#mRen'); if (ren) ren.onclick = async () => { const nome = $('#mNome').value.trim() || S.mesa.nome; const { error } = await sb.from('mesas').update({ nome }).eq('id', S.mesa.id); if (error) return toast(errMsg(error), 'warning'); S.mesa.nome = nome; renderBar(); toast('Mesa renomeada', 'pencil-simple'); };
+    const del = $('#mDel'); if (del) del.onclick = async () => { if (!confirm(`Apagar a mesa "${S.mesa.nome}" com cenas, mapa e tokens? Não dá para desfazer.`)) return; const { error } = await sb.from('mesas').delete().eq('id', S.mesa.id); if (error) return toast(errMsg(error), 'warning'); location.href = 'mesa.html'; };
+    const sair = $('#mSair'); if (sair) sair.onclick = async () => { if (!confirm('Sair desta mesa?')) return; await sb.from('tokens').delete().eq('mesa_id', S.mesa.id).eq('owner', NV.user.id); await sb.from('mesa_membros').delete().eq('mesa_id', S.mesa.id).eq('user_id', NV.user.id); location.href = 'mesa.html'; };
+  }
+
+  /* ---------- Tempo real ---------- */
+  function assinar(id) {
+    if (channel) sb.removeChannel(channel);
+    const f = `mesa_id=eq.${id}`;
+    channel = sb.channel('mesa-' + id, { config: { broadcast: { self: false } } })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tokens', filter: f }, ({ eventType, new: n, old: o }) => {
+        if (eventType === 'DELETE') { delete S.tokens[o.id]; if (S.sel === o.id) S.sel = null; if ($('#tokLayer')) renderTokens(); }
+        else { S.tokens[n.id] = n; if ($('#tokLayer')) atualizarToken(n); if (S.sel === n.id) renderTokPanel(); }
+        if (S.tab === 'tokens' || S.tab === 'ninja' || S.tab === 'grupo') renderSide();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'mesas', filter: `id=eq.${id}` }, ({ eventType, new: n }) => {
+        if (eventType === 'DELETE') { toast('O narrador encerrou esta mesa', 'flag-checkered'); setTimeout(() => location.href = 'mesa.html', 1500); return; }
+        const mudou = n.exibindo !== S.mesa.exibindo || n.cena_id !== S.mesa.cena_id;
+        S.mesa = n; renderBar(); if (mudou && (!S.gm || !S.view)) renderStage();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'cenas', filter: f }, ({ eventType, new: n, old: o }) => {
+        if (eventType === 'DELETE') S.cenas = S.cenas.filter(c => c.id !== o.id);
+        else { const i = S.cenas.findIndex(c => c.id === n.id); if (i >= 0) S.cenas[i] = n; else S.cenas.push(n); }
+        if (vistaAtual() === 'cena') renderStage();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'mapas', filter: f }, ({ eventType, new: n }) => {
+        S.mapa = eventType === 'DELETE' ? null : n; if (vistaAtual() === 'mapa') renderStage();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'mesa_membros', filter: f }, async ({ eventType, new: n, old: o }) => {
+        if (eventType === 'DELETE') { S.membros = S.membros.filter(x => !(x.user_id === o.user_id)); if (o.user_id === NV.user.id && !S.gm) { toast('Você saiu desta mesa', 'hand-waving'); setTimeout(() => location.href = 'mesa.html', 1200); return; } }
+        else { const i = S.membros.findIndex(x => x.user_id === n.user_id); if (i >= 0) S.membros[i] = n; else { S.membros.push(n); await carregarPerfis(); toast(`${(S.perfis[n.user_id] || {}).nome || 'Alguém'} entrou na mesa`, 'confetti'); } }
+        renderBar(); if (S.tab === 'grupo') renderSide();
+      })
+      .on('broadcast', { event: 'tok' }, ({ payload: p }) => {
+        const t = S.tokens[p.id]; if (!t) return; Object.assign(t, p); if ($('#tokLayer')) atualizarToken(t); if (S.sel === t.id) renderTokPanel();
+      })
+      .on('broadcast', { event: 'ruler' }, ({ payload: p }) => {
+        if (p.pts) S.rulers[p.u] = { pts: p.pts, nome: (p.nome || '').split(' ')[0], t: Date.now() }; else delete S.rulers[p.u];
+        desenharOverlay();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rolagens', filter: f }, ({ eventType, new: n, old: o }) => {
+        if (eventType === 'DELETE') { S.rolagens = S.rolagens.filter(x => x.id !== o.id); }
+        else if (podeVerRolagem(n) && !S.rolagens.some(x => x.id === n.id)) { S.rolagens.unshift(n); S.rolagens = S.rolagens.slice(0, 80); mostrarRolagem(n); }
+        if (S.tab === 'dados') paneDados(); else if (S.tab === 'chat') renderChatList();
+      })
+      .on('broadcast', { event: 'move' }, ({ payload: p }) => {
+        const t = S.tokens[p.id]; if (!t || (drag && drag.id === p.id)) return;
+        const el = $(`.tok[data-id="${p.id}"]`); if (el) { el.style.left = p.x * CELL + 'px'; el.style.top = p.y * CELL + 'px'; }
+      })
+      .subscribe(status => { if (status === 'CHANNEL_ERROR') toast('Conexão ao vivo instável. Recarregue se algo não atualizar.', 'wifi-medium'); });
+  }
+
+  /* ---------- Início ---------- */
+  NV.ready.then(async () => {
+    if (!NV.user) return lobby();
+    const cod = qs.get('entrar');
+    if (cod) {
+      const { data, error } = await sb.rpc('entrar_mesa', { cod, uid: NV.user.id });
+      if (error) { toast('Convite inválido ou expirado', 'warning'); history.replaceState(null, '', 'mesa.html'); return lobby(); }
+      history.replaceState(null, '', 'mesa.html?m=' + data);
+      return abrirMesa(data);
+    }
+    const m = qs.get('m');
+    m ? abrirMesa(m) : lobby();
+  });
+  // Saiu do HxH5e (em outra aba): a mesa sai junto.
+  NV.onAuth(u => { if (!u) location.href = NV.APP_URL; });
+})();
+</script>
+</body>
+</html>

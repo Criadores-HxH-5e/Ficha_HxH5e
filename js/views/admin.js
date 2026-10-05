@@ -13,6 +13,8 @@
             const users = registry.users || [];
             const admins = registry.admins || [];
             const mestres = registry.mestres || {};
+            const bloqueados = registry.bloqueados || {};
+            const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
             // Busca por NOME ou ID. Antes só dava para achar pelo ID do Discord, que
             // ninguém decora — o mestre tinha que rolar a lista inteira.
@@ -29,6 +31,9 @@
                 const isAdm = admins.includes(u.id) || ADMIN_USERS.includes(u.id);
                 const isHardcoded = ADMIN_USERS.includes(u.id);
                 const isMst = !!mestres[u.id];
+                const bloqueio = bloqueados[u.id];
+                // Admin e a própria conta não podem ser bloqueados — evita se trancar fora por engano.
+                const podeBloquear = !isAdm && u.id !== (state.user && state.user.id);
                 const avatar = isGoogle
                     ? `<div style="width:32px;height:32px;border-radius:50%;background:#1f2937;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px" title="Entrou com Google">🅖</div>`
                     : u.avatar ? `<img src="https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png" style="width:32px;height:32px;border-radius:50%;border:1px solid #374151">` : `<div style="width:32px;height:32px;border-radius:50%;background:#1f2937;display:flex;align-items:center;justify-content:center;color:#6b7280;font-size:14px">?</div>`;
@@ -41,13 +46,17 @@
                             <div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap">
                                 ${isAdm ? `<span style="font-size:8px;background:#dc262633;color:#f87171;border-radius:4px;padding:2px 6px;font-weight:900">🛡️ ADMIN${isHardcoded?' (fixo)':''}</span>` : ''}
                                 ${isMst ? `<span style="font-size:8px;background:#7c3aed33;color:#a78bfa;border-radius:4px;padding:2px 6px;font-weight:900">⚔️ MESTRE</span>` : ''}
+                                ${bloqueio ? `<span title="${esc(bloqueio.motivo ? 'Motivo: ' + bloqueio.motivo : 'Sem motivo informado')}" style="font-size:8px;background:#52525b55;color:#e4e4e7;border-radius:4px;padding:2px 6px;font-weight:900">⛔ BLOQUEADO</span>` : ''}
                             </div>
+                            ${bloqueio && bloqueio.motivo ? `<div style="font-size:9px;color:#71717a;margin-top:3px;font-style:italic">${esc(bloqueio.motivo)}</div>` : ''}
                         </div>
                         <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
                             <button onclick="viewUserChars(${JSON.stringify(u).replace(/"/g,'&quot;')})" style="padding:5px 8px;border-radius:7px;background:#0f2937;border:1px solid #1e4a6f;color:#60a5fa;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer;font-family:'Orbitron',sans-serif">Ver Fichas</button>
                             ${!isHardcoded && isAdm ? `<button onclick="adminRevokeAdmin('${u.id}')" style="padding:5px 8px;border-radius:7px;background:#3b0f0f;border:1px solid #7f1d1d;color:#f87171;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer;font-family:'Orbitron',sans-serif">– Admin</button>` : ''}
                             ${!isAdm ? `<button onclick="adminGrantAdmin('${u.id}')" style="padding:5px 8px;border-radius:7px;background:#0f1f3b;border:1px solid #1e3a6e;color:#93c5fd;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer;font-family:'Orbitron',sans-serif">+ Admin</button>` : ''}
                             ${isMst ? `<button onclick="adminRevokeMestre('${u.id}')" style="padding:5px 8px;border-radius:7px;background:#2e1065;border:1px solid #4c1d95;color:#c4b5fd;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer;font-family:'Orbitron',sans-serif">– Mestre</button>` : `<button onclick="window._openMestreModal('${u.id}')" style="padding:5px 8px;border-radius:7px;background:#1a0a3a;border:1px solid #4c1d95;color:#a78bfa;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer;font-family:'Orbitron',sans-serif">+ Mestre</button>`}
+                            ${bloqueio ? `<button onclick="window._desbloquearUsuario('${esc(u.id)}')" style="padding:5px 8px;border-radius:7px;background:#14251a;border:1px solid #166534;color:#86efac;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer;font-family:'Orbitron',sans-serif">Desbloquear</button>`
+                                : podeBloquear ? `<button onclick="window._bloquearUsuario('${esc(u.id)}')" style="padding:5px 8px;border-radius:7px;background:#18181b;border:1px solid #52525b;color:#d4d4d8;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer;font-family:'Orbitron',sans-serif">⛔ Bloquear</button>` : ''}
                         </div>
                     </div>
                     ${isMst ? `<div style="margin-top:8px;padding:8px;background:#0d0d18;border-radius:8px;border:1px solid #2d1a5e">
@@ -151,6 +160,22 @@
                 const checked = [...document.querySelectorAll('#mestre-player-list input[type=checkbox]:checked')].map(el => el.value);
                 adminAssignMestre(window._pendingMestreId, checked);
                 document.getElementById('mestre-modal').style.display = 'none';
+            };
+
+            window._bloquearUsuario = function(userId) {
+                const reg = state.adminRegistry || { users: [] };
+                const alvo = (reg.users || []).find(u => u.id === userId);
+                const nome = alvo ? (alvo.username || userId) : userId;
+                const motivo = prompt(`Bloquear ${nome}?\n\nA pessoa perde o acesso ao app no próximo carregamento da página. As fichas dela não são apagadas.\n\nMotivo (opcional):`, '');
+                if (motivo === null) return; // cancelou
+                adminBlockUser(userId, motivo.trim());
+            };
+
+            window._desbloquearUsuario = function(userId) {
+                const reg = state.adminRegistry || { users: [] };
+                const alvo = (reg.users || []).find(u => u.id === userId);
+                if (!confirm(`Desbloquear ${alvo ? (alvo.username || userId) : userId}? A pessoa volta a ter acesso ao app.`)) return;
+                adminUnblockUser(userId);
             };
 
             window._removeMestrePlayer = function(mestreId, playerId) {

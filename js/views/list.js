@@ -30,6 +30,11 @@
                                         style="display:flex;align-items:center;gap:10px;width:100%;padding:9px 12px;border:none;background:transparent;border-radius:8px;color:#60a5fa;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;cursor:pointer;font-family:'Orbitron',sans-serif;transition:background .15s;text-decoration:none"
                                         onmouseover="this.style.background='#1e40af22'" onmouseout="this.style.background='transparent'">
                                         &#x1F3F0; Torre Celestial <span style="color:#6b7280;font-size:8px;margin-left:2px">(S&#xF3; para admin)</span>
+                                    </a>
+                                    <a href="mesa/mesa.html"
+                                        style="display:flex;align-items:center;gap:10px;width:100%;padding:9px 12px;border:none;background:transparent;border-radius:8px;color:#34d399;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;cursor:pointer;font-family:'Orbitron',sans-serif;transition:background .15s;text-decoration:none"
+                                        onmouseover="this.style.background='#05966922'" onmouseout="this.style.background='transparent'">
+                                        &#x1F3B2; Mesa Virtual <span style="color:#6b7280;font-size:8px;margin-left:2px"></span>
                                     </a>` : ''}
                                     ${state.isMestre ? `<button onclick="state.view='MESTRE_PLAYERS';render()"
                                         style="display:flex;align-items:center;gap:10px;width:100%;padding:9px 12px;border:none;background:transparent;border-radius:8px;color:#a78bfa;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;cursor:pointer;font-family:'Orbitron',sans-serif;transition:background .15s"

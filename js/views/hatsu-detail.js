@@ -1724,6 +1724,37 @@ function renderHatsuDetail(container) {
     }
     // ── Fim cálculo de CD ─────────────────────────────────────────────────────
 
+    // ── Resumo de rolagem para a Mesa Virtual (mesa/mesa.html) ────────────────
+    // A mesa não carrega este arquivo (depende de state e do render inteiro), então
+    // guarda na própria ficha o resultado já calculado aqui: dado, atributos, acerto,
+    // CD e custo de Aura. Só grava quando muda, para não salvar a ficha a cada render.
+    // Não roda quando o mestre está só olhando a ficha de outro jogador.
+    if (window._hatsuRollState && !state._viewingMode) {
+        const _rs = window._hatsuRollState;
+        const _custo = window.calcHatsuAuraCostFinal ? window.calcHatsuAuraCostFinal(h, idx) : null;
+        const _mesa = {
+            dice: _rs.dice || null,
+            curaDice: _rs.curaDice || null,
+            attr: _rs.attr || null,
+            atkAttr: _rs.atkAttr || _rs.attr || null,
+            hasBaseDmg: !!_rs.hasBaseDmg,
+            hasAttack: !!_rs.hasAttack,
+            cd: _rs.cd || null,
+            acertoBonus: _rs.acertoBonus || 0,
+            acertoVantagem: !!_rs.acertoVantagem,
+            nivel: _rs.nivel || null,
+            sanExtras: _rs.sanExtras || [],
+            dmgExtras: _rs.dmgExtras || [],
+            maximizado: !!(window.hatsuDanoMaximizado && window.hatsuDanoMaximizado(h)),
+            critico: !!(window.hatsuDanoCritico && window.hatsuDanoCritico(h)),
+            aura: _custo ? (_custo.pct || 0) : 0,
+        };
+        if (JSON.stringify(h.mesaRolagem || null) !== JSON.stringify(_mesa)) {
+            h.mesaRolagem = _mesa;
+            saveCharacter(char);
+        }
+    }
+
     // ── Toggle: este Hatsu tem jogada de Ataque? ───────────────────────────────
     // Padrão é por categoria (CD → não, resto → sim), mas o jogador pode sobrescrever
     // porque um Hatsu de categoria CD também pode ter Ataque, e vice-versa.
