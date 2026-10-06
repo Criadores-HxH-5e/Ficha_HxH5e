@@ -259,7 +259,8 @@ window.CATEGORIA_CARACTERISTICAS_GRAU = {
 
 // Características SEM teto: a regra não define limite para elas, então o Grau investido
 // vale inteiro e nenhum excedente fica "em espera".
-window.CARACTERISTICAS_SEM_TETO = ['atributos', 'custo', 'alvos'];
+// Acerto entrou aqui: efeitos e restrições que o concedem apenas SOMAM, sem teto.
+window.CARACTERISTICAS_SEM_TETO = ['atributos', 'custo', 'alvos', 'acerto'];
 
 // Rótulo legível de cada característica, usado nos painéis.
 window.CARACTERISTICA_LABEL = {
@@ -1352,7 +1353,11 @@ function renderHatsuDetail(container) {
             }
             const typeColors = { 'Projétil':'#38bdf8','Potente':'#38bdf8','Linha':'#38bdf8','Área':'#f87171','Objeto':'#a3e635','Corporal':'#a3e635','Criatura':'#fb923c','Extra':'#fb923c','Bloquear':'#fb923c','Contínuo':'#f43f5e','Ferida':'#f43f5e' };
             const ec = typeColors[d.tipo] || '#9ca3af';
-            // If this is the only damage source (no base), scale it with totalGraus
+            // Efeitos SEM escada cadastrada: a regra antiga só os escalava quando o Hatsu
+            // não tinha dano base nenhum (!isHostil && !catDmg). Quem TEM escada passa pelo
+            // bloco abaixo, que agora também soma os graus gerais — antes a condição aqui
+            // era restrita demais e a de baixo ignorava os graus, então um Materializador
+            // com +5 graus via o dado base e o rótulo "(+5 grau)" ao lado.
             let displayDado = d.dado;
             if (!isHostil && !catDmg && totalGraus > 0 && !(window.DANO_PROPRIO_ESCALA || {})[e.id]) {
                 // Find base index from dado string (e.g. "1d8" → idx 2)
@@ -1375,7 +1380,13 @@ function renderHatsuDetail(container) {
                     // Cada cópia extra vale 1 degrau na tabela, e 1 grau contra o teto.
                     // O teto conta o dado base como primeiro degrau, então dá para subir
                     // (teto − 1) degraus — mesma contagem do dano principal.
-                    const degrausQuer = copias - 1;
+                    //
+                    // Os GRAUS GERAIS do Hatsu (restrições, Bônus Talentoso, 5 Graus do
+                    // 1º Hatsu…) também contam aqui: são graus da característica Dano/Cura,
+                    // e valem para TODA linha de dano/cura do Hatsu — é como a linha de
+                    // cura já funcionava. Antes só as cópias contavam, então um Hatsu com
+                    // +5 graus exibia o rótulo "(+5 grau)" e mostrava o dado base.
+                    const degrausQuer = (copias - 1) + totalGraus;
                     const _tetoPassos = (_tetoDano === Infinity) ? Infinity : Math.max(0, _tetoDano - 1);
                     const degrausPode = (_tetoPassos === Infinity) ? degrausQuer : Math.min(degrausQuer, _tetoPassos);
                     const bIdx = DAMAGE_TABLE.indexOf(_esc.base);
@@ -1386,7 +1397,7 @@ function renderHatsuDetail(container) {
                     }
                 } else if (_esc.tipo === 'bruto') {
                     // O valor bruto É a contagem de graus: com teto 3, +5 vira +3.
-                    const valorQuer = _esc.base + (copias - 1) * (_esc.passo || 1);
+                    const valorQuer = _esc.base + ((copias - 1) + totalGraus) * (_esc.passo || 1);
                     const valorPode = (_tetoDano === Infinity) ? valorQuer : Math.min(valorQuer, _tetoDano);
                     displayDado = '+' + valorPode;
                     if (copias > 1) copiasLabel = ` ×${copias}`;
@@ -1544,13 +1555,7 @@ function renderHatsuDetail(container) {
     // Nunca deixa o bônus de acerto ultrapassar o teto do nível — excedente reservado, aplicado
     // automaticamente quando o teto do nível aumentar.
     let acertoGrauReservado = 0;
-    if (window.calcMaxGrauPorCaracteristica) {
-        const _grauMaxAcerto = window.calcMaxGrauPorCaracteristica(char.level, hatsuClasse, 'acerto');
-        if (_grauMaxAcerto !== Infinity && acertoBonus > _grauMaxAcerto) {
-            acertoGrauReservado = acertoBonus - _grauMaxAcerto;
-            acertoBonus = _grauMaxAcerto;
-        }
-    }
+    // (sem teto: acertoBonus fica como está — acerto entra em CARACTERISTICAS_SEM_TETO)
     // ── Fim cálculo de acerto ─────────────────────────────────────────────────
 
     window._hatsuRollState = {
@@ -1583,7 +1588,8 @@ function renderHatsuDetail(container) {
                 if (vistos.has(e.id)) return;
                 vistos.add(e.id);
                 const copias = (h.efeitos || []).filter(function (id) { return id === e.id; }).length;
-                const quer = Math.max(0, copias - 1);
+                // Mesma conta da tela: cópias extras + graus gerais do Hatsu.
+                const quer = Math.max(0, (copias - 1) + totalGraus);
                 const teto = window.calcMaxGrauPorCaracteristica
                     ? window.calcMaxGrauPorCaracteristica(char.level, h.classe || char.class, 'dano')
                     : Infinity;
@@ -1595,7 +1601,7 @@ function renderHatsuDetail(container) {
                         : String(d.dado).replace(/^\+\s*/, '');
                     out.push({ dado: '+ ' + dado, tipo: d.tipo, desc: d.desc });
                 } else {
-                    out.push({ dado: '+' + (esc.base + esc.passo * pode), tipo: d.tipo, desc: d.desc });
+                    out.push({ dado: '+' + (esc.base + (esc.passo || 1) * pode), tipo: d.tipo, desc: d.desc });
                 }
             });
             return out;
@@ -2316,6 +2322,54 @@ function renderHatsuDetail(container) {
         window._HATSU_STAT_INFO[idx].duracao = _durLines;
     }
 
+    // ── NÚMERO DE ALVOS ─────────────────────────────────────────────────────────
+    // A característica estava cadastrada (aparece no modal dos 5 Graus e é peculiar da
+    // Manipulação), mas NADA no app calculava ou exibia quantos alvos o Hatsu atinge:
+    // o jogador investia graus em Número de Alvos e eles não produziam efeito nenhum.
+    //
+    // Regra: todo Hatsu começa em 1 alvo (que pode ser o próprio usuário) e cada grau
+    // soma mais um. É diferente de Área: área atinge todos dentro dela, enquanto alvos
+    // permite escolher alvos DIFERENTES, cada um dentro do alcance.
+    const _grausAlvos = (function () {
+        let n = 0;
+        // Graus escolhidos para "alvos" nos efeitos com picker (Intensificação etc.)
+        const sc = h.specialChoices || {};
+        (h.efeitos || []).forEach(function (id) {
+            const chave = (window.GRAU_ESCOLHA_PARA_CHAVE || {})[sc[id]];
+            if (chave === 'alvos') n += 1;
+        });
+        // 5 Graus do 1º Hatsu e Bônus Talentoso aplicados em alvos
+        const ph = h.primeiroHatsuGraus || {};
+        n += ph.alvos || 0;
+        if (h.bonusGraus && h.bonusGraus.tipo === 'alvos') n += h.bonusGraus.valor || 0;
+        // Juramento Imutável: +4 em todas as características da categoria
+        if ((h.restricoes || []).includes('rg_e5') && !((h.pureRestrictions || {})['rg_e5'])) {
+            const cars = window.CATEGORIA_CARACTERISTICAS_GRAU[hatsuClasse] || [];
+            const nivelAtivo = window.calcJuramentoImutavelNivelAtivo(h);
+            const nivelAtual = parseInt(char.level) || 1;
+            if (cars.includes('alvos') && nivelAtivo != null && nivelAtual >= nivelAtivo) n += 4;
+        }
+        return n;
+    })();
+    // Alvos extras vindos da Troca Perigosa, escolhidos na ativação do Hatsu.
+    const _alvosDaAtivacao = (((char.hatsusAtivos || {})[idx] || {}).extras || {}).alvosExtra || 0;
+    // Teto: consultado pela via normal. Hoje "alvos" está em CARACTERISTICAS_SEM_TETO,
+    // então a função devolve Infinity — se a regra passar a ter teto, basta tirá-la de lá.
+    const _tetoAlvos = window.calcMaxGrauPorCaracteristica
+        ? window.calcMaxGrauPorCaracteristica(char.level, hatsuClasse, 'alvos') : Infinity;
+    const _alvosQuer = _grausAlvos + _alvosDaAtivacao;
+    const _alvosPode = (_tetoAlvos === Infinity) ? _alvosQuer : Math.min(_alvosQuer, _tetoAlvos);
+    const totalAlvos = 1 + _alvosPode;              // o 1º alvo é a base de todo Hatsu
+    const alvosReservado = Math.max(0, _alvosQuer - _alvosPode);
+    if (_alvosQuer > 0) {
+        const _alvLines = [{ l: 'Base', v: '1 alvo', c: '#9ca3af' }];
+        if (_grausAlvos > 0) _alvLines.push({ l: 'Graus em Número de Alvos', v: '+' + _grausAlvos, c: '#38bdf8' });
+        if (_alvosDaAtivacao > 0) _alvLines.push({ l: 'Troca Perigosa (ativação)', v: '+' + _alvosDaAtivacao, c: '#38bdf8' });
+        if (alvosReservado > 0) _alvLines.push({ l: '⏳ Reservado (teto do nível)', v: '+' + alvosReservado + ' aguardando', c: '#fbbf24' });
+        _alvLines.push({ l: '→ Total', v: totalAlvos + ' alvo(s)', c: '#38bdf8', b: true });
+        window._HATSU_STAT_INFO[idx].alvos = _alvLines;
+    }
+
     // ── Duração real do Hatsu ───────────────────────────────────────────────────
     // O campo mostrava "Instantâneo" fixo para todos, ignorando o total já calculado
     // logo abaixo. A regra é que a duração É o que foi comprado (o manual fala em
@@ -2351,7 +2405,7 @@ function renderHatsuDetail(container) {
     })();
     window._HATSU_DURACAO_INFO = _duracaoInfo;
 
-    const hasRangeOrDuration = alcanceBonus.length > 0 || areaBonus.length > 0 || duracaoBonus.length > 0 || alcanceDobrado || duracaoDobrada;
+    const hasRangeOrDuration = alcanceBonus.length > 0 || areaBonus.length > 0 || duracaoBonus.length > 0 || alcanceDobrado || duracaoDobrada || _alvosQuer > 0;
     let calcRangeDurHtml = '';
     if (hasRangeOrDuration) {
         const alcanceHtml = alcanceBonus.length > 0 || alcanceDobrado ? `
@@ -2378,7 +2432,20 @@ function renderHatsuDetail(container) {
                 ${areaBonus.map(b => `<div style="font-size:8px;color:#6b7280;margin-bottom:2px">• ${b.fonte}: +${b.valor}m</div>`).join('')}
             </div>` : '';
 
-        const duracaoHtml = duracaoBonus.length > 0 || duracaoDobrada ? `
+        // Campo de Número de Alvos, no mesmo formato de Alcance, Área e Duração.
+    const alvosHtml = _alvosQuer > 0 ? `
+        <div style="margin-bottom:10px">
+            <div style="font-size:8px;color:#374151;text-transform:uppercase;font-weight:700;letter-spacing:1px;margin-bottom:6px">👥 Número de Alvos</div>
+            <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+                <span style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:22px;color:#38bdf8;text-shadow:0 0 10px #38bdf866">${totalAlvos}</span>
+                <span style="font-size:10px;color:#6b7280">alvo(s) diferentes, cada um dentro do alcance</span>
+                ${alvosReservado > 0 ? `<span style="font-size:7px;font-weight:900;padding:2px 8px;border-radius:10px;background:#fbbf2422;color:#fbbf24" title="Excedente aguardando o teto do nível aumentar">+${alvosReservado} em espera ⏳</span>` : ''}
+                <button onclick="event.stopPropagation();window._hShowStatInfo(${idx},'alvos',this)" style="margin-left:4px;background:transparent;border:1px solid #374151;border-radius:50%;width:16px;height:16px;color:#6b7280;font-size:9px;cursor:pointer;padding:0">i</button>
+            </div>
+            <div style="font-size:8px;color:#6b7280">• Base: 1 alvo${_grausAlvos > 0 ? ` &nbsp;• Graus: +${_grausAlvos}` : ''}${_alvosDaAtivacao > 0 ? ` &nbsp;• Troca Perigosa: +${_alvosDaAtivacao}` : ''}</div>
+        </div>` : '';
+
+    const duracaoHtml = duracaoBonus.length > 0 || duracaoDobrada ? `
             <div>
                 <div style="font-size:8px;color:#374151;text-transform:uppercase;font-weight:700;letter-spacing:1px;margin-bottom:6px">⏱ Duração</div>
                 <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px">
@@ -2395,6 +2462,7 @@ function renderHatsuDetail(container) {
             <div style="font-size:8px;color:#374151;text-transform:uppercase;font-weight:700;letter-spacing:1px;margin-bottom:10px">📐 Alcance, Área & Duração</div>
             ${alcanceHtml}
             ${areaHtml}
+            ${alvosHtml}
             ${duracaoHtml}
         </div>`;
     }
