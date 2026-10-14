@@ -352,6 +352,34 @@
   .atk-b button { flex: 1; min-width: 74px; height: 30px; border-radius: var(--r-sm); border: 1px solid color-mix(in srgb, var(--c, #f87171) 45%, transparent); background: color-mix(in srgb, var(--c, #f87171) 12%, var(--surface)); color: var(--text); font: 700 11px/1 var(--f-display); letter-spacing: .04em; cursor: pointer; }
   .atk-b button:hover { border-color: var(--c, #f87171); }
   .atk.off { opacity: .55; }
+  /* trilha sonora: mini-player do YouTube (fica fora do palco para não reiniciar a música
+     quando o palco é redesenhado; o YouTube exige que o player fique visível) */
+  .som { position: fixed; left: 12px; top: 116px; z-index: 20; width: 210px; border-radius: var(--r-lg); overflow: hidden; background: rgba(17,24,39,.95); backdrop-filter: blur(8px); border: 1px solid var(--border); box-shadow: var(--sh-3); }
+  .som[hidden] { display: none; }
+  .som.min { width: 132px; }
+  .som-v { position: relative; aspect-ratio: 16 / 9; background: #000; }
+  .som-v iframe, .som-v #somYT { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .som-ov { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 8px; background: rgba(5,8,15,.72); font: 700 12px/1.3 var(--f-body); color: var(--text); }
+  .som-ov:empty { display: none; }
+  .som-bar { display: flex; align-items: center; gap: 6px; padding: 6px 8px; }
+  .som-t { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 700 12px/1.2 var(--f-body); color: var(--text-2); }
+  .som-t i { color: var(--blue-6); margin-right: 4px; }
+  .som-bar button { width: 26px; height: 26px; flex: none; display: grid; place-items: center; border-radius: 8px; border: 1px solid var(--border-2); background: transparent; color: var(--text-2); cursor: pointer; }
+  .som-bar button:hover { color: var(--blue-6); border-color: var(--blue-6); }
+  .som-vol { display: flex; align-items: center; gap: 6px; padding: 0 8px 8px; }
+  .som-vol input { flex: 1; accent-color: #00ff9d; min-width: 0; }
+  .som.min .som-t, .som.min .som-vol { display: none; }
+  .trk { display: flex; align-items: center; gap: 10px; }
+  .trk img { width: 64px; height: 36px; object-fit: cover; border-radius: 6px; flex: none; background: #000; }
+  .trk b { display: block; font: 700 13px/1.25 var(--f-body); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .trk .acts { display: flex; gap: 4px; margin-left: auto; flex: none; }
+  .trk .acts button { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border-2); background: transparent; color: var(--text-2); cursor: pointer; display: grid; place-items: center; }
+  .trk .acts button:hover { color: var(--blue-6); border-color: var(--blue-6); }
+  .trk .acts button.rm:hover { color: var(--red-6); border-color: var(--red-6); }
+  .tr-ctl { display: flex; gap: 6px; margin-top: 10px; }
+  .tr-ctl .btn { flex: 1; padding: 0 8px; }
+  .tr-ctl .btn.on { border-color: var(--blue-6); color: var(--blue-6); background: var(--blue-1); }
+  @media (max-width: 860px) { .som { left: 8px; top: 120px; width: 160px; } .som.min { width: 112px; } }
   /* ordem de iniciativa (canto do palco) */
   .ordem { position: absolute; top: 12px; right: 12px; z-index: 7; width: 260px; max-width: calc(100% - 24px); padding: 10px; border-radius: var(--r-lg); background: rgba(17,24,39,.94); backdrop-filter: blur(8px); border: 1px solid var(--border); box-shadow: var(--sh-3); }
   .ordem-h { display: flex; align-items: center; gap: 8px; }
@@ -556,12 +584,14 @@
         </div>
       </header>
       <section class="stage" id="stage"></section>
+      <div class="som ${SOM.min ? 'min' : ''}" id="som" hidden><div class="som-v"><div id="somYT"></div><div class="som-ov" id="somOv"></div></div><div class="som-bar" id="somBar"></div><div class="som-vol" id="somVol"></div></div>
       <aside class="side" id="side"><div class="side-grip" id="sideGrip" title="Arraste para mudar a largura · duplo clique volta ao padrão"></div><nav class="tabs" id="tabs"></nav><div class="pane" id="pane"></div></aside>
     </div>`;
     $('#codeBtn').onclick = () => { navigator.clipboard.writeText(location.origin + location.pathname.replace(/[^/]*$/, '') + 'mesa.html?entrar=' + S.mesa.codigo).then(() => toast('Link do convite copiado', 'link')); };
     $('#sideBtn').onclick = () => $('#app').classList.toggle('side-open');
     montarLargura();
     renderBar(); renderStage(); renderSide();
+    aplicarTrilha();
   }
 
   /* ---------- Largura da barra lateral ---------- */
@@ -1177,7 +1207,7 @@
   function abas() {
     const dados = ['dados', '<i class="ph ph-dice-five"></i> Dados'];
     const chat = ['chat', `<i class="ph ph-chat-circle-dots"></i> Chat${S.naoLidas ? `<span class="badge">${S.naoLidas > 99 ? '99+' : S.naoLidas}</span>` : ''}`];
-    return S.gm ? [['cenas', 'Cenas'], ['mapa', 'Mapa'], ['tokens', 'Tokens'], ['best', '<i class="ph ph-paw-print"></i> Bestiário'], dados, chat, ['ninja', 'Personagem'], ['grupo', 'Grupo']]
+    return S.gm ? [['cenas', 'Cenas'], ['mapa', 'Mapa'], ['tokens', 'Tokens'], ['best', '<i class="ph ph-paw-print"></i> Bestiário'], ['trilha', '<i class="ph ph-music-notes"></i> Trilha'], dados, chat, ['ninja', 'Personagem'], ['grupo', 'Grupo']]
       : [dados, chat, ['ninja', 'Meu personagem'], ['tokens', 'Tokens'], ['grupo', 'Grupo']];
   }
   function renderTabs() {
@@ -1189,7 +1219,7 @@
     if (S.tab === 'chat') S.naoLidas = 0;
     renderTabs();
     P().classList.toggle('pane-chat', S.tab === 'chat');
-    ({ cenas: paneCenas, mapa: paneMapa, tokens: paneTokens, best: paneBest, dados: paneDados, chat: paneChat, ninja: paneNinja, grupo: paneGrupo })[S.tab]();
+    ({ cenas: paneCenas, mapa: paneMapa, tokens: paneTokens, best: paneBest, trilha: paneTrilha, dados: paneDados, chat: paneChat, ninja: paneNinja, grupo: paneGrupo })[S.tab]();
   }
   const P = () => $('#pane');
 
@@ -1380,6 +1410,191 @@
     const cx = Math.floor(m.cols / 2), cy = Math.floor(m.rows / 2);
     for (let r = 0; r < 16; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) if (cabe(cx + dx, cy + dy)) return { x: cx + dx, y: cy + dy };
     return { x: cx, y: cy };
+  }
+
+  /* ---------- Trilha sonora (YouTube) ----------
+     Fica em mesas.trilha = { lista: [{ id, t }], atual: { id, tocando, pos, em, loop } }.
+     Só o narrador escreve. "pos" é a posição (s) no instante "em" (ms); cada aparelho
+     calcula onde a música deve estar e se ajusta, então todos ouvem a mesma parte.
+     Volume e mudo são de cada pessoa (ficam no navegador). */
+  const temTrilha = () => !!(S.mesa && 'trilha' in S.mesa);
+  const trilha = () => (S.mesa && S.mesa.trilha) || {};
+  // Aceita watch?v=, youtu.be/, shorts/, embed/, live/, music.youtube.com e o id puro.
+  function ytId(txt) {
+    const s = String(txt || '').trim();
+    if (/^[\w-]{11}$/.test(s)) return s;
+    const m = s.match(/(?:youtu\.be\/|[?&]v=|\/(?:embed|shorts|live|v)\/)([\w-]{11})/);
+    return m ? m[1] : null;
+  }
+  const SOM = { yt: null, pronto: false, id: null, bloqueado: false, erro: null, vol: 50, mudo: false, min: false };
+  try { const v = JSON.parse(localStorage.getItem('hxh-mesa-som') || 'null'); if (v) Object.assign(SOM, { vol: v.vol == null ? 50 : v.vol, mudo: !!v.mudo, min: !!v.min }); } catch (e) {}
+  const salvarSomLocal = () => { try { localStorage.setItem('hxh-mesa-som', JSON.stringify({ vol: SOM.vol, mudo: SOM.mudo, min: SOM.min })); } catch (e) {} };
+  // Posição em que a faixa deve estar agora. Com "repetir", dá a volta na duração.
+  function posAgora(a) {
+    if (!a) return 0;
+    let p = (a.pos || 0) + (a.tocando ? Math.max(0, (Date.now() - (a.em || Date.now())) / 1000) : 0);
+    const d = SOM.pronto && SOM.yt.getDuration ? SOM.yt.getDuration() : 0;
+    if (d > 1 && p >= d) p = a.loop ? p % d : d - 0.5;
+    return p;
+  }
+  let ytApi = null;
+  function carregarYT() {
+    if (!ytApi) ytApi = new Promise(res => {
+      if (window.YT && YT.Player) return res();
+      const ant = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => { if (ant) ant(); res(); };
+      const s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(s);
+    });
+    return ytApi;
+  }
+  function tituloFaixa(id) {
+    const f = (trilha().lista || []).find(x => x.id === id);
+    if (f && f.t) return f.t;
+    try { return (SOM.pronto && SOM.yt.getVideoData().title) || 'Trilha'; } catch (e) { return 'Trilha'; }
+  }
+  async function aplicarTrilha() {
+    const box = $('#som'); if (!box) return;
+    const a = trilha().atual;
+    if (!temTrilha() || !a || !a.id) {
+      box.hidden = true;
+      if (SOM.pronto) SOM.yt.stopVideo();
+      SOM.id = null; SOM.bloqueado = false; SOM.erro = null;
+      return;
+    }
+    box.hidden = false; renderSom();
+    if (SOM.criando && !SOM.pronto) return;   // o onReady aplica o estado mais recente
+    await carregarYT();
+    if (!SOM.yt) {
+      SOM.criando = true; SOM.id = a.id;
+      SOM.yt = new YT.Player('somYT', {
+        width: '100%', height: '100%', videoId: a.id,
+        playerVars: { autoplay: 0, controls: 0, disablekb: 1, playsinline: 1, rel: 0, iv_load_policy: 3, start: Math.floor(posAgora(a)) },
+        events: { onReady: () => { SOM.pronto = true; aplicarVolume(); sincronizar(true); }, onStateChange: estadoYT, onError: erroYT },
+      });
+      return;
+    }
+    if (SOM.pronto) sincronizar();
+  }
+  function sincronizar(forcar) {
+    const a = trilha().atual; if (!a || !SOM.pronto) return;
+    if (SOM.id !== a.id) {
+      SOM.id = a.id; SOM.erro = null;
+      if (a.tocando) SOM.yt.loadVideoById({ videoId: a.id, startSeconds: posAgora(a) }); else SOM.yt.cueVideoById({ videoId: a.id, startSeconds: posAgora(a) });
+      if (a.tocando) vigiarBloqueio();
+      return renderSom();
+    }
+    const p = posAgora(a), cur = SOM.yt.getCurrentTime ? SOM.yt.getCurrentTime() : 0;
+    if (forcar || Math.abs(cur - p) > 3) SOM.yt.seekTo(p, true);   // tolera 3 s de diferença entre aparelhos
+    if (a.tocando) { SOM.yt.playVideo(); vigiarBloqueio(); } else SOM.yt.pauseVideo();
+    renderSom();
+  }
+  // O navegador pode barrar som antes de a pessoa interagir com a página.
+  // Se não começou a tocar em 2 s, mostra o botão "Tocar" (um toque libera).
+  let vigia = null;
+  function vigiarBloqueio() {
+    clearTimeout(vigia);
+    vigia = setTimeout(() => {
+      const a = trilha().atual; if (!a || !a.tocando || !SOM.pronto) return;
+      const st = SOM.yt.getPlayerState();
+      SOM.bloqueado = st !== YT.PlayerState.PLAYING && st !== YT.PlayerState.BUFFERING && !SOM.erro;
+      renderSom();
+    }, 2000);
+  }
+  function estadoYT(e) {
+    const a = trilha().atual || {};
+    if (e.data === YT.PlayerState.PLAYING) { if (SOM.bloqueado) { SOM.bloqueado = false; } renderSom(); }
+    if (e.data === YT.PlayerState.ENDED) {
+      if (a.loop) { SOM.yt.seekTo(0, true); SOM.yt.playVideo(); }
+      else if (S.gm) proximaFaixa(true);   // só o narrador avança a playlist
+    }
+  }
+  function erroYT(e) {
+    SOM.erro = e.data === 101 || e.data === 150 ? 'O dono deste vídeo não deixa tocar fora do YouTube.' : e.data === 100 ? 'Vídeo removido ou privado.' : 'Não deu para tocar este vídeo.';
+    SOM.bloqueado = false; renderSom();
+  }
+  function aplicarVolume() {
+    if (!SOM.pronto) return;
+    SOM.yt.setVolume(SOM.vol);
+    if (SOM.mudo) SOM.yt.mute(); else SOM.yt.unMute();
+  }
+  function renderSom() {
+    const box = $('#som'); if (!box) return;
+    const a = trilha().atual || {};
+    box.classList.toggle('min', SOM.min);
+    $('#somOv').innerHTML = SOM.erro ? `<span>${esc(SOM.erro)}</span>` : SOM.bloqueado ? '<button class="btn btn-sm btn-primary" id="somPlay"><i class="ph-fill ph-play"></i> Tocar</button>' : '';
+    $('#somBar').innerHTML = `<span class="som-t" title="${esc(tituloFaixa(a.id))}"><i class="ph-fill ph-music-notes"></i>${a.tocando ? '' : '(pausada) '}${esc(tituloFaixa(a.id))}</span>
+      <button id="somMudo" title="${SOM.mudo ? 'Ligar o som' : 'Silenciar só para mim'}" aria-label="${SOM.mudo ? 'Ligar o som' : 'Silenciar'}"><i class="ph-bold ph-speaker-${SOM.mudo ? 'x' : 'high'}"></i></button>
+      <button id="somMin" title="${SOM.min ? 'Aumentar' : 'Diminuir'} o player" aria-label="${SOM.min ? 'Aumentar' : 'Diminuir'} o player"><i class="ph-bold ph-arrows-${SOM.min ? 'out' : 'in'}-simple"></i></button>`;
+    $('#somVol').innerHTML = `<i class="ph ph-speaker-low" style="color:var(--text-3)"></i><input type="range" min="0" max="100" value="${SOM.vol}" id="somR" aria-label="Volume (só para você)">`;
+    const pl = $('#somPlay'); if (pl) pl.onclick = () => { SOM.bloqueado = false; SOM.yt.seekTo(posAgora(trilha().atual), true); SOM.yt.playVideo(); renderSom(); };
+    $('#somMudo').onclick = () => { SOM.mudo = !SOM.mudo; aplicarVolume(); salvarSomLocal(); renderSom(); };
+    $('#somMin').onclick = () => { SOM.min = !SOM.min; salvarSomLocal(); renderSom(); };
+    $('#somR').oninput = e => { SOM.vol = +e.target.value; if (SOM.mudo && SOM.vol > 0) SOM.mudo = false; aplicarVolume(); };
+    $('#somR').onchange = () => { salvarSomLocal(); renderSom(); };
+  }
+
+  // Ações do narrador
+  async function salvarTrilha(novo) {
+    const ant = S.mesa.trilha;
+    S.mesa.trilha = novo; aplicarTrilha(); if (S.tab === 'trilha') paneTrilha();
+    const { error } = await sb.from('mesas').update({ trilha: novo }).eq('id', S.mesa.id);
+    if (error) { S.mesa.trilha = ant; aplicarTrilha(); if (S.tab === 'trilha') paneTrilha(); toast(esc(errMsg(error)), 'warning'); }
+  }
+  const comAtual = mud => { const tr = trilha(); return Object.assign({}, tr, { atual: Object.assign({}, tr.atual, mud) }); };
+  function tocarFaixa(id) { const tr = trilha(); salvarTrilha(Object.assign({}, tr, { atual: { id, tocando: true, pos: 0, em: Date.now(), loop: !!(tr.atual && tr.atual.loop) } })); }
+  function pausarRetomar() {
+    const a = trilha().atual; if (!a) return;
+    salvarTrilha(comAtual(a.tocando ? { tocando: false, pos: posAgora(a), em: Date.now() } : { tocando: true, em: Date.now() }));
+  }
+  function proximaFaixa(auto) {
+    const tr = trilha(), L = tr.lista || [], a = tr.atual; if (!L.length) return;
+    const i = a ? L.findIndex(f => f.id === a.id) : -1;
+    // Fim da faixa: segue a playlist e volta ao começo depois da última (ambiente contínuo).
+    if (auto && L.length === 1) return salvarTrilha(comAtual({ tocando: false, pos: 0, em: Date.now() }));
+    tocarFaixa(L[(i + 1) % L.length].id);
+  }
+  async function adicionarFaixa(link) {
+    const id = ytId(link);
+    if (!id) return toast('Link do YouTube não reconhecido', 'warning');
+    const tr = trilha(), lista = (tr.lista || []).slice();
+    if (lista.some(f => f.id === id)) return toast('Essa música já está na playlist', 'music-notes');
+    let t = '';
+    try { const r = await fetch(`https://www.youtube.com/oembed?format=json&url=${encodeURIComponent('https://www.youtube.com/watch?v=' + id)}`); if (r.ok) t = (await r.json()).title || ''; } catch (e) {}
+    lista.push({ id, t: t || 'Faixa ' + (lista.length + 1) });
+    const novo = Object.assign({}, tr, { lista });
+    // Nada tocando: a primeira música adicionada já começa.
+    if (!tr.atual || !tr.atual.id) novo.atual = { id, tocando: true, pos: 0, em: Date.now(), loop: false };
+    await salvarTrilha(novo);
+    toast(esc(`${t || 'Música'} na playlist`), 'music-notes');
+  }
+  function paneTrilha() {
+    if (!temTrilha()) { P().innerHTML = '<h4>Trilha sonora</h4><p class="hint">Falta a coluna <b>trilha</b> na tabela <b>mesas</b> do Supabase.</p>'; return; }
+    const tr = trilha(), a = tr.atual || {}, lista = tr.lista || [];
+    P().innerHTML = `<h4>Trilha sonora</h4>
+      <p class="hint" style="margin:0 0 10px">Cole um link do YouTube. A música toca para todos na mesa, no mesmo ponto; cada um ajusta o próprio volume no player.</p>
+      <form class="dice-form" id="trForm" style="margin-top:0" autocomplete="off"><input class="input" id="trLink" placeholder="https://youtube.com/watch?v=…" aria-label="Link do YouTube"><button class="btn btn-primary">Adicionar</button></form>
+      ${a.id ? `<div class="sep"></div><h4>Tocando agora</h4>
+        <div class="item on trk"><img src="https://i.ytimg.com/vi/${esc(a.id)}/mqdefault.jpg" alt=""><div style="min-width:0;flex:1"><b title="${esc(tituloFaixa(a.id))}">${esc(tituloFaixa(a.id))}</b><div class="tiny">${a.tocando ? 'Tocando para a mesa' : 'Pausada'}${a.loop ? ' · repetindo' : ''}</div></div></div>
+        <div class="tr-ctl"><button class="btn btn-sm ${a.tocando ? '' : 'btn-primary'}" id="trPP"><i class="ph-fill ph-${a.tocando ? 'pause' : 'play'}"></i> ${a.tocando ? 'Pausar' : 'Tocar'}</button>
+          <button class="btn btn-sm" id="trNext" ${lista.length > 1 ? '' : 'disabled'}><i class="ph-fill ph-skip-forward"></i> Próxima</button>
+          <button class="btn btn-sm ${a.loop ? 'on' : ''}" id="trLoop" title="Repetir esta música"><i class="ph-bold ph-repeat-once"></i></button>
+          <button class="btn btn-sm" id="trStop" title="Parar" style="color:var(--red-6)"><i class="ph-fill ph-stop"></i></button></div>` : ''}
+      <div class="sep"></div><h4>Playlist</h4>
+      <div class="stack">${lista.length ? lista.map((f, i) => `<div class="item trk ${f.id === a.id ? 'on' : ''}"><img src="https://i.ytimg.com/vi/${esc(f.id)}/mqdefault.jpg" alt="">
+          <div style="min-width:0;flex:1"><b title="${esc(f.t)}">${esc(f.t)}</b></div>
+          <div class="acts"><button data-trplay="${i}" title="Tocar agora" aria-label="Tocar ${esc(f.t)}"><i class="ph-fill ph-play"></i></button><button class="rm" data-trdel="${i}" title="Tirar da playlist" aria-label="Tirar ${esc(f.t)} da playlist"><i class="ph-bold ph-x"></i></button></div></div>`).join('')
+        : '<p class="hint">Nenhuma música ainda.</p>'}</div>`;
+    $('#trForm').onsubmit = e => { e.preventDefault(); const v = $('#trLink').value; $('#trLink').value = ''; adicionarFaixa(v); };
+    const pp = $('#trPP'); if (pp) pp.onclick = pausarRetomar;
+    const nx = $('#trNext'); if (nx) nx.onclick = () => proximaFaixa(false);
+    const lp = $('#trLoop'); if (lp) lp.onclick = () => salvarTrilha(comAtual({ loop: !a.loop, pos: posAgora(a), em: Date.now() }));
+    const sp = $('#trStop'); if (sp) sp.onclick = () => salvarTrilha(Object.assign({}, trilha(), { atual: null }));
+    $$('[data-trplay]').forEach(b => b.onclick = () => tocarFaixa(lista[+b.dataset.trplay].id));
+    $$('[data-trdel]').forEach(b => b.onclick = () => {
+      const f = lista[+b.dataset.trdel], novo = Object.assign({}, trilha(), { lista: lista.filter((_, i) => i !== +b.dataset.trdel) });
+      if (a.id === f.id) novo.atual = null;
+      salvarTrilha(novo);
+    });
   }
 
   /* ---------- Bestiário (só narrador) ---------- */
@@ -1853,8 +2068,10 @@
         if (eventType === 'DELETE') { toast('O narrador encerrou esta mesa', 'flag-checkered'); setTimeout(() => location.href = 'mesa.html', 1500); return; }
         const mudou = n.exibindo !== S.mesa.exibindo || n.cena_id !== S.mesa.cena_id;
         const vezMudou = (n.turno || {}).vez !== turno().vez;
+        const somMudou = JSON.stringify(n.trilha || null) !== JSON.stringify(S.mesa.trilha || null);
         S.mesa = n; renderBar(); if (mudou && (!S.gm || !S.view)) renderStage();
         renderTokens(); if (vezMudou) avisoVez();
+        if (somMudou) { aplicarTrilha(); if (S.tab === 'trilha') paneTrilha(); }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'cenas', filter: f }, ({ eventType, new: n, old: o }) => {
         if (eventType === 'DELETE') S.cenas = S.cenas.filter(c => c.id !== o.id);
