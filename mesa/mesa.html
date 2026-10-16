@@ -46,7 +46,7 @@
   .gbtn { display: inline-flex; align-items: center; gap: 12px; height: 50px; padding: 0 22px; border-radius: var(--r-pill); background: #fff; color: #1f1f1f; border: 0; font: 700 16px/1 var(--f-display); cursor: pointer; margin-top: 10px; }
 
   /* ---------- Mesa ---------- */
-  .app { position: fixed; inset: 0; z-index: 1; display: grid; grid-template-rows: 60px 1fr; grid-template-columns: 1fr var(--side-w, 360px); background: var(--bg); }
+  .app { position: fixed; inset: 0; z-index: 1; display: grid; grid-template-rows: 60px minmax(0, 1fr); grid-template-columns: 1fr var(--side-w, 360px); background: var(--bg); }
   /* alça para redimensionar a barra lateral (só desktop) */
   .side-grip { position: absolute; left: -4px; top: 0; bottom: 0; width: 9px; cursor: col-resize; z-index: 5; touch-action: none; }
   .side-grip::after { content: ''; position: absolute; left: 3px; top: 50%; width: 3px; height: 44px; transform: translateY(-50%); border-radius: 3px; background: var(--border-2); transition: background var(--t-fast), height var(--t-fast); }
@@ -54,7 +54,7 @@
   body.resizing, body.resizing * { cursor: col-resize !important; user-select: none !important; }
   .app.side-off { grid-template-columns: 1fr 0; }
   .mbar { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 0 14px; background: var(--surface); border-bottom: 1px solid var(--border); min-width: 0; }
-  .mbar .title { font: 700 18px/1.1 var(--f-display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mbar .title { font: 700 18px/1.1 var(--f-display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; }
   .role { font: 800 11px/1 var(--f-body); letter-spacing: .08em; text-transform: uppercase; padding: 5px 9px; border-radius: var(--r-pill); background: var(--orange-1); color: var(--orange-8); border: 1px solid var(--orange-2); white-space: nowrap; }
   .role.pl { background: var(--blue-1); color: var(--blue-7); border-color: var(--blue-2); }
   .live { display: inline-flex; align-items: center; gap: 6px; font: 800 11px/1 var(--f-body); letter-spacing: .08em; text-transform: uppercase; color: var(--red-6); white-space: nowrap; }
@@ -69,13 +69,13 @@
   @media (max-width: 860px) { .faces, .mbar .hide-sm { display: none; } }
 
   .stage { position: relative; overflow: hidden; background: #171925; min-width: 0; }
-  .side { position: relative; border-left: 1px solid var(--border); background: var(--surface); display: flex; flex-direction: column; min-width: 0; overflow: visible; }
+  .side { position: relative; border-left: 1px solid var(--border); background: var(--surface); display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: visible; }
   .side > .pane, .side > .tabs { min-width: 0; }
   .app.side-off .side { display: none; }
   .tabs { display: flex; gap: 2px; padding: 8px; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; flex: none; }
   .tabs button { flex: 1; border: 0; background: transparent; padding: 9px 8px; border-radius: var(--r-md); font: 700 13px/1 var(--f-body); color: var(--text-2); cursor: pointer; white-space: nowrap; }
   .tabs button.on { background: var(--blue-1); color: var(--blue-7); }
-  .pane { flex: 1; overflow-y: auto; padding: 16px; }
+  .pane { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; }
   /* chat: lista rola sozinha, campo de mensagem fica preso embaixo */
   .pane.pane-chat { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
   .chat-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 16px 0; }
@@ -183,7 +183,7 @@
   .sel2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .side-toggle { display: none; }
   @media (max-width: 860px) {
-    .app { grid-template-columns: 1fr; grid-template-rows: 56px 1fr; }
+    .app { grid-template-columns: 1fr; grid-template-rows: 56px minmax(0, 1fr); }
     .side-grip, #sideWide { display: none; }
     .side { position: fixed; left: 0; right: 0; bottom: 0; height: 62vh; z-index: 40; border-left: 0; border-top: 1px solid var(--border); border-radius: 22px 22px 0 0; box-shadow: var(--sh-3); transform: translateY(100%); transition: transform var(--t-med) var(--ease-out); }
     .app.side-open .side { transform: none; }
@@ -205,7 +205,7 @@
   .viewsw .prev { font: 800 10px/1 var(--f-body); letter-spacing: .08em; color: #ffb24d; align-self: center; padding: 0 8px; }
 
   /* battlemap */
-  .vp { position: absolute; inset: 0; overflow: hidden; touch-action: none; cursor: grab;
+  .vp { position: absolute; inset: 0; overflow: hidden; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none;
     --g: 64px; --gx: 0px; --gy: 0px;
     background-color: #171925;
     background-image: linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
@@ -289,17 +289,17 @@
   .droll.out { opacity: 0; transform: translateX(-50%) translateY(8px); transition: opacity .4s, transform .4s; }
   .dr-tray { display: flex; align-items: flex-end; gap: 10px; }
   .dr-die { position: relative; width: 78px; height: 78px; }
-  .dr-body { position: absolute; inset: 0; animation: dtumble .85s cubic-bezier(.25,.75,.35,1) both; animation-delay: calc(var(--i) * 90ms); filter: drop-shadow(0 8px 10px rgba(0,0,0,.45)); }
+  .dr-body { position: absolute; inset: 0; animation: dtumble 1.3s cubic-bezier(.25,.75,.35,1) both; animation-delay: calc(var(--i) * 120ms); filter: drop-shadow(0 8px 10px rgba(0,0,0,.45)); }
   .dr-body svg { width: 100%; height: 100%; display: block; }
   .dr-body.land .dnum { animation: dnum .35s var(--ease-spring); transform-origin: 50% 55%; transform-box: fill-box; }
-  .dr-smoke { position: absolute; z-index: 2; left: -50px; right: -50px; bottom: -30px; height: 96px; opacity: 0; transform-origin: 50% 80%; animation: dsmoke .9s ease-out both; animation-delay: calc(560ms + var(--i) * 90ms); pointer-events: none; }
+  .dr-smoke { position: absolute; z-index: 2; left: -50px; right: -50px; bottom: -30px; height: 96px; opacity: 0; transform-origin: 50% 80%; animation: dsmoke 1.1s ease-out both; animation-delay: calc(860ms + var(--i) * 120ms); pointer-events: none; }
   .dr-smoke svg { width: 100%; height: 100%; overflow: visible; }
   .dr-neg { position: absolute; left: -12px; top: 50%; transform: translateY(-50%); font: 700 22px/1 var(--f-display); }
   .dr-more { font: 700 18px/1 var(--f-display); opacity: .8; margin: 0 0 26px 4px; }
   .dr-info { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; min-width: 120px; }
   .dr-n { font: 700 15px/1.2 var(--f-display); text-align: right; }
   .dr-n small { display: block; font: 700 12px/1.3 var(--f-body); opacity: .75; }
-  .dr-total { display: flex; align-items: baseline; gap: 10px; padding: 8px 16px; border-radius: 16px; background: rgba(255,255,255,.08); opacity: 0; animation: dtotal .4s var(--ease-spring) both; animation-delay: 1.05s; }
+  .dr-total { display: flex; align-items: baseline; gap: 10px; padding: 8px 16px; border-radius: 16px; background: rgba(255,255,255,.08); opacity: 0; animation: dtotal .4s var(--ease-spring) both; animation-delay: 1.55s; }
   .dr-total span { font: 700 15px/1 var(--f-display); opacity: .85; }
   .dr-total b { font: 700 44px/1 var(--f-display); }
   .droll.crit .dr-total { background: linear-gradient(135deg, #43b05c, #2f7a33); }
@@ -323,11 +323,42 @@
   .zoombar button { width: 38px; height: 38px; border: 0; border-radius: 12px; background: transparent; color: #fff; font: 700 18px/1 var(--f-display); cursor: pointer; }
   .zoombar button:hover { background: rgba(255,255,255,.12); }
   .measure { position: absolute; z-index: 7; padding: 6px 10px; border-radius: 999px; background: #ffb24d; color: #1b1d2a; font: 800 12px/1 var(--f-body); pointer-events: none; transform: translate(14px, -30px); box-shadow: var(--sh-2); }
-  .tokpanel { position: absolute; left: 12px; bottom: 12px; z-index: 8; width: 300px; max-width: calc(100% - 24px); padding: 14px; border-radius: 18px; background: var(--surface); border: 1px solid var(--border); box-shadow: var(--sh-3); animation: rise .3s var(--ease-out); }
-  .tokpanel .h { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-  .tokpanel .h .av { width: 40px; height: 40px; }
-  .tokpanel .h b { font: 700 16px/1.1 var(--f-display); }
-  .tokpanel .x { margin-left: auto; }
+  .tokpanel { position: absolute; left: 12px; top: 60px; z-index: 8; width: 340px; max-width: calc(100% - 24px); max-height: calc(100% - 72px); display: flex; flex-direction: column; border-radius: 18px; background: var(--surface); border: 1px solid var(--border); box-shadow: var(--sh-3); animation: rise .3s var(--ease-out); overflow: hidden; }
+  .tokpanel.min { width: 280px; }
+  .tp-h { display: flex; align-items: center; gap: 10px; padding: 10px 8px 10px 12px; border-bottom: 1px solid var(--border); cursor: move; user-select: none; -webkit-user-select: none; touch-action: none; flex: none; }
+  .tokpanel.min .tp-h { border-bottom: 0; }
+  .tp-h .av { width: 36px; height: 36px; flex: none; }
+  .tp-n { flex: 1; min-width: 0; }
+  .tp-n b { display: block; font: 700 16px/1.1 var(--f-display); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tp-ic { width: 30px; height: 30px; flex: none; display: grid; place-items: center; border-radius: 9px; border: 1px solid transparent; background: transparent; color: var(--text-2); cursor: pointer; }
+  .tp-ic:hover { border-color: var(--border-2); color: var(--text); }
+  .tp-body { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 12px 14px 14px; }
+  .tp-mini { display: flex; flex-wrap: wrap; gap: 6px 12px; padding: 0 12px 10px 58px; margin-top: -4px; font: 700 12px/1 var(--f-display); color: var(--text-2); }
+  .tp-mini small { font: 800 10px/1 var(--f-body); letter-spacing: .06em; margin-right: 4px; }
+  .tokpanel .atks { max-height: none; overflow: visible; margin-right: 0; padding-right: 0; }
+  /* abas quebram linha em vez de cortar quando a janela é estreita */
+  .tp-body > .tp-abas { margin: 2px 0 10px; flex-wrap: wrap; }
+  .tp-body > .tp-abas button { flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 7px 8px; font-size: 11px; letter-spacing: .02em; white-space: nowrap; }
+  .tokpanel { container: tp / inline-size; }
+  /* canto para redimensionar (só com mouse) */
+  .tp-rs { position: absolute; right: 0; bottom: 0; width: 20px; height: 20px; cursor: nwse-resize; touch-action: none; z-index: 2;
+    background: linear-gradient(135deg, transparent 0 55%, var(--border-2) 55% 62%, transparent 62% 72%, var(--border-2) 72% 79%, transparent 79%); }
+  .tp-rs:hover { background: linear-gradient(135deg, transparent 0 55%, var(--blue-6) 55% 62%, transparent 62% 72%, var(--blue-6) 72% 79%, transparent 79%); }
+  /* janela larga: mais colunas */
+  @container tp (min-width: 520px) {
+    .tp-tres { grid-template-columns: repeat(6, 1fr); }
+    .tokpanel .atks, .rx { grid-template-columns: 1fr 1fr; }
+    .tokpanel .atk-sec, .tokpanel .atks > .atk-s { grid-column: 1 / -1; }
+  }
+  @container tp (min-width: 760px) { .tokpanel .atks, .rx { grid-template-columns: 1fr 1fr 1fr; } }
+  .tp-ban { display: flex; align-items: center; gap: 8px; padding: 8px 10px; margin-bottom: 8px; border-radius: 12px; background: color-mix(in srgb, #f59e0b 12%, var(--surface)); border: 1px solid color-mix(in srgb, #f59e0b 40%, transparent); font-size: 12px; font-weight: 700; }
+  .tp-ban button { margin-left: auto; border: 0; background: transparent; color: var(--text-3); cursor: pointer; font-weight: 800; font-size: 12px; }
+  @media (max-width: 860px) {
+    .tokpanel { left: 8px !important; right: 8px; top: auto !important; bottom: 8px; width: auto !important; height: auto !important; max-width: none; max-height: 60% !important; }
+    .tp-rs, #tpBig { display: none; }
+    .tokpanel.min { width: auto; }
+    .tp-h { cursor: default; }
+  }
   .tp-atr { margin: -2px 0 12px; padding: 10px; border-radius: 14px; background: var(--bg-2); border: 1px solid var(--border); }
   .tp-atr.carregando { font-size: 12px; color: var(--text-3); }
   .tp-sub { font: 700 11px/1 var(--f-body); letter-spacing: .04em; color: var(--text-3); margin-bottom: 8px; }
@@ -354,19 +385,22 @@
   .atk.off { opacity: .55; }
   /* trilha sonora: mini-player do YouTube (fica fora do palco para não reiniciar a música
      quando o palco é redesenhado; o YouTube exige que o player fique visível) */
-  .som { position: fixed; left: 12px; top: 116px; z-index: 20; width: 210px; border-radius: var(--r-lg); overflow: hidden; background: rgba(17,24,39,.95); backdrop-filter: blur(8px); border: 1px solid var(--border); box-shadow: var(--sh-3); }
+  .som { display: flex; align-items: center; gap: 8px; height: 42px; padding: 4px 8px 4px 4px; border-radius: 12px; background: var(--bg-2); border: 1px solid var(--border); min-width: 0; flex: 0 1 360px; }
   .som[hidden] { display: none; }
-  .som.min { width: 132px; }
-  .som-v { position: relative; aspect-ratio: 16 / 9; background: #000; }
+  .som.min { flex: none; }
+  .som-v { position: relative; width: 60px; height: 34px; flex: none; border-radius: 8px; overflow: hidden; background: #000; }
   .som-v iframe, .som-v #somYT { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
-  .som-ov { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 8px; background: rgba(5,8,15,.72); font: 700 12px/1.3 var(--f-body); color: var(--text); }
+  .som-ov { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(5,8,15,.6); color: #fff; }
   .som-ov:empty { display: none; }
-  .som-bar { display: flex; align-items: center; gap: 6px; padding: 6px 8px; }
+  .som-ov button { width: 100%; height: 100%; border: 0; background: transparent; color: #00ff9d; font-size: 18px; cursor: pointer; }
+  .som-ov .ph-warning { color: #ffb24d; font-size: 16px; }
+  .som-bar { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
   .som-t { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 700 12px/1.2 var(--f-body); color: var(--text-2); }
   .som-t i { color: var(--blue-6); margin-right: 4px; }
+  .som-t.err { color: #ffb24d; }
   .som-bar button { width: 26px; height: 26px; flex: none; display: grid; place-items: center; border-radius: 8px; border: 1px solid var(--border-2); background: transparent; color: var(--text-2); cursor: pointer; }
   .som-bar button:hover { color: var(--blue-6); border-color: var(--blue-6); }
-  .som-vol { display: flex; align-items: center; gap: 6px; padding: 0 8px 8px; }
+  .som-vol { display: flex; align-items: center; gap: 6px; width: 96px; flex: none; }
   .som-vol input { flex: 1; accent-color: #00ff9d; min-width: 0; }
   .som.min .som-t, .som.min .som-vol { display: none; }
   .trk { display: flex; align-items: center; gap: 10px; }
@@ -379,7 +413,7 @@
   .tr-ctl { display: flex; gap: 6px; margin-top: 10px; }
   .tr-ctl .btn { flex: 1; padding: 0 8px; }
   .tr-ctl .btn.on { border-color: var(--blue-6); color: var(--blue-6); background: var(--blue-1); }
-  @media (max-width: 860px) { .som { left: 8px; top: 120px; width: 160px; } .som.min { width: 112px; } }
+  @media (max-width: 860px) { .som { flex: none; } .som-t, .som-vol { display: none; } }
   /* ordem de iniciativa (canto do palco) */
   .ordem { position: absolute; top: 12px; right: 12px; z-index: 7; width: 260px; max-width: calc(100% - 24px); padding: 10px; border-radius: var(--r-lg); background: rgba(17,24,39,.94); backdrop-filter: blur(8px); border: 1px solid var(--border); box-shadow: var(--sh-3); }
   .ordem-h { display: flex; align-items: center; gap: 8px; }
@@ -433,6 +467,96 @@
   .res .bar b { display: block; height: 100%; }
   .chk { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: var(--text-2); cursor: pointer; }
   .chk input { width: 18px; height: 18px; accent-color: var(--blue-6); }
+  .rolls-mais { width: 100%; margin-top: 10px; }
+  .mbar .sair { flex: none; }
+  /* Reações (7 + SAB): contador no painel do token e selo no mapa */
+  .reac { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+  .reac > span:first-child { font: 800 11px/1 var(--f-body); letter-spacing: .06em; color: #f59e0b; display: inline-flex; align-items: center; gap: 4px; }
+  .reac-pips { display: flex; flex-wrap: wrap; gap: 3px; flex: 1; min-width: 60px; }
+  .reac-pips i { width: 10px; height: 10px; border-radius: 50%; background: #f59e0b; box-shadow: 0 0 0 1px rgba(0,0,0,.25); }
+  .reac-pips i.gasta { background: var(--bg-2); box-shadow: inset 0 0 0 1.5px var(--border-2); }
+  .reac b { font: 700 13px/1 var(--f-display); margin-left: auto; }
+  .reac-b { display: flex; gap: 4px; flex-wrap: wrap; margin: -2px 0 10px; }
+  .reac-b button { height: 28px; padding: 0 9px; border-radius: 9px; border: 1px solid var(--border-2); background: var(--surface); font: 700 11px/1 var(--f-display); cursor: pointer; color: var(--text); }
+  .reac-b button:hover:not([disabled]) { border-color: #f59e0b; color: #b45309; }
+  .reac-b button[disabled] { opacity: .4; cursor: default; }
+  .reac-b button:last-child { flex: 1; }
+  .rx { display: grid; gap: 6px; }
+  .rx-i { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 8px 10px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg-2); color: var(--text); cursor: pointer; }
+  .rx-i:hover:not([disabled]) { border-color: #f59e0b; }
+  .rx-i[disabled] { opacity: .45; cursor: default; }
+  .rx-n { flex: 1; min-width: 0; }
+  .rx-n b { display: block; font: 700 13px/1.2 var(--f-display); }
+  .rx-n small { display: block; font-size: 11px; color: var(--text-3); line-height: 1.3; margin-top: 2px; }
+  .rx-v { flex: none; font: 700 13px/1 var(--f-display); color: #f59e0b; white-space: nowrap; }
+  .tok .tok-reac { position: absolute; right: -2px; bottom: 2px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; display: grid; place-items: center; background: #f59e0b; color: #1b1d2a; font: 800 11px/1 var(--f-display); box-shadow: 0 0 0 2px rgba(15,17,30,.85); pointer-events: none; }
+  /* Nen: princípios ativados pelo token */
+  .nen-on { display: flex; align-items: center; gap: 8px; padding: 8px 10px; margin-bottom: 8px; border-radius: 12px; background: color-mix(in srgb, #4ade80 12%, var(--surface)); border: 1px solid color-mix(in srgb, #4ade80 40%, transparent); font-size: 12px; font-weight: 700; color: #16a34a; }
+  .nen-on span { flex: 1; min-width: 0; }
+  .nen-on button { border: 1px solid color-mix(in srgb, #4ade80 50%, transparent); background: transparent; color: #16a34a; border-radius: 8px; padding: 5px 9px; font: 800 11px/1 var(--f-body); cursor: pointer; white-space: nowrap; }
+  .nen-l { display: grid; gap: 6px; }
+  .nen-c { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg-2); }
+  .nen-c > i { font-size: 20px; color: var(--c); flex: none; }
+  .nen-c.on { border-color: #4ade80; background: color-mix(in srgb, #4ade80 10%, var(--surface)); }
+  .nen-c.on > i { color: #16a34a; }
+  .nen-n { flex: 1; min-width: 0; }
+  .nen-n b { font: 700 14px/1.1 var(--f-display); letter-spacing: .04em; }
+  .nen-n em { font-style: normal; font-size: 12px; font-weight: 700; color: var(--c); margin-left: 4px; }
+  .nen-c.on .nen-n em { color: #16a34a; }
+  .nen-n small { display: block; font-size: 11px; color: var(--text-3); line-height: 1.3; margin-top: 2px; }
+  .nen-a { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; }
+  .nen-a span { font: 700 11px/1 var(--f-display); color: var(--text-3); white-space: nowrap; }
+  .nen-a button { height: 28px; padding: 0 10px; border-radius: 9px; border: 1px solid color-mix(in srgb, var(--c) 50%, transparent); background: color-mix(in srgb, var(--c) 14%, var(--surface)); color: var(--text); font: 700 11px/1 var(--f-display); cursor: pointer; }
+  .nen-c.on .nen-a button { border-color: var(--border-2); background: var(--surface); }
+  .nen-a button[disabled] { opacity: .4; cursor: default; }
+  @container tp (min-width: 520px) { .nen-l { grid-template-columns: 1fr 1fr; } }
+  /* aura pulsando no token com princípio ligado */
+  .tok .nen-aura { position: absolute; inset: 4%; border-radius: 50%; pointer-events: none; box-shadow: 0 0 16px 6px var(--ac, var(--c)); animation: nenpulso 1.8s ease-in-out infinite; }
+  /* camadas de aura (svg 150% do token, centrado; 1 unidade = 1% do token) */
+  .tok .aura { position: absolute; inset: -25%; width: 150%; height: 150%; pointer-events: none; overflow: visible; color: var(--ac); }
+  .tok .aura .ten { filter: url(#auraTen); transform-origin: 0 0; animation: rengira 14s linear infinite reverse, renpulso 2.2s ease-in-out infinite; }
+  .tok .aura .ren { filter: url(#auraRen); transform-origin: 0 0; animation: rengira 9s linear infinite, renpulso 1.6s ease-in-out infinite; }
+  .tok .aura.ken .ren { opacity: 1; animation-duration: 6s, 1.1s; }
+  @keyframes rengira { to { transform: rotate(360deg); } }
+  @keyframes renpulso { 0%, 100% { opacity: .75; } 50% { opacity: 1; } }
+  /* ZETSU: aura suprimida, o token quase some */
+  .tok.zetsu .disc { opacity: .45; filter: grayscale(.6); box-shadow: 0 0 0 2px rgba(0,0,0,.35); }
+  .nen-cor { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; padding: 8px 10px; border-radius: 12px; background: var(--bg-2); border: 1px solid var(--border); }
+  .nen-cor > span { font: 800 11px/1 var(--f-body); letter-spacing: .06em; color: var(--text-2); margin-right: auto; }
+  .nen-cor button { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--surface); background: var(--sw); box-shadow: 0 0 0 1px var(--border-2), 0 0 8px var(--sw); cursor: pointer; padding: 0; }
+  .nen-cor button.on { box-shadow: 0 0 0 2px var(--text), 0 0 10px var(--sw); }
+  .nen-cor input { width: 30px; height: 26px; padding: 0; border: 1px solid var(--border-2); border-radius: 8px; background: transparent; cursor: pointer; }
+  @keyframes nenpulso { 0%, 100% { opacity: .45; transform: scale(1); } 50% { opacity: .95; transform: scale(1.08); } }
+  /* ping: "gota na água" no duplo clique do mapa */
+  .ping { position: absolute; width: 0; height: 0; z-index: 40; pointer-events: none; }
+  .ping i { position: absolute; left: calc(var(--s) / -2); top: calc(var(--s) / -2); width: var(--s); height: var(--s); border-radius: 50%; border: calc(var(--s) * .025) solid var(--c); box-shadow: 0 0 calc(var(--s) * .08) var(--c), inset 0 0 calc(var(--s) * .06) var(--c); opacity: 0; transform: scale(.05); animation: pingonda 1.5s cubic-bezier(.15,.6,.3,1) forwards; animation-delay: calc(var(--i) * .24s); }
+  .ping b { position: absolute; left: calc(var(--s) * -.06); top: calc(var(--s) * -.06); width: calc(var(--s) * .12); height: calc(var(--s) * .12); border-radius: 50%; background: var(--c); box-shadow: 0 0 calc(var(--s) * .1) var(--c); animation: pinggota .9s ease-out forwards; }
+  .ping span { position: absolute; left: 0; top: calc(var(--s) * .16); transform: translateX(-50%); white-space: nowrap; padding: .25em .7em; border-radius: 999px; background: rgba(15,17,30,.85); color: var(--c); font: 800 var(--fs) / 1.2 var(--f-body); letter-spacing: .06em; text-transform: uppercase; animation: pingnome 2s ease-out forwards; }
+  @keyframes pingonda { 0% { opacity: .95; transform: scale(.05); } 65% { opacity: .55; } 100% { opacity: 0; transform: scale(1); } }
+  @keyframes pinggota { 0% { opacity: 1; transform: scale(0); } 35% { transform: scale(1.5); } 100% { opacity: 0; transform: scale(.4); } }
+  @keyframes pingnome { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .ping i, .ping b { animation: none; opacity: .7; transform: scale(.5); } .ping i ~ i { display: none; } }
+  .tok .tok-reac.zero { background: #4b5563; color: #fff; }
+  /* escolha do modo do ataque */
+  .am { width: min(420px, 100%); padding: 16px; border-radius: 22px; background: var(--surface); border: 1px solid var(--border); box-shadow: var(--sh-3); transform: translateY(10px); transition: transform .25s var(--ease-out); }
+  .mm-ov.on .am { transform: none; }
+  .am-h { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
+  .am-h h3 { font-size: 18px; margin-top: 2px; }
+  .am-h .btn { margin-left: auto; }
+  .am-m { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .am-m button { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 10px 12px; border-radius: 14px; border: 1.5px solid var(--border-2); background: var(--surface); color: var(--text); cursor: pointer; text-align: left; }
+  .am-m button i { font-size: 18px; color: var(--blue-6); }
+  .am-m button b { font: 700 15px/1 var(--f-display); }
+  .am-m button small { font-size: 11px; color: var(--text-3); line-height: 1.25; }
+  .am-m button:hover, .am-m button:focus-visible { border-color: var(--blue-6); }
+  .am-m button.on { border-color: var(--blue-6); background: var(--blue-1); }
+  .am-t { margin-top: 12px; }
+  .seg { display: flex; gap: 4px; padding: 3px; margin-top: 6px; border-radius: 12px; background: var(--bg-2); border: 1px solid var(--border); }
+  .seg button { flex: 1; border: 0; background: transparent; padding: 8px 6px; border-radius: 9px; font: 700 12px/1 var(--f-display); color: var(--text-2); cursor: pointer; }
+  .seg button.on { background: #f59e0b; color: #1b1d2a; }
+  .seg button[data-atipo=""].on { background: var(--blue-1); color: var(--blue-7); }
+  .seg button[disabled] { opacity: .4; cursor: default; }
+  .am-t small { display: block; margin-top: 6px; font-size: 11px; color: var(--text-3); }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
@@ -440,6 +564,18 @@
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
   <!-- Hexágono do diagrama de Nen (as 6 categorias) no lugar do espiral do Shinobi; o id foi mantido -->
   <symbol id="spiral" viewBox="0 0 100 100"><polygon points="50,6 88,28 88,72 50,94 12,72 12,28" fill="none" stroke="currentColor" stroke-width="6" stroke-linejoin="round"/><polygon points="50,28 69,39 69,61 50,72 31,61 31,39" fill="currentColor" opacity=".35"/></symbol>
+  <!-- Aura de Nen nos tokens: ruído animado deslocando o contorno.
+       TEN = camada irregular mais justa e calma; REN = camada maior, "fervendo". -->
+  <filter id="auraTen" x="-30%" y="-30%" width="160%" height="160%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="2" seed="7"><animate attributeName="baseFrequency" values="0.04;0.055;0.04" dur="4.2s" repeatCount="indefinite"/></feTurbulence>
+    <feDisplacementMap in="SourceGraphic" scale="10" xChannelSelector="R" yChannelSelector="G" result="d"/>
+    <feGaussianBlur in="d" stdDeviation="1.3"/>
+  </filter>
+  <filter id="auraRen" x="-40%" y="-40%" width="180%" height="180%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="4"><animate attributeName="baseFrequency" values="0.03;0.05;0.035;0.03" dur="3.2s" repeatCount="indefinite"/></feTurbulence>
+    <feDisplacementMap in="SourceGraphic" scale="16" xChannelSelector="R" yChannelSelector="G" result="d"/>
+    <feGaussianBlur in="d" stdDeviation="1.6"/>
+  </filter>
 </defs></svg>
 <div id="root"></div>
 <input type="file" id="fileIn" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
@@ -447,6 +583,7 @@
 
 <!-- config.js do HxH5e: ADMIN_USERS e as cores das categorias de Nen (SYSTEM_DB.classes) -->
 <script src="../js/data/config.js"></script>
+<script src="../js/data/nen-affinity.js"></script>
 <!-- Bestiário do HxH5e (window.BESTIARY_DATA): a aba Bestiário do narrador -->
 <script src="../js/data/bestiary-data.js"></script>
 <script src="assets/nuvem-hxh.js"></script>
@@ -531,6 +668,8 @@
   /* =================== MESA =================== */
   const S = { mesa: null, gm: false, membros: [], perfis: {}, cenas: [], mapa: null, tokens: {}, meus: [], view: null, sel: null, painel: null, tab: null, rolagens: [], tool: 'mover', rulers: {}, chat: [], chatOk: false, naoLidas: 0 };
   let cam = { x: 40, y: 40, z: 1 };
+  // Janela do token: posição e se está diminuída ficam neste navegador.
+  try { const tp = JSON.parse(localStorage.getItem('hxh-mesa-tp') || 'null'); if (tp) { S.tpPos = tp.pos || null; S.tpMin = !!tp.min; S.tpTam = tp.tam || null; S.tpAntes = tp.antes || null; } } catch (e) {}
   let channel = null;
 
   async function abrirMesa(id) {
@@ -552,7 +691,7 @@
     S.mesa = m.data; S.gm = m.data.owner === NV.user.id;
     S.membros = mb.data || []; S.cenas = cs.data || []; S.mapa = mp.data || null;
     S.tokens = {}; (tk.data || []).forEach(t => S.tokens[t.id] = t);
-    S.rolagens = (rl.data || []).filter(podeVerRolagem);
+    S.rolagens = (rl.data || []).filter(podeVerRolagem); S.rolFim = (rl.data || []).length < 50; S.rolAntigas = false;
     S.tab = S.tab || (S.gm ? 'cenas' : 'ninja');
     try { const c = JSON.parse(localStorage.getItem('hxh-mesa-cam-' + id) || 'null'); if (c) cam = c; } catch (e) {}
     await carregarPerfis();
@@ -572,10 +711,12 @@
   function montarMesa() {
     root.innerHTML = `<div class="app" id="app">
       <header class="mbar">
+        <a class="btn btn-sm btn-ghost sair" href="mesa.html" title="Sair desta mesa e voltar à lista de mesas (de lá você volta para o HxH5e)"><i class="ph-bold ph-arrow-left"></i><span class="hide-sm">Mesas</span></a>
         <a class="brand-mark" href="mesa.html" title="Voltar às mesas"><svg><use href="#spiral"/></svg></a>
         <span class="title" id="mTitle"></span>
         <span class="role ${S.gm ? '' : 'pl'}">${S.gm ? 'Narrador' : 'Jogador'}</span>
         <span id="liveTag"></span>
+        <div class="som ${SOM.min ? 'min' : ''}" id="som" hidden><div class="som-v"><div id="somYT"></div><div class="som-ov" id="somOv"></div></div><div class="som-bar" id="somBar"></div><div class="som-vol" id="somVol"></div></div>
         <div class="right">
           <div class="faces" id="faces"></div>
           <span class="code hide-sm" id="codeBtn" title="Copiar link do convite">CONVITE · ${S.mesa.codigo}</span>
@@ -584,7 +725,6 @@
         </div>
       </header>
       <section class="stage" id="stage"></section>
-      <div class="som ${SOM.min ? 'min' : ''}" id="som" hidden><div class="som-v"><div id="somYT"></div><div class="som-ov" id="somOv"></div></div><div class="som-bar" id="somBar"></div><div class="som-vol" id="somVol"></div></div>
       <aside class="side" id="side"><div class="side-grip" id="sideGrip" title="Arraste para mudar a largura · duplo clique volta ao padrão"></div><nav class="tabs" id="tabs"></nav><div class="pane" id="pane"></div></aside>
     </div>`;
     $('#codeBtn').onclick = () => { navigator.clipboard.writeText(location.origin + location.pathname.replace(/[^/]*$/, '') + 'mesa.html?entrar=' + S.mesa.codigo).then(() => toast('Link do convite copiado', 'link')); };
@@ -741,6 +881,9 @@
       else { cam.x -= (e.shiftKey && !e.deltaX ? e.deltaY : e.deltaX) * k; cam.y -= (e.shiftKey && !e.deltaX ? 0 : e.deltaY) * k; aplicarCam(); desenharOverlay(); }
     }, { passive: false });
     vp.addEventListener('pointerdown', onDown);
+    // Sem isso o navegador seleciona os tokens ao arrastar o mapa e passa a arrastar a seleção como imagem.
+    vp.addEventListener('dragstart', e => e.preventDefault());
+    vp.addEventListener('dblclick', onPing);
     vp.addEventListener('pointermove', onMove);
     vp.addEventListener('pointerup', onUp);
     vp.addEventListener('pointercancel', onUp);
@@ -750,6 +893,29 @@
     vp.addEventListener('click', e => { const b = e.target.closest('.tok-abrir'); if (b) { e.stopPropagation(); abrirPainel(b.dataset.abrir); } });
     desenharOverlay();
   }
+  /* ---------- Ping (duplo clique no mapa) ----------
+     Uma "gota na água" onde se clicou. A do jogador só ele vê; a do narrador vai
+     para todos pelo canal da mesa (só quando ele está olhando o mapa ao vivo). */
+  const COR_PING_GM = '#ffb24d';
+  let ultimoPing = 0;
+  function mostrarPing(x, y, cor, nome) {
+    const w = $('#world'); if (!w) return;
+    const z = Math.max(.2, cam.z), sz = 150 / z;   // ~150 px na tela em qualquer zoom
+    const el = document.createElement('div'); el.className = 'ping';
+    el.style.cssText = `left:${x * CELL}px;top:${y * CELL}px;--c:${cor};--s:${sz}px;--fs:${11 / z}px`;
+    el.innerHTML = [0, 1, 2].map(i => `<i style="--i:${i}"></i>`).join('') + '<b></b>' + (nome ? `<span>${esc(nome)}</span>` : '');
+    w.appendChild(el); setTimeout(() => el.remove(), 2200);
+  }
+  function onPing(e) {
+    if (S.tool === 'regua' || e.target.closest('.tok, .zoombar, .tools, .viewsw, .tokpanel, .tok-abrir, .ordem')) return;
+    const p = toWorld(e.clientX, e.clientY), x = p.x / CELL, y = p.y / CELL;
+    const meu = Object.values(S.tokens).find(t => t.tipo === 'pj' && t.owner === NV.user.id);
+    mostrarPing(x, y, S.gm ? COR_PING_GM : (meu && meu.cor) || '#00ff9d', S.gm ? 'Narrador' : '');
+    if (S.gm && channel && S.mesa.exibindo === 'mapa' && !S.mapaPreview && Date.now() - ultimoPing > 300) {
+      ultimoPing = Date.now();
+      channel.send({ type: 'broadcast', event: 'ping', payload: { x, y } });
+    }
+  }
   function podeMover(t) { return S.gm || t.owner === NV.user.id; }
   function barrasVisiveis(t) { return t.barras_publicas || S.gm || t.owner === NV.user.id; }
   function tokenHTML(t) {
@@ -757,10 +923,14 @@
     const vis = barrasVisiveis(t);
     const pct = (a, b) => Math.max(0, Math.min(100, b ? a / b * 100 : 0));
     const ini = (t.nome || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
-    return `<div class="tok ${t.tipo} ${podeMover(t) ? 'mine' : ''} ${S.sel === t.id ? 'sel' : ''} ${turno().vez === t.id ? 'vez' : ''}" data-id="${t.id}" style="left:${t.x * CELL}px;top:${t.y * CELL}px;width:${sz}px;height:${sz}px;--c:${esc(t.cor || '#1f5ae0')}">
+    if (vis && t.tipo === 'pj' && t.personagem_id && FICHAS[t.personagem_id] === undefined) carregaFicha(t.personagem_id);   // para o selo de Reações
+    const nenAt = (t.principios || {}).ativos || {};
+    return `<div class="tok ${t.tipo} ${nenAt.zetsu ? 'zetsu' : ''} ${podeMover(t) ? 'mine' : ''} ${S.sel === t.id ? 'sel' : ''} ${turno().vez === t.id ? 'vez' : ''}" data-id="${t.id}" style="left:${t.x * CELL}px;top:${t.y * CELL}px;width:${sz}px;height:${sz}px;--c:${esc(t.cor || '#1f5ae0')};--ac:${esc(corAura(t))}">
       ${vis ? `<div class="bars ${t.barras_publicas ? '' : 'priv'}"><i class="hp"><b style="width:${pct(t.hp, t.hp_max)}%"></b></i>${t.aura_max > 0 ? `<i class="au"><b style="width:${pct(t.aura, t.aura_max)}%"></b></i>` : ''}</div>` : ''}
+      ${auraHTML(t)}
       <div class="disc">${t.img_url ? `<img src="${esc(t.img_url)}" alt="" draggable="false">` : esc(ini)}</div>
       <div class="lbl">${esc(t.nome)}</div>
+      ${vis && reacAtual(t) != null ? `<span class="tok-reac ${reacAtual(t) < 1 ? 'zero' : ''}" title="Reações">${reacAtual(t)}</span>` : ''}
       ${S.sel === t.id && S.painel !== t.id ? `<button class="tok-abrir" data-abrir="${t.id}"><i class="ph-bold ph-identification-card"></i> Abrir ficha</button>` : ''}</div>`;
   }
   function renderTokens() {
@@ -956,6 +1126,7 @@
       drag = { kind: 'tok', id: t.id, el: tokEl, ox: w.x - t.x * CELL, oy: w.y - t.y * CELL, sx: e.clientX, sy: e.clientY, x0: t.x, y0: t.y, moved: false, can: podeMover(t), path: [{ x: t.x + tam, y: t.y + tam }], cur: { x: t.x + tam, y: t.y + tam } };
       return;
     }
+    e.preventDefault(); const sel = getSelection(); if (sel && !sel.isCollapsed) sel.removeAllRanges();
     drag = { kind: 'pan', sx: e.clientX, sy: e.clientY, cx: cam.x, cy: cam.y, moved: false };
     vp.classList.add('panning');
   }
@@ -1022,6 +1193,7 @@
     if (meu) FICHAS[pid] = meu.dados || {};
     else { try { const f = await NV.obter(pid); FICHAS[pid] = f ? f.dados : false; } catch (e) { FICHAS[pid] = false; } }
     await null;
+    Object.values(S.tokens).filter(t => t.personagem_id === pid).forEach(t => { if ($(`.tok[data-id="${t.id}"]`)) atualizarToken(t); });
     if (S.sel && S.tokens[S.sel] && S.tokens[S.sel].personagem_id === pid) renderTokPanel();
   }
   const sinal = n => (n >= 0 ? '+' : '') + n;
@@ -1040,7 +1212,6 @@
     const pill = k => `<button class="tp-a" data-rola="${k}" style="--c:${ATR_COR[k]}" title="Rolar d20 ${sinal(r.attrs[k].mod)} (${k} ${r.attrs[k].valor})"><small>${k}</small><b>${sinal(r.attrs[k].mod)}</b></button>`;
     return `<div class="tp-atr">
       <div class="tp-sub">${cl ? `<span style="color:${cl.color}">${esc(cl.label)}</span> · ` : ''}Nível ${r.nivel} · Prof. +${r.pb}</div>
-      <div class="tp-abas"><button data-tpaba="atr" class="${aba === 'atr' ? 'on' : ''}">Atributos</button><button data-tpaba="atk" class="${aba === 'atk' ? 'on' : ''}">Ataques</button></div>
       ${aba === 'atr' ? `<div class="tp-tres">${Object.keys(ATR_COR).map(pill).join('')}</div>` : ataquesHTML(d, r)}
       <div class="tp-def"><span>Iniciativa <b>${sinal(r.iniciativa)}</b></span><span class="tiny">Modo: ${DADO.modo}</span><a class="tp-ficha" href="${NV.APP_URL}" target="_blank" rel="noopener">Ficha <i class="ph-bold ph-arrow-square-out"></i></a></div>
     </div>`;
@@ -1100,10 +1271,52 @@
     });
     return { det, soma, dadosSoma: det.filter(x => x.d).reduce((a, x) => a + x.s * x.r.reduce((p, q) => p + q, 0), 0) };
   }
-  async function rolarAtaque(mod, rotulo, nome, forcarVantagem) {
+  async function rolarAtaque(mod, rotulo, nome, forcarVantagem, modo) {
     const antes = DADO.modo;
+    if (modo) DADO.modo = modo;
     if (forcarVantagem && DADO.modo === 'Normal') DADO.modo = 'Vantagem';
-    try { await rolarD20(mod, rotulo, nome); } finally { DADO.modo = antes; }
+    try { return await rolarD20(mod, rotulo, nome); } finally { DADO.modo = antes; }
+  }
+  // Antes de todo ataque do token: Normal / Vantagem / Desvantagem / Ênfase e, se o token
+  // tiver Reações, se é um ataque comum, um Contra-ataque ou um Ataque de Oportunidade.
+  const MODOS_ATK = [['Normal', 'dice-five', '1d20'], ['Vantagem', 'arrow-fat-up', '2d20, fica o maior'], ['Desvantagem', 'arrow-fat-down', '2d20, fica o menor'], ['Ênfase', 'arrows-vertical', '2d20, fica o mais extremo']];
+  function escolherAtaque(t, titulo, vantagem) {
+    return new Promise(res => {
+      const max = reacMax(t), atual = reacAtual(t);
+      const pre = vantagem && DADO.modo === 'Normal' ? 'Vantagem' : DADO.modo;
+      let tipo = max != null && atual >= 1 && S.atkReacao ? S.atkReacao : '';
+      const ov = document.createElement('div'); ov.className = 'mm-ov';
+      ov.innerHTML = `<div class="am" role="dialog" aria-modal="true" aria-labelledby="amT">
+        <div class="am-h"><div><div class="tiny">${esc(t.nome)} ataca</div><h3 id="amT">${esc(titulo)}</h3></div><button class="btn btn-icon btn-ghost" data-x aria-label="Cancelar"><i class="ph-bold ph-x"></i></button></div>
+        <div class="am-m">${MODOS_ATK.map(([m, ic, d]) => `<button data-am="${m}" class="${m === pre ? 'on' : ''}"><i class="ph-bold ph-${ic}"></i><b>${m}</b><small>${d}</small></button>`).join('')}</div>
+        ${vantagem ? '<p class="hint">Este ataque já tem vantagem: Normal rola com vantagem.</p>' : ''}
+        ${max != null ? `<div class="am-t"><span class="tiny">Tipo de ataque · Reações ${atual}/${max}</span>
+          <div class="seg">${TIPOS_ATK.map(([k, l]) => `<button data-atipo="${k}" class="${k === tipo ? 'on' : ''}" ${k && atual < 1 ? 'disabled' : ''}>${l}</button>`).join('')}</div>
+          <small id="amTip"></small></div>` : ''}
+      </div>`;
+      document.body.appendChild(ov); requestAnimationFrame(() => ov.classList.add('on'));
+      const dica = () => { const d = $('#amTip', ov); if (d) d.textContent = (TIPOS_ATK.find(x => x[0] === tipo) || [])[2] || ''; };
+      dica();
+      const tecla = e => { if (e.key === 'Escape') fim(null); };
+      const fim = v => {
+        removeEventListener('keydown', tecla); ov.remove();
+        if (S.atkReacao) { S.atkReacao = null; if (S.sel === t.id) renderTokPanel(); }
+        res(v);
+      };
+      addEventListener('keydown', tecla);
+      ov.onclick = e => { if (e.target === ov || e.target.closest('[data-x]')) fim(null); };
+      $$('[data-atipo]', ov).forEach(b => b.onclick = () => { tipo = b.dataset.atipo; $$('[data-atipo]', ov).forEach(x => x.classList.toggle('on', x === b)); dica(); });
+      $$('[data-am]', ov).forEach(b => b.onclick = () => fim({ modo: b.dataset.am, reacao: tipo }));
+      ($('[data-am].on', ov) || $('[data-am]', ov)).focus();
+    });
+  }
+  const TIPOS_ATK = [['', 'Ataque', 'Ataque comum, na sua ação.'], ['contra', 'Contra-ataque', 'Reação: gasta 1 Reação e a sua próxima ação principal.'], ['ado', 'AdO', 'Ataque de Oportunidade (inimigo saiu do seu alcance): gasta 1 Reação, não gasta ação principal.']];
+  // Abre a escolha e, se confirmada, gasta a Reação (contra-ataque / AdO) e rola.
+  async function atacar(t, titulo, vantagem, rolarFn) {
+    const c = await escolherAtaque(t, titulo, vantagem); if (!c) return;
+    const nomeR = { contra: 'Contra-ataque', ado: 'AdO' }[c.reacao];
+    if (nomeR && !(await gastarReacao(t, nomeR))) return;
+    await rolarFn(c.modo, nomeR ? nomeR + ' · ' : '');
   }
   async function rolarDano(expr, mod, rotulo, nome, opts = {}) {
     const e = dadosExpr(expr, opts.maximizar);
@@ -1116,8 +1329,10 @@
   }
   async function rolarArma(t, w, at) {
     const r = NV.resumo(FICHAS[t.personagem_id] || {});
-    await rolarAtaque(r.attrs[at].mod + r.pb, `Ataque · ${w.nome} (${at})`, t.nome);
-    await rolarDano(w.dano, r.attrs[at].mod, `Dano · ${w.nome}${w.tipo ? ' · ' + w.tipo : ''}`, t.nome);
+    await atacar(t, `${w.nome} (${at})`, false, async (modo, pre) => {
+      await rolarAtaque(r.attrs[at].mod + r.pb, `${pre}Ataque · ${w.nome} (${at})`, t.nome, false, modo);
+      await rolarDano(w.dano, r.attrs[at].mod, `Dano · ${w.nome}${w.tipo ? ' · ' + w.tipo : ''}`, t.nome);
+    });
   }
   // Hatsu: usa o resumo gravado pela ficha (h.mesaRolagem, ver hatsu-detail.js).
   // REN não entra aqui: escalonar graus continua sendo feito na ficha.
@@ -1126,7 +1341,15 @@
     if (!m) return;
     const r = NV.resumo(d), nome = x.nome || 'Hatsu';
     const modAt = k => (r.attrs[k] || { mod: 0 }).mod;
-    if (m.hasAttack) await rolarAtaque(modAt(m.atkAttr) + prof(m.nivel) + (m.acertoBonus || 0), `Ataque · ${nome}`, t.nome, m.acertoVantagem);
+    if (m.hasAttack) return atacar(t, nome, m.acertoVantagem, async (modo, pre) => {
+      await rolarAtaque(modAt(m.atkAttr) + prof(m.nivel) + (m.acertoBonus || 0), `${pre}Ataque · ${nome}`, t.nome, m.acertoVantagem, modo);
+      await efeitosHatsu(t, m, r, nome);
+    });
+    await efeitosHatsu(t, m, r, nome);
+  }
+  // Dano, cura e custo de Aura do Hatsu (depois do ataque, quando há ataque).
+  async function efeitosHatsu(t, m, r, nome) {
+    const modAt = k => (r.attrs[k] || { mod: 0 }).mod;
     if (m.hasBaseDmg) {
       // Extras: dados ("+ 1d8") entram na mesma expressão; números fixos somam no fim.
       let expr = m.dice || '', fixo = 0;
@@ -1150,29 +1373,314 @@
       if (error) toast(errMsg(error), 'warning'); else toast(esc(`${nome}: −${m.aura} de Aura`), 'lightning');
     }
   }
-  function abrirPainel(id) { if (!S.tokens[id]) return; S.sel = id; S.painel = id; renderTokens(); }
+  /* ---------- Reações ----------
+     Regra do HxH5e (cap. 4): 7 + mod. de SAB (+ Analítica e Noção do Perigo, pelo
+     calcReacoesMax da ficha). Cada Reação usada gasta 1; elas voltam com Zetsu ou
+     descanso, não por rodada. Criatura do Bestiário usa o valor da ficha dela (sem o
+     descritor = sem Reações). O valor atual fica em tokens.reacoes; a ficha não muda. */
+  function reacMax(t) {
+    const bm = bestDe(t); if (bm) { const n = parseInt(bm.reacoes); return n > 0 ? n : null; }
+    if (t.tipo === 'pj' && t.personagem_id) {
+      const d = FICHAS[t.personagem_id]; if (!d) return null;
+      return window.calcReacoesMax ? window.calcReacoesMax(d) : 7 + NV.resumo(d).attrs.SAB.mod;
+    }
+    return 7;
+  }
+  // Sem valor no token, vale o que está na ficha (contador REA) ou o máximo.
+  function reacAtual(t) {
+    const max = reacMax(t);
+    let v = t.reacoes;
+    if (v == null) { const d = t.personagem_id && FICHAS[t.personagem_id]; v = d && d.vitals && d.vitals.rea != null ? d.vitals.rea : max; }
+    return v == null ? null : Math.max(0, v);
+  }
+  // Grava no token e avisa a mesa. Colunas novas (reacoes, principios) podem não existir
+  // ainda no banco: aí o valor segue ao vivo pelo canal, só não sobrevive a recarregar.
+  const semColuna = new Set();
+  async function salvarTok(t, patch) {
+    Object.assign(t, patch); atualizarToken(t); if (S.sel === t.id) renderTokPanel();
+    if (channel) channel.send({ type: 'broadcast', event: 'tok', payload: Object.assign({ id: t.id }, patch) });
+    const db = Object.assign({}, patch); semColuna.forEach(k => delete db[k]);
+    while (Object.keys(db).length) {
+      const { error } = await sb.from('tokens').update(db).eq('id', t.id);
+      if (!error) return;
+      const col = ['reacoes', 'principios'].find(k => k in db && errMsg(error).includes(k));
+      if (!col) return toast(esc(errMsg(error)), 'warning');
+      semColuna.add(col); delete db[col];
+      toast(`${col === 'reacoes' ? 'Reações' : 'Princípios de Nen'} só ao vivo: falta a coluna <b>${col}</b> na tabela tokens.`, 'warning');
+    }
+  }
+  const salvarReac = (t, v) => salvarTok(t, { reacoes: v });
+  async function gastarReacao(t, motivo) {
+    const atual = reacAtual(t);
+    if (atual == null) return true;
+    if (atual < 1) { toast(esc(`${t.nome} está sem Reações`), 'warning'); return false; }
+    await salvarReac(t, atual - 1);
+    toast(esc(`${t.nome}: ${motivo} · −1 Reação (${atual - 1} restantes)`), 'shield-chevron');
+    return true;
+  }
+  // Modificadores base (sem Hatsu/princípios, como o resto da mesa).
+  function modAt(t, k) {
+    const bm = bestDe(t); if (bm) return bestMod(bm[k.toLowerCase()]);
+    const d = t.personagem_id && FICHAS[t.personagem_id];
+    return d ? NV.resumo(d).attrs[k].mod : 0;
+  }
+  function modAcrobacia(t) {
+    const bm = bestDe(t); if (bm) { const p = bestLista(bm.pericias).find(x => /acrob/i.test(x.n)); return p ? p.v : bestMod(bm.des); }
+    const d = t.personagem_id && FICHAS[t.personagem_id]; if (!d) return 0;
+    const r = NV.resumo(d), sk = d.skills || [], ex = d.expertise || [];
+    return r.attrs.DES.mod + (ex.includes('Acrobacia') ? r.pb * 2 : sk.includes('Acrobacia') ? r.pb : 0);
+  }
+  // CA para Assumir Lugar: a da criatura, ou 10 + CON (armadura fica de fora: some à parte).
+  function caDe(t) {
+    const bm = bestDe(t); if (bm) return parseInt(bm.ca) || 10;
+    return 10 + modAt(t, 'CON');
+  }
+  const REACOES = [
+    { k: 'esq', n: 'Esquiva', f: '1d20 + DES', mod: t => modAt(t, 'DES'), nota: 'Supere o ataque. Falha: dano inteiro + a sua DES.' },
+    { k: 'acro', n: 'Esquiva Acrobática', f: '1d20 + Acrobacia', mod: modAcrobacia, nota: 'De pé e com um quadrado livre ao lado. Mesma regra da Esquiva.' },
+    { k: 'bdes', n: 'Bloqueio Desarmado', f: '1d20 + CON + FOR', mod: t => modAt(t, 'CON') + modAt(t, 'FOR'), nota: 'Falha ou empate: dano inteiro e −1d6 na CA até o fim do próximo turno.' },
+    { k: 'barm', n: 'Bloqueio Armado', f: '1d20 + CON + FOR + arma', mod: t => modAt(t, 'CON') + modAt(t, 'FOR'), nota: 'Some o bônus da arma. Falha ou empate: 1d10 → 1–8 desarma, 9–10 quebra a arma.' },
+    { k: 'lugar', n: 'Assumir Lugar', f: '1d6 + CA', d6: true, mod: caDe, nota: 'Adjacente ao aliado. Menor: sofre o dano · igual: divide · maior: nada. Perde a próxima ação principal.' },
+    { k: 'contra', n: 'Contra-ataque', atk: true, nota: 'Escolha o ataque. Gasta a próxima ação principal.' },
+    { k: 'ado', n: 'Ataque de Oportunidade', atk: true, nota: 'Inimigo saiu do seu alcance corpo a corpo. Não gasta ação principal.' },
+  ];
+  function reacoesHTML(t, pode) {
+    const max = reacMax(t); if (max == null) return '';
+    const atual = reacAtual(t), temAtk = temFicha(t);
+    return `<div class="reac"><span><i class="ph-fill ph-shield-chevron"></i> REAÇÕES</span>
+        <span class="reac-pips">${Math.max(max, atual) <= 24 ? Array.from({ length: Math.max(max, atual) }, (_, i) => `<i class="${i < atual ? '' : 'gasta'}"></i>`).join('') : ''}</span><b>${atual}/${max}</b></div>
+      ${pode ? `<div class="reac-b"><button data-reac="-1" ${atual < 1 ? 'disabled' : ''} title="Gastar 1 Reação">−1</button><button data-reac="1" ${atual >= max ? 'disabled' : ''}>+1</button>
+        <button data-reac="cheio" ${atual >= max ? 'disabled' : ''}><i class="ph-bold ph-arrow-counter-clockwise"></i> Recuperar (Zetsu / descanso)</button></div>
+      <div class="rx">${REACOES.map(x => `<button class="rx-i" data-rx="${x.k}" ${atual < 1 ? 'disabled' : ''}><span class="rx-n"><b>${x.n}</b><small>${x.nota}</small></span>
+        <span class="rx-v">${x.atk ? (temAtk ? 'Atacar <i class="ph-bold ph-caret-right"></i>' : '−1') : x.d6 ? `1d6 + ${x.mod(t)}` : sinal(x.mod(t))}</span></button>`).join('')}</div>` : ''}
+      <p class="hint">7 + SAB. Cada Reação gasta 1; elas voltam com Zetsu ou descanso.${bestDe(t) || t.tipo !== 'pj' ? '' : ' Assumir Lugar usa CA 10 + CON: some a armadura, se tiver.'}</p>`;
+  }
+  async function usarReacao(t, x) {
+    if (x.atk) {
+      if (!temFicha(t)) return gastarReacao(t, x.n);
+      // A Reação é gasta quando o ataque é confirmado no popup.
+      S.atkReacao = x.k === 'contra' ? 'contra' : 'ado'; S.tpAba = 'atk'; renderTokPanel();
+      return toast(esc(`Escolha o ataque do ${x.n}`), 'sword');
+    }
+    if (!(await gastarReacao(t, x.n))) return;
+    if (x.d6) rolarDano('1d6', x.mod(t), `Reação · ${x.n} (${x.f})`, t.nome);
+    else rolarD20(x.mod(t), `Reação · ${x.n} (${x.f})`, t.nome);
+  }
+  /* ---------- Nen: princípios ativados pelo token ----------
+     Mesma lista, custos e efeitos da ficha (sheet.js / _activatePrincipio), com as contas do
+     nen-affinity.js (Aprimoramento incluído). Gasta a Aura (e, no EN/KEN, as Reações) do
+     token; o estado fica em tokens.principios = { ativos, gyo, z }. A ficha não muda.
+     Nada desliga sozinho: o princípio fica ativo até o jogador clicar em Desligar
+     (a duração aparece só como lembrete). O ZETSU é concluído no botão Concluir. */
+  function principiosDe(c) {
+    const d = c.nenDominio || {}, B = (k, def) => window.calcAvancadoBonus ? window.calcAvancadoBonus(c, k) : def;
+    const tenRD = window.calcTenRD ? window.calcTenRD(c) : 0;
+    const rB = window.calcRenBonus ? window.calcRenBonus(c) : { grau: 1, teste: 0, opcao: 1, extra: 0 };
+    const zB = window.calcZetsuBonus ? window.calcZetsuBonus(c) : { auraPct: 0, rodadas: 3, reacoes: 0, furtividade: 0 };
+    const enB = B('en', { diametro: 3, reacoes: 2 }), inB = B('inp', { rodadas: 1 }), gyB = B('gyo', { attrBonus: 3 }), shB = B('shu', { rodadas: 1 }),
+      keB = B('ken', { auraCusto: 30, reacoes: 4 }), koB = B('ko', { caBonus: 0 }), ryB = B('ryu', { tabelaBonus: 0 });
+    const reforco = c.class === 'REFORÇO' || c.class === 'INTENSIFICAÇÃO';
+    return [
+      { k: 'ten', n: 'TEN', ic: 'shield', custo: reforco ? ((d.ten || 1) === 2 ? 5 : 10) : 20, rod: 1, ef: `+${tenRD} RD`, desc: 'Reação ou Ação Bônus · RD contra Corte, Impacto e Explosão', show: (d.ten || 0) > 0 },
+      { k: 'ren', n: 'REN', ic: 'fire', custo: 10, rod: 1, ef: rB.opcao === 2 && rB.extra > 0 ? `+${rB.teste} Intim./Arcan.` : `+${rB.grau} grau de dano`, desc: 'Ação Bônus · vale para o próximo ataque do turno', show: (d.ren || 0) > 0 },
+      { k: 'zetsu', n: 'ZETSU', ic: 'eye-closed', custo: 0, rod: Math.max(1, zB.rodadas || 3), z: zB, ef: `+${zB.auraPct}% Aura, +${zB.reacoes} Reação`, desc: `Ação Bônus · conclui em ${zB.rodadas} rodada(s) · +${zB.furtividade} Furtividade`, show: (d.zetsu || 0) > 0 },
+      { k: 'en', n: 'EN', ic: 'circles-three', custo: 10, reac: enB.reacoes, rod: 1, ef: `Detecta ${enB.diametro}m`, desc: `${enB.reacoes} Reações · contra-ataca quem entrar, sem gastar ação principal`, show: !!d.en },
+      { k: 'inp', n: 'IN', ic: 'eye-slash', custo: 5, rod: inB.rodadas || 1, ef: `Oculta ${inB.rodadas} rodada(s)`, desc: 'Esconde a aura de um objeto ou Hatsu', show: !!d.inp },
+      { k: 'gyo', n: 'GYO', ic: 'magnifying-glass', custo: 10, rod: 1, gyo: gyB.attrBonus, ef: `Ver aura · ou +${gyB.attrBonus} FOR/DES/CON`, desc: 'Olhos: 10 de Aura · Corpo: 30 de Aura', show: !!d.gyo },
+      { k: 'shu', n: 'SHU', ic: 'lightning', custo: 10, rod: shB.rodadas || 1, ef: '+1d4 dano e CA', desc: `Objeto de até 1m envolto por ${shB.rodadas} rodada(s)`, show: !!d.shu },
+      { k: 'ken', n: 'KEN', ic: 'castle-turret', custo: keB.auraCusto, reac: keB.reacoes, rod: 2, ef: 'CA ×2 por 2 rodadas', desc: `${keB.reacoes} Reações · Ação Bônus ou Reação`, show: !!d.ken },
+      { k: 'ko', n: 'KO', ic: 'flame', custo: 30, rod: 1, ef: 'Dano ×3 no próximo golpe', desc: `CA −80% até o próximo turno${koB.caBonus > 0 ? ` (+${koB.caBonus})` : ''}`, show: !!d.ko },
+      { k: 'ryu', n: 'RYU', ic: 'waves', custo: 30, rod: 6, ef: `+3 CA e ataque${ryB.tabelaBonus > 0 ? ` (+${ryB.tabelaBonus})` : ''}`, desc: 'Fluidez · contra-ataques com Reações', show: !!d.ryu },
+    ].filter(x => x.show);
+  }
+  const nenLista = t => { const d = !bestDe(t) && t.personagem_id && FICHAS[t.personagem_id]; return d ? principiosDe(d) : []; };
+  const nenEstado = t => { const n = t.principios || {}; return { ativos: Object.assign({}, n.ativos), rod: Object.assign({}, n.rod), gyo: n.gyo || null, z: n.z || null, cor: n.cor || null }; };
+  // Cor da aura: escolhida pelo jogador na aba Nen; sem escolha, a cor do token (categoria).
+  const corAura = t => { const c = (t.principios || {}).cor; return /^#[0-9a-f]{6}$/i.test(c || '') ? c : (t.cor || '#00ff9d'); };
+  const CORES_AURA = ['#38bdf8', '#4ade80', '#facc15', '#f97316', '#ef4444', '#a855f7', '#ec4899', '#f8fafc'];
+  // Como no anime: TEN é uma camada irregular mais justa ao corpo; REN (e KEN, mais densa)
+  // é maior e mais agitada, por cima do TEN. Os outros princípios só pulsam.
+  function auraHTML(t) {
+    const at = (t.principios || {}).ativos || {};
+    const ren = at.ren || at.ken || at.ko, ten = at.ten || ren;
+    if (!ten) return Object.keys(at).some(k => k !== 'zetsu') ? '<div class="nen-aura"></div>' : '';
+    return `<svg class="aura ${at.ken ? 'ken' : ''}" viewBox="-75 -75 150 150" aria-hidden="true">
+      ${ren ? `<g class="ren"><circle r="68" fill="none" stroke="currentColor" stroke-width="20" opacity=".35"/><circle r="61" fill="none" stroke="currentColor" stroke-width="9" opacity=".55"/></g>` : ''}
+      <g class="ten"><circle r="57" fill="none" stroke="currentColor" stroke-width="14" opacity=".35"/><circle r="52" fill="none" stroke="currentColor" stroke-width="7" opacity=".55"/></g></svg>`;
+  }
+  function salvarCorAura(t, cor) {
+    const nen = nenEstado(t); nen.cor = cor;
+    salvarTok(t, { principios: nen });
+  }
+  const GYO_ALVO = { olhos: 'olhos', FOR: 'Força', DES: 'Destreza', CON: 'Constituição' };
+  function escolherGyo(p) {
+    return new Promise(res => {
+      const ov = document.createElement('div'); ov.className = 'mm-ov';
+      ov.innerHTML = `<div class="am" role="dialog" aria-modal="true" aria-labelledby="gyT">
+        <div class="am-h"><div><div class="tiny">GYO</div><h3 id="gyT">Onde concentrar a aura?</h3></div><button class="btn btn-icon btn-ghost" data-x aria-label="Cancelar"><i class="ph-bold ph-x"></i></button></div>
+        <div class="am-m">${[['olhos', 'eye', 'Olhos', 'Vê aura e o que está oculto (IN) · 10 de Aura'], ['FOR', 'barbell', 'Força', `+${p.gyo} no atributo · 30 de Aura`], ['DES', 'person-simple-run', 'Destreza', `+${p.gyo} no atributo · 30 de Aura`], ['CON', 'shield-plus', 'Constituição', `+${p.gyo} (a CA sobe junto) · 30 de Aura`]]
+          .map(([k, ic, l, d]) => `<button data-gy="${k}"><i class="ph-bold ph-${ic}"></i><b>${l}</b><small>${d}</small></button>`).join('')}</div></div>`;
+      document.body.appendChild(ov); requestAnimationFrame(() => ov.classList.add('on'));
+      const tecla = e => { if (e.key === 'Escape') fim(null); };
+      const fim = v => { removeEventListener('keydown', tecla); ov.remove(); res(v); };
+      addEventListener('keydown', tecla);
+      ov.onclick = e => { if (e.target === ov || e.target.closest('[data-x]')) fim(null); };
+      $$('[data-gy]', ov).forEach(b => b.onclick = () => fim(b.dataset.gy));
+      $('[data-gy]', ov).focus();
+    });
+  }
+  async function ativarPrincipio(t, p) {
+    let custo = p.custo, alvo = null;
+    if (p.k === 'gyo') { alvo = await escolherGyo(p); if (!alvo) return; custo = alvo === 'olhos' ? 10 : 30; }
+    if (custo > (t.aura || 0)) return toast(esc(`Aura insuficiente para ${p.n}: precisa de ${custo}, o token tem ${t.aura || 0}`), 'warning');
+    const ra = reacAtual(t);
+    if (p.reac && ra != null && ra < p.reac) return toast(esc(`${p.n} precisa de ${p.reac} Reações (${t.nome} tem ${ra})`), 'warning');
+    const nen = nenEstado(t);
+    nen.ativos[p.k] = true;
+    if (alvo) nen.gyo = alvo;
+    if (p.z) nen.z = { auraPct: p.z.auraPct || 0, reacoes: p.z.reacoes || 0, furtividade: p.z.furtividade || 0 };
+    const patch = { principios: nen };
+    if (custo) patch.aura = Math.max(0, (t.aura || 0) - custo);
+    if (p.reac && ra != null) patch.reacoes = ra - p.reac;
+    await salvarTok(t, patch);
+    const ef = p.k === 'gyo' ? (alvo === 'olhos' ? 'vê aura e o oculto' : `+${p.gyo} em ${GYO_ALVO[alvo]}`) : p.ef;
+    toast(esc(`${t.nome}: ${p.n} · ${ef}${custo ? ` · −${custo} Aura` : ''}${p.reac ? ` · −${p.reac} Reações` : ''}`), 'sparkle');
+  }
+  function desligarPrincipio(t, k) {
+    const nen = nenEstado(t);
+    if (k) { delete nen.ativos[k]; delete nen.rod[k]; if (k === 'gyo') nen.gyo = null; }
+    else { nen.ativos = {}; nen.rod = {}; nen.gyo = null; }
+    salvarTok(t, { principios: nen });
+  }
+  // ZETSU concluído: devolve a % de Aura e as Reações, e desliga.
+  async function concluirZetsu(t) {
+    const nen = nenEstado(t), z = nen.z || {}, patch = {};
+    const ganho = Math.round((t.aura_max || 0) * (z.auraPct || 0) / 100);
+    if (ganho > 0) patch.aura = Math.min(t.aura_max || 0, (t.aura || 0) + ganho);
+    const ra = reacAtual(t); if (z.reacoes > 0 && ra != null) patch.reacoes = ra + z.reacoes;
+    delete nen.ativos.zetsu; delete nen.rod.zetsu; nen.z = null;
+    patch.principios = nen;
+    await salvarTok(t, patch);
+    toast(esc(`${t.nome}: ZETSU concluído · +${ganho} Aura${z.reacoes ? ` · +${z.reacoes} Reação` : ''}${z.furtividade ? ` · +${z.furtividade} Furtividade nesta rodada` : ''}`), 'eye-closed');
+  }
+  function nenHTML(t, pode) {
+    const lista = nenLista(t), nen = nenEstado(t), ra = reacAtual(t);
+    if (!lista.length) return '<p class="hint">Este personagem ainda não tem princípios de Nen dominados na ficha.</p>';
+    const cor = ((NV.resumo(FICHAS[t.personagem_id] || {}).classe) || {}).color || '#00ff9d';
+    const nome = k => k === 'inp' ? 'IN' : k.toUpperCase();
+    const ligados = Object.keys(nen.ativos).map(k => nome(k) + (k === 'gyo' && nen.gyo ? ` (${GYO_ALVO[nen.gyo]})` : ''));
+    const ca = corAura(t);
+    const corHTML = pode ? `<div class="nen-cor"><span>COR DA AURA</span>${CORES_AURA.map(c => `<button data-auracor="${c}" class="${c === ca ? 'on' : ''}" style="--sw:${c}" title="${c}" aria-label="Aura ${c}"></button>`).join('')}<input type="color" id="nenCor" value="${ca}" title="Outra cor" aria-label="Escolher outra cor"></div>` : '';
+    return `${corHTML}${ligados.length ? `<div class="nen-on"><i class="ph-fill ph-sparkle"></i><span>Ativo: ${esc(ligados.join(', '))}</span>${pode ? '<button data-nenoff="">Desligar tudo</button>' : ''}</div>` : ''}
+      <div class="nen-l" style="--c:${cor}">${lista.map(p => {
+        const on = !!nen.ativos[p.k];
+        const min = p.k === 'gyo' ? 10 : p.custo, falta = (t.aura || 0) < min || (p.reac && ra != null && ra < p.reac);
+        const info = on ? (p.k === 'zetsu' ? 'carregando' : 'ativo') : [p.k === 'gyo' ? '10–30 Aura' : p.custo ? `${p.custo} Aura` : 'sem custo', p.reac ? `${p.reac} Reações` : ''].filter(Boolean).join(' · ');
+        return `<div class="nen-c ${on ? 'on' : ''}"><i class="ph-bold ph-${p.ic}"></i>
+          <div class="nen-n"><b>${p.n}</b><em>${esc(on && p.k === 'gyo' && nen.gyo ? (nen.gyo === 'olhos' ? 'olhos: vê aura' : `+${p.gyo} ${nen.gyo}`) : p.ef)}</em><small>${esc(p.desc)}${p.k !== 'zetsu' && p.rod ? ` · dura ${p.rod} rodada${p.rod > 1 ? 's' : ''}` : ''}</small></div>
+          <div class="nen-a"><span>${info}</span>${pode ? (on ? `${p.k === 'zetsu' ? '<button data-zetsu="1" title="Devolve a Aura e as Reações e desliga">Concluir</button>' : ''}<button data-nenoff="${p.k}">Desligar</button>` : `<button data-nen="${p.k}" ${falta ? 'disabled' : ''}>Ativar</button>`) : ''}</div></div>`;
+      }).join('')}</div>
+      <p class="hint">Mesmos princípios e custos da ficha. Gasta a Aura${lista.some(p => p.reac) ? ' e as Reações' : ''} do token; a ficha não muda. O princípio fica ativo até você clicar em Desligar.</p>`;
+  }
+  function abrirPainel(id) { if (!S.tokens[id]) return; S.sel = id; S.painel = id; if (S.tpMin) { S.tpMin = false; salvarTP(); } renderTokens(); }
+  // Pode ver atributos/ataques: criatura do Bestiário (só narrador) ou ficha do jogador (dono e narrador).
+  function temFicha(t) {
+    if (bestDe(t)) return S.gm;
+    return t.tipo === 'pj' && !!t.personagem_id && (S.gm || t.owner === NV.user.id) && FICHAS[t.personagem_id] !== false;
+  }
+  function abasPainel(t, pode) {
+    const fic = temFicha(t);
+    return [fic && ['atr', 'Atributos', 'chart-bar'], fic && ['atk', 'Ataques', 'sword'], fic && !bestDe(t) && nenLista(t).length && ['nen', 'Nen', 'sparkle'], barrasVisiveis(t) && reacMax(t) != null && ['reac', 'Reações', 'shield-chevron'], pode && ['cfg', 'Ajustes', 'gear-six']].filter(Boolean);
+  }
+  const salvarTP = () => { try { localStorage.setItem('hxh-mesa-tp', JSON.stringify({ pos: S.tpPos, min: S.tpMin, tam: S.tpTam, antes: S.tpAntes })); } catch (e) {} };
   function renderTokPanel() {
-    const old = $('#tokPanel'); if (old) old.remove();
+    const old = $('#tokPanel'), rolou = old && $('.tp-body', old) ? $('.tp-body', old).scrollTop : 0;
+    if (old) old.remove();
     const t = S.sel && S.painel === S.sel && S.tokens[S.sel]; const st = $('.vp') && $('#stage');
     if (!t || !st) return;
-    const pode = podeMover(t), vis = barrasVisiveis(t);
-    const el = document.createElement('div'); el.className = 'tokpanel'; el.id = 'tokPanel';
+    const pode = podeMover(t), vis = barrasVisiveis(t), min = !!S.tpMin;
+    const abas = abasPainel(t, pode);
+    if (!abas.some(a => a[0] === S.tpAba)) S.tpAba = abas.length ? abas[0][0] : null;
+    const el = document.createElement('div'); el.className = 'tokpanel' + (min ? ' min' : ''); el.id = 'tokPanel';
     const res = (k, lbl, cor) => `<div class="res"><span style="color:${cor}">${lbl}</span>
       <div class="bar"><b style="width:${Math.max(0, Math.min(100, t[k + '_max'] ? t[k] / t[k + '_max'] * 100 : 0))}%;background:${cor}"></b></div>
       ${pode ? `<div class="ctl"><button data-k="${k}" data-d="-10">−10</button><button data-k="${k}" data-d="-5">−5</button><input data-k="${k}" value="${t[k]}" inputmode="numeric" aria-label="${lbl} atual"><button data-k="${k}" data-d="5">+5</button></div>` : `<b>${t[k]}/${t[k + '_max']}</b>`}</div>`;
-    el.innerHTML = `<div class="h">${t.img_url ? `<img class="av" src="${esc(t.img_url)}" alt="">` : `<span class="av" style="background:${esc(t.cor)};color:#fff">${esc((t.nome || '?')[0])}</span>`}
-      <div><b>${esc(t.nome)}</b><div class="tiny">${t.tipo === 'npc' ? 'NPC do narrador' : esc((S.perfis[t.owner] || {}).nome || 'Jogador')}</div></div>
-      <button class="btn btn-icon btn-ghost x" id="tpX" aria-label="Fechar"><i class="ph-bold ph-x"></i></button></div>
-      ${atributosHTML(t)}
-      ${vis ? res('hp', 'PV', COR_PV) + (t.aura_max > 0 ? res('aura', 'AURA', COR_AURA) : '') + (pode ? `<div class="tiny" style="margin:-2px 0 8px">Máximo: ${t.hp_max} PV${t.aura_max > 0 ? ` · ${t.aura_max} Aura` : ''}${t.tipo === 'pj' ? ' · não altera a ficha' : ''}</div>` : '') : '<p class="hint">As barras deste token estão escondidas.</p>'}
-      ${pode ? `<label class="chk"><input type="checkbox" id="tpPub" ${t.barras_publicas ? 'checked' : ''}> Barras visíveis para todos</label>
-      <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+    const ra = reacAtual(t), rm = reacMax(t);
+    const mini = vis ? `<div class="tp-mini"><span><small style="color:${COR_PV}">PV</small>${t.hp}/${t.hp_max}</span>${t.aura_max > 0 ? `<span><small style="color:${COR_AURA}">AURA</small>${t.aura}/${t.aura_max}</span>` : ''}${rm != null ? `<span><small style="color:#f59e0b">REAÇÕES</small>${ra}/${rm}</span>` : ''}${Object.keys((t.principios || {}).ativos || {}).length ? `<span><small style="color:#16a34a">NEN</small>${Object.keys(t.principios.ativos).map(k => k === 'inp' ? 'IN' : k.toUpperCase()).join(' ')}</span>` : ''}</div>` : '';
+    const ATKR = { contra: 'Contra-ataque', ado: 'Ataque de Oportunidade' };
+    const conteudo = {
+      atr: () => atributosHTML(t),
+      atk: () => (S.atkReacao ? `<div class="tp-ban"><i class="ph-fill ph-shield-chevron" style="color:#f59e0b"></i> Próximo ataque: ${ATKR[S.atkReacao]} (gasta 1 Reação)<button id="tpBanX">Cancelar</button></div>` : '') + atributosHTML(t),
+      reac: () => reacoesHTML(t, pode),
+      nen: () => nenHTML(t, pode),
+      cfg: () => `<label class="chk"><input type="checkbox" id="tpPub" ${t.barras_publicas ? 'checked' : ''}> Barras visíveis para todos</label>
+        <div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap">
         ${S.gm ? `<select class="input" id="tpSz" style="height:34px;width:auto;font-size:13px;padding:0 30px 0 10px">${[1, 2, 3, 4].map(n => `<option value="${n}" ${t.tamanho === n ? 'selected' : ''}>${n}×${n}</option>`).join('')}</select>` : ''}
         <button class="btn btn-sm" id="tpAv"><i class="ph ph-image"></i> Avatar</button>
-        ${t.owner === NV.user.id && (NV.perfil() || {}).avatar ? '<button class="btn btn-sm btn-ghost" id="tpG" title="Usar a foto da sua conta (Discord ou Google)">Usar minha foto</button>' : ''}
-        <button class="btn btn-sm btn-ghost" id="tpDel" style="margin-left:auto;color:var(--red-6)">Remover</button></div>` : ''}`;
+        ${t.owner === NV.user.id && (NV.perfil() || {}).avatar ? '<button class="btn btn-sm btn-ghost" id="tpG" title="Usar a foto da sua conta (Discord ou Google)">Usar minha foto</button>' : ''}</div>
+        <div class="sep"></div><button class="btn btn-sm btn-ghost" id="tpDel" style="color:var(--red-6)"><i class="ph ph-trash"></i> Remover do mapa</button>`,
+    };
+    el.innerHTML = `<div class="tp-h" id="tpH">${t.img_url ? `<img class="av" src="${esc(t.img_url)}" alt="" draggable="false">` : `<span class="av" style="background:${esc(t.cor)};color:#fff">${esc((t.nome || '?')[0])}</span>`}
+      <div class="tp-n"><b title="${esc(t.nome)}">${esc(t.nome)}</b><div class="tiny">${t.tipo === 'npc' ? 'NPC do narrador' : esc((S.perfis[t.owner] || {}).nome || 'Jogador')}</div></div>
+      ${min ? '' : `<button class="tp-ic" id="tpBig" title="${S.tpAntes ? 'Voltar ao tamanho anterior' : 'Expandir a ficha'}" aria-label="${S.tpAntes ? 'Voltar ao tamanho anterior' : 'Expandir a ficha'}"><i class="ph-bold ph-corners-${S.tpAntes ? 'in' : 'out'}"></i></button>`}
+      <button class="tp-ic" id="tpMin" title="${min ? 'Abrir a ficha' : 'Diminuir'}" aria-label="${min ? 'Abrir a ficha' : 'Diminuir'}"><i class="ph-bold ph-${min ? 'arrows-out-simple' : 'minus'}"></i></button>
+      <button class="tp-ic" id="tpX" title="Fechar" aria-label="Fechar"><i class="ph-bold ph-x"></i></button></div>
+      ${min ? mini : `<div class="tp-body">
+        ${vis ? res('hp', 'PV', COR_PV) + (t.aura_max > 0 ? res('aura', 'AURA', COR_AURA) : '') + (pode ? `<div class="tiny" style="margin:-2px 0 10px">Máximo: ${t.hp_max} PV${t.aura_max > 0 ? ` · ${t.aura_max} Aura` : ''}${t.tipo === 'pj' ? ' · não altera a ficha' : ''}</div>` : '') : '<p class="hint" style="margin:0 0 10px">As barras deste token estão escondidas.</p>'}
+        ${abas.length > 1 ? `<div class="tp-abas">${abas.map(([k, l, ic]) => `<button data-tpaba="${k}" class="${S.tpAba === k ? 'on' : ''}"><i class="ph-bold ph-${ic}"></i>${l}</button>`).join('')}</div>` : ''}
+        ${S.tpAba ? conteudo[S.tpAba]() : ''}</div><div class="tp-rs" id="tpRs" title="Arraste para mudar o tamanho"></div>`}`;
     st.appendChild(el);
-    $('#tpX').onclick = () => { S.sel = null; S.painel = null; renderTokens(); };
+    // Posição escolhida arrastando o topo (só com mouse; no celular a janela fica embaixo).
+    const fino = matchMedia('(pointer: fine)').matches;
+    const posiciona = (x, y) => {
+      const sw = st.clientWidth, sh = st.clientHeight;
+      x = Math.max(0, Math.min(sw - el.offsetWidth, x)); y = Math.max(0, Math.min(sh - 50, y));
+      el.style.left = x + 'px'; el.style.top = y + 'px'; el.style.maxHeight = Math.max(160, sh - y - 12) + 'px';
+      return { x, y };
+    };
+    // Tamanho escolhido no canto (ou pelo botão de expandir); diminuída, a janela usa o tamanho fixo.
+    const dimensiona = (w, h) => {
+      const x = el.offsetLeft, y = el.offsetTop;
+      w = Math.max(300, Math.min(st.clientWidth - x - 8, w)); h = Math.max(220, Math.min(st.clientHeight - y - 8, h));
+      el.style.width = w + 'px'; el.style.height = h + 'px';
+      return { w, h };
+    };
+    if (fino && S.tpPos) S.tpPos = posiciona(S.tpPos.x, S.tpPos.y);
+    if (fino && !min && S.tpTam) dimensiona(S.tpTam.w, S.tpTam.h);
+    const body = $('.tp-body', el); if (body) body.scrollTop = rolou;
+    const h = $('#tpH');
+    h.onpointerdown = e => {
+      if (!fino || e.button !== 0 || e.target.closest('button')) return;
+      e.preventDefault(); h.setPointerCapture(e.pointerId);
+      const r = el.getBoundingClientRect(), sr = st.getBoundingClientRect(), dx = e.clientX - r.left, dy = e.clientY - r.top;
+      h.onpointermove = ev => { S.tpPos = posiciona(ev.clientX - sr.left - dx, ev.clientY - sr.top - dy); };
+      h.onpointerup = h.onpointercancel = () => { h.onpointermove = null; salvarTP(); };
+    };
+    h.ondblclick = e => { if (!e.target.closest('button')) { S.tpMin = !S.tpMin; salvarTP(); renderTokPanel(); } };
+    $('#tpMin').onclick = () => { S.tpMin = !S.tpMin; salvarTP(); renderTokPanel(); };
+    const rs = $('#tpRs');
+    if (rs) rs.onpointerdown = e => {
+      if (!fino) return;
+      e.preventDefault(); e.stopPropagation(); rs.setPointerCapture(e.pointerId);
+      const r = el.getBoundingClientRect(), x0 = e.clientX, y0 = e.clientY;
+      rs.onpointermove = ev => { S.tpTam = dimensiona(r.width + ev.clientX - x0, r.height + ev.clientY - y0); S.tpAntes = null; };
+      rs.onpointerup = rs.onpointercancel = () => { rs.onpointermove = null; salvarTP(); const b = $('#tpBig i'); if (b) b.className = 'ph-bold ph-corners-out'; };
+    };
+    // Expandir: ocupa boa parte do palco; clicar de novo volta ao tamanho e lugar de antes.
+    const big = $('#tpBig');
+    if (big) big.onclick = () => {
+      if (S.tpAntes) { S.tpPos = S.tpAntes.pos; S.tpTam = S.tpAntes.tam; S.tpAntes = null; }
+      else { S.tpAntes = { pos: S.tpPos || null, tam: S.tpTam || null }; S.tpPos = { x: 12, y: 12 }; S.tpTam = { w: Math.min(820, st.clientWidth - 24), h: st.clientHeight - 24 }; }
+      salvarTP(); renderTokPanel();
+    };
+    $('#tpX').onclick = () => { S.sel = null; S.painel = null; S.atkReacao = null; renderTokens(); };
+    const banX = $('#tpBanX'); if (banX) banX.onclick = () => { S.atkReacao = null; renderTokPanel(); };
+    $$('#tokPanel [data-nen]').forEach(b => b.onclick = () => { const p = nenLista(t).find(x => x.k === b.dataset.nen); if (p) ativarPrincipio(t, p); });
+    $$('#tokPanel [data-nenoff]').forEach(b => b.onclick = () => desligarPrincipio(t, b.dataset.nenoff));
+    $$('#tokPanel [data-auracor]').forEach(b => b.onclick = () => salvarCorAura(t, b.dataset.auracor));
+    const nc = $('#nenCor'); if (nc) nc.onchange = () => salvarCorAura(t, nc.value);
+    const zt = $('#tokPanel [data-zetsu]'); if (zt) zt.onclick = () => concluirZetsu(t);
+    $$('#tokPanel [data-rx]').forEach(b => b.onclick = () => { const x = REACOES.find(r => r.k === b.dataset.rx); if (x) usarReacao(t, x); });
     $$('#tokPanel [data-tpaba]').forEach(b => b.onclick = () => {
       S.tpAba = b.dataset.tpaba; renderTokPanel();
       // Busca a ficha de novo: o jogador pode ter aberto um Hatsu na ficha agora há pouco.
@@ -1188,6 +1696,10 @@
     $$('#tokPanel [data-bmod]').forEach(b => b.onclick = () => rolarD20(+b.dataset.bmod, b.dataset.blbl, t.nome));
     $$('#tokPanel [data-bacao]').forEach(b => b.onclick = () => { const m = bestDe(t), a = m && bestAcoes(m)[+b.dataset.bacao]; if (a) rolarAcaoBest(t, a); });
     $$('#tokPanel [data-rola]').forEach(b => b.onclick = () => { const r = NV.resumo(FICHAS[t.personagem_id] || {}); rolarD20(r.attrs[b.dataset.rola].mod, `Teste de ${b.dataset.rola}`, t.nome); });
+    $$('#tokPanel [data-reac]').forEach(b => b.onclick = () => {
+      const k = b.dataset.reac, max = reacMax(t), atual = reacAtual(t);
+      salvarReac(t, k === 'cheio' ? max : Math.max(0, Math.min(max, atual + +k)));
+    });
     const salvar = async patch => { Object.assign(t, patch); atualizarToken(t); renderTokPanel(); if (channel) channel.send({ type: 'broadcast', event: 'tok', payload: Object.assign({ id: t.id }, patch) }); const { error } = await sb.from('tokens').update(patch).eq('id', t.id); if (error) toast(errMsg(error), 'warning'); };
     $$('#tokPanel .ctl button').forEach(b => b.onclick = () => { const k = b.dataset.k; salvar({ [k]: Math.max(0, Math.min(t[k + '_max'], t[k] + +b.dataset.d)) }); });
     $$('#tokPanel .ctl input').forEach(i => i.onchange = () => { const k = i.dataset.k; const v = parseInt(i.value, 10); if (!isNaN(v)) salvar({ [k]: Math.max(0, Math.min(t[k + '_max'], v)) }); });
@@ -1521,8 +2033,8 @@
     const box = $('#som'); if (!box) return;
     const a = trilha().atual || {};
     box.classList.toggle('min', SOM.min);
-    $('#somOv').innerHTML = SOM.erro ? `<span>${esc(SOM.erro)}</span>` : SOM.bloqueado ? '<button class="btn btn-sm btn-primary" id="somPlay"><i class="ph-fill ph-play"></i> Tocar</button>' : '';
-    $('#somBar').innerHTML = `<span class="som-t" title="${esc(tituloFaixa(a.id))}"><i class="ph-fill ph-music-notes"></i>${a.tocando ? '' : '(pausada) '}${esc(tituloFaixa(a.id))}</span>
+    $('#somOv').innerHTML = SOM.erro ? `<i class="ph-fill ph-warning" title="${esc(SOM.erro)}"></i>` : SOM.bloqueado ? '<button id="somPlay" title="O navegador barrou o som: toque para ouvir" aria-label="Tocar"><i class="ph-fill ph-play"></i></button>' : '';
+    $('#somBar').innerHTML = SOM.erro ? `<span class="som-t err" title="${esc(SOM.erro)}"><i class="ph-fill ph-warning"></i>${esc(SOM.erro)}</span>` : `<span class="som-t" title="${esc(tituloFaixa(a.id))}"><i class="ph-fill ph-music-notes"></i>${a.tocando ? '' : '(pausada) '}${esc(tituloFaixa(a.id))}</span>
       <button id="somMudo" title="${SOM.mudo ? 'Ligar o som' : 'Silenciar só para mim'}" aria-label="${SOM.mudo ? 'Ligar o som' : 'Silenciar'}"><i class="ph-bold ph-speaker-${SOM.mudo ? 'x' : 'high'}"></i></button>
       <button id="somMin" title="${SOM.min ? 'Aumentar' : 'Diminuir'} o player" aria-label="${SOM.min ? 'Aumentar' : 'Diminuir'} o player"><i class="ph-bold ph-arrows-${SOM.min ? 'out' : 'in'}-simple"></i></button>`;
     $('#somVol').innerHTML = `<i class="ph ph-speaker-low" style="color:var(--text-3)"></i><input type="range" min="0" max="100" value="${SOM.vol}" id="somR" aria-label="Volume (só para você)">`;
@@ -1718,13 +2230,15 @@
       : '<div class="atk-s">Nenhuma ação com ataque, dano ou CD para rolar. Veja a ficha na aba Bestiário.</div>';
     return `<div class="tp-atr">
       <div class="tp-sub"><span style="color:${BEST_COR[m.cat] || 'inherit'}">${esc(m.cat)}</span> · CA ${esc(String(m.ca).split(' ')[0])} · ${esc(m.desl)}</div>
-      <div class="tp-abas"><button data-tpaba="atr" class="${aba === 'atr' ? 'on' : ''}">Atributos</button><button data-tpaba="atk" class="${aba === 'atk' ? 'on' : ''}">Ataques</button></div>
       ${aba === 'atr' ? `<div class="atks">${atr}${chips(trs, 'TR de ', 'Resistência (TR)')}${chips(per, '', 'Perícias')}</div>` : atks}
       <div class="tp-def"><span class="tiny">Modo: ${DADO.modo}</span><span class="tiny" style="margin-left:auto">Só o narrador vê</span></div>
     </div>`;
   }
   async function rolarAcaoBest(t, a) {
-    if (a.atk != null) await rolarAtaque(a.atk, `Ataque · ${a.n}`, t.nome);
+    if (a.atk != null) return atacar(t, a.n, false, async (modo, pre) => {
+      await rolarAtaque(a.atk, `${pre}Ataque · ${a.n}`, t.nome, false, modo);
+      if (a.dmg) await rolarDano(a.dmg, 0, `Dano · ${a.n}${a.tipo ? ' · ' + a.tipo : ''}`, t.nome);
+    });
     if (a.dmg) await rolarDano(a.dmg, 0, `Dano · ${a.n}${a.tipo ? ' · ' + a.tipo : ''}${a.cd && a.atk == null ? ` · TR de ${a.cd.a} CD ${a.cd.v}` : ''}`, t.nome);
     else if (a.cd) toast(esc(`${a.n}: TR de ${a.cd.a} CD ${a.cd.v}`), 'target');
   }
@@ -1853,7 +2367,8 @@
         <p class="hint">Valores base da ficha (sem bônus de Hatsu ou princípios).</p>` : ''}
       <div class="sep"></div>
       <div style="display:flex;align-items:center;justify-content:space-between"><h4 style="margin:0">Histórico da mesa</h4>${S.gm && S.rolagens.length ? '<button class="btn btn-sm btn-ghost" id="dclr">Limpar</button>' : ''}</div>
-      <div class="rolls">${S.rolagens.length ? S.rolagens.map(rolagemHTML).join('') : '<p class="hint">Ninguém rolou ainda. Que tal um d20?</p>'}</div>`;
+      <div class="rolls">${S.rolagens.length ? S.rolagens.map(rolagemHTML).join('') : '<p class="hint">Ninguém rolou ainda. Que tal um d20?</p>'}</div>
+      ${S.rolagens.length && !S.rolFim ? '<button class="btn btn-sm rolls-mais" id="dmais"><i class="ph-bold ph-clock-counter-clockwise"></i> Ver rolagens mais antigas</button>' : ''}`;
     const fm = d => `${DADO.qtd}d${d}${DADO.mod ? (DADO.mod > 0 ? '+' : '') + DADO.mod : ''}`;
     $$('.die').forEach(b => b.onclick = () => { b.classList.remove('spin'); void b.offsetWidth; b.classList.add('spin'); rolar(fm(b.dataset.d)); });
     $$('[data-q]').forEach(b => b.onclick = () => { DADO.qtd = Math.max(1, Math.min(20, DADO.qtd + +b.dataset.q)); paneDados(); });
@@ -1866,10 +2381,33 @@
     $$('[data-tr]').forEach(b => b.onclick = () => rolarD20(rs.attrs[b.dataset.tr].save, `TR de ${b.dataset.tr}`));
     // Com token no mapa, a iniciativa rolada aqui entra direto na ordem de turnos.
     $$('[data-ini]').forEach(b => b.onclick = () => tok ? rolarIniciativa(tok) : rolarD20(rs.iniciativa, 'Iniciativa'));
+    const mais = $('#dmais'); if (mais) mais.onclick = () => rolagensAntigas(mais);
     const clr = $('#dclr'); if (clr) clr.onclick = async () => { if (!confirm('Apagar o histórico de rolagens da mesa?')) return; const { error } = await sb.from('rolagens').delete().eq('mesa_id', S.mesa.id); if (error) return toast(errMsg(error), 'warning'); S.rolagens = []; paneDados(); };
   }
-  let diceTimer = null, ultimaRolagem = null;
-  function mostrarRolagem(r) { ultimaRolagem = { r, t: Date.now() }; renderDiceToast(); }
+  // Busca mais 50 rolagens anteriores à mais velha que já está na tela.
+  async function rolagensAntigas(btn) {
+    const velha = S.rolagens[S.rolagens.length - 1]; if (!velha) return;
+    btn.disabled = true;
+    const { data, error } = await sb.from('rolagens').select('*').eq('mesa_id', S.mesa.id).lt('created_at', velha.created_at).order('created_at', { ascending: false }).limit(50);
+    if (error) { btn.disabled = false; return toast(errMsg(error), 'warning'); }
+    if ((data || []).length < 50) S.rolFim = true;
+    S.rolAntigas = true;
+    S.rolagens.push(...(data || []).filter(n => podeVerRolagem(n) && !S.rolagens.some(x => x.id === n.id)));
+    if (S.tab === 'dados') { const top = P().scrollTop; paneDados(); P().scrollTop = top; }
+  }
+  // Fila de dados na tela: ataque e dano chegam quase juntos, então cada rolagem fica
+  // pelo menos DADO_MIN visível (o d20 termina de cair) antes de a próxima entrar.
+  let diceTimer = null, ultimaRolagem = null, filaTimer = null;
+  const filaDados = [], DADO_MIN = 2800;
+  function mostrarRolagem(r) {
+    filaDados.push(r); if (filaDados.length > 6) filaDados.shift();
+    if (!filaTimer) proximoDado();
+  }
+  function proximoDado() {
+    const r = filaDados.shift(); if (!r) { filaTimer = null; return; }
+    ultimaRolagem = { r, t: Date.now() }; renderDiceToast();
+    filaTimer = setTimeout(proximoDado, matchMedia('(prefers-reduced-motion: reduce)').matches ? 1200 : DADO_MIN);
+  }
   /* Dado em vetor: cai girando, levanta fumaça (estilo anime) e para no número */
   const DADO_COR = { 4: ['#43a047', '#2e7d32'], 6: ['#4fb6c9', '#2f8fa3'], 8: ['#7e3fe0', '#5b2bb0'], 10: ['#d94a9a', '#a8326f'], 12: ['#d64545', '#a52e2e'], 20: ['#8b5cf6', '#6d28d9'], 100: ['#5b6bd6', '#3d49a8'] };
   function dadoSVG(lados, valor) {
@@ -1892,7 +2430,7 @@
     return `<svg viewBox="0 0 100 100" class="smoke"><g stroke="#1b1d2a" stroke-width="7">${P.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}"/>`).join('')}</g><g fill="#f4f1ea">${P.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}"/>`).join('')}</g><g fill="#fff">${P.slice(0, 4).map(([x, y, r]) => `<circle cx="${x - r * .3}" cy="${y - r * .3}" r="${r * .35}"/>`).join('')}</g></svg>`;
   }
   function renderDiceToast() {
-    const st = $('#stage'); if (!st || !ultimaRolagem || Date.now() - ultimaRolagem.t > 6000) return;
+    const st = $('#stage'); if (!st || !ultimaRolagem || Date.now() - ultimaRolagem.t > 7000) return;
     const old = $('#diceToast'); if (old) old.remove();
     const r = ultimaRolagem.r, c = critico(r);
     const dados = []; let mod = 0;
@@ -1908,17 +2446,17 @@
     st.appendChild(el);
     // números trocando enquanto o dado gira; para no valor ao cair
     $$('.dr-body', el).forEach((b, i) => {
-      const lados = +b.dataset.d, fim = b.dataset.v, para = reduz ? 0 : 820 + i * 90;
+      const lados = +b.dataset.d, fim = b.dataset.v, para = reduz ? 0 : 1250 + i * 120;
       const t0 = performance.now();
       const tick = () => {
         const num = b.querySelector('.dnum'); if (!num || !el.isConnected) return;
         if (performance.now() - t0 >= para) { num.textContent = fim; b.classList.add('land'); return; }
         num.textContent = 1 + Math.floor(Math.random() * lados);
-        setTimeout(tick, 70);
+        setTimeout(tick, 80);
       };
       tick();
     });
-    clearTimeout(diceTimer); diceTimer = setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 400); }, 5200);
+    clearTimeout(diceTimer); diceTimer = setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 400); }, 6500);
   }
 
   function paneNinja() {
@@ -2059,7 +2597,11 @@
     channel = sb.channel('mesa-' + id, { config: { broadcast: { self: false } } })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tokens', filter: f }, ({ eventType, new: n, old: o }) => {
         if (eventType === 'DELETE') { delete S.tokens[o.id]; if (S.sel === o.id) S.sel = null; if ($('#tokLayer')) renderTokens(); }
-        else { S.tokens[n.id] = n; if ($('#tokLayer')) atualizarToken(n); if (S.sel === n.id) renderTokPanel(); }
+        else {
+          // Sem a coluna no banco, a linha chega sem reacoes/principios: mantém o valor ao vivo.
+          const velho = S.tokens[n.id]; if (velho) ['reacoes', 'principios'].forEach(k => { if (!(k in n) && k in velho) n[k] = velho[k]; });
+          S.tokens[n.id] = n; if ($('#tokLayer')) atualizarToken(n); if (S.sel === n.id) renderTokPanel();
+        }
         if (!$('#tokLayer')) renderOrdem();   // na cena não há mapa, mas a ordem continua no palco
         if (S.tab === 'tokens' || S.tab === 'ninja' || S.tab === 'grupo') renderSide();
         else if (S.tab === 'best') listaBest();
@@ -2089,13 +2631,18 @@
       .on('broadcast', { event: 'tok' }, ({ payload: p }) => {
         const t = S.tokens[p.id]; if (!t) return; Object.assign(t, p); if ($('#tokLayer')) atualizarToken(t); else renderOrdem(); if (S.sel === t.id) renderTokPanel();
       })
+      .on('broadcast', { event: 'ping' }, ({ payload: p }) => mostrarPing(p.x, p.y, COR_PING_GM, 'Narrador'))
       .on('broadcast', { event: 'ruler' }, ({ payload: p }) => {
         if (p.pts) S.rulers[p.u] = { pts: p.pts, nome: (p.nome || '').split(' ')[0], t: Date.now() }; else delete S.rulers[p.u];
         desenharOverlay();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'rolagens', filter: f }, ({ eventType, new: n, old: o }) => {
         if (eventType === 'DELETE') { S.rolagens = S.rolagens.filter(x => x.id !== o.id); }
-        else if (podeVerRolagem(n) && !S.rolagens.some(x => x.id === n.id)) { S.rolagens.unshift(n); S.rolagens = S.rolagens.slice(0, 80); mostrarRolagem(n); }
+        else if (podeVerRolagem(n) && !S.rolagens.some(x => x.id === n.id)) {
+          S.rolagens.unshift(n);
+          if (!S.rolAntigas && S.rolagens.length > 80) { S.rolagens = S.rolagens.slice(0, 80); S.rolFim = false; }
+          mostrarRolagem(n);
+        }
         if (S.tab === 'dados') paneDados(); else if (S.tab === 'chat') renderChatList();
       })
       .on('broadcast', { event: 'move' }, ({ payload: p }) => {
