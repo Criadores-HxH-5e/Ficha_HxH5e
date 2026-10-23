@@ -66,6 +66,9 @@
             const char = state.currentChar;
             // Retroativo: personagem antigo com Aura Gigantesca recebe o bônus na 1ª abertura.
             if (aplicarAuraGigantesca(char)) saveCharacter(char);
+            // Migração dos bônus de Maestria (roda antes do aviso, para o jogador já abrir
+            // o modal com os atributos corretos).
+            if (migrarBonusMaestria(char)) saveCharacter(char);
             // Aviso único da nova mecânica das Inclinações (só para quem já tinha pontos).
             setTimeout(function () { avisarRealocacaoInclinacoes(state.currentChar); }, 400);
             const clsData = SYSTEM_DB.classes.find(c => c.id === char.class);
@@ -774,7 +777,14 @@
                         : ciEntries.map(([id, pts]) => {
                             const inc = window.COMBAT_INCLINATIONS_DB.find(i => i.id === id);
                             if (!inc) return '';
-                            return inc.tiers.slice(0, pts).map((desc, ti) => `<div class="bg-gray-900 border border-gray-800 rounded-xl p-3" style="border-left:3px solid #f97316"><div class="flex items-center gap-2 mb-1"><span class="text-xs font-bold text-orange-400">${inc.nome}</span><span class="text-[9px] bg-orange-500/10 text-orange-400 border border-orange-500/20 px-1.5 rounded">Tier ${ti + 1}</span></div><p class="text-[10px] text-gray-400 leading-relaxed">${desc}</p></div>`).join('');
+                            // Na ficha o jogador precisa do acréscimo "Com aura" à mão durante
+                            // a mesa, não só no modal de compra — é lá que ele decide se paga.
+                            return inc.tiers.slice(0, pts).map((desc, ti) => {
+                                const nvl = window.CI_NIVEL_NOME ? window.CI_NIVEL_NOME[ti] : ('Tier ' + (ti + 1));
+                                const au = (inc.aura || [])[ti];
+                                const auHtml = au ? `<div class="mt-1.5 flex gap-1.5 items-start rounded-md px-2 py-1.5" style="background:#1e3a8a22;border:1px solid #3b82f633"><span style="font-size:9px;line-height:1.3">💠</span><p class="text-[9px] leading-relaxed" style="color:#93c5fd">${au}</p></div>` : '';
+                                return `<div class="bg-gray-900 border border-gray-800 rounded-xl p-3" style="border-left:3px solid #f97316"><div class="flex items-center gap-2 mb-1 flex-wrap"><span class="text-xs font-bold text-orange-400">${inc.nome}</span><span class="text-[9px] bg-orange-500/10 text-orange-400 border border-orange-500/20 px-1.5 rounded">${nvl}</span>${(inc.etiquetas || []).map(e => `<span class="text-[8px] font-bold px-1.5 rounded" style="background:#1e3a8a33;color:#93c5fd;border:1px solid #3b82f644">${e}</span>`).join('')}</div><p class="text-[10px] text-gray-400 leading-relaxed">${desc}</p>${auHtml}</div>`;
+                            }).join('');
                           }).join('');
                     // Porta de entrada: sem Nen, ou sem nenhum princípio/técnica, a seção fica
                     // visível (o jogador precisa ver o que falta e o que já investiu) mas o botão
@@ -1194,6 +1204,69 @@
 
         // ── Aura Gigantesca: +30% de Aura Máxima ───────────────────────────────────
         // A inclinação existia só como texto no config.js; nunca foi aplicada em lugar nenhum.
+        // ── Migração única: os bônus de Maestria mudaram de valor ───────────────────
+        // O capítulo atualizado dá +1 em atributo nas Maestrias (este arquivo aplicava +2
+        // em várias) e usa "ou" (escolha) onde havia "e" (fixo). Trocar só o banco não
+        // resolve: o ledger char.combatInclinationAttrApplied registra QUE o bônus foi
+        // aplicado, não QUANTO. Sem desfazer o valor antigo acontecia um de dois erros:
+        //   • valor diferente → o save não refaz nada e o +2 antigo ficava para sempre;
+        //   • fixo → escolha  → o ledger guarda `true`, escolha.find(o => o.attr === true)
+        //     não acha nada, nada é subtraído e o novo bônus soma em cima (valor dobrado).
+        // Aqui o bônus antigo é devolvido usando COMBAT_INC_ATTR_LEGADO. Quando o bônus
+        // novo é FIXO, ele já é aplicado na hora (não há o que escolher). Quando é ESCOLHA,
+        // a entrada do ledger é limpa e o modal passa a exigir o atributo antes de salvar —
+        // é a "realocação" que o aviso pede.
+        function migrarBonusMaestria(char) {
+            if (!char || char.migracaoIncV2) return false;
+            if (!window.COMBAT_INCLINATIONS_DB || !window.COMBAT_INC_ATTR_LEGADO) return false;
+            const ledger = char.combatInclinationAttrApplied || {};
+            const mesmo = function (a, b) { return JSON.stringify(a || null) === JSON.stringify(b || null); };
+
+            window.COMBAT_INCLINATIONS_DB.forEach(function (inc) {
+                const legado = window.COMBAT_INC_ATTR_LEGADO[inc.id];
+                if (!legado) return;                       // inclinação nova: nada aplicado antes
+                if (mesmo(legado, inc.attrBonus)) return;  // definição não mudou
+                const aplicado = ledger[inc.id];
+                if (aplicado === undefined) return;        // nunca chegou a aplicar
+
+                // Devolve o bônus ANTIGO. O tipo do valor no ledger diz qual forma antiga
+                // foi usada: `true` = fixo, string = escolha. Se não casar, não arrisca um
+                // número errado: deixa como está para o jogador conferir na mão.
+                let devolveu = false;
+                if (legado.fixo && aplicado === true) {
+                    legado.fixo.forEach(function (b) {
+                        if (char.attributes[b.attr]) char.attributes[b.attr].value -= b.valor;
+                    });
+                    devolveu = true;
+                } else if (legado.escolha && typeof aplicado === 'string') {
+                    const opt = legado.escolha.filter(function (o) { return o.attr === aplicado; })[0];
+                    if (opt && char.attributes[opt.attr]) {
+                        char.attributes[opt.attr].value -= opt.valor;
+                        devolveu = true;
+                    }
+                }
+                if (!devolveu) return;
+
+                if (inc.attrBonus && inc.attrBonus.fixo) {
+                    inc.attrBonus.fixo.forEach(function (b) {
+                        if (char.attributes[b.attr]) char.attributes[b.attr].value += b.valor;
+                    });
+                    ledger[inc.id] = true;
+                } else {
+                    // escolha (ou bônus removido): o jogador decide no modal.
+                    delete ledger[inc.id];
+                }
+            });
+
+            char.combatInclinationAttrApplied = ledger;
+            char.migracaoIncV2 = true;
+            // Retorna SEMPRE true: a flag precisa ser gravada mesmo quando nada mudou.
+            // Sem isso, um personagem sem nada a migrar não salvaria a marca e a migração
+            // rodaria de novo no próximo render — e aí, num personagem que TINHA algo a
+            // migrar, o bônus antigo seria subtraído duas vezes.
+            return true;
+        }
+
         // ── Aviso único: a mecânica das Inclinações de Combate mudou ────────────────
         // As Inclinações passaram a exigir Nen e Princípios/Técnicas, e as Instâncias
         // Shingen-Ryu saíram dos Pontos de Inclinação para o P.N. Quem já tinha pontos
@@ -2935,15 +3008,24 @@
                                 attrChoiceHtml = `<div class="mt-1.5 flex flex-wrap gap-1.5 items-center">${btns}${!chosen ? '<span class="text-[9px] text-red-400 font-bold">⚠ escolha o atributo</span>' : ''}</div>`;
                             }
                         }
+                        // Nome do nível como no livro, em vez de "Tier 1/2/3".
+                        const nivelNome = window.CI_NIVEL_NOME ? window.CI_NIVEL_NOME[ti] : ('Tier ' + tierNum);
+                        // Acréscimo "Com aura": vale para quem conhece o princípio e paga a aura.
+                        // "Em vez disso" no texto significa que ele SUBSTITUI o efeito comum.
+                        const auraTxt = (inc.aura || [])[ti];
+                        const auraHtml = auraTxt
+                            ? `<div class="mt-1.5 flex gap-1.5 items-start rounded-md px-2 py-1.5" style="background:#1e3a8a22;border:1px solid #3b82f633"><span style="font-size:9px;line-height:1.3">💠</span><p class="text-[9px] leading-relaxed" style="color:#93c5fd">${auraTxt}</p></div>`
+                            : '';
                         return `<div class="flex gap-2 items-start p-2 rounded-lg ${active ? 'bg-orange-500/10 border border-orange-500/20' : 'bg-gray-900/50 border border-gray-800/50'} mb-1">
                             <button onclick="window._ciSetTier('${inc.id}',${active ? tierNum - 1 : tierNum})" style="min-width:28px;height:28px;border-radius:6px;border:1px solid ${active ? '#f97316' : '#374151'};background:${active ? '#f9731620' : '#111827'};color:${active ? '#f97316' : '#6b7280'};font-weight:900;font-size:11px;cursor:${(active && canDeactivate) || canActivate ? 'pointer' : 'default'};opacity:${(active && canDeactivate) || canActivate || active ? '1' : '0.35'}" ${(!canActivate && !active) ? 'disabled' : ''}>${active ? '✓' : tierNum}</button>
-                            <div class="flex-1"><span class="text-[9px] font-bold ${active ? 'text-orange-400' : 'text-gray-500'} uppercase tracking-widest block mb-0.5">Tier ${tierNum} — 1 ponto</span><p class="text-[10px] ${active ? 'text-gray-300' : 'text-gray-600'} leading-relaxed">${desc}</p>${attrChoiceHtml}</div>
+                            <div class="flex-1"><span class="text-[9px] font-bold ${active ? 'text-orange-400' : 'text-gray-500'} uppercase tracking-widest block mb-0.5">${nivelNome} — 1 ponto</span><p class="text-[10px] ${active ? 'text-gray-300' : 'text-gray-600'} leading-relaxed">${desc}</p>${auraHtml}${attrChoiceHtml}</div>
                         </div>`;
                     }).join('');
                     return `<div class="bg-gray-900 border ${cur > 0 ? 'border-orange-500/30' : 'border-gray-800'} rounded-xl p-3 mb-2">
                         <div class="flex items-center gap-2 mb-2">
                             <span class="text-xs font-bold ${cur > 0 ? 'text-orange-400' : 'text-white'}">${inc.nome}</span>
                             ${inc.req ? `<span class="text-[9px] bg-gray-800 text-gray-500 px-1.5 rounded border border-gray-700">${inc.req}</span>` : ''}
+                            ${(inc.etiquetas || []).map(e => `<span class="text-[8px] font-bold px-1.5 rounded" style="background:#1e3a8a33;color:#93c5fd;border:1px solid #3b82f644">${e}</span>`).join('')}
                             ${cur > 0 ? `<span class="text-[9px] bg-orange-500/10 text-orange-400 border border-orange-500/20 px-1.5 rounded ml-auto">${cur} ponto(s)</span>` : ''}
                         </div>
                         ${tiersHtml}

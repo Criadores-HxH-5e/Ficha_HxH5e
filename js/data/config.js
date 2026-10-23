@@ -722,16 +722,25 @@ window.calcIniciativaBonus = function (char) {
 //
 // Fonte: Inclinações de Combate (livro v2.0). A RD vinda dos Princípios de Nen
 // (TEN, KEN) entra aqui quando a ativação dos princípios existir.
+// rev. cap. 4 atualizado: a RD das inclinações defensivas virou acréscimo "Com aura".
+// A tabela anterior tinha três entradas que não correspondem mais ao texto:
+//   • Defensiva Bruta Básico dava RD 3 PASSIVA. No livro, o Básico é "+2 no Bloqueio
+//     Desarmado" (não é RD) e a RD +2 só existe no acréscimo com TEN.
+//   • Defensiva Precisa Básico dava RD 5. No livro, o Básico é "+1 na CA contra o alvo
+//     marcado" e a RD +2 só existe com TEN.
+//   • Defensiva Bruta Intermediário dava 3×CON. O livro diz "some sua CON na RD do TEN".
+// Por isso as três passaram a exigir TEN (requerTen) e deixaram de ser passivas: sem o
+// princípio ativo elas não acontecem. requerTen também as esconde de quem não tem TEN.
 window.RD_FONTES = [
-    { id: 'defensiva_bruta_1',   inc: 'defensiva_bruta',          tier: 1, valor: 3,
-      nome: 'Defensiva Bruta', passiva: true,
-      condicao: 'Qualquer dano, de qualquer oponente' },
-    { id: 'defensiva_precisa_1', inc: 'defensiva_precisa',        tier: 1, valor: 5,
-      nome: 'Defensiva Precisa', passiva: false,
-      condicao: 'Só contra UM alvo escolhido no combate' },
-    { id: 'defensiva_bruta_2',   inc: 'defensiva_bruta',          tier: 2, valor: null, formula: 'con3',
-      nome: 'Defensiva Bruta (3×CON)', passiva: false,
-      condicao: 'Ataque que falhou em bloquear — 1× por rodada' },
+    { id: 'defensiva_bruta_1',   inc: 'defensiva_bruta',          tier: 1, valor: 2, requerTen: true,
+      nome: 'Defensiva Bruta (com TEN)', passiva: false,
+      condicao: 'Exige TEN ativo — ao sofrer dano bloqueando, além da RD do TEN' },
+    { id: 'defensiva_precisa_1', inc: 'defensiva_precisa',        tier: 1, valor: 2, requerTen: true,
+      nome: 'Defensiva Precisa (com TEN)', passiva: false,
+      condicao: 'Exige TEN ativo — só contra golpes do alvo marcado' },
+    { id: 'defensiva_bruta_2',   inc: 'defensiva_bruta',          tier: 2, valor: null, formula: 'conMod', requerTen: true,
+      nome: 'Defensiva Bruta (CON na RD do TEN)', passiva: false,
+      condicao: 'Exige TEN ativo — quando o Bloqueio falha; aplique antes de dividir o dano' },
     { id: 'armadura_pesada_2',   inc: 'maestria_armadura_pesada', tier: 2, valor: 3,
       nome: 'Maestria em Armadura Pesada', passiva: false,
       condicao: 'Só quando o acerto IGUALA a sua CA' },
@@ -743,12 +752,16 @@ window.calcFontesRD = function (char) {
     if (!char) return [];
     const ci = char.combatInclinations || {};
     const conMod = Math.floor(((((char.attributes || {}).CON || {}).value || 10) - 10) / 2);
+    const temTen = ((char.nenDominio || {}).ten || 0) > 0;
     const lista = (window.RD_FONTES || []).filter(function (f) {
-        return (parseInt(ci[f.inc]) || 0) >= f.tier;
+        if ((parseInt(ci[f.inc]) || 0) < f.tier) return false;
+        // Fonte que depende de TEN não aparece para quem não treinou TEN.
+        if (f.requerTen && !temTen) return false;
+        return true;
     }).map(function (f) {
         return {
             id: f.id, nome: f.nome, passiva: f.passiva, condicao: f.condicao,
-            valor: f.formula === 'con3' ? Math.max(0, conMod * 3) : f.valor,
+            valor: f.formula === 'conMod' ? Math.max(0, conMod) : f.valor,
         };
     });
     // TEN ativo também dá RD. Entra ligado por padrão: se o princípio está ativo, a
