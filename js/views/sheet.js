@@ -66,6 +66,8 @@
             const char = state.currentChar;
             // Retroativo: personagem antigo com Aura Gigantesca recebe o bônus na 1ª abertura.
             if (aplicarAuraGigantesca(char)) saveCharacter(char);
+            // Aviso único da nova mecânica das Inclinações (só para quem já tinha pontos).
+            setTimeout(function () { avisarRealocacaoInclinacoes(state.currentChar); }, 400);
             const clsData = SYSTEM_DB.classes.find(c => c.id === char.class);
             // Sem categoria de Nen o app fica em preto e branco, não em verde neon.
             const themeColor = clsData ? clsData.color : (window.TEMA_SEM_NEN || '#eaecf0');
@@ -774,7 +776,17 @@
                             if (!inc) return '';
                             return inc.tiers.slice(0, pts).map((desc, ti) => `<div class="bg-gray-900 border border-gray-800 rounded-xl p-3" style="border-left:3px solid #f97316"><div class="flex items-center gap-2 mb-1"><span class="text-xs font-bold text-orange-400">${inc.nome}</span><span class="text-[9px] bg-orange-500/10 text-orange-400 border border-orange-500/20 px-1.5 rounded">Tier ${ti + 1}</span></div><p class="text-[10px] text-gray-400 leading-relaxed">${desc}</p></div>`).join('');
                           }).join('');
-                    combatIncHtml = `<div class="mt-2 border-t border-gray-800 pt-4"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-3"><div class="bg-gray-800 p-2 rounded text-orange-400"><i data-lucide="swords" size="20"></i></div><div><h3 class="font-bold text-white uppercase tracking-wider text-sm">Inclinações de Combate</h3><p class="text-[10px] text-gray-500 uppercase tracking-widest">${ciSpent}/${ciTotalPts} pontos usados</p></div></div><button onclick="window._openCombatIncModal()" class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/30 text-orange-400 text-[10px] font-bold uppercase tracking-widest hover:bg-orange-500/20 transition-colors"><i data-lucide="edit-3" size="12"></i> Editar</button></div>${ciAvail > 0 ? `<div class="flex items-center gap-2 text-[10px] text-orange-400 font-bold mb-2 bg-orange-500/10 border border-orange-500/20 rounded-lg px-3 py-2 animate-pulse"><i data-lucide="alert-circle" size="12"></i> ${ciAvail} ponto(s) disponível(is) para investir!</div>` : ''}<div class="space-y-2">${ciListHtml}</div></div>`;
+                    // Porta de entrada: sem Nen, ou sem nenhum princípio/técnica, a seção fica
+                    // visível (o jogador precisa ver o que falta e o que já investiu) mas o botão
+                    // Editar é trocado por um aviso com o motivo.
+                    const _ciPorta = window.podeComprarInclinacoes
+                        ? window.podeComprarInclinacoes(char) : { ok: true, motivo: '' };
+                    const _ciBotao = _ciPorta.ok
+                        ? `<button onclick="window._openCombatIncModal()" class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/30 text-orange-400 text-[10px] font-bold uppercase tracking-widest hover:bg-orange-500/20 transition-colors"><i data-lucide="edit-3" size="12"></i> Editar</button>`
+                        : `<span class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-800/60 border border-gray-700 text-gray-500 text-[10px] font-bold uppercase tracking-widest"><i data-lucide="lock" size="12"></i> Bloqueado</span>`;
+                    const _ciMotivo = _ciPorta.ok ? '' :
+                        `<div class="flex items-start gap-2 text-[10px] text-gray-400 font-semibold mb-2 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2"><i data-lucide="info" size="12" class="shrink-0 mt-0.5 text-gray-500"></i><span>${_ciPorta.motivo}</span></div>`;
+                    combatIncHtml = `<div class="mt-2 border-t border-gray-800 pt-4"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-3"><div class="bg-gray-800 p-2 rounded text-orange-400"><i data-lucide="swords" size="20"></i></div><div><h3 class="font-bold text-white uppercase tracking-wider text-sm">Inclinações de Combate</h3><p class="text-[10px] text-gray-500 uppercase tracking-widest">${ciSpent}/${ciTotalPts} pontos usados</p></div></div>${_ciBotao}</div>${_ciMotivo}${(_ciPorta.ok && ciAvail > 0) ? `<div class="flex items-center gap-2 text-[10px] text-orange-400 font-bold mb-2 bg-orange-500/10 border border-orange-500/20 rounded-lg px-3 py-2 animate-pulse"><i data-lucide="alert-circle" size="12"></i> ${ciAvail} ponto(s) disponível(is) para investir!</div>` : ''}<div class="space-y-2">${ciListHtml}</div></div>`;
                 }
                 tabContent = `<div class="p-4 space-y-2">${traitsHtml}${bgHtml}${generalIncHtml}${otherSkillsHtml}${combatIncHtml}</div>`;
             } else if (state.activeTab === 'INV') {
@@ -1182,6 +1194,45 @@
 
         // ── Aura Gigantesca: +30% de Aura Máxima ───────────────────────────────────
         // A inclinação existia só como texto no config.js; nunca foi aplicada em lugar nenhum.
+        // ── Aviso único: a mecânica das Inclinações de Combate mudou ────────────────
+        // As Inclinações passaram a exigir Nen e Princípios/Técnicas, e as Instâncias
+        // Shingen-Ryu saíram dos Pontos de Inclinação para o P.N. Quem já tinha pontos
+        // distribuídos precisa conferir (e provavelmente realocar) o que comprou, então
+        // o aviso aparece UMA vez por personagem, marcado em char.avisoInclinacoesV2.
+        function avisarRealocacaoInclinacoes(char) {
+            if (!char || char.avisoInclinacoesV2) return;
+            const ci = char.combatInclinations || {};
+            const temAlgo = Object.keys(ci).some(function (k) { return (ci[k] || 0) > 0; });
+            if (!temAlgo) return;   // nada comprado: não há o que realocar
+            const porta = window.podeComprarInclinacoes
+                ? window.podeComprarInclinacoes(char) : { ok: true, motivo: '' };
+            const tc = '#f97316';
+            const ov = document.createElement('div');
+            ov.id = 'inc-v2-overlay';
+            ov.style.cssText = 'position:fixed;inset:0;background:#000000ee;display:flex;align-items:center;justify-content:center;z-index:10000;padding:16px;font-family:Rajdhani,sans-serif';
+            ov.innerHTML = '<div style="background:#0d1117;border:2px solid ' + tc + ';border-radius:20px;padding:20px;width:100%;max-width:400px;box-shadow:0 0 60px ' + tc + '44">'
+                + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:12px;color:' + tc + ';text-transform:uppercase;letter-spacing:2px;margin-bottom:10px">\u2694 As Inclinações mudaram</div>'
+                + '<div style="font-size:11px;color:#d1d5db;line-height:1.65;margin-bottom:12px">'
+                + '<b>Realoque as inclinações que você comprou de acordo com a nova mecânica.</b><br><br>'
+                + 'O que mudou:<br>'
+                + '\u2022 Inclinações de Combate agora exigem Nen e ao menos 1 Princípio ou Técnica desbloqueado.<br>'
+                + '\u2022 As <b>Instâncias Shingen-Ryu</b> saíram dos Pontos de Inclinação: agora custam <b>P.N</b> (2 no Nível 1, 3 no Nível 2).'
+                + '</div>'
+                + (porta.ok ? '' : '<div style="background:#1f2937;border:1px solid #374151;border-radius:9px;padding:9px 11px;font-size:10px;color:#9ca3af;margin-bottom:12px">\u26a0 Este personagem está bloqueado agora: ' + porta.motivo + ' O que já estava investido continua na ficha.</div>')
+                + '<div style="display:flex;gap:8px">'
+                + '<button onclick="window._incV2Fechar()" style="flex:1;padding:11px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Depois</button>'
+                + (porta.ok ? '<button onclick="window._incV2Abrir()" style="flex:2;padding:11px;border-radius:10px;background:' + tc + ';border:none;color:#000;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Realocar agora</button>' : '')
+                + '</div></div>';
+            document.body.appendChild(ov);
+            char.avisoInclinacoesV2 = true;
+            saveCharacter(char);
+        }
+        window._incV2Fechar = function () { document.getElementById('inc-v2-overlay')?.remove(); };
+        window._incV2Abrir = function () {
+            document.getElementById('inc-v2-overlay')?.remove();
+            window._openCombatIncModal && window._openCombatIncModal();
+        };
+
         // A aura base é 100 e os ganhos de nível (auraP) já entram como pontos percentuais
         // somados a essa base (nível 1 = +5 -> 105). Aura Gigantesca segue a mesma régua.
         // Ex.: 100 (base) + 30 (Aura Gigantesca) + 5 (nível 1) = 135.
@@ -2546,7 +2597,11 @@
                         if (confirm(`Você ganhou ${ciGained} ponto(s) de Inclinação! Pode gastar em Combate, em Gerais, ou guardar para depois. Deseja distribuir agora?`)) {
                             state.activeTab = 'TRACOS';
                             render(true);
-                            setTimeout(() => window._openCombatIncModal(), 300);
+                            // Só abre sozinho se o personagem realmente puder comprar: antes,
+                            // um personagem sem Nen levava um alerta de bloqueio ao subir de nível.
+                            if (!window.podeComprarInclinacoes || window.podeComprarInclinacoes(state.currentChar).ok) {
+                                setTimeout(() => window._openCombatIncModal(), 300);
+                            }
                         }
                         // Se tem mais níveis e ganhou atributo, mostrar botão de pausa
                         if (hasMore && choseAttr) {
@@ -2709,7 +2764,10 @@
 
         window._openCombatIncModal = function() {
             const char = state.currentChar;
-            if (!char || char.level < 2) { alert('Inclinações de Combate só estão disponíveis a partir do Nível 2.'); return; }
+            // Gate único (nível + Nen + princípio/técnica) — a mesma função decide o que a
+            // ficha mostra, para a tela e o modal nunca discordarem.
+            const _porta = window.podeComprarInclinacoes ? window.podeComprarInclinacoes(char) : { ok: !!char && char.level >= 2, motivo: '' };
+            if (!char || !_porta.ok) { alert('Inclinações de Combate bloqueadas.\n\n' + (_porta.motivo || '')); return; }
             if (!window.COMBAT_INCLINATIONS_DB) { alert('Banco de Inclinações de Combate não carregado.'); return; }
             const tc = getComputedStyle(document.documentElement).getPropertyValue('--theme-color-hex').trim() || '#f97316';
             const draft = JSON.parse(JSON.stringify(char.combatInclinations || {}));
@@ -2911,6 +2969,7 @@
                             <button onclick="window._ciSetTab('GERAIS')" style="flex:1;padding:8px;border-radius:8px;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.1em;cursor:pointer;font-family:Orbitron,sans-serif;border:none;background:${ciTab === 'GERAIS' ? '#00ff9d' : 'transparent'};color:${ciTab === 'GERAIS' ? '#000' : '#6b7280'}">Gerais</button>
                         </div>
                         <div style="max-height:50vh;overflow-y:auto;padding-right:4px">${ciTab === 'COMBATE' ? incsHtml : (buildGeraisListHtml(avail) + buildNegListHtml())}</div>
+                        ${(ciTab === 'COMBATE' && getCombatSpent() > 0) ? `<button onclick="window._ciZerarCombate()" style="width:100%;margin-top:10px;padding:9px;border-radius:9px;background:transparent;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:9px;text-transform:uppercase;cursor:pointer;letter-spacing:1px">↺ Zerar e realocar</button>` : ''}
                         <div style="display:flex;gap:8px;margin-top:14px">
                             <button onclick="document.getElementById('ci-modal-overlay').remove()" title="Fecha sem gastar: os pontos ficam guardados para um item mais caro depois" style="flex:1;padding:11px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer;letter-spacing:1px">Acumular Pontos</button>
                             <button onclick="window._ciSave()" style="flex:2;padding:11px;border-radius:10px;background:#f97316;border:none;color:#000;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer;letter-spacing:1px;box-shadow:0 0 20px #f9731655">✓ Salvar</button>
@@ -2932,6 +2991,18 @@
 
             window._ciSetChoice = function(id, attr) {
                 draftChoices[id] = attr;
+                document.getElementById('ci-modal-overlay')?.remove();
+                document.body.insertAdjacentHTML('beforeend', buildModalHtml());
+            };
+
+            // ── Zerar as Inclinações de Combate para realocar ───────────────────────────
+            // Mexe só no DRAFT e não salva: quem devolve os bônus de atributo é o ledger do
+            // _ciSave (appliedBefore → changes com delta negativo). Zerar direto em
+            // char.combatInclinations deixaria os +1 de atributo aplicados para sempre.
+            window._ciZerarCombate = function () {
+                if (!confirm('Zerar todas as Inclinações de Combate para realocar?\n\nOs Pontos de Inclinação voltam para o bolo e os bônus de atributo das Maestrias são desfeitos ao salvar.')) return;
+                Object.keys(draft).forEach(function (k) { delete draft[k]; });
+                Object.keys(draftChoices).forEach(function (k) { delete draftChoices[k]; });
                 document.getElementById('ci-modal-overlay')?.remove();
                 document.body.insertAdjacentHTML('beforeend', buildModalHtml());
             };
