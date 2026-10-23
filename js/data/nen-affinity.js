@@ -386,6 +386,12 @@ window.calcPNSpentInDominio = function(char) {
             spent += Math.min(8, d[key + '_pn'] || 0);
         }
     });
+    // Instâncias Shingen-Ryu: 2 P.N no Nível 1 e 3 no Nível 2, do MESMO bolo.
+    // Somadas aqui de propósito. Todo cálculo de P.N disponível do app (criador de
+    // Hatsu, ficha, nível do Hatsu, _pnLivreDoPersonagem) já subtrai esta função —
+    // são 8 pontos diferentes. Criar uma subtração separada em cada um deles daria
+    // na mesma conta em 8 lugares e, na prática, significaria esquecer um.
+    if (window.calcPNSpentInInstancias) spent += window.calcPNSpentInInstancias(char);
     return spent;
 };
 

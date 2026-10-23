@@ -798,7 +798,33 @@
                         `<div class="flex items-start gap-2 text-[10px] text-gray-400 font-semibold mb-2 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2"><i data-lucide="info" size="12" class="shrink-0 mt-0.5 text-gray-500"></i><span>${_ciPorta.motivo}</span></div>`;
                     combatIncHtml = `<div class="mt-2 border-t border-gray-800 pt-4"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-3"><div class="bg-gray-800 p-2 rounded text-orange-400"><i data-lucide="swords" size="20"></i></div><div><h3 class="font-bold text-white uppercase tracking-wider text-sm">Inclinações de Combate</h3><p class="text-[10px] text-gray-500 uppercase tracking-widest">${ciSpent}/${ciTotalPts} pontos usados</p></div></div>${_ciBotao}</div>${_ciMotivo}${(_ciPorta.ok && ciAvail > 0) ? `<div class="flex items-center gap-2 text-[10px] text-orange-400 font-bold mb-2 bg-orange-500/10 border border-orange-500/20 rounded-lg px-3 py-2 animate-pulse"><i data-lucide="alert-circle" size="12"></i> ${ciAvail} ponto(s) disponível(is) para investir!</div>` : ''}<div class="space-y-2">${ciListHtml}</div></div>`;
                 }
-                tabContent = `<div class="p-4 space-y-2">${traitsHtml}${bgHtml}${generalIncHtml}${otherSkillsHtml}${combatIncHtml}</div>`;
+                // ── Instâncias Shingen-Ryu ───────────────────────────────────────────
+                // Pagas com P.N (2 no Nível 1, 3 no Nível 2), não com Pontos de Inclinação.
+                // Por isso o contador mostra P.N, e não o bolo das inclinações.
+                let instHtml = '';
+                if (window.INSTANCIAS_DB && char.level >= 2) {
+                    const _iPorta = window.podeComprarInstancias
+                        ? window.podeComprarInstancias(char) : { ok: true, motivo: '' };
+                    const _iInvest = char.instancias || {};
+                    const _iGasto = window.calcPNSpentInInstancias ? window.calcPNSpentInInstancias(char) : 0;
+                    const _iLivre = window._pnLivreDoPersonagem ? window._pnLivreDoPersonagem(char) : 0;
+                    const _iEntries = Object.keys(_iInvest).filter(function (k) { return (_iInvest[k] || 0) > 0; });
+                    const _iLista = _iEntries.length === 0
+                        ? `<p class="text-[10px] text-gray-600 italic text-center py-2">Nenhuma Instância treinada.</p>`
+                        : _iEntries.map(function (id) {
+                            const ins = window.INSTANCIAS_DB.filter(function (x) { return x.id === id; })[0];
+                            if (!ins) return '';
+                            const n = _iInvest[id];
+                            return ins.niveis.slice(0, n).map(function (d, ni) {
+                                return `<div class="bg-gray-900 border border-gray-800 rounded-xl p-3" style="border-left:3px solid #a855f7"><div class="flex items-center gap-2 mb-1 flex-wrap"><span class="text-xs font-bold" style="color:#c084fc">${ins.nome}</span><span class="text-[9px] px-1.5 rounded" style="background:#a855f71a;color:#c084fc;border:1px solid #a855f733">Nível ${ni + 1}</span>${(ins.etiquetas || []).map(function (e) { return `<span class="text-[8px] font-bold px-1.5 rounded" style="background:#1e3a8a33;color:#93c5fd;border:1px solid #3b82f644">${e}</span>`; }).join('')}</div><p class="text-[10px] text-gray-400 leading-relaxed">${d}</p></div>`;
+                            }).join('');
+                          }).join('');
+                    const _iBotao = _iPorta.ok
+                        ? `<button onclick="window._openInstanciasModal()" class="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-colors" style="background:#a855f71a;border:1px solid #a855f74d;color:#c084fc"><i data-lucide="edit-3" size="12"></i> Editar</button>`
+                        : `<span class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-800/60 border border-gray-700 text-gray-500 text-[10px] font-bold uppercase tracking-widest"><i data-lucide="lock" size="12"></i> Bloqueado</span>`;
+                    instHtml = `<div class="mt-2 border-t border-gray-800 pt-4"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-3"><div class="bg-gray-800 p-2 rounded" style="color:#c084fc"><i data-lucide="git-branch" size="20"></i></div><div><h3 class="font-bold text-white uppercase tracking-wider text-sm">Instâncias Shingen-Ryu</h3><p class="text-[10px] text-gray-500 uppercase tracking-widest">${_iGasto} P.N investidos &#183; ${Math.max(0, _iLivre)} P.N livres</p></div></div>${_iBotao}</div>${_iPorta.ok ? '' : `<div class="flex items-start gap-2 text-[10px] text-gray-400 font-semibold mb-2 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2"><i data-lucide="info" size="12" class="shrink-0 mt-0.5 text-gray-500"></i><span>${_iPorta.motivo}</span></div>`}<div class="space-y-2">${_iLista}</div></div>`;
+                }
+                tabContent = `<div class="p-4 space-y-2">${traitsHtml}${bgHtml}${generalIncHtml}${otherSkillsHtml}${combatIncHtml}${instHtml}</div>`;
             } else if (state.activeTab === 'INV') {
                 const isShop = state.invMode === 'SHOP';
                 const headerHtml = `<div class="flex items-center justify-between px-4 pt-4 pb-2 sticky top-0 bg-gray-950 z-20 border-b border-gray-800/50"><div class="flex bg-gray-900 rounded-lg p-1 border border-gray-800"><button onclick="toggleInvMode('BAG')" class="px-4 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${!isShop ? `bg-[${themeColor}] text-black shadow-[0_0_10px_${themeColor}]` : 'text-gray-500 hover:text-white'}">Mochila</button><button onclick="toggleInvMode('SHOP')" class="px-4 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${isShop ? `bg-[${themeColor}] text-black shadow-[0_0_10px_${themeColor}]` : 'text-gray-500 hover:text-white'}">Loja</button></div><div class="flex items-center gap-2 bg-gray-900 border border-gray-800 rounded-lg px-3 py-1.5"><span class="text-[${themeColor}] font-bold text-xs">$</span><input type="number" value="${char.money}" onchange="updateMoney(this.value)" class="w-16 bg-transparent text-white font-mono text-sm text-right outline-none"></div></div>`;
@@ -2835,6 +2861,107 @@
             document.body.insertAdjacentHTML('beforeend', buildGiHtml());
         };
 
+        // ── Modal das Instâncias Shingen-Ryu ───────────────────────────────────────
+        // Diferente do modal das Inclinações em dois pontos: o recurso é P.N (não Pontos
+        // de Inclinação) e não existe bônus de atributo, então não há ledger a manter —
+        // salvar é só gravar char.instancias.
+        window._openInstanciasModal = function () {
+            const char = state.currentChar;
+            if (!char || !window.INSTANCIAS_DB) { alert('Banco de Instâncias não carregado.'); return; }
+            const porta = window.podeComprarInstancias
+                ? window.podeComprarInstancias(char) : { ok: true, motivo: '' };
+            if (!porta.ok) { alert('Instâncias Shingen-Ryu bloqueadas.\n\n' + (porta.motivo || '')); return; }
+
+            const COR = '#a855f7';
+            const draft = JSON.parse(JSON.stringify(char.instancias || {}));
+            const ci = char.combatInclinations || {};
+            // P.N livre IGNORANDO o que já está gasto em Instâncias, para o modal poder
+            // devolver e regastar livremente sem o orçamento "andar" durante a edição.
+            const gastoSalvo = window.calcPNSpentInInstancias ? window.calcPNSpentInInstancias(char) : 0;
+            const livreBase = (window._pnLivreDoPersonagem ? window._pnLivreDoPersonagem(char) : 0) + gastoSalvo;
+            const custoDe = function (n) {
+                let c = 0;
+                for (let i = 0; i < n; i++) c += (window.INSTANCIA_CUSTO_PN || [2, 3])[i] || 0;
+                return c;
+            };
+            const gastoDraft = function () {
+                return Object.keys(draft).reduce(function (a, k) { return a + custoDe(draft[k] || 0); }, 0);
+            };
+
+            window._instSetNivel = function (id, n) {
+                const atual = draft[id] || 0;
+                if (n === atual) return;
+                if (n > atual) {
+                    const ins = window.INSTANCIAS_DB.filter(function (x) { return x.id === id; })[0];
+                    if (!ins) return;
+                    if (!window.avaliarRequisitoInstancia(ins.requisitos, ci)) return;
+                    const delta = custoDe(n) - custoDe(atual);
+                    if (gastoDraft() + delta > livreBase) return;   // sem P.N suficiente
+                }
+                if (n <= 0) delete draft[id]; else draft[id] = n;
+                redesenhar();
+            };
+            window._instSalvar = function () {
+                char.instancias = JSON.parse(JSON.stringify(draft));
+                saveCharacter(char);
+                document.getElementById('inst-modal-overlay')?.remove();
+                render(true);
+                window._showXpToast && window._showXpToast('Instâncias Shingen-Ryu salvas!');
+            };
+
+            function corpo() {
+                const livre = livreBase - gastoDraft();
+                return window.INSTANCIAS_DB.map(function (ins) {
+                    const cur = draft[ins.id] || 0;
+                    const atende = window.avaliarRequisitoInstancia(ins.requisitos, ci);
+                    const niveis = ins.niveis.map(function (desc, ni) {
+                        const n = ni + 1;
+                        const custo = (window.INSTANCIA_CUSTO_PN || [2, 3])[ni] || 0;
+                        const ativo = cur >= n;
+                        const podeLigar = !ativo && atende && cur === ni && (custo <= livre);
+                        const podeDesligar = ativo && cur === n;
+                        const clicavel = podeLigar || podeDesligar;
+                        return '<div class="flex gap-2 items-start p-2 rounded-lg mb-1" style="background:' + (ativo ? COR + '1a' : '#11182780') + ';border:1px solid ' + (ativo ? COR + '33' : '#1f293780') + '">'
+                            + '<button onclick="window._instSetNivel(\'' + ins.id + '\',' + (ativo ? n - 1 : n) + ')" ' + (clicavel ? '' : 'disabled')
+                            + ' style="min-width:28px;height:28px;border-radius:6px;border:1px solid ' + (ativo ? COR : '#374151') + ';background:' + (ativo ? COR + '20' : '#111827') + ';color:' + (ativo ? COR : '#6b7280') + ';font-weight:900;font-size:11px;cursor:' + (clicavel ? 'pointer' : 'not-allowed') + ';opacity:' + (clicavel || ativo ? '1' : '0.35') + '">' + (ativo ? '✓' : n) + '</button>'
+                            + '<div class="flex-1"><span class="text-[9px] font-bold uppercase tracking-widest block mb-0.5" style="color:' + (ativo ? COR : '#6b7280') + '">Nível ' + n + ' — ' + custo + ' P.N</span>'
+                            + '<p class="text-[10px] leading-relaxed ' + (ativo ? 'text-gray-300' : 'text-gray-600') + '">' + desc + '</p></div></div>';
+                    }).join('');
+                    return '<div class="rounded-xl p-3 mb-2" style="background:#111827;border:1px solid ' + (cur > 0 ? COR + '4d' : '#1f2937') + '">'
+                        + '<div class="flex items-center gap-2 mb-1 flex-wrap">'
+                        + '<span class="text-xs font-bold" style="color:' + (cur > 0 ? COR : '#fff') + '">' + ins.nome + '</span>'
+                        + (ins.etiquetas || []).map(function (e) { return '<span class="text-[8px] font-bold px-1.5 rounded" style="background:#1e3a8a33;color:#93c5fd;border:1px solid #3b82f644">' + e + '</span>'; }).join('')
+                        + (atende
+                            ? '<span class="text-[8px] font-bold px-1.5 rounded ml-auto" style="background:#16a34a22;color:#4ade80;border:1px solid #16a34a44">requisitos OK</span>'
+                            : '<span class="text-[8px] font-bold px-1.5 rounded ml-auto" style="background:#4b556322;color:#9ca3af;border:1px solid #4b556344">requisitos faltando</span>')
+                        + '</div>'
+                        + '<p class="text-[9px] mb-2 leading-relaxed" style="color:' + (atende ? '#6b7280' : '#f59e0b') + '">Requer: ' + ins.reqTexto + '</p>'
+                        + niveis + '</div>';
+                }).join('');
+            }
+
+            function html() {
+                const livre = livreBase - gastoDraft();
+                return '<div id="inst-modal-overlay" style="position:fixed;inset:0;background:#000000ee;display:flex;align-items:flex-start;justify-content:center;z-index:9999;padding:16px;font-family:Rajdhani,sans-serif;overflow-y:auto">'
+                    + '<div style="background:#0d1117;border:2px solid ' + COR + ';border-radius:20px;padding:20px;width:100%;max-width:420px;box-shadow:0 0 60px ' + COR + '44;margin:auto">'
+                    + '<div style="margin-bottom:14px">'
+                    + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:13px;color:' + COR + ';text-transform:uppercase;letter-spacing:2px">Instâncias Shingen-Ryu</div>'
+                    + '<div style="font-size:10px;color:#6b7280;margin-top:2px">Pagas com P.N — o mesmo dos Hatsus e Princípios</div>'
+                    + '</div>'
+                    + '<div style="border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:10px;font-weight:700;background:' + (livre > 0 ? COR + '15' : '#1f2937') + ';border:1px solid ' + (livre > 0 ? COR + '30' : '#374151') + ';color:' + (livre > 0 ? COR : '#9ca3af') + '">⚡ ' + livre + ' P.N disponível(is)</div>'
+                    + '<div style="max-height:52vh;overflow-y:auto;padding-right:4px">' + corpo() + '</div>'
+                    + '<div style="display:flex;gap:8px;margin-top:14px">'
+                    + '<button onclick="document.getElementById(\'inst-modal-overlay\').remove()" style="flex:1;padding:11px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer;letter-spacing:1px">Cancelar</button>'
+                    + '<button onclick="window._instSalvar()" style="flex:2;padding:11px;border-radius:10px;background:' + COR + ';border:none;color:#000;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer;letter-spacing:1px">✓ Salvar</button>'
+                    + '</div></div></div>';
+            }
+            function redesenhar() {
+                document.getElementById('inst-modal-overlay')?.remove();
+                document.body.insertAdjacentHTML('beforeend', html());
+            }
+            redesenhar();
+        };
+
         window._openCombatIncModal = function() {
             const char = state.currentChar;
             // Gate único (nível + Nen + princípio/técnica) — a mesma função decide o que a
@@ -3096,6 +3223,25 @@
                     (draft[inc.id] || 0) >= inc.tiers.length && !draftChoices[inc.id]
                 );
                 if (pending) { alert(`Escolha o atributo do bônus de "${pending.nome}" antes de salvar.`); return; }
+
+                // As Instâncias Shingen-Ryu têm inclinações como requisito. Realocar pode
+                // derrubar o requisito de uma Instância já paga com P.N — o jogador precisa
+                // saber antes de confirmar, senão descobre depois que treinou uma Instância
+                // que a ficha não sustenta mais.
+                if (window.INSTANCIAS_DB && window.avaliarRequisitoInstancia) {
+                    const inst = char.instancias || {};
+                    const orfas = window.INSTANCIAS_DB.filter(function (ins) {
+                        if (!(inst[ins.id] > 0)) return false;
+                        const antes = window.avaliarRequisitoInstancia(ins.requisitos, char.combatInclinations || {});
+                        const depois = window.avaliarRequisitoInstancia(ins.requisitos, draft);
+                        return antes && !depois;
+                    }).map(function (ins) { return ins.nome; });
+                    if (orfas.length > 0) {
+                        if (!confirm('Atenção: esta distribuição derruba o requisito de ' + orfas.length
+                            + ' Instância(s) Shingen-Ryu já treinada(s):\n\n• ' + orfas.join('\n• ')
+                            + '\n\nElas continuam na ficha e o P.N segue gasto, mas ficam sem requisito. Salvar assim mesmo?')) return;
+                    }
+                }
 
                 // "Ledger" do que já foi de fato aplicado nos atributos: fixo → true, escolha → attr
                 // escolhido. Comparar contra isso (em vez de contra o tier salvo anteriormente) também
