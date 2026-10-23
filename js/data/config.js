@@ -891,6 +891,36 @@ window.INCLINACAO_SITUACIONAL = {
     'Resistência a Venenos': '+10 em testes de CON contra venenos não produzidos por aura',
 };
 
+// ── Porta de entrada das Inclinações de Combate (livro v2.0, cap. 4) ──────────
+// Antes, qualquer personagem de nível 2 ou mais comprava Inclinações de Combate
+// usando só Pontos de Inclinação. A regra atualizada diz que o treino marcial do
+// Shingen-Ryu acompanha o treino de Nen: o personagem gasta DOIS recursos ao longo
+// da evolução — P.N nos Princípios/Técnicas (que é o que abre o acesso) e Pontos
+// de Inclinação nas inclinações em si. Sem Nen, e sem nenhum princípio ou técnica
+// desbloqueado, não há acesso.
+window.temPrincipioOuTecnica = function (char) {
+    const d = (char || {}).nenDominio || {};
+    if ((d.ten || 0) > 0 || (d.ren || 0) > 0 || (d.zetsu || 0) > 0) return true;
+    return (window.NEN_AVANCADOS || []).some(function (k) { return !!d[k]; });
+};
+
+// Retorna { ok, motivo } — o motivo é exibido na ficha, para o jogador saber o que
+// falta em vez de só encontrar um botão desabilitado.
+window.podeComprarInclinacoes = function (char) {
+    const c = char || {};
+    if ((parseInt(c.level) || 1) < 2) {
+        return { ok: false, motivo: 'Disponível a partir do Nível 2.' };
+    }
+    const semNen = c.categoriaMetodo === 'semnen' || !c.class;
+    if (semNen) {
+        return { ok: false, motivo: 'Exige Nen: personagens sem categoria de Nen não treinam Inclinações de Combate.' };
+    }
+    if (!window.temPrincipioOuTecnica(c)) {
+        return { ok: false, motivo: 'Desbloqueie ao menos 1 Princípio ou Técnica de Nen (Ten, Ren, Zetsu ou um avançado) para abrir as Inclinações.' };
+    }
+    return { ok: true, motivo: '' };
+};
+
 // Lista plana das inclinações gerais do personagem, de todas as origens.
 window.inclinacoesGeraisDoPersonagem = function (char) {
     const nome = i => String((i && i.nome) || i || '').split(':')[0].trim();
