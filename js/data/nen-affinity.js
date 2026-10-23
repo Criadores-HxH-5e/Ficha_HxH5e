@@ -233,6 +233,18 @@ window.calcAuraCost = function(hb) {
         custo -= eg8Reducao;
     }
 
+    // Graus genéricos ("Adicione X Graus de Potência em qualquer característica")
+    // que o jogador mandou para Redução de Custo: 1 grau = -5% de aura.
+    if (window.grausGenericosDoHatsu) {
+        const _gen = window.grausGenericosDoHatsu({
+            restricoes: allR, efeitos: [].concat(hb.eg || [], hb.ec || []),
+            specialChoices: hb.specialChoices || {},
+            beneficioChoices: hb.beneficioChoices || {},
+            pureRestrictions: hb.pureRestrictions || {},
+        });
+        if (_gen.custo) custo -= _gen.custo * 5;
+    }
+
     // rg_p8: Local/Condição Específica — reduz à metade (mínimo 5%)
     if (allR.includes('rg_p8')) custo = Math.max(5, Math.floor(custo / 2));
 
