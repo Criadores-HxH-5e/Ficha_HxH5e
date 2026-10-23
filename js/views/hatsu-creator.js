@@ -127,12 +127,12 @@ function renderHatsuCreator(container) {
             var loreOpen = !!(hb && hb.openLore && hb.openLore[item.id]);
             var hasAlt = !!(item.bnf && /\s[Oo][Uu]\s/.test(item.bnf));
             var choiceKey = (hb && hb.beneficioChoices) ? hb.beneficioChoices[item.id] : undefined;
-            var needsChoice = sel && !isPure && hasAlt && choiceKey === null && !['rg_l9','rg_l10'].includes(item.id);
+            var needsChoice = sel && !isPure && hasAlt && choiceKey === null && !['rg_l9','rg_l10','rt_m1'].includes(item.id);
             var borderColor = isPure ? '#fbbf24' : sel ? (needsChoice ? '#fb923c' : p.bs) : p.bun;
             var purePn = PURE_PN[pw] || 0;
 
             var choiceHtml = '';
-            if (sel && !isPure && hasAlt && item.id !== 'rma_m2' && item.id !== 're_p1' && !['rg_l9','rg_l10'].includes(item.id)) {
+            if (sel && !isPure && hasAlt && item.id !== 'rma_m2' && item.id !== 're_p1' && !['rg_l9','rg_l10','rt_m1'].includes(item.id)) {
                 var opts = item.bnf.split(/\s[Oo][Uu]\s/);
                 if (!window._hBnfOpts) window._hBnfOpts = {};
                 window._hBnfOpts[item.id] = opts.map(function(o){ return o.trim(); });
@@ -221,6 +221,29 @@ function renderHatsuCreator(container) {
                         + (l17Val ? '<div style="font-size:8px;color:' + p.bs + ';margin-top:4px">✓ ' + l17Val + '</div>' : '<div style="font-size:8px;color:#f87171;margin-top:4px">⚠ Escolha Acerto ou Dano</div>')
                         + '</div>';
                 }
+            }
+            // Special: rt_m1 (Perde 5% de aura extra ao errar) — o benefício é "Se atingir,
+            // causa 1 Condição fraca adicional". O jogador escolhe QUAL condição aqui, na
+            // criação. A lista vem de CONDICOES_POR_NIVEL (js/data/hatsu-db.js), a mesma do
+            // Condição Perigosa — o bnf cita só alguns exemplos, mas valem todas as fracas.
+            if (sel && item.id === 'rt_m1') {
+                var m1Val = (hb && hb.specialChoices && hb.specialChoices['rt_m1']) || '';
+                var fracas = ((window.CONDICOES_POR_NIVEL || {}).fracas) || [];
+                specialInputHtml += '<div style="margin-top:8px" onclick="event.stopPropagation()">'
+                    + '<div style="font-size:8px;font-weight:700;color:' + p.bs + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">🩸 Condição aplicada ao atingir</div>'
+                    + '<div style="font-size:8px;color:#6b7280;margin-bottom:6px">Escolha 1 Condição fraca. Ela entra quando o ataque acerta.</div>'
+                    + '<div style="display:flex;flex-wrap:wrap;gap:4px">'
+                    + fracas.map(function(c) {
+                        var active = m1Val === c;
+                        return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\'rt_m1\',\'' + c.replace(/'/g, "\\'") + '\')" '
+                            + 'style="padding:5px 9px;border-radius:7px;font-size:8px;font-weight:700;cursor:pointer;border:1.5px solid '
+                            + (active ? p.bs : '#1f2937') + ';background:' + (active ? p.bs + '22' : 'transparent')
+                            + ';color:' + (active ? p.bs : '#9ca3af') + '">' + c + '</button>';
+                    }).join('')
+                    + '</div>'
+                    + (m1Val ? '<div style="font-size:8px;color:' + p.bs + ';margin-top:5px">✓ ' + m1Val + '</div>'
+                             : '<div style="font-size:8px;color:#f87171;margin-top:5px">⚠ Escolha a condição.</div>')
+                    + '</div>';
             }
             if (sel && item.id === 'rg_p8') {
                 var currentVal = (hb && hb.specialChoices && hb.specialChoices['rg_p8']) || '';
@@ -1178,27 +1201,12 @@ function renderHatsuCreator(container) {
                         + '</div>';
                 }
 
-                // eg10: Flagelo da Mente — Puro (2d6 principal) ou Complementar (1d8 adicional)
-                if (item.id === 'eg10') {
-                    const chosen = specialChoices['eg10'] || '';
-                    const eg10opts = [
-                        ['Puro','💜','1d10 Psíquico — substitui o dano base do Hatsu'],
-                        ['Complementar','➕','1d8 Psíquico — efeito adicional ao dano'],
-                    ];
-                    specialHtml = '<div style="margin-top:8px;background:#0a0f1a;border:1px solid '+ color +'33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
-                        + '<div style="font-size:8px;font-weight:900;color:'+ color +';text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">💜 Modo do Flagelo da Mente:</div>'
-                        + '<div style="display:flex;gap:6px">'
-                        + eg10opts.map(function(op) {
-                            var active = chosen === op[0];
-                            return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\'eg10\',\''+ op[0] +'\')" '
-                                + 'style="flex:1;padding:8px 6px;border-radius:8px;font-size:8px;font-weight:900;cursor:pointer;border:1.5px solid '+ (active?color:'#1f2937') +';background:'+ (active?color+'22':'transparent') +';color:'+ (active?color:'#9ca3af') +';transition:all .15s;text-align:center">'
-                                + op[1]+' <b>'+ op[0] +'</b><br><span style="font-size:7px;opacity:.7">'+ op[2] +'</span></button>';
-                        }).join('')
-                        + '</div>'
-                        + (chosen ? '<div style="font-size:8px;color:'+ color +';margin-top:6px">✓ '+chosen+'</div>'
-                                  : '<div style="font-size:8px;color:#f87171;margin-top:4px">⚠ Escolha o modo do efeito</div>')
-                        + '</div>';
-                }
+                // eg10: Flagelo da Mente — não tem mais modo a escolher.
+                // Antes o jogador escolhia entre "Puro" (1d10 substituindo o dano base) e
+                // "Complementar" (1d8 adicional). Pelo manual, o Flagelo é o Dano/Cura Focal
+                // da SANIDADE: sempre a sua própria linha, partindo de 1d10 e subindo um
+                // grau/passo por compra. Um Hatsu pode ter dano em PV e em Sanidade ao mesmo
+                // tempo, sem escolher entre eles.
 
                 // rm_e2: Golem de Aura — material picker (tamanho fixo: Pequeno)
                 // rev. — cada cópia comprada (Golem de Aura é repetível) precisa de material e

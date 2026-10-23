@@ -40,7 +40,9 @@ window.DANO_GRAU_MAP = {
     'rg_p5':  3,  // Efeitos Aleatórios (só se a escolha NÃO for "Margem de Crítico")
     // Restrições de categoria
     'ri_l1':  1,  // PV < 75% → +1 grau/passo dano
-    'rt_m1':  2,  // Dor Reflexiva Elemental → +2 Graus
+    // 'rt_m1' (Perde 5% de aura extra ao errar) saiu daqui. O benefício da restrição é
+    // "Se atingir, causa 1 Condição fraca adicional" — condição, não grau. Ela estava
+    // dando +2 de dano que a regra não concede. A condição é escolhida no criador.
     'ri_m1':  2,  // Aumento por Rodada (Reforço) → +2 Graus de Potência no Hatsu (simplificado como Dano)
     'ri_m3':  1,  // Inutilizável c/ +50% Aura (Reforço) → +1 Grau de Potência no Hatsu (simplificado como Dano)
     'rt_l1':  1,  // Preparação Obrigatória (Transmutação) → +1 Grau de Potência no Hatsu (simplificado como Dano)
@@ -59,7 +61,6 @@ window.DANO_GRAU_MAP = {
     // dano básico — ver DANO_PROPRIO_MAP.
     // Benefícios de restrição continuam contando (bloco acima).
     'eg7':    1,  // Poder Valioso → +1 Grau de potência
-    'eg10':   0,  // Flagelo da Mente → dano psíquico próprio (tratado à parte, base 1d10)
     'eg15':   1,  // Dano/Cura Focal → +1 grau/passo no dano básico
 };
 
@@ -149,7 +150,7 @@ window.DANO_DADO_MAP = {
 // Efeitos que CONCEDEM dano próprio (tornam o hatsu "com dano" independente do tipo)
 // Estrutura: id → { dado, desc }
 window.DANO_PROPRIO_MAP = {
-    'eg10':   { dado: '1d8',      tipo: 'Psíquico',   desc: 'Flagelo da Mente' },
+    'eg10':   { dado: '1d10',     tipo: 'Psíquico',   desc: 'Flagelo da Mente' },
     'eg17':   { dado: '(contínuo)',tipo: 'Contínuo',   desc: 'Dor pra Disgrama!' },
     'ri_e11': { dado: '+ 1d8',    tipo: 'Extra',      desc: 'Golpe Reforçado' },
     'ri_e20': { dado: '+ 1d6',    tipo: 'Extra',      desc: 'Fúria Potencializada' },
@@ -190,7 +191,7 @@ window.DANO_PROPRIO_ESCALA = {
     'rc_e9':  { tipo: 'dado',  base: '1d8' },          // Metamorfose Corporal
     'em_e1':  { tipo: 'dado',  base: '1d8' },          // Projétil de Aura
     'em_e3':  { tipo: 'dado',  base: '2d6' },          // Disparo Potente
-    'eg10':   { tipo: 'dado',  base: '1d8' },          // Flagelo da Mente
+    'eg10':   { tipo: 'dado',  base: '1d10' },         // Flagelo da Mente (dano em SANIDADE)
     // Valor BRUTO sobe de 1 em 1, qualquer que seja a base: +5 vira +6, não +10.
     // Só os efeitos com DADO usam a tabela de grau/passo.
     'ri_e12': { tipo: 'bruto', base: 5, passo: 1 },    // Penetração Dolorosa
@@ -1011,6 +1012,13 @@ function renderHatsuDetail(container) {
         }
         let g = DANO_GRAU_MAP[item.id];
         if (!g || g <= 0) return;
+        // rg_l11: Limitação de Alvos — "+1 Grau/Passo de dano/cura OU Aplica +1 condição".
+        // O criador já oferecia as duas opções, mas o cálculo somava o dano sempre:
+        // quem escolhia a condição levava o grau junto, de graça.
+        if (item.id === 'rg_l11') {
+            const bcL11 = (h.beneficioChoices||{})['rg_l11'] || '';
+            if (!bcL11.toLowerCase().includes('dano') && !bcL11.toLowerCase().includes('cura')) return;
+        }
         // rg_l16: Tempo de Carregamento — só aplica grau de Dano se escolheu "dano/cura" (alternativa é Concentração)
         if (item.id === 'rg_l16') {
             const bc = (h.beneficioChoices||{})['rg_l16'] || '';
@@ -1156,10 +1164,14 @@ function renderHatsuDetail(container) {
         const grauDelta = totalGraus > 0 ? `+${totalGraus}` : totalGraus < 0 ? `${totalGraus}` : '';
 
         // Bloco de dano base (2d6 escalado) — aparece quando hostil/catDmg (sem efeito próprio de dano)
-        const eg10modeFinal = (h.specialChoices||{})['eg10'] || 'Complementar';
-        const isPuroFlagelo = temFlagelo && eg10modeFinal === 'Puro';
+        // ── Flagelo da Mente: linha própria de SANIDADE ─────────────────────────
+        // O efeito tinha dois modos: "Puro" (substituía o dano base por 1d10) e
+        // "Complementar" (linha extra de 1d8). Pelo manual, Dano/Cura Focal e Flagelo
+        // da Mente são o mesmo papel para recursos diferentes — PV e Sanidade — então
+        // o Flagelo é SEMPRE a sua própria linha, partindo de 1d10, e um Hatsu pode
+        // ter as duas ao mesmo tempo. Não há modo a escolher.
         let baseDmgSection = '';
-        if (isHostil || catDmg || isPuroFlagelo) {
+        if (isHostil || catDmg) {
             // Step 1: apply +dado (ex: 2d6 → 3d6)
             // ── Dano base: 2d6 só com Dano/Cura Focal ────────────────────────────────
             // Antes, ser Hostil (ou de categoria ofensiva) já garantia 2d6. Pela regra do
@@ -1178,8 +1190,8 @@ function renderHatsuDetail(container) {
             const _temDanoFocal = _tags.dano > 0 || _temForjarArma;
             const _temCuraFocal = _tags.cura > 0;
             const _idxSemFocal = DAMAGE_TABLE.indexOf('1d8');
-            const _baseLabel = isPuroFlagelo ? '1d10' : (_temDanoFocal ? '2d6' : '1d8');
-            let baseIdx = isPuroFlagelo ? 3 : (_temDanoFocal ? BASE_DAMAGE_IDX : _idxSemFocal);
+            const _baseLabel = _temDanoFocal ? '2d6' : '1d8';
+            let baseIdx = _temDanoFocal ? BASE_DAMAGE_IDX : _idxSemFocal;
             let afterDadoNote = '';
             if (totalDados > 0) {
                 // Parse current base dice: "2d6" → n=2, d=6
@@ -1195,8 +1207,8 @@ function renderHatsuDetail(container) {
                     if (!afterDadoNote) afterDadoNote = '';
                 }
             }
-            // Se Flagelo Puro: graus extras de cópias somam ao dano base também
-            const flageloGrauPuro = isPuroFlagelo ? (flageloCopias - 1) : 0;
+            // O Flagelo não soma mais no dano base: ele tem linha própria de sanidade.
+            const flageloGrauPuro = 0;
 
             // ── TETO DE GRAU/PASSO NO DANO PRINCIPAL ────────────────────────────────
             // O teto já existia, mas só era aplicado nos efeitos de dano EXTRA (Golpe
@@ -1257,7 +1269,7 @@ function renderHatsuDetail(container) {
                     c: '#fbbf24',
                 });
             }
-            if (!isPuroFlagelo && !_temDanoFocal) {
+            if (!_temDanoFocal) {
                 _danoInfo.push({ l: 'Sem Dano/Cura Focal', v: 'compre o efeito (ou Forjar Arma) para partir de 2d6', c: '#fbbf24' });
             }
             if (dadoSources.length > 0) {
@@ -1269,15 +1281,15 @@ function renderHatsuDetail(container) {
             if (danoGrauReservado > 0) _danoInfo.push({ l: '⏳ Reservado (teto do nível)', v: '+' + danoGrauReservado + ' grau' + (danoGrauReservado > 1 ? 's' : '') + ' aguardando', c: '#fbbf24' });
             if (flageloGrauPuro > 0) _danoInfo.push({ l: '+' + flageloGrauPuro + ' grau' + (flageloGrauPuro > 1 ? 's' : ''), v: 'Flagelo Puro ×' + flageloCopias, c: '#a78bfa' });
             if (overflowBonus > 0) _danoInfo.push({ l: '+' + overflowBonus + ' dano fixo', v: 'Excedente da tabela (fim em 20d20)', c: '#fbbf24' });
-            _danoInfo.push({ l: '→ Total', v: finalDice + ' + ' + baseAttr, c: isPuroFlagelo ? '#a78bfa' : '#f87171', b: true });
-            _danoInfo.push({ type: 'diceTable', table: DAMAGE_TABLE, tblStart: isPuroFlagelo ? 3 : (_temDanoFocal ? BASE_DAMAGE_IDX : _idxSemFocal), tblAfterDado: baseIdx, tblFinal: finalIdx });
+            _danoInfo.push({ l: '→ Total', v: finalDice + ' + ' + baseAttr, c: '#f87171', b: true });
+            _danoInfo.push({ type: 'diceTable', table: DAMAGE_TABLE, tblStart: (_temDanoFocal ? BASE_DAMAGE_IDX : _idxSemFocal), tblAfterDado: baseIdx, tblFinal: finalIdx });
             if (!window._HATSU_DANO_INFO) window._HATSU_DANO_INFO = {};
             window._HATSU_DANO_INFO[idx] = _danoInfo;
             const baseNote = (totalDados > 0 || totalGraus > 0 || flageloGrauPuro > 0) ? `(base ${_baseLabel})` : '';
-            const psiLabel = isPuroFlagelo ? `<span style="font-size:10px;font-weight:700;color:#a78bfa;margin-left:4px">Psíquico</span>` : '';
+            const psiLabel = '';  // o rótulo Psíquico vive na linha do Flagelo, não no dano base
             baseDmgSection = `
                 <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:6px">
-                    <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:26px;color:${isPuroFlagelo?'#a78bfa':danoColor};text-shadow:0 0 14px ${isPuroFlagelo?'#a78bfa66':danoColor+'66'};line-height:1">${finalDice}</div>
+                    <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:26px;color:${danoColor};text-shadow:0 0 14px ${danoColor+'66'};line-height:1">${finalDice}</div>
                     <div style="font-size:14px;font-weight:700;color:#6b7280">+ ${baseAttr}</div>
                     ${psiLabel}
                     ${baseNote ? `<div style="font-size:9px;color:#4b5563;font-style:italic">${baseNote}</div>` : ''}
@@ -1288,13 +1300,15 @@ function renderHatsuDetail(container) {
 
         // Danos extras de efeitos próprios
         let extraDmgSection = '';
-        if (temFlagelo && !isPuroFlagelo) {
-            // Complementar: base 1d8 + graus por cópias extras
-            const FLAGELO_COMP_IDX = 2; // 1d8
+        if (temFlagelo) {
+            // Base 1d10 (manual: "Hatsus de dano de sanidade começam com 1d10+Atributo"),
+            // subindo um grau/passo por compra: 1d10 → 1d12 → 2d6 → 2d8…
+            // Era 1d8 aqui, valor que não existe na regra.
+            const FLAGELO_BASE_IDX = DAMAGE_TABLE.indexOf('1d10');
             const flageloGraus = flageloCopias - 1;
-            const flageloIdx = Math.min(FLAGELO_COMP_IDX + flageloGraus, DAMAGE_TABLE.length - 1);
+            const flageloIdx = Math.min(FLAGELO_BASE_IDX + flageloGraus, DAMAGE_TABLE.length - 1);
             const flageloDado = DAMAGE_TABLE[flageloIdx];
-            const extraLabel = flageloGraus > 0 ? ` ×${flageloCopias} (+${flageloGraus} grau${flageloGraus>1?'s':''})` : ' (Complementar)';
+            const extraLabel = flageloGraus > 0 ? ` ×${flageloCopias} (+${flageloGraus} grau${flageloGraus>1?'s':''})` : '';
             extraDmgSection += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
                 <span style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:16px;color:#a78bfa">${flageloDado}</span>
                 <span style="font-size:10px;color:#7c3aed;font-weight:700">Psíquico</span>
@@ -2500,6 +2514,9 @@ function renderHatsuDetail(container) {
             }
             if ((r.id === 'rg_l9' || r.id === 'rg_l10') && sc[r.id]) specialDetail = `<div style="margin-top:6px;font-size:8px;font-weight:700;color:#60a5fa;padding:2px 7px;background:#60a5fa18;border-radius:5px">${sc[r.id] === 'Área' ? '🔵 Área' : '📐 Alcance'}</div>`;
             if (r.id === 'rg_l17' && sc.rg_l17) specialDetail = `<div style="margin-top:6px;font-size:8px;font-weight:700;color:#f87171;padding:2px 7px;background:#f8717118;border-radius:5px">⚔️ Aplicado em: ${sc.rg_l17}</div>`;
+            // A condição escolhida para "Perde 5% de aura extra ao errar" aparece na ficha,
+            // para a mesa saber o que aplicar quando o ataque acerta.
+            if (r.id === 'rt_m1' && sc.rt_m1) specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:#f87171;padding:4px 8px;background:#f8717118;border-radius:6px">🩸 Ao atingir: <b>${sc.rt_m1}</b></div>`;
             if (r.id === 'rg_v10' && sc.rg_v10 && typeof sc.rg_v10 === 'object' && sc.rg_v10.rodadas) {
                 specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:#c084fc;padding:4px 8px;background:#c084fc18;border-radius:6px">⚡ +${sc.rg_v10.rodadas} grau(s) em ${sc.rg_v10.tipo||'?'} — ${sc.rg_v10.rodadas} rod. de Zetsu por falha</div>`;
             }
