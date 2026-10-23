@@ -43,7 +43,8 @@ window.DANO_GRAU_MAP = {
     // 'rt_m1' (Perde 5% de aura extra ao errar) saiu daqui. O benefício da restrição é
     // "Se atingir, causa 1 Condição fraca adicional" — condição, não grau. Ela estava
     // dando +2 de dano que a regra não concede. A condição é escolhida no criador.
-    'ri_m1':  2,  // Aumento por Rodada (Reforço) → +2 Graus de Potência no Hatsu (simplificado como Dano)
+    // ri_m1 (Aumento por Rodada) saiu daqui: ver GRAU_DIRIGIDO_IDS — o jogador escolhe
+    // QUAL efeito comprado recebe os +2 graus, em vez de caírem sempre no dano base.
     'ri_m3':  1,  // Inutilizável c/ +50% Aura (Reforço) → +1 Grau de Potência no Hatsu (simplificado como Dano)
     'rt_l1':  1,  // Preparação Obrigatória (Transmutação) → +1 Grau de Potência no Hatsu (simplificado como Dano)
     're_l2':  2,  // Nome Verdadeiro do Alvo (Especialização) → +2 Graus de Potência no Hatsu (simplificado como Dano)
@@ -434,6 +435,12 @@ window.calcGrausPotenciaPorCaracteristica = function(h, charLevel) {
     Object.keys(_gen).forEach(function (k) {
         if (totals[k] !== undefined) totals[k] += _gen[k];
     });
+    // Graus dirigidos (ri_m1) saíram do DANO_GRAU_MAP, mas continuam sendo graus de
+    // Dano/Cura — todas as linhas que eles podem escolher vivem nesse mesmo teto.
+    Object.keys(window.GRAU_DIRIGIDO_IDS || {}).forEach(function (id) {
+        if (allIds.indexOf(id) < 0 || pr[id]) return;
+        totals.dano += window.GRAU_DIRIGIDO_IDS[id];
+    });
     return totals;
 };
 
@@ -557,6 +564,74 @@ window.grausGenericosDoHatsu = function (h) {
         out[dest] = (out[dest] || 0) + window.GRAU_GENERICO_IDS[id];
     });
     return out;
+};
+
+// ── Por meio de QUEM o Dano/Cura Focal acontece ──────────────────────────────
+// O 2d6 do Dano/Cura Focal pode ser causado pelo usuário diretamente ou POR MEIO de
+// um constructo, criatura, arma forjada ou objeto. Isso não muda o número: muda quem
+// bate. Quando há um veículo, é ELE que causa os 2d6 e o Hatsu não causa dano por si.
+window.VEICULO_DANO_IDS = {
+    'rm_e1':  'Objeto/Arma Forjada',
+    'rc_e1':  'Criatura Invocada',
+    'rc_e11': 'Criatura Complexa',
+    'ma_e1':  'Objeto Controlado (C.S.O)',
+    'ma_e2':  'Criatura Controlada (C.S.C)',
+    'rt_e6':  'Forma Esculpida de Aura',
+    'rg_l14': 'Objeto Canalizador',
+};
+// Retorna null quando o dano é do próprio usuário (padrão, e o que vale para toda ficha
+// antiga). A opção 'texto' guarda a descrição livre em eg15_veiculo_txt, para um veículo
+// que não corresponde a nenhum efeito do banco.
+window.veiculoDoFocal = function (h) {
+    const sc = (h && h.specialChoices) || {};
+    const esc = String(sc['eg15_veiculo'] || '');
+    if (!esc || esc === 'usuario') return null;
+    if (esc === 'texto') {
+        const nome = String(sc['eg15_veiculo_txt'] || '').trim();
+        return nome ? { id: null, nome: nome } : null;
+    }
+    const nome = window.VEICULO_DANO_IDS[esc];
+    return nome ? { id: esc, nome: nome } : null;
+};
+
+// ── Graus DIRIGIDOS: a própria restrição diz que escolhe um efeito ───────────
+// ri_m1 (Aumento por Rodada): "+2 Graus de Potência no total de cada efeito similar",
+// com os efeitos "ativados parcialmente (não de uma vez)". O app somava os 2 graus no
+// dano base sempre. Agora o jogador escolhe a linha que recebe, e os 2 graus entram
+// 1 por rodada (o número exibido é o total; o detalhamento mostra o escalonamento).
+window.GRAU_DIRIGIDO_IDS = { 'ri_m1': 2 };
+window.grausDirigidosDoHatsu = function (h, linhas) {
+    const out = {};
+    if (!h || !linhas || !linhas.length) return out;
+    const todos = [].concat(h.restricoes || [], h.efeitos || []);
+    const sc = h.specialChoices || {};
+    const pr = h.pureRestrictions || {};
+    const validas = {};
+    linhas.forEach(function (l) { validas[l.id] = true; });
+    Object.keys(window.GRAU_DIRIGIDO_IDS).forEach(function (id) {
+        if (todos.indexOf(id) < 0 || pr[id]) return;
+        // Sem escolha, cai na primeira linha (o dano base) — ficha antiga não muda sozinha.
+        const alvo = sc[id + '_linha'];
+        const dest = validas[alvo] ? alvo : linhas[0].id;
+        out[dest] = (out[dest] || 0) + window.GRAU_DIRIGIDO_IDS[id];
+    });
+    return out;
+};
+
+// Monta as linhas de dano a partir de uma lista de ids, sem passar pelo render.
+// Usado pelos pickers do criador, para que eles ofereçam exatamente as mesmas linhas
+// que o painel de distribuição mostra — uma fonte de verdade só.
+window.linhasDanoPorIds = function (h, ids) {
+    const lista = (ids || []).map(function (id) { return { id: id, nome: id }; });
+    const tags = window.contarTagsFocal(h, lista);
+    const temForjar = (ids || []).indexOf('rm_e1') >= 0;
+    return window.linhasDeDanoDoHatsu(h, lista, {
+        temBase:    true,
+        baseDado:   (tags.dano > 0 || temForjar) ? '2d6' : '1d8',
+        temCura:    tags.cura > 0 || (ids || []).indexOf('ri_e3') >= 0,
+        curaDado:   tags.cura > 0 ? '2d6' : '1d8',
+        temFlagelo: (ids || []).indexOf('eg10') >= 0,
+    });
 };
 
 // ── Alocação de Graus de Dano/Cura entre as LINHAS do Hatsu ──────────────────
@@ -1291,10 +1366,29 @@ function renderHatsuDetail(container) {
             curaDado: _temCuraFocal ? '2d6' : '1d8',
             temFlagelo: temFlagelo,
         });
-        const _porLinha = window.calcGrausPorLinha(h, totalGraus, _linhasDano);
-        // Guardado para o painel de distribuição abrir com os números certos.
+        // Distribuição do POOL livre. Fica separada dos graus dirigidos: o painel
+        // "⚖ Distribuir" só pode mexer no pool, senão salvaria o grau dirigido dentro de
+        // h.grauLinhas e ele passaria a contar duas vezes.
+        const _poolPorLinha = window.calcGrausPorLinha(h, totalGraus, _linhasDano);
+        // Graus dirigidos (ri_m1): a própria restrição aponta a linha, então entram por
+        // fora do pool e não aparecem no painel de distribuição.
+        const _dirigidos = window.grausDirigidosDoHatsu ? window.grausDirigidosDoHatsu(h, _linhasDano) : {};
+        const _porLinha = {};
+        _linhasDano.forEach(function (l) { _porLinha[l.id] = _poolPorLinha[l.id] || 0; });
+        Object.keys(_dirigidos).forEach(function (k) {
+            _porLinha[k] = (_porLinha[k] || 0) + _dirigidos[k];
+            const _lbl = (_linhasDano.filter(function (l) { return l.id === k; })[0] || {}).label || k;
+            grauSources.push({ nome: 'Aumento por Rodada → ' + _lbl, graus: _dirigidos[k] });
+        });
+        // Por meio de quem o dano acontece (constructo, arma forjada, criatura...).
+        const _veiculo = window.veiculoDoFocal ? window.veiculoDoFocal(h) : null;
+        // Guardado para o painel de distribuição (porLinha = só o pool) e para a rolagem
+        // (porLinhaTotal = pool + dirigidos, o que de fato sobe a escada).
         if (!window._HATSU_ALOC) window._HATSU_ALOC = {};
-        window._HATSU_ALOC[idx] = { linhas: _linhasDano, pool: totalGraus, porLinha: _porLinha };
+        window._HATSU_ALOC[idx] = {
+            linhas: _linhasDano, pool: totalGraus,
+            porLinha: _poolPorLinha, porLinhaTotal: _porLinha, dirigidos: _dirigidos,
+        };
 
         const danoColor = totalGraus > 0 ? '#f87171' : '#d1d5db';
         const grauDelta = totalGraus > 0 ? `+${totalGraus}` : totalGraus < 0 ? `${totalGraus}` : '';
@@ -1410,6 +1504,12 @@ function renderHatsuDetail(container) {
             if (danoGrauReservado > 0) _danoInfo.push({ l: '⏳ Reservado (teto do nível)', v: '+' + danoGrauReservado + ' grau' + (danoGrauReservado > 1 ? 's' : '') + ' aguardando', c: '#fbbf24' });
             if (flageloGrauPuro > 0) _danoInfo.push({ l: '+' + flageloGrauPuro + ' grau' + (flageloGrauPuro > 1 ? 's' : ''), v: 'Flagelo Puro ×' + flageloCopias, c: '#a78bfa' });
             if (overflowBonus > 0) _danoInfo.push({ l: '+' + overflowBonus + ' dano fixo', v: 'Excedente da tabela (fim em 20d20)', c: '#fbbf24' });
+            if (_veiculo) {
+                _danoInfo.push({ l: 'Causado por', v: _veiculo.nome + ' — o Hatsu não causa dano por si', c: '#60a5fa' });
+            }
+            if (Object.keys(_dirigidos).length) {
+                _danoInfo.push({ l: 'Aumento por Rodada', v: 'os graus entram 1 por rodada (rodada 1: +1 · rodada 2: +2)', c: '#fbbf24' });
+            }
             _danoInfo.push({ l: '→ Total', v: finalDice + ' + ' + baseAttr, c: '#f87171', b: true });
             _danoInfo.push({ type: 'diceTable', table: DAMAGE_TABLE, tblStart: (_temDanoFocal ? BASE_DAMAGE_IDX : _idxSemFocal), tblAfterDado: baseIdx, tblFinal: finalIdx });
             if (!window._HATSU_DANO_INFO) window._HATSU_DANO_INFO = {};
@@ -1422,8 +1522,10 @@ function renderHatsuDetail(container) {
                     <div style="font-size:14px;font-weight:700;color:#6b7280">+ ${baseAttr}</div>
                     ${psiLabel}
                     ${baseNote ? `<div style="font-size:9px;color:#4b5563;font-style:italic">${baseNote}</div>` : ''}
+                    ${_veiculo ? `<div style="font-size:8px;font-weight:700;padding:2px 8px;border-radius:10px;background:#60a5fa22;color:#60a5fa;border:1px solid #60a5fa55">⚔ ${_veiculo.nome}</div>` : ''}
                     <button onclick="event.stopPropagation();window._hShowDanoInfo(${idx},this)" style="margin-left:4px;background:transparent;border:1px solid #374151;border-radius:50%;width:16px;height:16px;font-size:9px;color:#6b7280;cursor:pointer;padding:0;line-height:16px;flex-shrink:0;transition:border-color .15s,color .15s" title="Como chegamos aqui">ⓘ</button>
                 </div>
+                ${_veiculo ? `<div style="font-size:8px;color:#60a5fa;margin-bottom:4px;line-height:1.5">Este dano é causado <b>por meio de ${_veiculo.nome}</b>, não pelo usuário. O Hatsu em si não causa dano — só o que for comprado fora do veículo causa.</div>` : ''}
                 ${totalDados > 0 ? `<div style="font-size:8px;color:#fbbf24;margin-bottom:4px">${dadoSources.map(s=>`• ${s.nome}: +${s.n} dado (${s.tipo})`).join(', ')}</div>` : ''}`;
         }
 
@@ -1584,7 +1686,7 @@ function renderHatsuDetail(container) {
                 <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:26px;color:#4ade80;text-shadow:0 0 18px #4ade8055">${_hatsuCuraDice}</div>
                 <div style="flex:1">
                     <div style="font-size:11px;font-weight:700;color:#4ade80">💚 de Cura <span style="font-size:9px;color:#6b7280">+ ${baseAttr}</span></div>
-                    <div style="font-size:8px;color:#6b7280;margin-top:2px">Dano/Cura Focal com tag Cura (base 2d6)</div>
+                    <div style="font-size:8px;color:#6b7280;margin-top:2px">Dano/Cura Focal com tag Cura (base 2d6)${_veiculo ? ` · por meio de <span style="color:#60a5fa">${_veiculo.nome}</span>` : ''}</div>
                 </div>
                 ${_hatsuCuraEspera > 0 ? `<span style="flex-shrink:0;font-size:7px;font-weight:900;padding:2px 8px;border-radius:10px;background:#fbbf2422;color:#fbbf24">+${_hatsuCuraEspera} em espera ⏳</span>` : ''}
             </div>` : '';
@@ -1594,7 +1696,8 @@ function renderHatsuDetail(container) {
                 <div style="font-size:8px;color:#374151;text-transform:uppercase;font-weight:700;letter-spacing:1px">💥 Dano Final</div>
                 <div style="display:flex;gap:4px;align-items:center">
                 ${(totalGraus > 0 && _linhasDano.length > 1) ? `<button onclick="event.stopPropagation();window._openAlocacaoGraus()" title="Escolher em qual linha cada grau entra" style="font-size:7px;font-weight:900;padding:3px 9px;border-radius:10px;background:${tc}22;border:1px solid ${tc}55;color:${tc};cursor:pointer;text-transform:uppercase;letter-spacing:.5px">⚖ Distribuir</button>` : ''}
-                ${grauDelta ? `<span style="font-size:7px;font-weight:900;padding:2px 8px;border-radius:10px;background:#ef444422;color:#f87171">${grauDelta} grau${Math.abs(totalGraus)!==1?'s':''}</span>` : ''}
+                ${grauDelta ? `<span title="Pool distribuível entre as linhas" style="font-size:7px;font-weight:900;padding:2px 8px;border-radius:10px;background:#ef444422;color:#f87171">${grauDelta} grau${Math.abs(totalGraus)!==1?'s':''}</span>` : ''}
+                ${(() => { const _nd = Object.keys(_dirigidos).reduce((a,k)=>a+_dirigidos[k],0); return _nd > 0 ? `<span title="Aumento por Rodada — a restrição já aponta a linha, fora do pool" style="font-size:7px;font-weight:900;padding:2px 8px;border-radius:10px;background:#60a5fa22;color:#60a5fa">+${_nd} dirigido${_nd!==1?'s':''} ⏱</span>` : ''; })()}
                 ${danoGrauReservado > 0 ? `<span style="font-size:7px;font-weight:900;padding:2px 8px;border-radius:10px;background:#fbbf2422;color:#fbbf24" title="Excedente aguardando o teto do nível aumentar">+${danoGrauReservado} em espera ⏳</span>` : ''}
                 </div>
             </div>
@@ -1716,6 +1819,9 @@ function renderHatsuDetail(container) {
         attr: baseAttr,
         atkAttr: baseAttrAtk,
         nome: h.nome,
+        // Por meio de quem o dano acontece — vai no histórico e na mensagem do Discord,
+        // para a mesa saber que quem bate é o constructo/arma e não o usuário.
+        veiculo: ((window.veiculoDoFocal ? window.veiculoDoFocal(h) : null) || {}).nome || '',
         hasBaseDmg,
         hasAttack,
         cd: null,
@@ -1740,7 +1846,7 @@ function renderHatsuDetail(container) {
                 const copias = (h.efeitos || []).filter(function (id) { return id === e.id; }).length;
                     // Usa a MESMA distribuição que a tela calculou (window._HATSU_ALOC), em vez
                 // de refazer a conta aqui — foi assim que tela e rolagem divergiram antes.
-                const _alocRoll = ((window._HATSU_ALOC || {})[idx] || {}).porLinha || {};
+                const _alocRoll = ((window._HATSU_ALOC || {})[idx] || {}).porLinhaTotal || {};
                 const quer = Math.max(0, (copias - 1) + (_alocRoll[e.id] || 0));
                 const teto = window.calcMaxGrauPorCaracteristica
                     ? window.calcMaxGrauPorCaracteristica(char.level, h.classe || char.class, 'dano')

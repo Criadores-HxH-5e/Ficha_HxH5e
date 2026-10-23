@@ -1585,7 +1585,9 @@
             const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
             const modeLabel = effectiveMode === 'NORMAL' ? '' : ` (${effectiveMode.charAt(0) + effectiveMode.slice(1).toLowerCase()})`;
             const renLabel = useRen ? ' 💪REN' : '';
-            char.history.push({ time, label: `⚡ ${rs.nome} (${rs.attr})${modeLabel}${renLabel}`, dice: dmgResult.rolls.join(', ') + (extraDiceTotal > 0 ? ` (+${extraDiceTotal} extra)` : ''), mod: mod + flatBonus, total, img: state.pendingRollImage || '' });
+            // Dano causado POR MEIO de constructo/arma/criatura: o rótulo diz quem bate.
+            const veicLabel = rs.veiculo ? ` · por meio de ${rs.veiculo}` : '';
+            char.history.push({ time, label: `⚡ ${rs.nome} (${rs.attr})${modeLabel}${renLabel}${veicLabel}`, dice: dmgResult.rolls.join(', ') + (extraDiceTotal > 0 ? ` (+${extraDiceTotal} extra)` : ''), mod: mod + flatBonus, total, img: state.pendingRollImage || '' });
             if (char.history.length > 50) char.history.shift();
             saveCharacter(char);
 
@@ -1638,7 +1640,8 @@
             // ── Fim rolagem de ataque ─────────────────────────────────────────
 
             const renNote = useRen ? `\n💪 **REN ativado** — +${renGraus} Grau${renGraus>1?'s':''} de dano${renUsedFree ? ' (1º grátis no dia)' : ''}` : '';
-            const content = `⚡ **${char.name}** usou **${rs.nome}**${modeLabel}${attackLine}\nDano: [${dmgResult.rolls.join('+')}]${allModStr} = **${total}** (${formula})${_curaLinha}${extrasText}${renNote}`;
+            const veicNote = rs.veiculo ? `\n🧩 **O dano é causado por ${rs.veiculo}**, não pelo usuário` : '';
+            const content = `⚡ **${char.name}** usou **${rs.nome}**${modeLabel}${attackLine}\nDano: [${dmgResult.rolls.join('+')}]${allModStr} = **${total}** (${formula})${_curaLinha}${extrasText}${renNote}${veicNote}`;
             sendRollToDiscord(content, state.pendingRollImage);
             state.pendingRollImage = '';
             if (state.activeTab !== 'DADOS') state.unreadRolls = true;

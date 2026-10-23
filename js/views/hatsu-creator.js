@@ -153,6 +153,73 @@ function renderHatsuCreator(container) {
             + '</div>';
     };
 
+    // Seletor de QUAL linha recebe os graus de uma restrição que escolhe o efeito.
+    // ri_m1 (Aumento por Rodada): "+2 Graus de Potência no total de cada efeito similar",
+    // com os efeitos "ativados parcialmente". Antes os 2 graus caíam sempre no dano base.
+    window._hGrauDirigidoPicker = function (itemId, hb, cor) {
+        const qtd = (window.GRAU_DIRIGIDO_IDS || {})[itemId];
+        if (qtd === undefined) return '';
+        if (!window.linhasDanoPorIds) return '';
+        const ids = [].concat(hb.eg || [], hb.ec || []);
+        const pseudoH = { specialChoices: hb.specialChoices || {}, efeitos: ids, restricoes: [].concat(hb.rg || [], hb.rc || []) };
+        const linhas = window.linhasDanoPorIds(pseudoH, ids);
+        if (!linhas.length) return '';
+        const atual = (hb.specialChoices || {})[itemId + '_linha'] || linhas[0].id;
+        return '<div style="margin-top:8px" onclick="event.stopPropagation()">'
+            + '<div style="font-size:8px;font-weight:700;color:' + cor + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">\u23f1 Qual efeito recebe os ' + qtd + ' Graus?</div>'
+            + '<div style="font-size:8px;color:#6b7280;margin-bottom:6px;line-height:1.5">Os ' + qtd + ' graus entram em UMA linha, 1 por rodada (ativação parcial). O padrão é o dano base.</div>'
+            + '<div style="display:flex;flex-direction:column;gap:5px">'
+            + linhas.map(function (l) {
+                const on = atual === l.id;
+                const dado = l.dado ? (' <span style="color:#6b7280">(parte de ' + String(l.dado).replace(/^\+\s*/, '') + ')</span>') : '';
+                return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\'' + itemId + '_linha\',\'' + l.id + '\')" '
+                    + 'style="padding:7px 10px;border-radius:8px;font-size:8px;font-weight:700;cursor:pointer;text-align:left;border:1.5px solid '
+                    + (on ? cor : '#1f2937') + ';background:' + (on ? cor + '22' : 'transparent')
+                    + ';color:' + (on ? cor : '#9ca3af') + '">' + l.label + dado + '</button>';
+            }).join('')
+            + '</div></div>';
+    };
+
+    // Por meio de QUEM o Dano/Cura Focal acontece. Alocar o Focal num constructo, arma ou
+    // criatura não muda o número: muda quem bate. Com um veículo escolhido, é ELE que causa
+    // os 2d6 e o Hatsu não causa dano por si.
+    window._hVeiculoFocalPicker = function (hb, cor) {
+        const sc = (hb && hb.specialChoices) || {};
+        const atual = String(sc['eg15_veiculo'] || 'usuario');
+        const txt = String(sc['eg15_veiculo_txt'] || '');
+        const comprados = [].concat(hb.rg || [], hb.rc || [], hb.eg || [], hb.ec || []);
+        const mapa = window.VEICULO_DANO_IDS || {};
+        // Só oferece veículos que o jogador REALMENTE comprou neste Hatsu.
+        const doHatsu = Object.keys(mapa).filter(function (id) { return comprados.indexOf(id) >= 0; });
+        const botao = function (val, rotulo) {
+            const on = atual === val;
+            return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\'eg15_veiculo\',\'' + val + '\')" '
+                + 'style="padding:7px 10px;border-radius:8px;font-size:8px;font-weight:700;cursor:pointer;text-align:left;border:1.5px solid '
+                + (on ? cor : '#1f2937') + ';background:' + (on ? cor + '22' : 'transparent')
+                + ';color:' + (on ? cor : '#9ca3af') + '">' + rotulo + '</button>';
+        };
+        return '<div style="margin-top:8px;background:#0a0f1a;border:1px solid ' + cor + '33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
+            + '<div style="font-size:8px;font-weight:900;color:' + cor + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">⚔ Quem causa esse dano?</div>'
+            + '<div style="font-size:8px;color:#6b7280;margin-bottom:8px;line-height:1.5">O padrão é o usuário. Se escolher um veículo, o dano passa a ser causado <b>por meio dele</b> — o Hatsu em si deixa de causar dano.</div>'
+            + '<div style="display:flex;flex-direction:column;gap:5px">'
+            + botao('usuario', '🙋 O usuário (direto)')
+            + doHatsu.map(function (id) { return botao(id, '🧩 ' + mapa[id]); }).join('')
+            + botao('texto', '✏️ Outro (descrever)')
+            + '</div>'
+            + (atual === 'texto'
+                ? '<input type="text" value="' + txt.replace(/"/g, '&quot;') + '" placeholder="Ex: Marionete de aura, Lâmina flutuante..."'
+                  + ' onchange="window._hSetSpecialChoice(\'eg15_veiculo_txt\', this.value)"'
+                  + ' oninput="window._hSetSpecialText(\'eg15_veiculo_txt\', this.value)"'
+                  + ' style="width:100%;box-sizing:border-box;margin-top:7px;background:#0a0f1a;border:1.5px solid '
+                  + (txt ? cor : '#374151') + ';border-radius:8px;padding:8px 10px;color:#fff;font-size:10px;outline:none">'
+                  + (txt ? '' : '<div style="font-size:8px;color:#f87171;margin-top:4px">\u26a0 Descreva o veículo, senão o dano volta a ser do usuário.</div>')
+                : '')
+            + (doHatsu.length === 0 && atual !== 'texto'
+                ? '<div style="font-size:8px;color:#4b5563;margin-top:7px;font-style:italic">Compre um efeito de constructo, criatura ou arma forjada para ele aparecer como opção.</div>'
+                : '')
+            + '</div>';
+    };
+
     function renderR(items, arr, tipo) {
         const PURE_PN = { leve:1, moderada:2, pesada:3, extrema:4 };
         return items.map(function(item) {
@@ -285,6 +352,7 @@ function renderHatsuCreator(container) {
             // Graus "genéricos": o benefício diz "qualquer característica da Categoria",
             // então o jogador escolhe onde eles entram (ver _hGrauGenericoPicker).
             if (sel && !isPure) specialInputHtml += window._hGrauGenericoPicker(item.id, hb, p.bs);
+            if (sel && !isPure) specialInputHtml += window._hGrauDirigidoPicker(item.id, hb, p.bs);
             if (sel && item.id === 'rg_p8') {
                 var currentVal = (hb && hb.specialChoices && hb.specialChoices['rg_p8']) || '';
                 specialInputHtml = '<div style="margin-top:8px" onclick="event.stopPropagation()">'
@@ -1055,7 +1123,8 @@ function renderHatsuCreator(container) {
                         + '<div style="font-size:8px;font-weight:900;color:' + color + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">🎯 Esta compra é Dano ou Cura?</div>'
                         + '<div style="font-size:8px;color:#6b7280;margin-bottom:8px">Cada tag tem a própria escada. Ex.: 1 compra em Dano e 2 em Cura = 2d6 de dano e 2d8 de cura.</div>'
                         + _blocosT
-                        + '</div>';
+                        + '</div>'
+                        + window._hVeiculoFocalPicker(hb, color);
                 }
 
                 // ── rm_e1: Forjar Objeto, Arma ou Equipamento — o quê, exatamente? ──────────
