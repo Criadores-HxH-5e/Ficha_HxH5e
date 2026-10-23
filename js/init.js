@@ -538,7 +538,87 @@ function closeHatsuCreator() {
             rebuild();
         };
 
-        window._openPrimeiroHatsuModal = function() {
+        // ── Painel: distribuir os Graus de Dano/Cura entre as linhas do Hatsu ────────
+// Mesmo padrão do modal dos 5 Graus do 1º Hatsu. O pool e as linhas vêm do que a tela
+// do Hatsu já calculou (window._HATSU_ALOC), para não existir uma segunda conta.
+window._openAlocacaoGraus = function () {
+    const char = state.currentChar;
+    const idx = state.hatsuDetailIdx || 0;
+    const h = (char.hatsus || [])[idx];
+    if (!h) return;
+    const dados = (window._HATSU_ALOC || {})[idx];
+    if (!dados || !dados.linhas.length) { alert('Este Hatsu não tem linhas de dano para distribuir.'); return; }
+    if (dados.pool <= 0) { alert('Nenhum Grau de Dano/Cura comprado ainda.\n\nGraus vêm de restrições, do Bônus Talentoso e dos 5 Graus do 1º Hatsu.'); return; }
+
+    const tc = getComputedStyle(document.documentElement).getPropertyValue('--theme-color-hex').trim() || '#00ff9d';
+    // Começa do que já está valendo, inclusive o padrão (resto no dano base).
+    const alloc = {};
+    dados.linhas.forEach(function (l) { alloc[l.id] = dados.porLinha[l.id] || 0; });
+    window._alocState = { alloc: alloc, linhas: dados.linhas, pool: dados.pool, idx: idx, tc: tc };
+
+    const ov = document.createElement('div');
+    ov.id = 'aloc-graus-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:#000000dd;display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;font-family:Rajdhani,sans-serif';
+    ov.innerHTML = '<div style="background:#0d1117;border:2px solid ' + tc + ';border-radius:20px;padding:18px;width:100%;max-width:400px;max-height:86vh;overflow-y:auto">'
+        + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:12px;color:' + tc + ';text-transform:uppercase;letter-spacing:2px;margin-bottom:3px">🔥 Distribuir Graus de Dano/Cura</div>'
+        + '<div style="font-size:9px;color:#6b7280;margin-bottom:12px;line-height:1.5">Cada grau entra em UMA linha. O que você não distribuir fica no dano base.</div>'
+        + '<div id="aloc-corpo"></div>'
+        + '<div style="display:flex;gap:8px;margin-top:12px">'
+        + '<button onclick="document.getElementById(\'aloc-graus-overlay\').remove()" style="flex:1;padding:11px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Cancelar</button>'
+        + '<button onclick="window._alocSalvar()" style="flex:2;padding:11px;border-radius:10px;background:' + tc + ';border:none;color:#000;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Salvar</button>'
+        + '</div></div>';
+    document.body.appendChild(ov);
+    window._alocRedesenhar();
+};
+
+window._alocRedesenhar = function () {
+    const s = window._alocState; if (!s) return;
+    const el = document.getElementById('aloc-corpo'); if (!el) return;
+    let usado = 0;
+    s.linhas.forEach(function (l) { usado += s.alloc[l.id] || 0; });
+    const livre = s.pool - usado;
+    el.innerHTML = s.linhas.map(function (l) {
+        const v = s.alloc[l.id] || 0;
+        const podeMais = livre > 0;
+        return '<div style="background:#0f1117;border:1px solid #1f2937;border-radius:11px;padding:10px 12px;margin-bottom:7px;display:flex;align-items:center;gap:10px">'
+            + '<div style="flex:1;min-width:0">'
+            + '<div style="font-size:11px;font-weight:700;color:#d1d5db;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + l.label + '</div>'
+            + '<div style="font-size:8px;color:#6b7280;margin-top:1px">' + (l.dado ? ('parte de ' + String(l.dado).replace(/^\+\s*/, '')) : '') + '</div>'
+            + '</div>'
+            + '<button onclick="window._alocMudar(\'' + l.id + '\',-1)" ' + (v > 0 ? '' : 'disabled') + ' style="width:30px;height:30px;border-radius:8px;background:' + (v > 0 ? '#1f2937' : '#111') + ';border:1px solid #374151;color:' + (v > 0 ? '#f87171' : '#374151') + ';font-size:15px;font-weight:900;cursor:' + (v > 0 ? 'pointer' : 'not-allowed') + '">−</button>'
+            + '<div style="min-width:26px;text-align:center;font-family:Orbitron,sans-serif;font-weight:900;font-size:16px;color:#fff">' + v + '</div>'
+            + '<button onclick="window._alocMudar(\'' + l.id + '\',1)" ' + (podeMais ? '' : 'disabled') + ' style="width:30px;height:30px;border-radius:8px;background:' + (podeMais ? s.tc + '22' : '#111') + ';border:1px solid ' + (podeMais ? s.tc + '55' : '#374151') + ';color:' + (podeMais ? s.tc : '#374151') + ';font-size:15px;font-weight:900;cursor:' + (podeMais ? 'pointer' : 'not-allowed') + '">+</button>'
+            + '</div>';
+    }).join('')
+    + '<div style="text-align:center;font-size:10px;font-weight:700;margin-top:8px;color:' + (livre > 0 ? '#fbbf24' : '#4ade80') + '">'
+    + (livre > 0 ? ('⚠ ' + livre + ' grau(s) por distribuir — ficam no dano base') : '✓ Todos os ' + s.pool + ' graus distribuídos')
+    + '</div>';
+};
+
+window._alocMudar = function (linhaId, delta) {
+    const s = window._alocState; if (!s) return;
+    let usado = 0;
+    s.linhas.forEach(function (l) { usado += s.alloc[l.id] || 0; });
+    const novo = (s.alloc[linhaId] || 0) + delta;
+    if (novo < 0) return;
+    if (delta > 0 && usado >= s.pool) return;
+    s.alloc[linhaId] = novo;
+    window._alocRedesenhar();
+};
+
+window._alocSalvar = function () {
+    const s = window._alocState; if (!s) return;
+    const char = state.currentChar;
+    const h = (char.hatsus || [])[s.idx];
+    if (!h) return;
+    h.grauLinhas = {};
+    s.linhas.forEach(function (l) { if (s.alloc[l.id] > 0) h.grauLinhas[l.id] = s.alloc[l.id]; });
+    saveCharacter(char);
+    document.getElementById('aloc-graus-overlay')?.remove();
+    renderHatsuInPlace();
+};
+
+window._openPrimeiroHatsuModal = function() {
             const char = state.currentChar;
             const idx = state.hatsuDetailIdx || 0;
             const h = char.hatsus[idx];

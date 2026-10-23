@@ -505,6 +505,53 @@ window.contarTagsFocal = function (h, efeitosSel) {
     return out;
 };
 
+// ── Alocação de Graus de Dano/Cura entre as LINHAS do Hatsu ──────────────────
+// Antes, um grau de Dano/Cura era REPLICADO: subia o dano base, cada efeito extra e
+// a cura, tudo ao mesmo tempo. Um Hatsu com três linhas multiplicava por três o valor
+// de cada grau comprado, e dois Hatsus que pagaram o mesmo P.N rendiam muito diferente.
+//
+// Agora o grau é ALOCADO: o jogador escolhe em qual linha ele entra. Efeitos com dano
+// próprio continuam subindo sozinhos por cópia; o que se distribui aqui é o pool de
+// graus vindo de restrições, Bônus Talentoso e 5 Graus do 1º Hatsu.
+//
+// Cada linha tem o próprio teto, como já acontecia.
+window.linhasDeDanoDoHatsu = function (h, efeitosSel, info) {
+    const i = info || {};
+    const linhas = [];
+    // A primeira linha é o destino padrão de tudo que não foi alocado.
+    if (i.temBase) linhas.push({ id: 'base', label: 'Dano base', dado: i.baseDado || '' });
+    if (i.temCura) linhas.push({ id: 'cura', label: 'Cura', dado: i.curaDado || '' });
+    if (i.temFlagelo) linhas.push({ id: 'eg10', label: 'Flagelo da Mente (Sanidade)', dado: '1d10' });
+    const vistos = {};
+    (efeitosSel || []).forEach(function (e) {
+        if (e.id === 'eg10') return;                      // já entrou acima
+        const d = (window.DANO_PROPRIO_MAP || {})[e.id];
+        if (!d || vistos[e.id]) return;
+        vistos[e.id] = true;
+        linhas.push({ id: e.id, label: d.desc || e.nome, dado: d.dado });
+    });
+    return linhas;
+};
+
+// Distribui o pool entre as linhas. O que o jogador não alocou cai na PRIMEIRA linha,
+// que é o dano base — assim nenhuma ficha antiga muda sozinha ao abrir.
+window.calcGrausPorLinha = function (h, pool, linhas) {
+    const out = {};
+    (linhas || []).forEach(function (l) { out[l.id] = 0; });
+    if (!linhas || !linhas.length) return out;
+    const salvo = (h && h.grauLinhas) || {};
+    let usado = 0;
+    linhas.forEach(function (l) {
+        const quer = Math.max(0, parseInt(salvo[l.id]) || 0);
+        const cabe = Math.max(0, Math.min(quer, pool - usado));
+        out[l.id] = cabe;
+        usado += cabe;
+    });
+    const resto = Math.max(0, pool - usado);
+    if (resto > 0) out[linhas[0].id] += resto;
+    return out;
+};
+
 window.calcDuracaoHatsu = function (h, char) {
     if (!h) return { rodadas: 0, constante: false };
     const efeitos = h.efeitos || [];
@@ -1160,6 +1207,27 @@ function renderHatsuDetail(container) {
     let _hatsuCuraDice = null, _hatsuCuraEspera = 0;
     let calcDanoHtml = '';
     if (hasBaseDmg) {
+        // ── Linhas de dano/cura e a distribuição dos graus ──────────────────────
+        // Calculado ANTES do bloco de dano base, porque as linhas extras e a de cura
+        // também precisam saber quanto lhes coube do pool.
+        const _temForjarArma = efeitosSel.some(function (e) { return e.id === 'rm_e1'; })
+            && (h.specialChoices || {})['rm_e1_tipo'] === 'Arma';
+        const _tags = window.contarTagsFocal(h, efeitosSel);
+        const _temDanoFocal = _tags.dano > 0 || _temForjarArma;
+        const _temCuraFocal = _tags.cura > 0;
+        const _copiasRecup = efeitosSel.filter(function (e) { return e.id === 'ri_e3'; }).length;
+        const _linhasDano = window.linhasDeDanoDoHatsu(h, efeitosSel, {
+            temBase: (isHostil || catDmg),
+            baseDado: _temDanoFocal ? '2d6' : '1d8',
+            temCura: _temCuraFocal || _copiasRecup > 0,
+            curaDado: _temCuraFocal ? '2d6' : '1d8',
+            temFlagelo: temFlagelo,
+        });
+        const _porLinha = window.calcGrausPorLinha(h, totalGraus, _linhasDano);
+        // Guardado para o painel de distribuição abrir com os números certos.
+        if (!window._HATSU_ALOC) window._HATSU_ALOC = {};
+        window._HATSU_ALOC[idx] = { linhas: _linhasDano, pool: totalGraus, porLinha: _porLinha };
+
         const danoColor = totalGraus > 0 ? '#f87171' : '#d1d5db';
         const grauDelta = totalGraus > 0 ? `+${totalGraus}` : totalGraus < 0 ? `${totalGraus}` : '';
 
@@ -1183,12 +1251,6 @@ function renderHatsuDetail(container) {
             // jogador escolhe "Arma" — a própria descrição do rm_e1 diz que causa 2d6 nesse caso.
             // Olhamos efeitosSel, não h.efeitos, porque ele já inclui o que veio por Poder é
             // Intenção, Efeito Alternativo e Imbuir Conjuração, e já respeita o modo ativo.
-            const _temForjarArma = efeitosSel.some(function (e) { return e.id === 'rm_e1'; })
-                && (h.specialChoices || {})['rm_e1_tipo'] === 'Arma';
-            // Contagem por tag: define se existe dano, cura, ou os dois.
-            const _tags = window.contarTagsFocal(h, efeitosSel);
-            const _temDanoFocal = _tags.dano > 0 || _temForjarArma;
-            const _temCuraFocal = _tags.cura > 0;
             const _idxSemFocal = DAMAGE_TABLE.indexOf('1d8');
             const _baseLabel = _temDanoFocal ? '2d6' : '1d8';
             let baseIdx = _temDanoFocal ? BASE_DAMAGE_IDX : _idxSemFocal;
@@ -1221,7 +1283,7 @@ function renderHatsuDetail(container) {
             const _tetoDanoBase = window.calcMaxGrauPorCaracteristica
                 ? window.calcMaxGrauPorCaracteristica(char.level, h.classe || char.class, 'dano')
                 : Infinity;
-            const _grausQuerBase = totalGraus + flageloGrauPuro;
+            const _grausQuerBase = (_porLinha.base || 0) + flageloGrauPuro;
             const _grausPodeBase = (_tetoDanoBase === Infinity)
                 ? _grausQuerBase
                 : Math.min(_grausQuerBase, Math.max(0, _tetoDanoBase - 1));
@@ -1245,13 +1307,12 @@ function renderHatsuDetail(container) {
             // Recuperação Veloz também é cura: entra na MESMA linha, somando os degraus
             // dela aos do Dano/Cura Focal marcado como cura. Duas fontes de cura no mesmo
             // Hatsu sobem juntas na escada, em vez de virarem linhas separadas.
-            const _copiasRecup = efeitosSel.filter(function (e) { return e.id === 'ri_e3'; }).length;
             if (_temCuraFocal || _copiasRecup > 0) {
                 // Sem o Focal marcado como cura, a base é a do próprio efeito de cura.
                 const _baseCuraIdx = _temCuraFocal ? BASE_DAMAGE_IDX : DAMAGE_TABLE.indexOf('1d8');
                 const _grausCura = Math.max(0, (_tags.cura - (_temCuraFocal ? 1 : 0)))
                     + Math.max(0, _copiasRecup - (_temCuraFocal ? 0 : 1))
-                    + totalGraus;
+                    + (_porLinha.cura || 0);
                 const _curaPode = (_tetoDanoBase === Infinity)
                     ? _grausCura
                     : Math.min(_grausCura, Math.max(0, _tetoDanoBase - 1));
@@ -1305,7 +1366,7 @@ function renderHatsuDetail(container) {
             // subindo um grau/passo por compra: 1d10 → 1d12 → 2d6 → 2d8…
             // Era 1d8 aqui, valor que não existe na regra.
             const FLAGELO_BASE_IDX = DAMAGE_TABLE.indexOf('1d10');
-            const flageloGraus = flageloCopias - 1;
+            const flageloGraus = (flageloCopias - 1) + (_porLinha.eg10 || 0);
             const flageloIdx = Math.min(FLAGELO_BASE_IDX + flageloGraus, DAMAGE_TABLE.length - 1);
             const flageloDado = DAMAGE_TABLE[flageloIdx];
             const extraLabel = flageloGraus > 0 ? ` ×${flageloCopias} (+${flageloGraus} grau${flageloGraus>1?'s':''})` : '';
@@ -1373,11 +1434,12 @@ function renderHatsuDetail(container) {
             // era restrita demais e a de baixo ignorava os graus, então um Materializador
             // com +5 graus via o dado base e o rótulo "(+5 grau)" ao lado.
             let displayDado = d.dado;
-            if (!isHostil && !catDmg && totalGraus > 0 && !(window.DANO_PROPRIO_ESCALA || {})[e.id]) {
+            const _grausDesta = _porLinha[e.id] || 0;
+            if (!isHostil && !catDmg && _grausDesta > 0 && !(window.DANO_PROPRIO_ESCALA || {})[e.id]) {
                 // Find base index from dado string (e.g. "1d8" → idx 2)
                 const baseIdx = DAMAGE_TABLE.indexOf(d.dado);
                 if (baseIdx >= 0) {
-                    const scaledIdx = Math.min(baseIdx + totalGraus, DAMAGE_TABLE.length - 1);
+                    const scaledIdx = Math.min(baseIdx + _grausDesta, DAMAGE_TABLE.length - 1);
                     displayDado = DAMAGE_TABLE[scaledIdx];
                 }
             }
@@ -1400,7 +1462,7 @@ function renderHatsuDetail(container) {
                     // e valem para TODA linha de dano/cura do Hatsu — é como a linha de
                     // cura já funcionava. Antes só as cópias contavam, então um Hatsu com
                     // +5 graus exibia o rótulo "(+5 grau)" e mostrava o dado base.
-                    const degrausQuer = (copias - 1) + totalGraus;
+                    const degrausQuer = (copias - 1) + _grausDesta;
                     const _tetoPassos = (_tetoDano === Infinity) ? Infinity : Math.max(0, _tetoDano - 1);
                     const degrausPode = (_tetoPassos === Infinity) ? degrausQuer : Math.min(degrausQuer, _tetoPassos);
                     const bIdx = DAMAGE_TABLE.indexOf(_esc.base);
@@ -1411,7 +1473,7 @@ function renderHatsuDetail(container) {
                     }
                 } else if (_esc.tipo === 'bruto') {
                     // O valor bruto É a contagem de graus: com teto 3, +5 vira +3.
-                    const valorQuer = _esc.base + ((copias - 1) + totalGraus) * (_esc.passo || 1);
+                    const valorQuer = _esc.base + ((copias - 1) + _grausDesta) * (_esc.passo || 1);
                     const valorPode = (_tetoDano === Infinity) ? valorQuer : Math.min(valorQuer, _tetoDano);
                     displayDado = '+' + valorPode;
                     if (copias > 1) copiasLabel = ` ×${copias}`;
@@ -1421,7 +1483,7 @@ function renderHatsuDetail(container) {
             extraDmgSection += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
                 <span style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:16px;color:${ec}">${displayDado}</span>
                 <span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:${ec}22;color:${ec}">${d.tipo}</span>
-                <span style="font-size:9px;color:#4b5563">${d.desc}${copiasLabel}${!isHostil && !catDmg && totalGraus > 0 ? ` (+${totalGraus} grau)` : ''}</span>
+                <span style="font-size:9px;color:#4b5563">${d.desc}${copiasLabel}${_grausDesta > 0 ? ` (+${_grausDesta} grau)` : ''}</span>
                 ${reservadoLabel ? `<span style="font-size:8px;font-weight:900;padding:1px 6px;border-radius:8px;background:#fbbf2422;color:#fbbf24">${reservadoLabel}</span>` : ''}
                 ${_mostraAttrNoExtra && _primeiroExtraComDado === e.id ? `<span style="font-size:9px;color:#6b7280">+ ${baseAttr}</span>` : ''}
             </div>`;
@@ -1462,7 +1524,8 @@ function renderHatsuDetail(container) {
         calcDanoHtml = `<div style="margin-top:12px;padding-top:12px;border-top:1px solid #1f2937">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
                 <div style="font-size:8px;color:#374151;text-transform:uppercase;font-weight:700;letter-spacing:1px">💥 Dano Final</div>
-                <div style="display:flex;gap:4px">
+                <div style="display:flex;gap:4px;align-items:center">
+                ${(totalGraus > 0 && _linhasDano.length > 1) ? `<button onclick="event.stopPropagation();window._openAlocacaoGraus()" title="Escolher em qual linha cada grau entra" style="font-size:7px;font-weight:900;padding:3px 9px;border-radius:10px;background:${tc}22;border:1px solid ${tc}55;color:${tc};cursor:pointer;text-transform:uppercase;letter-spacing:.5px">⚖ Distribuir</button>` : ''}
                 ${grauDelta ? `<span style="font-size:7px;font-weight:900;padding:2px 8px;border-radius:10px;background:#ef444422;color:#f87171">${grauDelta} grau${Math.abs(totalGraus)!==1?'s':''}</span>` : ''}
                 ${danoGrauReservado > 0 ? `<span style="font-size:7px;font-weight:900;padding:2px 8px;border-radius:10px;background:#fbbf2422;color:#fbbf24" title="Excedente aguardando o teto do nível aumentar">+${danoGrauReservado} em espera ⏳</span>` : ''}
                 </div>
@@ -1602,8 +1665,10 @@ function renderHatsuDetail(container) {
                 if (vistos.has(e.id)) return;
                 vistos.add(e.id);
                 const copias = (h.efeitos || []).filter(function (id) { return id === e.id; }).length;
-                // Mesma conta da tela: cópias extras + graus gerais do Hatsu.
-                const quer = Math.max(0, (copias - 1) + totalGraus);
+                    // Usa a MESMA distribuição que a tela calculou (window._HATSU_ALOC), em vez
+                // de refazer a conta aqui — foi assim que tela e rolagem divergiram antes.
+                const _alocRoll = ((window._HATSU_ALOC || {})[idx] || {}).porLinha || {};
+                const quer = Math.max(0, (copias - 1) + (_alocRoll[e.id] || 0));
                 const teto = window.calcMaxGrauPorCaracteristica
                     ? window.calcMaxGrauPorCaracteristica(char.level, h.classe || char.class, 'dano')
                     : Infinity;
