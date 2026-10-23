@@ -316,6 +316,9 @@ window.calcGrausPotenciaPorCaracteristica = function(h, charLevel) {
         // Restrição marcada como "Pura" converte o benefício em P.N — não aplica o Grau/Passo real,
         // então não deve contar para o limite de Grau de Potência.
         if (pr[id]) return;
+        // Graus genéricos ("+X Graus em qualquer característica"): o destino é escolhido pelo
+        // jogador no criador. Somados de uma vez depois do loop, via grausGenericosDoHatsu().
+        if ((window.GRAU_GENERICO_IDS || {})[id] !== undefined) return;
         // Efeitos com grau de escolha (Aumento de Atributo, Intensificação): o grau vai para a
         // característica que o jogador escolheu, não para o dano por padrão.
         const _esc = (window.GRAU_ESCOLHIDO_EFEITOS || {})[id];
@@ -426,6 +429,11 @@ window.calcGrausPotenciaPorCaracteristica = function(h, charLevel) {
     if (h.bonusGraus && totals[h.bonusGraus.tipo] !== undefined) {
         totals[h.bonusGraus.tipo] += h.bonusGraus.valor || 0;
     }
+    // Graus genéricos: cada um conta no teto da característica que o jogador escolheu.
+    const _gen = window.grausGenericosDoHatsu ? window.grausGenericosDoHatsu(h) : {};
+    Object.keys(_gen).forEach(function (k) {
+        if (totals[k] !== undefined) totals[k] += _gen[k];
+    });
     return totals;
 };
 
@@ -502,6 +510,52 @@ window.contarTagsFocal = function (h, efeitosSel) {
         const tag = sc[i > 0 ? ('eg15_tag#' + i) : 'eg15_tag'];
         if (tag === 'cura') out.cura++; else out.dano++;
     }
+    return out;
+};
+
+// ── Graus "genéricos": o benefício não diz onde o grau entra ─────────────────
+// Onze restrições (e um efeito) dizem "Adicione X Graus de Potência em qualquer
+// característica da Categoria" ou "+X Grau de Potência no Hatsu". O app jogava todos
+// em Dano/Cura à força, sem perguntar — quem queria alcance ou duração não tinha como.
+// Agora o jogador escolhe a característica na criação do Hatsu.
+window.GRAU_GENERICO_IDS = {
+    'rg_p1': 3,   // Alto Risco
+    'rg_p3': 3,   // Dano Permanente
+    'rg_p5': 3,   // Efeitos Aleatórios (só quando escolhe Graus, não Margem de Crítico)
+    'rg_p9': 3,   // Perda de Membros
+    're_l2': 2,   // Nome Verdadeiro do Alvo
+    're_p2': 2,   // Uso Único por Sessão
+    're_l3': 1,   // Terreno Específico
+    'ri_m3': 1,   // Inutilizável c/ +50% Aura
+    'rt_l1': 1,   // Preparação Obrigatória
+    'em_m2': 1,   // Distância Reduzida ao Mover
+    'eg7':   1,   // Poder Valioso (efeito)
+};
+
+// Destinos que o app sabe APLICAR de verdade. "Atributos" fica de fora: a regra não
+// define onde um grau de atributo entra num Hatsu, e oferecer sem aplicar enganaria.
+window.GRAU_DESTINOS_APLICAVEIS = ['dano', 'alcance', 'area', 'duracao', 'cd', 'acerto', 'alvos', 'custo'];
+
+// Soma os graus genéricos por característica escolhida.
+// Sem escolha, o padrão é Dano/Cura — assim nenhuma ficha antiga muda sozinha.
+window.grausGenericosDoHatsu = function (h) {
+    const out = {};
+    if (!h) return out;
+    const sc = h.specialChoices || {};
+    const bc = h.beneficioChoices || {};
+    const pr = h.pureRestrictions || {};
+    const todos = [].concat(h.restricoes || [], h.efeitos || []);
+    Object.keys(window.GRAU_GENERICO_IDS).forEach(function (id) {
+        if (todos.indexOf(id) < 0) return;
+        if (pr[id]) return;                       // marcada como pura: virou P.N
+        // rg_p5 só concede graus quando o jogador NÃO escolheu Margem de Crítico.
+        if (id === 'rg_p5') {
+            const esc = String(bc[id] || '').toLowerCase();
+            if (!esc || esc.indexOf('margem') >= 0 || esc.indexOf('crítico') >= 0) return;
+        }
+        const dest = sc[id + '_carac'] || 'dano';
+        out[dest] = (out[dest] || 0) + window.GRAU_GENERICO_IDS[id];
+    });
     return out;
 };
 
@@ -612,6 +666,11 @@ window.calcHatsuAuraCostFinal = function(h, idx, idsModo) {
         rc: _rIds.filter(id => !id.startsWith('rg_')),
         eg: _eIds.filter(id => id.startsWith('eg')),
         ec: _eIds.filter(id => !id.startsWith('eg')),
+        // As escolhas do jogador precisam viajar junto: sem elas, um grau genérico mandado
+        // para "Reduz Custo" aparecia no criador mas não no Hatsu já salvo.
+        specialChoices: h.specialChoices || {},
+        beneficioChoices: h.beneficioChoices || {},
+        pureRestrictions: h.pureRestrictions || {},
     };
     const cc = window.calcAuraCost(fakeHb);
     const phgCusto = (idx === 0 && h.primeiroHatsuGraus && h.primeiroHatsuGraus.custo) ? h.primeiroHatsuGraus.custo : 0;
@@ -1048,6 +1107,9 @@ function renderHatsuDetail(container) {
     [...restricoesSel, ...efeitosSel].forEach(item => {
         // Restrição marcada como "Pura" converte o benefício em P.N — não aplica o Grau/Passo real
         if (h.pureRestrictions && h.pureRestrictions[item.id]) return;
+        // Graus genéricos ("+X Graus em qualquer característica"): o destino é escolhido pelo
+        // jogador no criador e somado em grausGenericosDoHatsu(). Pular aqui evita contar duas vezes.
+        if ((window.GRAU_GENERICO_IDS || {})[item.id] !== undefined) return;
         // Efeitos de grau escolhido só somam no dano quando o jogador escolheu Dano/Cura.
         const _escDano = (window.GRAU_ESCOLHIDO_EFEITOS || {})[item.id];
         if (_escDano) {
@@ -1118,6 +1180,12 @@ function renderHatsuDetail(container) {
     if (h.bonusGraus && h.bonusGraus.tipo === 'dano') {
         totalGraus += h.bonusGraus.valor;
       grauSources.push({ nome: '💠 Bônus Talentoso', graus: h.bonusGraus.valor });
+    }
+    // Graus genéricos que o jogador mandou para Dano/Cura.
+    const _genericos = window.grausGenericosDoHatsu ? window.grausGenericosDoHatsu(h) : {};
+    if (_genericos.dano) {
+        totalGraus += _genericos.dano;
+        grauSources.push({ nome: 'Graus de Potência (escolha: Dano/Cura)', graus: _genericos.dano });
     }
     // 5 Graus do 1º Hatsu — dano
     if (idx === 0 && h.primeiroHatsuGraus && h.primeiroHatsuGraus.dano) {
@@ -1624,6 +1692,11 @@ function renderHatsuDetail(container) {
         acertoBonus += _aaTeto.acerto;
         acertoBonusSources.push({ nome: 'Aumento de Atributo (' + baseAttrAtk + ')', bonus: _aaTeto.acerto });
     }
+    // Graus genéricos mandados para o Acerto (1 grau = +1 na jogada).
+    if (_genericos.acerto) {
+        acertoBonus += _genericos.acerto;
+        acertoBonusSources.push({ nome: 'Graus de Potência (Acerto)', bonus: _genericos.acerto });
+    }
     // 5 Graus do 1º Hatsu — Acerto
     if (idx === 0 && h.primeiroHatsuGraus && h.primeiroHatsuGraus.acerto) {
         acertoBonus += h.primeiroHatsuGraus.acerto;
@@ -1732,6 +1805,11 @@ function renderHatsuDetail(container) {
     if (_aaTeto.cd > 0) {
         cdBonusTotal += _aaTeto.cd;
         cdBonusSources.push({ nome: 'Aumento de Atributo (' + baseAttr + ')', bonus: _aaTeto.cd });
+    }
+    // Graus genéricos mandados para a CD do TR (1 grau = +1 na CD).
+    if (_genericos.cd) {
+        cdBonusTotal += _genericos.cd;
+        cdBonusSources.push({ nome: 'Graus de Potência (CD)', bonus: _genericos.cd });
     }
     // 5 Graus do 1º Hatsu — CD
     if (idx === 0 && h.primeiroHatsuGraus && h.primeiroHatsuGraus.cd) {
@@ -2205,6 +2283,11 @@ function renderHatsuDetail(container) {
     let duracaoBonus = [];
     let alcanceDobrado = false;
     let duracaoDobrada = false;
+    // Graus genéricos mandados para alcance, área ou duração.
+    // Conversão canônica: 1 grau = 1,5m de alcance ou área, ou 1 rodada de duração.
+    if (_genericos.alcance) alcanceBonus.push({ valor: _genericos.alcance * 1.5, fonte: 'Graus de Potência (Alcance)', grau: _genericos.alcance });
+    if (_genericos.area)    areaBonus.push({ valor: _genericos.area * 1.5, fonte: 'Graus de Potência (Área)', grau: _genericos.area });
+    if (_genericos.duracao) duracaoBonus.push({ valor: _genericos.duracao, fonte: 'Graus de Potência (Duração)', unidade: 'rodada', grau: _genericos.duracao });
     // 5 Graus do 1º Hatsu — alcance, área, duração
     if (idx === 0 && h.primeiroHatsuGraus) {
         const _phg = h.primeiroHatsuGraus;
@@ -2428,6 +2511,7 @@ function renderHatsuDetail(container) {
             const nivelAtual = parseInt(char.level) || 1;
             if (cars.includes('alvos') && nivelAtivo != null && nivelAtual >= nivelAtivo) n += 4;
         }
+        n += (_genericos.alvos || 0);   // graus genéricos mandados para Número de Alvos
         return n;
     })();
     // Alvos extras vindos da Troca Perigosa, escolhidos na ativação do Hatsu.

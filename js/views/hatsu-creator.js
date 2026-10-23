@@ -116,6 +116,43 @@ function renderHatsuCreator(container) {
             + '</div>';
     }
 
+    // Picker de característica dos graus "genéricos". Vale para restrições e para o
+    // efeito Poder Valioso (eg7), por isso vive fora das duas funções de render.
+    window._hGrauGenericoPicker = function (itemId, hb, cor) {
+        const qtd = (window.GRAU_GENERICO_IDS || {})[itemId];
+        if (qtd === undefined) return '';
+        // rg_p5 (Efeitos Aleatórios) é "Margem de Crítico OU Graus de Potência": sem a
+        // escolha dos Graus não há grau nenhum para alocar, então o picker não aparece.
+        if (itemId === 'rg_p5') {
+            const esc = String(((hb && hb.beneficioChoices) || {})[itemId] || '').toLowerCase();
+            if (!esc || esc.indexOf('margem') >= 0 || esc.indexOf('crítico') >= 0) return '';
+        }
+        const val = (hb && hb.specialChoices && hb.specialChoices[itemId + '_carac']) || 'dano';
+        const cat = (state.currentChar || {}).class || '';
+        const daCat = (window.CATEGORIA_CARACTERISTICAS_GRAU || {})[cat] || ['dano'];
+        const aplic = (window.GRAU_DESTINOS_APLICAVEIS || ['dano']);
+        // Só as características DA CATEGORIA e que o app sabe aplicar de verdade.
+        let opts = daCat.filter(function (k) { return aplic.indexOf(k) >= 0; });
+        if (opts.indexOf('dano') < 0) opts = ['dano'].concat(opts);
+        const labels = { dano:'🔥 Dano/Cura', alcance:'📏 Alcance', area:'🔵 Área',
+                         duracao:'⏱️ Duração', cd:'🎯 CD do TR', acerto:'⚔️ Acerto',
+                         alvos:'👥 Nº de Alvos', custo:'💨 Reduz Custo' };
+        return '<div style="margin-top:8px" onclick="event.stopPropagation()">'
+            + '<div style="font-size:8px;font-weight:700;color:' + cor + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">⚖ Onde entram os ' + qtd + ' Grau(s)?</div>'
+            + '<div style="font-size:8px;color:#6b7280;margin-bottom:6px">Características da sua categoria. O padrão é Dano/Cura.</div>'
+            + '<div style="display:flex;flex-wrap:wrap;gap:4px">'
+            + opts.map(function (k) {
+                const active = val === k;
+                return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\'' + itemId + '_carac\',\'' + k + '\')" '
+                    + 'style="padding:6px 10px;border-radius:7px;font-size:8px;font-weight:700;cursor:pointer;border:1.5px solid '
+                    + (active ? cor : '#1f2937') + ';background:' + (active ? cor + '22' : 'transparent')
+                    + ';color:' + (active ? cor : '#9ca3af') + '">' + (labels[k] || k) + '</button>';
+            }).join('')
+            + '</div>'
+            + '<div style="font-size:8px;color:' + cor + ';margin-top:5px">✓ ' + qtd + ' grau(s) em ' + (labels[val] || val) + '</div>'
+            + '</div>';
+    };
+
     function renderR(items, arr, tipo) {
         const PURE_PN = { leve:1, moderada:2, pesada:3, extrema:4 };
         return items.map(function(item) {
@@ -245,6 +282,9 @@ function renderHatsuCreator(container) {
                              : '<div style="font-size:8px;color:#f87171;margin-top:5px">⚠ Escolha a condição.</div>')
                     + '</div>';
             }
+            // Graus "genéricos": o benefício diz "qualquer característica da Categoria",
+            // então o jogador escolhe onde eles entram (ver _hGrauGenericoPicker).
+            if (sel && !isPure) specialInputHtml += window._hGrauGenericoPicker(item.id, hb, p.bs);
             if (sel && item.id === 'rg_p8') {
                 var currentVal = (hb && hb.specialChoices && hb.specialChoices['rg_p8']) || '';
                 specialInputHtml = '<div style="margin-top:8px" onclick="event.stopPropagation()">'
@@ -669,6 +709,10 @@ function renderHatsuCreator(container) {
                 const specialChoices = hb.specialChoices || {};
 
                 // eg3: Condição Perigosa — show condition picker based on level
+                // eg7 (Poder Valioso) é efeito, mas o benefício dele também é genérico.
+                if (item.id === 'eg7') {
+                    specialHtml = window._hGrauGenericoPicker('eg7', hb, color);
+                }
                 if (item.id === 'eg3') {
                     // As condições e as faixas vêm de CONDICOES_POR_NIVEL (js/data/hatsu-db.js),
                     // que segue o livro. A tabela que existia aqui era inventada: liberava Cego
