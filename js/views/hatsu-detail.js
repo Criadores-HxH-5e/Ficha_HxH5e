@@ -560,8 +560,31 @@ window.grausGenericosDoHatsu = function (h) {
             const esc = String(bc[id] || '').toLowerCase();
             if (!esc || esc.indexOf('margem') >= 0 || esc.indexOf('crítico') >= 0) return;
         }
+        const qtd = window.GRAU_GENERICO_IDS[id];
+        // Distribuição por característica. Os graus de uma mesma restrição NÃO precisam
+        // ir todos para o mesmo lugar: "Adicione 3 Graus em qualquer característica" pode
+        // virar 2 em alcance e 1 em duração. A versão anterior só aceitava um destino.
+        const dist = sc[id + '_dist'];
+        if (dist && typeof dist === 'object') {
+            let somado = 0;
+            Object.keys(dist).forEach(function (k) {
+                const v = Math.max(0, parseInt(dist[k]) || 0);
+                if (!v) return;
+                // Nunca entrega mais graus do que a restrição concede, mesmo que a ficha
+                // tenha sido salva com número maior (edição manual, bug antigo, nível que caiu).
+                const cabe = Math.min(v, qtd - somado);
+                if (cabe <= 0) return;
+                out[k] = (out[k] || 0) + cabe;
+                somado += cabe;
+            });
+            // O que o jogador não distribuiu cai em Dano/Cura, como era o padrão antes.
+            const resto = qtd - somado;
+            if (resto > 0) out.dano = (out.dano || 0) + resto;
+            return;
+        }
+        // Compatibilidade: fichas salvas antes da distribuição guardaram um destino único.
         const dest = sc[id + '_carac'] || 'dano';
-        out[dest] = (out[dest] || 0) + window.GRAU_GENERICO_IDS[id];
+        out[dest] = (out[dest] || 0) + qtd;
     });
     return out;
 };
@@ -569,8 +592,13 @@ window.grausGenericosDoHatsu = function (h) {
 // ── Por meio de QUEM o Dano/Cura Focal acontece ──────────────────────────────
 // O 2d6 do Dano/Cura Focal pode ser causado pelo usuário diretamente ou POR MEIO de
 // um constructo, criatura, arma forjada ou objeto. Isso não muda o número: muda quem
-// bate. Quando há um veículo, é ELE que causa os 2d6 e o Hatsu não causa dano por si.
-window.VEICULO_DANO_IDS = {
+// bate. Havendo uma origem escolhida, é ELA que causa os 2d6 e o Hatsu não causa dano
+// por si — para ter dano fora dela, o jogador compra e atribui ao próprio usuário.
+//
+// As CHAVES salvas seguem 'eg15_veiculo'/'eg15_veiculo_txt' de propósito: fichas já
+// gravadas usam esses nomes, e renomear a chave apagaria a escolha de quem já definiu
+// uma origem. O nome antigo vive só no armazenamento; o que o jogador lê é "origem".
+window.ORIGEM_DANO_IDS = {
     'rm_e1':  'Objeto/Arma Forjada',
     'rc_e1':  'Criatura Invocada',
     'rc_e11': 'Criatura Complexa',
@@ -580,9 +608,9 @@ window.VEICULO_DANO_IDS = {
     'rg_l14': 'Objeto Canalizador',
 };
 // Retorna null quando o dano é do próprio usuário (padrão, e o que vale para toda ficha
-// antiga). A opção 'texto' guarda a descrição livre em eg15_veiculo_txt, para um veículo
-// que não corresponde a nenhum efeito do banco.
-window.veiculoDoFocal = function (h) {
+// antiga). A opção 'texto' guarda a descrição livre, para uma origem que não corresponde
+// a nenhum efeito do banco.
+window.origemDoFocal = function (h) {
     const sc = (h && h.specialChoices) || {};
     const esc = String(sc['eg15_veiculo'] || '');
     if (!esc || esc === 'usuario') return null;
@@ -590,7 +618,7 @@ window.veiculoDoFocal = function (h) {
         const nome = String(sc['eg15_veiculo_txt'] || '').trim();
         return nome ? { id: null, nome: nome } : null;
     }
-    const nome = window.VEICULO_DANO_IDS[esc];
+    const nome = window.ORIGEM_DANO_IDS[esc];
     return nome ? { id: esc, nome: nome } : null;
 };
 
@@ -1381,7 +1409,7 @@ function renderHatsuDetail(container) {
             grauSources.push({ nome: 'Aumento por Rodada → ' + _lbl, graus: _dirigidos[k] });
         });
         // Por meio de quem o dano acontece (constructo, arma forjada, criatura...).
-        const _veiculo = window.veiculoDoFocal ? window.veiculoDoFocal(h) : null;
+        const _origem = window.origemDoFocal ? window.origemDoFocal(h) : null;
         // Guardado para o painel de distribuição (porLinha = só o pool) e para a rolagem
         // (porLinhaTotal = pool + dirigidos, o que de fato sobe a escada).
         if (!window._HATSU_ALOC) window._HATSU_ALOC = {};
@@ -1504,8 +1532,8 @@ function renderHatsuDetail(container) {
             if (danoGrauReservado > 0) _danoInfo.push({ l: '⏳ Reservado (teto do nível)', v: '+' + danoGrauReservado + ' grau' + (danoGrauReservado > 1 ? 's' : '') + ' aguardando', c: '#fbbf24' });
             if (flageloGrauPuro > 0) _danoInfo.push({ l: '+' + flageloGrauPuro + ' grau' + (flageloGrauPuro > 1 ? 's' : ''), v: 'Flagelo Puro ×' + flageloCopias, c: '#a78bfa' });
             if (overflowBonus > 0) _danoInfo.push({ l: '+' + overflowBonus + ' dano fixo', v: 'Excedente da tabela (fim em 20d20)', c: '#fbbf24' });
-            if (_veiculo) {
-                _danoInfo.push({ l: 'Causado por', v: _veiculo.nome + ' — o Hatsu não causa dano por si', c: '#60a5fa' });
+            if (_origem) {
+                _danoInfo.push({ l: 'Causado por', v: _origem.nome + ' — não pelo usuário diretamente', c: '#60a5fa' });
             }
             if (Object.keys(_dirigidos).length) {
                 _danoInfo.push({ l: 'Aumento por Rodada', v: 'os graus entram 1 por rodada (rodada 1: +1 · rodada 2: +2)', c: '#fbbf24' });
@@ -1522,10 +1550,10 @@ function renderHatsuDetail(container) {
                     <div style="font-size:14px;font-weight:700;color:#6b7280">+ ${baseAttr}</div>
                     ${psiLabel}
                     ${baseNote ? `<div style="font-size:9px;color:#4b5563;font-style:italic">${baseNote}</div>` : ''}
-                    ${_veiculo ? `<div style="font-size:8px;font-weight:700;padding:2px 8px;border-radius:10px;background:#60a5fa22;color:#60a5fa;border:1px solid #60a5fa55">⚔ ${_veiculo.nome}</div>` : ''}
+                    ${_origem ? `<div style="font-size:8px;font-weight:700;padding:2px 8px;border-radius:10px;background:#60a5fa22;color:#60a5fa;border:1px solid #60a5fa55">⚔ ${_origem.nome}</div>` : ''}
                     <button onclick="event.stopPropagation();window._hShowDanoInfo(${idx},this)" style="margin-left:4px;background:transparent;border:1px solid #374151;border-radius:50%;width:16px;height:16px;font-size:9px;color:#6b7280;cursor:pointer;padding:0;line-height:16px;flex-shrink:0;transition:border-color .15s,color .15s" title="Como chegamos aqui">ⓘ</button>
                 </div>
-                ${_veiculo ? `<div style="font-size:8px;color:#60a5fa;margin-bottom:4px;line-height:1.5">Este dano é causado <b>por meio de ${_veiculo.nome}</b>, não pelo usuário. O Hatsu em si não causa dano — só o que for comprado fora do veículo causa.</div>` : ''}
+                ${_origem ? `<div style="font-size:8px;color:#60a5fa;margin-bottom:4px;line-height:1.5">Este dano é causado por <b>${_origem.nome}</b>, não pelo usuário diretamente. Para causar dano sem ser por meio de ${_origem.nome}, compre e atribua ao próprio usuário.</div>` : ''}
                 ${totalDados > 0 ? `<div style="font-size:8px;color:#fbbf24;margin-bottom:4px">${dadoSources.map(s=>`• ${s.nome}: +${s.n} dado (${s.tipo})`).join(', ')}</div>` : ''}`;
         }
 
@@ -1686,7 +1714,7 @@ function renderHatsuDetail(container) {
                 <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:26px;color:#4ade80;text-shadow:0 0 18px #4ade8055">${_hatsuCuraDice}</div>
                 <div style="flex:1">
                     <div style="font-size:11px;font-weight:700;color:#4ade80">💚 de Cura <span style="font-size:9px;color:#6b7280">+ ${baseAttr}</span></div>
-                    <div style="font-size:8px;color:#6b7280;margin-top:2px">Dano/Cura Focal com tag Cura (base 2d6)${_veiculo ? ` · por meio de <span style="color:#60a5fa">${_veiculo.nome}</span>` : ''}</div>
+                    <div style="font-size:8px;color:#6b7280;margin-top:2px">Dano/Cura Focal com tag Cura (base 2d6)${_origem ? ` · por meio de <span style="color:#60a5fa">${_origem.nome}</span>` : ''}</div>
                 </div>
                 ${_hatsuCuraEspera > 0 ? `<span style="flex-shrink:0;font-size:7px;font-weight:900;padding:2px 8px;border-radius:10px;background:#fbbf2422;color:#fbbf24">+${_hatsuCuraEspera} em espera ⏳</span>` : ''}
             </div>` : '';
@@ -1821,7 +1849,7 @@ function renderHatsuDetail(container) {
         nome: h.nome,
         // Por meio de quem o dano acontece — vai no histórico e na mensagem do Discord,
         // para a mesa saber que quem bate é o constructo/arma e não o usuário.
-        veiculo: ((window.veiculoDoFocal ? window.veiculoDoFocal(h) : null) || {}).nome || '',
+        origem: ((window.origemDoFocal ? window.origemDoFocal(h) : null) || {}).nome || '',
         hasBaseDmg,
         hasAttack,
         cd: null,

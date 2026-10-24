@@ -1736,8 +1736,8 @@
             const modeLabel = effectiveMode === 'NORMAL' ? '' : ` (${effectiveMode.charAt(0) + effectiveMode.slice(1).toLowerCase()})`;
             const renLabel = useRen ? ' 💪REN' : '';
             // Dano causado POR MEIO de constructo/arma/criatura: o rótulo diz quem bate.
-            const veicLabel = rs.veiculo ? ` · por meio de ${rs.veiculo}` : '';
-            char.history.push({ time, label: `⚡ ${rs.nome} (${rs.attr})${modeLabel}${renLabel}${veicLabel}`, dice: dmgResult.rolls.join(', ') + (extraDiceTotal > 0 ? ` (+${extraDiceTotal} extra)` : ''), mod: mod + flatBonus, total, img: state.pendingRollImage || '' });
+            const origemLabel = rs.origem ? ` · por meio de ${rs.origem}` : '';
+            char.history.push({ time, label: `⚡ ${rs.nome} (${rs.attr})${modeLabel}${renLabel}${origemLabel}`, dice: dmgResult.rolls.join(', ') + (extraDiceTotal > 0 ? ` (+${extraDiceTotal} extra)` : ''), mod: mod + flatBonus, total, img: state.pendingRollImage || '' });
             if (char.history.length > 50) char.history.shift();
             saveCharacter(char);
 
@@ -1790,8 +1790,8 @@
             // ── Fim rolagem de ataque ─────────────────────────────────────────
 
             const renNote = useRen ? `\n💪 **REN ativado** — +${renGraus} Grau${renGraus>1?'s':''} de dano${renUsedFree ? ' (1º grátis no dia)' : ''}` : '';
-            const veicNote = rs.veiculo ? `\n🧩 **O dano é causado por ${rs.veiculo}**, não pelo usuário` : '';
-            const content = `⚡ **${char.name}** usou **${rs.nome}**${modeLabel}${attackLine}\nDano: [${dmgResult.rolls.join('+')}]${allModStr} = **${total}** (${formula})${_curaLinha}${extrasText}${renNote}${veicNote}`;
+            const origemNote = rs.origem ? `\n🧩 **Este dano é causado por ${rs.origem}**, não pelo usuário diretamente` : '';
+            const content = `⚡ **${char.name}** usou **${rs.nome}**${modeLabel}${attackLine}\nDano: [${dmgResult.rolls.join('+')}]${allModStr} = **${total}** (${formula})${_curaLinha}${extrasText}${renNote}${origemNote}`;
             sendRollToDiscord(content, state.pendingRollImage);
             state.pendingRollImage = '';
             if (state.activeTab !== 'DADOS') state.unreadRolls = true;
@@ -3114,10 +3114,20 @@
                 const avail = totalPts - spent;
                 const incsHtml = window.COMBAT_INCLINATIONS_DB.map(inc => {
                     const cur = draft[inc.id] || 0;
+                    // Requisito de princípio POR NÍVEL (a etiqueta do bloco "Com aura" daquele
+                    // nível). Defensiva Precisa pede TEN no Básico e SHU no Intermediário: quem
+                    // só tem TEN compra o Básico e fica travado ali. Antes a inclinação inteira
+                    // liberava junto, e era possível comprar Cirúrgica (KO) tendo só TEN.
+                    const portaInc = window.podeComprarInclinacao
+                        ? window.podeComprarInclinacao(char, inc) : { ok: true, motivo: '' };
+                    const portasNivel = inc.tiers.map((_, ti) => window.podeComprarNivelInclinacao
+                        ? window.podeComprarNivelInclinacao(char, inc, ti) : { ok: true, motivo: '' });
+                    const nAbertos = portasNivel.filter(p => p.ok).length;
                     const tiersHtml = inc.tiers.map((desc, ti) => {
                         const tierNum = ti + 1;
                         const active = cur >= tierNum;
-                        const canActivate = !active && avail > 0 && cur === ti;
+                        const portaN = portasNivel[ti];
+                        const canActivate = !active && avail > 0 && cur === ti && portaN.ok;
                         const canDeactivate = active && cur === tierNum;
                         // Tier com bônus de atributo (sempre o último tier, quando inc.attrBonus existe)
                         const isAttrTier = tierNum === inc.tiers.length && !!inc.attrBonus;
@@ -3145,7 +3155,7 @@
                             : '';
                         return `<div class="flex gap-2 items-start p-2 rounded-lg ${active ? 'bg-orange-500/10 border border-orange-500/20' : 'bg-gray-900/50 border border-gray-800/50'} mb-1">
                             <button onclick="window._ciSetTier('${inc.id}',${active ? tierNum - 1 : tierNum})" style="min-width:28px;height:28px;border-radius:6px;border:1px solid ${active ? '#f97316' : '#374151'};background:${active ? '#f9731620' : '#111827'};color:${active ? '#f97316' : '#6b7280'};font-weight:900;font-size:11px;cursor:${(active && canDeactivate) || canActivate ? 'pointer' : 'default'};opacity:${(active && canDeactivate) || canActivate || active ? '1' : '0.35'}" ${(!canActivate && !active) ? 'disabled' : ''}>${active ? '✓' : tierNum}</button>
-                            <div class="flex-1"><span class="text-[9px] font-bold ${active ? 'text-orange-400' : 'text-gray-500'} uppercase tracking-widest block mb-0.5">${nivelNome} — 1 ponto</span><p class="text-[10px] ${active ? 'text-gray-300' : 'text-gray-600'} leading-relaxed">${desc}</p>${auraHtml}${attrChoiceHtml}</div>
+                            <div class="flex-1"><span class="text-[9px] font-bold ${active ? 'text-orange-400' : 'text-gray-500'} uppercase tracking-widest block mb-0.5">${nivelNome} — 1 ponto${portaN.ok ? '' : ' 🔒'}</span><p class="text-[10px] ${active ? 'text-gray-300' : 'text-gray-600'} leading-relaxed">${desc}</p>${portaN.ok ? '' : `<p class="text-[9px] font-semibold mt-1" style="color:#f59e0b">${portaN.motivo}</p>`}${auraHtml}${attrChoiceHtml}</div>
                         </div>`;
                     }).join('');
                     return `<div class="bg-gray-900 border ${cur > 0 ? 'border-orange-500/30' : 'border-gray-800'} rounded-xl p-3 mb-2">
@@ -3153,6 +3163,11 @@
                             <span class="text-xs font-bold ${cur > 0 ? 'text-orange-400' : 'text-white'}">${inc.nome}</span>
                             ${inc.req ? `<span class="text-[9px] bg-gray-800 text-gray-500 px-1.5 rounded border border-gray-700">${inc.req}</span>` : ''}
                             ${(inc.etiquetas || []).map(e => `<span class="text-[8px] font-bold px-1.5 rounded" style="background:#1e3a8a33;color:#93c5fd;border:1px solid #3b82f644">${e}</span>`).join('')}
+                            ${nAbertos === 0
+                                ? `<span class="text-[8px] font-bold px-1.5 rounded ml-auto" style="background:#4b556322;color:#9ca3af;border:1px solid #4b556344">requisitos faltando</span>`
+                                : (nAbertos < inc.tiers.length
+                                    ? `<span class="text-[8px] font-bold px-1.5 rounded ml-auto" style="background:#f59e0b22;color:#fbbf24;border:1px solid #f59e0b44">${nAbertos} de ${inc.tiers.length} níveis</span>`
+                                    : ((inc.etiquetas || []).length ? `<span class="text-[8px] font-bold px-1.5 rounded ml-auto" style="background:#16a34a22;color:#4ade80;border:1px solid #16a34a44">requisitos OK</span>` : ''))}
                             ${cur > 0 ? `<span class="text-[9px] bg-orange-500/10 text-orange-400 border border-orange-500/20 px-1.5 rounded ml-auto">${cur} ponto(s)</span>` : ''}
                         </div>
                         ${tiersHtml}
@@ -3192,6 +3207,17 @@
                 const cur = draft[id] || 0;
                 if (tierNum > cur && (getTotalPts() - getSpent()) <= 0) return;
                 if (tierNum > 3) return;
+                // Segunda trava, além do botão desabilitado: o handler é global e pode ser
+                // chamado de fora. Valida TODO o caminho, não só o nível de destino — subir
+                // para a Maestria passa pelo Intermediário, que pode estar travado.
+                if (tierNum > cur && window.podeComprarNivelInclinacao) {
+                    const _i = (window.COMBAT_INCLINATIONS_DB || []).filter(function (x) { return x.id === id; })[0];
+                    if (_i) {
+                        for (let _ti = cur; _ti < tierNum; _ti++) {
+                            if (!window.podeComprarNivelInclinacao(char, _i, _ti).ok) return;
+                        }
+                    }
+                }
                 draft[id] = tierNum;
                 if (tierNum < 3) delete draftChoices[id]; // saiu do tier de bônus — esquece a escolha
                 document.getElementById('ci-modal-overlay')?.remove();

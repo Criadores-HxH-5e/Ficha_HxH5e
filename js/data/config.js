@@ -917,19 +917,86 @@ window.temPrincipioOuTecnica = function (char) {
     return (window.NEN_AVANCADOS || []).some(function (k) { return !!d[k]; });
 };
 
-// Retorna { ok, motivo } — o motivo é exibido na ficha, para o jogador saber o que
-// falta em vez de só encontrar um botão desabilitado.
+// Etiqueta da inclinação → o que precisa estar desbloqueado na ficha.
+// As etiquetas do livro são os princípios usados nos acréscimos "Com aura" da inclinação.
+// A regra do Lucas: não dá para treinar a inclinação sem ter o princípio que ela mostra.
+window.ETIQUETA_REQUISITO = {
+    TEN:   { tipo: 'fund', chave: 'ten',   nome: 'TEN' },
+    REN:   { tipo: 'fund', chave: 'ren',   nome: 'REN' },
+    ZETSU: { tipo: 'fund', chave: 'zetsu', nome: 'ZETSU' },
+    EN:    { tipo: 'adv',  chave: 'en',    nome: 'EN' },
+    IN:    { tipo: 'adv',  chave: 'inp',   nome: 'IN' },
+    GYO:   { tipo: 'adv',  chave: 'gyo',   nome: 'GYO' },
+    SHU:   { tipo: 'adv',  chave: 'shu',   nome: 'SHU' },
+    KEN:   { tipo: 'adv',  chave: 'ken',   nome: 'KEN' },
+    KO:    { tipo: 'adv',  chave: 'ko',    nome: 'KO' },
+    RYU:   { tipo: 'adv',  chave: 'ryu',   nome: 'RYU' },
+    HATSU: { tipo: 'hatsu',                nome: 'um Hatsu criado' },
+};
+
+window.temEtiquetaDesbloqueada = function (char, etiqueta) {
+    const def = window.ETIQUETA_REQUISITO[etiqueta];
+    if (!def) return true;                       // etiqueta desconhecida não bloqueia nada
+    const c = char || {};
+    if (def.tipo === 'hatsu') return ((c.hatsus || []).length > 0);
+    const d = c.nenDominio || {};
+    if (def.tipo === 'fund') return (parseInt(d[def.chave]) || 0) > 0;
+    return !!d[def.chave];
+};
+
+// Porta de UM NÍVEL de uma inclinação. Retorna { ok, motivo }.
+// O requisito é do nível, não da inclinação: cada nível usa o princípio do seu próprio
+// bloco "Com aura" (ver auraEtq em combat-inclinations-db.js). Defensiva Precisa pede TEN
+// no Básico e SHU no Intermediário — quem só tem TEN leva o Básico e para ali, em vez de
+// a inclinação inteira liberar ou travar junto.
+// Nível sem princípio exigido (auraEtq null) é treino marcial puro e libera para qualquer
+// personagem, inclusive sem Nen: é o caso de Arsenal Militar e das Maestrias.
+// Lista com mais de um princípio: basta um ("REN/GYO" do livro).
+// tier é 0-based (0 = Básico, 1 = Intermediário, 2 = Maestria).
+window.podeComprarNivelInclinacao = function (char, inc, tier) {
+    const c = char || {};
+    if ((parseInt(c.level) || 1) < 2) return { ok: false, motivo: 'Disponível a partir do Nível 2.' };
+    const porNivel = (inc && inc.auraEtq) || null;
+    // Sem a tabela por nível, cai no comportamento antigo: a etiqueta da inclinação inteira.
+    const etq = porNivel ? (porNivel[tier] || []) : ((inc && inc.etiquetas) || []);
+    if (!etq || etq.length === 0) return { ok: true, motivo: '' };
+    const tem = etq.some(function (e) { return window.temEtiquetaDesbloqueada(c, e); });
+    if (tem) return { ok: true, motivo: '' };
+    const nomes = etq.map(function (e) {
+        const d = window.ETIQUETA_REQUISITO[e];
+        return (d && d.nome) || e;
+    });
+    const nomeNivel = (window.CI_NIVEL_NOME || [])[tier] || ('Nível ' + (tier + 1));
+    return {
+        ok: false,
+        motivo: nomeNivel + ' exige ' + (nomes.length > 1 ? nomes.join(' ou ') : nomes[0]) + ' desbloqueado.',
+    };
+};
+
+// A inclinação está disponível se ALGUM nível dela está. Usada para o selo do card e para
+// decidir se a seção toda tem o que oferecer.
+window.podeComprarInclinacao = function (char, inc) {
+    const tiers = ((inc && inc.tiers) || []).length || 3;
+    for (let i = 0; i < tiers; i++) {
+        const r = window.podeComprarNivelInclinacao(char, inc, i);
+        if (r.ok) return { ok: true, motivo: '' };
+    }
+    return window.podeComprarNivelInclinacao(char, inc, 0);
+};
+
+// Porta GERAL da seção. Era aqui que vivia a exigência de Nen e de princípio, mas isso
+// travava Arsenal Militar, que não depende de nenhum princípio e é treino marcial comum.
+// A exigência de princípio desceu para cada inclinação (podeComprarInclinacao); aqui fica
+// só o nível, mais o aviso de quando NENHUMA inclinação está liberada.
 window.podeComprarInclinacoes = function (char) {
     const c = char || {};
     if ((parseInt(c.level) || 1) < 2) {
         return { ok: false, motivo: 'Disponível a partir do Nível 2.' };
     }
-    const semNen = c.categoriaMetodo === 'semnen' || !c.class;
-    if (semNen) {
-        return { ok: false, motivo: 'Exige Nen: personagens sem categoria de Nen não treinam Inclinações de Combate.' };
-    }
-    if (!window.temPrincipioOuTecnica(c)) {
-        return { ok: false, motivo: 'Desbloqueie ao menos 1 Princípio ou Técnica de Nen (Ten, Ren, Zetsu ou um avançado) para abrir as Inclinações.' };
+    const db = window.COMBAT_INCLINATIONS_DB || [];
+    const alguma = db.some(function (inc) { return window.podeComprarInclinacao(c, inc).ok; });
+    if (db.length && !alguma) {
+        return { ok: false, motivo: 'Nenhuma inclinação liberada: desbloqueie um Princípio ou Técnica de Nen.' };
     }
     return { ok: true, motivo: '' };
 };
