@@ -790,7 +790,8 @@ function renderHatsuCreator(container) {
             const repetivelNiveisArr = (hb.efeitoNiveis && hb.efeitoNiveis[item.id]) || [];
             const repetivelTracked = itemRepetivel ? repetivelNiveisArr.length : 0;
             const repetivelCompradoNesteNivel = itemRepetivel && repetivelNiveisArr.some(lv => lv === charLevel);
-            const repetivelNesteNivel = repetivelCompradoNesteNivel && !char.isNPC;
+            const _podeRepetir = window.podeRepetirEfeitoNoNivel ? window.podeRepetirEfeitoNoNivel(char) : !!char.isNPC;
+            const repetivelNesteNivel = repetivelCompradoNesteNivel && !_podeRepetir;
             const showRepetivelBadge = itemRepetivel && sel && totalCopies > 0;
 
             // Duplicatas via Restrição Extrema Pura: para efeitos repetíveis, só as cópias ALÉM das já
@@ -1580,11 +1581,34 @@ function renderHatsuCreator(container) {
                             + '<div style="font-size:7px;color:#4b5563;font-style:italic">Req: '+ chosenEff6.req +'</div>'
                             + '</div>'
                         : '<div style="font-size:8px;color:#f87171;margin-top:2px">⚠ Selecione o efeito alvo</div>';
+                    // Quem recebe o efeito redirecionado. Mesma lógica da origem do dano no
+                    // Dano/Cura Focal: o efeito é o mesmo, muda em quem ele pousa. Sem isso o
+                    // app dizia "direcionado a inimigo(s)" e a mesa não tinha onde registrar
+                    // um Poder é Intenção que mira o próprio usuário ou o constructo.
+                    const dest6 = specialChoices['eg6_destino'] || 'alvo';
+                    const OPC6 = [
+                        ['alvo',    '🎯 O alvo (inimigo)'],
+                        ['usuario', '🙋 O próprio usuário'],
+                        ['hatsu',   '🧩 O Hatsu / constructo'],
+                    ];
+                    const destino6 = '<div style="margin-top:8px;padding-top:8px;border-top:1px dashed ' + color + '33">'
+                        + '<div style="font-size:8px;font-weight:900;color:' + color + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Quem recebe o efeito?</div>'
+                        + '<div style="font-size:8px;color:#6b7280;margin-bottom:6px">O padrão é o alvo, como diz a descrição do efeito.</div>'
+                        + '<div style="display:flex;flex-direction:column;gap:5px">'
+                        + OPC6.map(function (par) {
+                            const on = dest6 === par[0];
+                            return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\'eg6_destino\',\'' + par[0] + '\')" '
+                                + 'style="padding:7px 10px;border-radius:8px;font-size:8px;font-weight:700;cursor:pointer;text-align:left;border:1.5px solid '
+                                + (on ? color : '#1f2937') + ';background:' + (on ? color + '22' : 'transparent')
+                                + ';color:' + (on ? color : '#9ca3af') + '">' + par[1] + '</button>';
+                        }).join('')
+                        + '</div></div>';
                     specialHtml = '<div style="margin-top:8px;background:#0a0f1a;border:1px solid '+ color +'33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
                         + '<div style="font-size:8px;font-weight:900;color:'+ color +';text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">🎯 Poder é Intenção</div>'
-                        + '<div style="font-size:8px;color:#6b7280;margin-bottom:8px">Selecione o efeito que será direcionado a inimigo(s):</div>'
+                        + '<div style="font-size:8px;color:#6b7280;margin-bottom:8px">Selecione o efeito que será redirecionado:</div>'
                         + eg6Buttons
                         + chosenPanel6
+                        + (chosen ? destino6 : '')
                         + '</div>';
                 }
 
@@ -1881,7 +1905,7 @@ function renderHatsuCreator(container) {
             const canAddRepetivel = showRepetivelBadge && !repetivelNesteNivel && (!item.maxUsos || totalCopies < item.maxUsos) && pnLeft >= item.pn;
             // NPCs podem desfazer a última cópia comprada mesmo que não tenha sido neste nível
             // (ficha montada livremente pelo mestre, sem seguir a progressão 1-por-nível).
-            const canRemoveRepetivel = showRepetivelBadge && (char.isNPC ? repetivelTracked > 0 : repetivelCompradoNesteNivel);
+            const canRemoveRepetivel = showRepetivelBadge && (_podeRepetir ? repetivelTracked > 0 : repetivelCompradoNesteNivel);
             const repetivelControlsHtml = showRepetivelBadge ? `
                 <div style="margin-top:6px" onclick="event.stopPropagation()">
                     <div style="display:flex;align-items:center;gap:6px">
@@ -1892,6 +1916,7 @@ function renderHatsuCreator(container) {
                         <button onclick="${canAddRepetivel ? `window._hAddRepetivelE('${item.id}','${tipo}',${item.pn})` : 'void(0)'}"
                             style="width:22px;height:22px;border-radius:6px;background:${canAddRepetivel?'#22c55e22':'#1f293755'};border:1px solid ${canAddRepetivel?'#22c55e55':'#374151'};color:${canAddRepetivel?'#4ade80':'#4b5563'};font-size:14px;font-weight:900;cursor:${canAddRepetivel?'pointer':'not-allowed'};display:flex;align-items:center;justify-content:center;line-height:1">+</button>
                         <span style="font-size:8px;color:#6b7280">${repetivelNesteNivel ? 'já evoluído neste nível' : (canAddRepetivel ? `evoluir custa ${item.pn} P.N` : (item.maxUsos && totalCopies >= item.maxUsos ? 'máximo de usos atingido' : 'sem P.N para evoluir'))}</span>
+                        ${(_podeRepetir && !char.isNPC) ? `<span title="Mestres e admins podem comprar várias cópias no mesmo nível, para montar NPC já pronto" style="font-size:7px;font-weight:900;padding:1px 6px;border-radius:8px;background:#a855f722;color:#c084fc;border:1px solid #a855f744">🔑 mestre</span>` : ''}
                     </div>
                     ${hasPureExtreme ? `<div style="display:flex;align-items:center;gap:6px;margin-top:4px">
                         <span style="font-size:8px;color:#fbbf24;font-weight:700">Extra ⚡:</span>
@@ -4008,8 +4033,10 @@ window._hAddRepetivelE = function(id, tipo, pn) {
     hb.efeitoNiveis = hb.efeitoNiveis || {};
     const niveisComprados = hb.efeitoNiveis[id] || [];
 
-    // Só pode comprar mais uma cópia por nível (exceto personagens marcados como NPC)
-    if (!char.isNPC && niveisComprados.some(lv => lv === charLevelNow)) return;
+    // Uma cópia por nível. Mestres e admins passam por cima, para montar NPC já em nível
+    // alto sem precisar subir de nível dez vezes (ver podeRepetirEfeitoNoNivel).
+    if (!(window.podeRepetirEfeitoNoNivel ? window.podeRepetirEfeitoNoNivel(char) : char.isNPC)
+        && niveisComprados.some(lv => lv === charLevelNow)) return;
     // Respeita o teto de usos do efeito, se houver
     if (item.maxUsos) {
         const totalAtual = arr.filter(x => x === id).length;
@@ -4044,7 +4071,8 @@ window._hRemoveRepetivelE = function(id, tipo) {
     const charLevelNow = parseInt(char.level) || 0;
     hb.efeitoNiveis = hb.efeitoNiveis || {};
     const niveisComprados = hb.efeitoNiveis[id] || [];
-    const lastIdx = char.isNPC ? niveisComprados.length - 1 : niveisComprados.lastIndexOf(charLevelNow);
+    const lastIdx = (window.podeRepetirEfeitoNoNivel ? window.podeRepetirEfeitoNoNivel(char) : char.isNPC)
+        ? niveisComprados.length - 1 : niveisComprados.lastIndexOf(charLevelNow);
     if (lastIdx === -1) return; // nada comprado neste nível para desfazer
     niveisComprados.splice(lastIdx, 1);
     const removeIdx = arr.lastIndexOf(id);

@@ -2839,7 +2839,12 @@ function renderHatsuDetail(container) {
        specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">🩸 Condição: ${eg3Summary}</div>`;
    }
             if (e.id === 'eg4' && sc.eg4) specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">🔀 Efeito Alternativo → ${sc.eg4}</div>`;
-            if (e.id === 'eg6' && sc.eg6) specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">🎯 Poder é Intenção: ${sc.eg6}</div>`;
+            // Poder é Intenção: além de QUAL efeito, mostra EM QUEM ele pousa.
+            if (e.id === 'eg6' && sc.eg6) {
+                const _d6 = { alvo: 'no alvo (inimigo)', usuario: 'no próprio usuário', hatsu: 'no Hatsu / constructo' };
+                const _dest6 = _d6[sc.eg6_destino || 'alvo'] || _d6.alvo;
+                specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">🎯 Poder é Intenção: ${sc.eg6} <span style="font-weight:600;color:#9ca3af">— ${_dest6}</span></div>`;
+            }
             if (e.id === 'rm_e2') {
                 const _rm2Mat = sc[_eCopyIdx > 0 ? `rm_e2#${_eCopyIdx}` : 'rm_e2'];
                 if (_rm2Mat) specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">🧱 Pequeno · ${_rm2Mat} &nbsp;|&nbsp; PV = 5 + CON×2</div>`;
