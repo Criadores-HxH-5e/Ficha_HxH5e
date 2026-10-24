@@ -917,6 +917,21 @@ window.temPrincipioOuTecnica = function (char) {
     return (window.NEN_AVANCADOS || []).some(function (k) { return !!d[k]; });
 };
 
+// ── Quem pode comprar o mesmo efeito mais de uma vez no MESMO nível ──────────
+// A regra normal é uma compra por nível: é assim que a evolução do personagem acontece.
+// Mas o mestre precisa montar NPC já pronto em nível alto — simular quem evoluiu do 1 ao
+// 10 sem subir de nível dez vezes na mão. Antes só a flag isNPC da ficha liberava isso,
+// então o mestre tinha de marcar a ficha como NPC primeiro, e numa ficha de jogador não
+// havia saída nenhuma.
+//
+// A mesma regra aparece em quatro pontos de hatsu-creator.js (texto do card, botão de
+// remover cópia, compra e descompra). Virou função para os quatro lerem a mesma coisa.
+window.podeRepetirEfeitoNoNivel = function (char) {
+    if ((char || {}).isNPC) return true;
+    const s = window.state || {};
+    return !!(s.isMestre || s.isAdmin);
+};
+
 // Etiqueta da inclinação → o que precisa estar desbloqueado na ficha.
 // As etiquetas do livro são os princípios usados nos acréscimos "Com aura" da inclinação.
 // A regra do Lucas: não dá para treinar a inclinação sem ter o princípio que ela mostra.
