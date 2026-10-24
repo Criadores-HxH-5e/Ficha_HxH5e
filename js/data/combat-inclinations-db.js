@@ -17,6 +17,13 @@
 // Nomenclatura dos níveis: tiers[0] = Básico (1 ponto), tiers[1] = Intermediário,
 // tiers[2] = Maestria. O custo segue 1 Ponto de Inclinação por nível.
 
+// auraEtq: o princípio exigido POR NÍVEL. Cada nível de uma inclinação usa o princípio
+// do seu próprio bloco "Com aura", e não o da inclinação inteira — Defensiva Precisa pede
+// TEN no Básico e SHU no Intermediário. Então o jogador que só tem TEN compra o Básico e
+// fica travado no Intermediário, em vez de a inclinação toda liberar ou travar junto.
+// null = nível sem princípio exigido (as Maestrias, que são só +1 em atributo).
+// Lista com mais de um = qualquer um deles serve (o livro escreve "REN/GYO").
+//
 // Nome dos três níveis, na redação do livro. O app mostrava "Tier 1/2/3", que não
 // existe em lugar nenhum da regra.
 window.CI_NIVEL_NOME = ['Básico', 'Intermediário', 'Maestria'];
@@ -24,6 +31,7 @@ window.CI_NIVEL_NOME = ['Básico', 'Intermediário', 'Maestria'];
 window.COMBAT_INCLINATIONS_DB = [
   {
     id: 'analitica',
+    auraEtq: [['GYO'], ['GYO'], null],
     nome: 'Analítica',
     etiquetas: ['GYO'],
     tiers: [
@@ -40,6 +48,7 @@ window.COMBAT_INCLINATIONS_DB = [
   },
   {
     id: 'arsenal_militar',
+    auraEtq: [null, null, null],
     nome: 'Arsenal Militar',
     tiers: [
       'Acesso a armas científicas simples.',
@@ -49,6 +58,7 @@ window.COMBAT_INCLINATIONS_DB = [
   },
   {
     id: 'cirurgica',
+    auraEtq: [['KO'], ['KO'], null],
     nome: 'Cirúrgica',
     etiquetas: ['KO'],
     tiers: [
@@ -65,6 +75,7 @@ window.COMBAT_INCLINATIONS_DB = [
   },
   {
     id: 'combate_montado',
+    auraEtq: [['SHU'], null, null],
     nome: 'Combate Montado',
     etiquetas: ['SHU'],
     tiers: [
@@ -80,6 +91,7 @@ window.COMBAT_INCLINATIONS_DB = [
   },
   {
     id: 'conjurador_de_guerra',
+    auraEtq: [['HATSU'], ['IN'], null],
     nome: 'Conjurador de Guerra',
     etiquetas: ['HATSU', 'IN'],
     tiers: [
@@ -91,6 +103,7 @@ window.COMBAT_INCLINATIONS_DB = [
   },
   {
     id: 'decisiva',
+    auraEtq: [['KO'], ['KO'], null],
     nome: 'Decisiva',
     etiquetas: ['KO'],
     tiers: [
@@ -107,6 +120,7 @@ window.COMBAT_INCLINATIONS_DB = [
   },
   {
     id: 'defensiva_bruta',
+    auraEtq: [['TEN'], ['TEN'], null],
     nome: 'Defensiva Bruta',
     etiquetas: ['TEN'],
     tiers: [
@@ -123,6 +137,7 @@ window.COMBAT_INCLINATIONS_DB = [
   },
   {
     id: 'defensiva_precisa',
+    auraEtq: [['TEN'], ['SHU'], null],
     nome: 'Defensiva Precisa',
     etiquetas: ['TEN', 'SHU'],
     tiers: [
@@ -139,6 +154,7 @@ window.COMBAT_INCLINATIONS_DB = [
   },
   {
     id: 'defensiva_reativa_agil',
+    auraEtq: [['EN'], ['ZETSU'], null],
     nome: 'Defensiva Reativa-Ágil',
     etiquetas: ['EN', 'ZETSU'],
     tiers: [
@@ -155,6 +171,7 @@ window.COMBAT_INCLINATIONS_DB = [
   },
   {
     id: 'experiente',
+    auraEtq: [['ZETSU'], ['GYO'], null],
     nome: 'Experiente',
     etiquetas: ['ZETSU', 'GYO'],
     tiers: [
@@ -170,6 +187,7 @@ window.COMBAT_INCLINATIONS_DB = [
   },
   {
     id: 'fluida',
+    auraEtq: [['RYU'], ['RYU'], null],
     nome: 'Fluida',
     etiquetas: ['RYU'],
     tiers: [
@@ -186,6 +204,7 @@ window.COMBAT_INCLINATIONS_DB = [
   },
   {
     id: 'guardia',
+    auraEtq: [['KEN'], ['KEN'], null],
     nome: 'Guardiã',
     etiquetas: ['KEN'],
     tiers: [
@@ -202,6 +221,7 @@ window.COMBAT_INCLINATIONS_DB = [
   },
   {
     id: 'imobilizador',
+    auraEtq: [['REN', 'GYO'], ['REN'], null],
     nome: 'Imobilizador',
     etiquetas: ['REN', 'GYO'],
     req: 'FOR 16+',
@@ -219,6 +239,7 @@ window.COMBAT_INCLINATIONS_DB = [
   },
   {
     id: 'inabalavel',
+    auraEtq: [['KEN'], ['KEN'], null],
     nome: 'Inabalável',
     etiquetas: ['KEN'],
     tiers: [
@@ -235,6 +256,7 @@ window.COMBAT_INCLINATIONS_DB = [
   },
   {
     id: 'investida_poderosa',
+    auraEtq: [['REN'], ['REN'], null],
     nome: 'Investida Poderosa',
     etiquetas: ['REN'],
     req: 'FOR 16+',
@@ -252,6 +274,7 @@ window.COMBAT_INCLINATIONS_DB = [
   },
   {
     id: 'maestria_armadura_media',
+    auraEtq: [['SHU'], null, null],
     nome: 'Maestria em Armadura Média',
     etiquetas: ['SHU'],
     req: 'Prof. em Armadura Média',
@@ -268,6 +291,7 @@ window.COMBAT_INCLINATIONS_DB = [
   },
   {
     id: 'maestria_armadura_pesada',
+    auraEtq: [['SHU'], null, null],
     nome: 'Maestria em Armadura Pesada',
     etiquetas: ['SHU'],
     req: 'Prof. em Armadura Pesada',
@@ -284,6 +308,7 @@ window.COMBAT_INCLINATIONS_DB = [
   },
   {
     id: 'mestre_de_armas',
+    auraEtq: [['SHU'], ['SHU'], null],
     nome: 'Mestre de Armas',
     etiquetas: ['SHU'],
     tiers: [
@@ -300,6 +325,7 @@ window.COMBAT_INCLINATIONS_DB = [
   },
   {
     id: 'mestre_de_armas_grandes',
+    auraEtq: [['REN'], ['GYO'], null],
     nome: 'Mestre de Armas Grandes',
     etiquetas: ['REN', 'GYO'],
     req: 'FOR 16+',
@@ -316,6 +342,7 @@ window.COMBAT_INCLINATIONS_DB = [
   },
   {
     id: 'mestre_de_escudo',
+    auraEtq: [['SHU'], ['TEN'], null],
     nome: 'Mestre de Escudo',
     etiquetas: ['SHU', 'TEN'],
     tiers: [
@@ -332,6 +359,7 @@ window.COMBAT_INCLINATIONS_DB = [
   },
   {
     id: 'ofensiva_agil',
+    auraEtq: [['GYO'], ['KO'], null],
     nome: 'Ofensiva Ágil',
     etiquetas: ['GYO', 'KO'],
     tiers: [
@@ -348,6 +376,7 @@ window.COMBAT_INCLINATIONS_DB = [
   },
   {
     id: 'ofensiva_bruta',
+    auraEtq: [['REN'], ['REN'], null],
     nome: 'Ofensiva Bruta',
     etiquetas: ['REN'],
     tiers: [
@@ -364,6 +393,7 @@ window.COMBAT_INCLINATIONS_DB = [
   },
   {
     id: 'ofensiva_precisa',
+    auraEtq: [['SHU'], ['GYO'], null],
     nome: 'Ofensiva Precisa',
     etiquetas: ['SHU', 'GYO'],
     tiers: [
@@ -380,6 +410,7 @@ window.COMBAT_INCLINATIONS_DB = [
   },
   {
     id: 'perceptiva',
+    auraEtq: [['ZETSU'], ['GYO'], null],
     nome: 'Perceptiva',
     etiquetas: ['ZETSU', 'GYO'],
     tiers: [
@@ -396,6 +427,7 @@ window.COMBAT_INCLINATIONS_DB = [
   },
   {
     id: 'premeditada_manipulada',
+    auraEtq: [['HATSU'], ['HATSU'], null],
     nome: 'Premeditada (Manipulada)',
     etiquetas: ['HATSU'],
     tiers: [
@@ -407,6 +439,7 @@ window.COMBAT_INCLINATIONS_DB = [
   },
   {
     id: 'premeditada_planejada',
+    auraEtq: [['IN'], ['HATSU'], null],
     nome: 'Premeditada (Planejada)',
     etiquetas: ['HATSU', 'IN'],
     tiers: [
@@ -418,6 +451,7 @@ window.COMBAT_INCLINATIONS_DB = [
   },
   {
     id: 'sentinela',
+    auraEtq: [['REN'], ['REN'], null],
     nome: 'Sentinela',
     etiquetas: ['REN'],
     tiers: [
@@ -434,6 +468,7 @@ window.COMBAT_INCLINATIONS_DB = [
   },
   {
     id: 'trapaceira',
+    auraEtq: [['ZETSU'], ['ZETSU'], null],
     nome: 'Trapaceira',
     etiquetas: ['ZETSU', 'REN'],
     tiers: [
@@ -450,6 +485,7 @@ window.COMBAT_INCLINATIONS_DB = [
   },
   {
     id: 'visao_360',
+    auraEtq: [['EN'], ['EN'], null],
     nome: 'Visão 360º',
     etiquetas: ['EN'],
     tiers: [

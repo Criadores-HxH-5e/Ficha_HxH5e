@@ -200,11 +200,19 @@ window.calcPNSpentInInstancias = function (char) {
 // toda Instância do livro pede treino marcial, então sem nenhuma inclinação não há
 // Instância possível e o jogador merece ler o motivo.
 window.podeComprarInstancias = function (char) {
-    const porta = window.podeComprarInclinacoes
-        ? window.podeComprarInclinacoes(char)
-        : { ok: true, motivo: '' };
-    if (!porta.ok) return porta;
-    const ci = (char || {}).combatInclinations || {};
+    const c = char || {};
+    if ((parseInt(c.level) || 1) < 2) return { ok: false, motivo: 'Disponível a partir do Nível 2.' };
+    // As Instâncias mantêm a exigência de Nen por conta própria. Antes isso vinha de
+    // podeComprarInclinacoes, mas aquela porta deixou de exigir Nen quando Arsenal Militar
+    // passou a ser treino marcial livre — e o livro é explícito: "Personagens sem Nen não
+    // compram Instâncias".
+    if (c.categoriaMetodo === 'semnen' || !c.class) {
+        return { ok: false, motivo: 'Exige Nen: personagens sem categoria de Nen não compram Instâncias.' };
+    }
+    if (window.temPrincipioOuTecnica && !window.temPrincipioOuTecnica(c)) {
+        return { ok: false, motivo: 'Desbloqueie ao menos 1 Princípio ou Técnica de Nen (Ten, Ren, Zetsu ou um avançado).' };
+    }
+    const ci = c.combatInclinations || {};
     const temAlguma = Object.keys(ci).some(function (k) { return (parseInt(ci[k]) || 0) > 0; });
     if (!temAlguma) {
         return { ok: false, motivo: 'Treine ao menos uma Inclinação de Combate: toda Instância exige inclinação como requisito.' };

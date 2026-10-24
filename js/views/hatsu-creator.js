@@ -127,7 +127,7 @@ function renderHatsuCreator(container) {
             const esc = String(((hb && hb.beneficioChoices) || {})[itemId] || '').toLowerCase();
             if (!esc || esc.indexOf('margem') >= 0 || esc.indexOf('crítico') >= 0) return '';
         }
-        const val = (hb && hb.specialChoices && hb.specialChoices[itemId + '_carac']) || 'dano';
+        const sc = (hb && hb.specialChoices) || {};
         const cat = (state.currentChar || {}).class || '';
         const daCat = (window.CATEGORIA_CARACTERISTICAS_GRAU || {})[cat] || ['dano'];
         const aplic = (window.GRAU_DESTINOS_APLICAVEIS || ['dano']);
@@ -137,21 +137,63 @@ function renderHatsuCreator(container) {
         const labels = { dano:'🔥 Dano/Cura', alcance:'📏 Alcance', area:'🔵 Área',
                          duracao:'⏱️ Duração', cd:'🎯 CD do TR', acerto:'⚔️ Acerto',
                          alvos:'👥 Nº de Alvos', custo:'💨 Reduz Custo' };
+
+        // Estado atual. Sem distribuição salva, converte o destino único antigo (ou o
+        // padrão Dano/Cura) para que a ficha abra mostrando exatamente o que valia antes.
+        let dist = sc[itemId + '_dist'];
+        if (!dist || typeof dist !== 'object') {
+            const antigo = sc[itemId + '_carac'] || 'dano';
+            dist = {}; dist[antigo] = qtd;
+        }
+        let usado = 0;
+        opts.forEach(function (k) { usado += Math.max(0, parseInt(dist[k]) || 0); });
+        const livre = Math.max(0, qtd - usado);
+
+        const linhas = opts.map(function (k) {
+            const v = Math.max(0, parseInt(dist[k]) || 0);
+            const podeMais = livre > 0;
+            return '<div style="display:flex;align-items:center;gap:7px;margin-bottom:4px">'
+                + '<div style="flex:1;min-width:0;font-size:9px;font-weight:700;color:' + (v > 0 ? cor : '#9ca3af') + ';overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (labels[k] || k) + '</div>'
+                + '<button onclick="event.stopPropagation();window._hGrauGenMudar(\'' + itemId + '\',\'' + k + '\',-1)" ' + (v > 0 ? '' : 'disabled')
+                + ' style="width:24px;height:24px;border-radius:6px;background:' + (v > 0 ? '#1f2937' : '#111') + ';border:1px solid #374151;color:' + (v > 0 ? '#f87171' : '#374151') + ';font-size:13px;font-weight:900;cursor:' + (v > 0 ? 'pointer' : 'not-allowed') + ';padding:0;line-height:1">−</button>'
+                + '<div style="min-width:18px;text-align:center;font-size:12px;font-weight:900;color:#fff">' + v + '</div>'
+                + '<button onclick="event.stopPropagation();window._hGrauGenMudar(\'' + itemId + '\',\'' + k + '\',1)" ' + (podeMais ? '' : 'disabled')
+                + ' style="width:24px;height:24px;border-radius:6px;background:' + (podeMais ? cor + '22' : '#111') + ';border:1px solid ' + (podeMais ? cor + '55' : '#374151') + ';color:' + (podeMais ? cor : '#374151') + ';font-size:13px;font-weight:900;cursor:' + (podeMais ? 'pointer' : 'not-allowed') + ';padding:0;line-height:1">+</button>'
+                + '</div>';
+        }).join('');
+
         return '<div style="margin-top:8px" onclick="event.stopPropagation()">'
-            + '<div style="font-size:8px;font-weight:700;color:' + cor + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">⚖ Onde entram os ' + qtd + ' Grau(s)?</div>'
-            + '<div style="font-size:8px;color:#6b7280;margin-bottom:6px">Características da sua categoria. O padrão é Dano/Cura.</div>'
-            + '<div style="display:flex;flex-wrap:wrap;gap:4px">'
-            + opts.map(function (k) {
-                const active = val === k;
-                return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\'' + itemId + '_carac\',\'' + k + '\')" '
-                    + 'style="padding:6px 10px;border-radius:7px;font-size:8px;font-weight:700;cursor:pointer;border:1.5px solid '
-                    + (active ? cor : '#1f2937') + ';background:' + (active ? cor + '22' : 'transparent')
-                    + ';color:' + (active ? cor : '#9ca3af') + '">' + (labels[k] || k) + '</button>';
-            }).join('')
-            + '</div>'
-            + '<div style="font-size:8px;color:' + cor + ';margin-top:5px">✓ ' + qtd + ' grau(s) em ' + (labels[val] || val) + '</div>'
-            + '</div>';
+            + '<div style="font-size:8px;font-weight:700;color:' + cor + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">⚖ Distribua os ' + qtd + ' Grau(s)</div>'
+            + '<div style="font-size:8px;color:#6b7280;margin-bottom:6px">Pode dividir entre características diferentes. O que sobrar vai para Dano/Cura.</div>'
+            + linhas
+            + '<div style="font-size:8px;font-weight:700;margin-top:4px;color:' + (livre > 0 ? '#fbbf24' : '#4ade80') + '">'
+            + (livre > 0 ? ('⚠ ' + livre + ' grau(s) sem destino — ficam em Dano/Cura') : ('✓ todos os ' + qtd + ' distribuídos'))
+            + '</div></div>';
     };
+
+    // +/- de um destino. Guarda em specialChoices[id + '_dist'] e nunca deixa a soma
+    // passar do que a restrição concede.
+    window._hGrauGenMudar = function (itemId, chave, delta) {
+        const hb = state.hatsuBuilder; if (!hb) return;
+        const qtd = (window.GRAU_GENERICO_IDS || {})[itemId];
+        if (qtd === undefined) return;
+        if (!hb.specialChoices) hb.specialChoices = {};
+        let dist = hb.specialChoices[itemId + '_dist'];
+        if (!dist || typeof dist !== 'object') {
+            const antigo = hb.specialChoices[itemId + '_carac'] || 'dano';
+            dist = {}; dist[antigo] = qtd;
+        }
+        const atual = Math.max(0, parseInt(dist[chave]) || 0);
+        let usado = 0;
+        Object.keys(dist).forEach(function (k) { usado += Math.max(0, parseInt(dist[k]) || 0); });
+        const novo = atual + delta;
+        if (novo < 0) return;
+        if (delta > 0 && usado >= qtd) return;
+        if (novo === 0) delete dist[chave]; else dist[chave] = novo;
+        hb.specialChoices[itemId + '_dist'] = dist;
+        renderHatsuInPlace();
+    };
+
 
     // Seletor de QUAL linha recebe os graus de uma restrição que escolhe o efeito.
     // ri_m1 (Aumento por Rodada): "+2 Graus de Potência no total de cada efeito similar",
@@ -181,15 +223,15 @@ function renderHatsuCreator(container) {
     };
 
     // Por meio de QUEM o Dano/Cura Focal acontece. Alocar o Focal num constructo, arma ou
-    // criatura não muda o número: muda quem bate. Com um veículo escolhido, é ELE que causa
+    // criatura não muda o número: muda quem bate. Com uma origem escolhida, é ELA que causa
     // os 2d6 e o Hatsu não causa dano por si.
-    window._hVeiculoFocalPicker = function (hb, cor) {
+    window._hOrigemFocalPicker = function (hb, cor) {
         const sc = (hb && hb.specialChoices) || {};
         const atual = String(sc['eg15_veiculo'] || 'usuario');
         const txt = String(sc['eg15_veiculo_txt'] || '');
         const comprados = [].concat(hb.rg || [], hb.rc || [], hb.eg || [], hb.ec || []);
-        const mapa = window.VEICULO_DANO_IDS || {};
-        // Só oferece veículos que o jogador REALMENTE comprou neste Hatsu.
+        const mapa = window.ORIGEM_DANO_IDS || {};
+        // Só oferece origens que o jogador REALMENTE comprou neste Hatsu.
         const doHatsu = Object.keys(mapa).filter(function (id) { return comprados.indexOf(id) >= 0; });
         const botao = function (val, rotulo) {
             const on = atual === val;
@@ -200,7 +242,7 @@ function renderHatsuCreator(container) {
         };
         return '<div style="margin-top:8px;background:#0a0f1a;border:1px solid ' + cor + '33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
             + '<div style="font-size:8px;font-weight:900;color:' + cor + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">⚔ Quem causa esse dano?</div>'
-            + '<div style="font-size:8px;color:#6b7280;margin-bottom:8px;line-height:1.5">O padrão é o usuário. Se escolher um veículo, o dano passa a ser causado <b>por meio dele</b> — o Hatsu em si deixa de causar dano.</div>'
+            + '<div style="font-size:8px;color:#6b7280;margin-bottom:8px;line-height:1.5">O padrão é o usuário. Escolhendo outra origem, o dano passa a ser causado <b>por ela</b>, não pelo usuário diretamente. Para ter dano fora dela, compre e atribua ao próprio usuário.</div>'
             + '<div style="display:flex;flex-direction:column;gap:5px">'
             + botao('usuario', '🙋 O usuário (direto)')
             + doHatsu.map(function (id) { return botao(id, '🧩 ' + mapa[id]); }).join('')
@@ -212,7 +254,7 @@ function renderHatsuCreator(container) {
                   + ' oninput="window._hSetSpecialText(\'eg15_veiculo_txt\', this.value)"'
                   + ' style="width:100%;box-sizing:border-box;margin-top:7px;background:#0a0f1a;border:1.5px solid '
                   + (txt ? cor : '#374151') + ';border-radius:8px;padding:8px 10px;color:#fff;font-size:10px;outline:none">'
-                  + (txt ? '' : '<div style="font-size:8px;color:#f87171;margin-top:4px">\u26a0 Descreva o veículo, senão o dano volta a ser do usuário.</div>')
+                  + (txt ? '' : '<div style="font-size:8px;color:#f87171;margin-top:4px">\u26a0 Descreva a origem, senão o dano volta a ser do usuário.</div>')
                 : '')
             + (doHatsu.length === 0 && atual !== 'texto'
                 ? '<div style="font-size:8px;color:#4b5563;margin-top:7px;font-style:italic">Compre um efeito de constructo, criatura ou arma forjada para ele aparecer como opção.</div>'
@@ -1124,7 +1166,7 @@ function renderHatsuCreator(container) {
                         + '<div style="font-size:8px;color:#6b7280;margin-bottom:8px">Cada tag tem a própria escada. Ex.: 1 compra em Dano e 2 em Cura = 2d6 de dano e 2d8 de cura.</div>'
                         + _blocosT
                         + '</div>'
-                        + window._hVeiculoFocalPicker(hb, color);
+                        + window._hOrigemFocalPicker(hb, color);
                 }
 
                 // ── rm_e1: Forjar Objeto, Arma ou Equipamento — o quê, exatamente? ──────────
