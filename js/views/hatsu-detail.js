@@ -1118,21 +1118,33 @@ function renderHatsuDetail(container) {
     const _modo = _modos[_modoIdx];
     const _temModos = _modos.length > 1;
 
+    // As 4 chaves do eg4 guardam ID, não nome — ver o comentário em eg4Btn
+    // (hatsu-creator.js). Resolvem para nome só na hora de exibir; o fallback para o
+    // próprio valor cobre um dado antigo que ainda não migrou.
+    const _nomeEfeitoEg4 = function (id) {
+        const o = allEDB.find(function (e) { return e.id === id; });
+        return o ? o.nome : id;
+    };
+    const _nomeRestrEg4 = function (id) {
+        const o = allRDB.find(function (r) { return r.id === id; });
+        return o ? o.nome : id;
+    };
+
     // Aplica o modo ativo: tira o efeito removido, tira as restrições desligadas.
     if (_temModos && !_modo.raiz) {
         if (_modo.removido) {
-            const _iRem = efeitosSel.findIndex(function(e){ return e.nome === _modo.removido; });
+            const _iRem = efeitosSel.findIndex(function(e){ return e.id === _modo.removido; });
             if (_iRem >= 0) efeitosSel.splice(_iRem, 1);
         }
-        (_modo.restrOff || []).forEach(function(nomeR){
-            const _iR = restricoesSel.findIndex(function(r){ return r.nome === nomeR; });
+        (_modo.restrOff || []).forEach(function(idR){
+            const _iR = restricoesSel.findIndex(function(r){ return r.id === idR; });
             if (_iR >= 0) restricoesSel.splice(_iR, 1);
         });
         // Restrições exclusivas deste modo entram aqui, com todos os efeitos mecânicos
         // (inclusive o P.N que concedem, que vale só neste modo).
-        (_modo.restrAdd || []).forEach(function (nomeR) {
-            if (restricoesSel.some(function (r) { return r.nome === nomeR; })) return;
-            const add = allRDB.find(function (r) { return r.nome === nomeR; });
+        (_modo.restrAdd || []).forEach(function (idR) {
+            if (restricoesSel.some(function (r) { return r.id === idR; })) return;
+            const add = allRDB.find(function (r) { return r.id === idR; });
             if (add) restricoesSel.push(add);
         });
     }
@@ -1142,7 +1154,7 @@ function renderHatsuDetail(container) {
         // O efeito adicionado por eg4 só entra no modo que o comprou.
         if (wid === 'eg4') {
             if (_modo.raiz || !_modo.adicionado) return;
-            const addObj = allEDB.find(function(e){ return e.nome === _modo.adicionado; });
+            const addObj = allEDB.find(function(e){ return e.id === _modo.adicionado; });
             if (addObj && !efeitosSel.find(function(e){ return e.id === addObj.id; })) {
                 efeitosSel.push(Object.assign({}, addObj, { _wrapper: 'eg4', _wrapperLabel: _WRAPPER_META.eg4.label }));
             }
@@ -2841,7 +2853,20 @@ function renderHatsuDetail(container) {
        const eg3Summary = Object.keys(eg3Counts).map(c => `${c} (${eg3Counts[c]} rodada${eg3Counts[c]>1?'s':''})`).join(', ');
        specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">🩸 Condição: ${eg3Summary}</div>`;
    }
-            if (e.id === 'eg4' && sc.eg4) specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">🔀 Efeito Alternativo → ${sc.eg4}</div>`;
+            // eg4 guarda o ID do efeito adicionado, então resolve para nome antes de
+            // exibir. E usa a chave DA CÓPIA: com duas compras de eg4 (Modos B e C), os
+            // dois cards mostravam o efeito do Modo B, porque a chave era sempre 'eg4'.
+            if (e.id === 'eg4') {
+                const _kAdd4 = _eCopyIdx > 0 ? ('eg4#' + _eCopyIdx) : 'eg4';
+                const _letra4 = _LETRAS[_eCopyIdx + 1] || ('#' + (_eCopyIdx + 2));
+                if (sc[_kAdd4]) specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">🔀 Modo ${_letra4} → ${_nomeEfeitoEg4(sc[_kAdd4])}</div>`;
+            }
+            // rm_e4: a capacidade vem da contagem de compras (3 na primeira, +3 por
+            // recompra). Escala própria do efeito — ver o bloco em hatsu-creator.js.
+            if (e.id === 'rm_e4') {
+                const _n4 = Math.max(1, (h.efeitos || []).filter(function (id) { return id === 'rm_e4'; }).length);
+                specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">📦 ${3 * _n4} objetos ou criaturas <span style="font-weight:600;color:#9ca3af">— ${_n4} compra${_n4 > 1 ? 's' : ''} × 3, até o dobro do tamanho/peso cada</span></div>`;
+            }
             // Poder é Intenção: além de QUAL efeito, mostra EM QUEM ele pousa.
             if (e.id === 'eg6' && sc.eg6) {
                 const _d6 = { alvo: 'no alvo (inimigo)', usuario: 'no próprio usuário', hatsu: 'no Hatsu / constructo' };
@@ -2943,10 +2968,10 @@ function renderHatsuDetail(container) {
                     </button>`).join('')}
                 </div>
                 ${!_modo.raiz ? `<div style="margin-top:6px;background:#060d1a;border:1px solid ${tc}33;border-radius:8px;padding:8px;font-size:8px;line-height:1.6">
-                    ${_modo.adicionado ? `<div style="color:#4ade80;font-weight:700">+ ${_modo.adicionado}</div>` : ''}
-                    ${_modo.removido ? `<div style="color:#f87171;font-weight:700">− ${_modo.removido}</div>` : ''}
-                    ${(_modo.restrOff || []).length ? `<div style="color:#fb923c;font-weight:700;margin-top:2px">Restrições desligadas: ${_modo.restrOff.join(', ')}</div>` : ''}
-                    ${(_modo.restrAdd || []).length ? `<div style="color:#4ade80;font-weight:700;margin-top:2px">Restrições só deste modo: ${_modo.restrAdd.join(', ')}</div>` : ''}
+                    ${_modo.adicionado ? `<div style="color:#4ade80;font-weight:700">+ ${_nomeEfeitoEg4(_modo.adicionado)}</div>` : ''}
+                    ${_modo.removido ? `<div style="color:#f87171;font-weight:700">− ${_nomeEfeitoEg4(_modo.removido)}</div>` : ''}
+                    ${(_modo.restrOff || []).length ? `<div style="color:#fb923c;font-weight:700;margin-top:2px">Restrições desligadas: ${_modo.restrOff.map(_nomeRestrEg4).join(', ')}</div>` : ''}
+                    ${(_modo.restrAdd || []).length ? `<div style="color:#4ade80;font-weight:700;margin-top:2px">Restrições só deste modo: ${_modo.restrAdd.map(_nomeRestrEg4).join(', ')}</div>` : ''}
                 </div>` : ''}
             </div>`
         : '';

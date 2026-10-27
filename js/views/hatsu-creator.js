@@ -957,8 +957,13 @@ function renderHatsuCreator(container) {
                     const restricoesDaRaiz = [].concat(hb.rg||[], hb.rc||[])
                         .map(_acharRestr).filter(Boolean);
 
+                    // As 4 chaves do eg4 (eg4, eg4_remove, eg4_restr_off, eg4_restr_add)
+                    // guardam o ID, nunca o nome: "Sem Movimento no Turno" existe em
+                    // TRANSMUTAÇÃO (rt_l2, +2 Grau/Passo de Alcance) e em EMISSÃO (em_l2,
+                    // ignora cobertura total) com benefícios diferentes, e a busca por
+                    // nome pegava sempre o primeiro. O botão exibe o nome; o value é o id.
                     function eg4Btn(e, chave, escolhido) {
-                        var active = escolhido === e.nome;
+                        var active = escolhido === e.id;
                         var rq = checkReq(e.req);
                         var isBlocked = !rq.ok;
                         var st = 'padding:4px 8px;border-radius:7px;font-size:8px;white-space:nowrap;font-weight:' + (active?'900':'600') + ';border:1px solid ';
@@ -970,7 +975,7 @@ function renderHatsuCreator(container) {
                             var msg = 'Requisito não atendido\n\n' + rq.reason + '\n\nReq: ' + e.req;
                             onclick = "event.stopPropagation();alert('" + msg.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n') + "')";
                         } else {
-                            onclick = "event.stopPropagation();window._hSetSpecialChoice('" + chave + "','" + e.nome.replace(/'/g,"\\'") + "')";
+                            onclick = "event.stopPropagation();window._hSetSpecialChoice('" + chave + "','" + e.id + "')";
                         }
                         return '<button onclick="' + onclick + '" style="' + st + '">' + (active ? '✓ ' : '') + e.nome + (isBlocked ? ' 🔒' : '') + '</button>';
                     }
@@ -1064,10 +1069,10 @@ function renderHatsuCreator(container) {
 
                         const removeBtns = efeitosDaRaiz.length
                             ? efeitosDaRaiz.map(function(e){
-                                var sel = remEscolhido === e.nome;
+                                var sel = remEscolhido === e.id;
                                 var st = 'padding:4px 8px;border-radius:7px;font-size:8px;white-space:nowrap;font-weight:' + (sel?'900':'600')
                                     + ';border:1px solid ' + (sel ? '#ef4444;background:#ef444422;color:#f87171' : '#1f2937;background:transparent;color:#9ca3af') + ';cursor:pointer';
-                                return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\'' + kRem + '\',\'' + e.nome.replace(/'/g,"\\'") + '\')" style="' + st + '">'
+                                return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\'' + kRem + '\',\'' + e.id + '\')" style="' + st + '">'
                                     + (sel ? '✕ ' : '') + e.nome + '</button>';
                               }).join('')
                             : '<div style="font-size:8px;color:#f87171">Escolha os efeitos do modo raiz antes de criar um modo.</div>';
@@ -1080,27 +1085,32 @@ function renderHatsuCreator(container) {
                             return _idsRaiz.indexOf(r.id) < 0;
                         });
                         const restrAddBtns = _disponiveis.map(function (r) {
-                            const sel = restrAdd.indexOf(r.nome) >= 0;
+                            const sel = restrAdd.indexOf(r.id) >= 0;
                             const st = 'padding:4px 8px;border-radius:7px;font-size:8px;white-space:nowrap;font-weight:600;border:1px solid '
                                 + (sel ? '#4ade8088;background:#4ade8018;color:#4ade80' : '#1f2937;background:transparent;color:#6b7280') + ';cursor:pointer';
-                            return '<button onclick="event.stopPropagation();window._hToggleModoRestricao(\'' + kRestrAdd + '\',\'' + r.nome.replace(/'/g, "\\'") + '\')" style="' + st + '">'
+                            return '<button onclick="event.stopPropagation();window._hToggleModoRestricao(\'' + kRestrAdd + '\',\'' + r.id + '\')" style="' + st + '">'
                                 + (sel ? '+ ' : '') + r.nome + '</button>';
                         }).join('');
 
                         const restrBtns = restricoesDaRaiz.length
                             ? restricoesDaRaiz.map(function(r){
-                                var desligada = restrOff.indexOf(r.nome) >= 0;
+                                var desligada = restrOff.indexOf(r.id) >= 0;
                                 var st = 'padding:4px 8px;border-radius:7px;font-size:8px;white-space:nowrap;font-weight:600;border:1px solid '
                                     + (desligada ? '#374151;background:#0f1117;color:#4b5563;text-decoration:line-through' : '#f9731655;background:#f9731615;color:#fb923c') + ';cursor:pointer';
-                                return '<button onclick="event.stopPropagation();window._hToggleModoRestricao(\'' + kRestr + '\',\'' + r.nome.replace(/'/g,"\\'") + '\')" style="' + st + '">' + r.nome + '</button>';
+                                return '<button onclick="event.stopPropagation();window._hToggleModoRestricao(\'' + kRestr + '\',\'' + r.id + '\')" style="' + st + '">' + r.nome + '</button>';
                               }).join('')
                             : '<div style="font-size:8px;color:#6b7280">Nenhuma restrição no modo raiz.</div>';
 
-                        const addObj = addEscolhido ? _todosEfeitos.find(function(e){ return e.nome === addEscolhido; }) : null;
+                        const addObj = addEscolhido ? _acharEfeito(addEscolhido) : null;
+                        const remObj = remEscolhido ? _acharEfeito(remEscolhido) : null;
+                        // As chaves guardam id; o resumo mostra o nome. O fallback para o
+                        // próprio valor cobre um dado antigo que ainda não migrou.
+                        const addTxt = addObj ? addObj.nome : addEscolhido;
+                        const remTxt = remObj ? remObj.nome : remEscolhido;
                         const resumo = (addEscolhido && remEscolhido)
                             ? '<div style="margin-top:6px;background:#060d1a;border:1px solid ' + color + '33;border-radius:8px;padding:8px">'
-                                + '<div style="font-size:8px;color:#4ade80;font-weight:700">+ ' + addEscolhido + (addObj ? ' (' + (addObj.pn||0) + ' P.N)' : '') + '</div>'
-                                + '<div style="font-size:8px;color:#f87171;font-weight:700;margin-top:2px">− ' + remEscolhido + ' <span style="color:#4b5563;font-weight:400">(sem devolução de P.N)</span></div>'
+                                + '<div style="font-size:8px;color:#4ade80;font-weight:700">+ ' + addTxt + (addObj ? ' (' + (addObj.pn||0) + ' P.N)' : '') + '</div>'
+                                + '<div style="font-size:8px;color:#f87171;font-weight:700;margin-top:2px">− ' + remTxt + ' <span style="color:#4b5563;font-weight:400">(sem devolução de P.N)</span></div>'
                                 + '</div>'
                             : '<div style="font-size:8px;color:#f87171;margin-top:4px">⚠ Escolha 1 efeito para ADICIONAR e 1 para REMOVER neste modo.</div>';
 
@@ -1168,6 +1178,24 @@ function renderHatsuCreator(container) {
                         + _blocosT
                         + '</div>'
                         + window._hOrigemFocalPicker(hb, color);
+                }
+
+                // ── rm_e4: Dimensão de Bolso — a quantidade sobe +3 por P.N gasto ──────────
+                // Escala PRÓPRIA do efeito, diferente do grau/passo padrão. Não há escolha
+                // a fazer: a quantidade vem da contagem de compras — 3 na primeira e +3 em
+                // cada recompra. No nível 12, comprando em todos os níveis, chega a 36.
+                // O bloco é só informativo, para o jogador ver o número crescer ao recomprar
+                // em vez de ter que calcular de cabeça.
+                if (item.id === 'rm_e4') {
+                    const _cop4 = [].concat(hb.eg || [], hb.ec || []).filter(function (x) { return x === 'rm_e4'; }).length;
+                    const _n4 = Math.max(1, _cop4);
+                    const _qtd4 = 3 * _n4;
+                    specialHtml += '<div style="margin-top:8px;background:#0a0f1a;border:1px solid ' + color + '33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
+                        + '<div style="font-size:8px;font-weight:900;color:' + color + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">📦 Capacidade da Dimensão</div>'
+                        + '<div style="font-size:13px;font-weight:900;color:' + color + '">' + _qtd4 + ' <span style="font-size:9px;font-weight:700;color:#9ca3af">objetos ou criaturas</span></div>'
+                        + '<div style="font-size:8px;color:#6b7280;margin-top:4px">' + _n4 + ' compra' + (_n4 > 1 ? 's' : '') + ' × 3. Cada recompra soma +3 — escala própria, não usa grau/passo. Máximo de 36 no nível 12, comprando em todos os níveis.</div>'
+                        + '<div style="font-size:8px;color:#6b7280;margin-top:3px">Cada alvo pode ter até o dobro do tamanho/peso do alvo original.</div>'
+                        + '</div>';
                 }
 
                 // ── rm_e1: Forjar Objeto, Arma ou Equipamento — o quê, exatamente? ──────────
