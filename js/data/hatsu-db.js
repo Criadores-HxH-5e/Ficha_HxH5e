@@ -119,7 +119,7 @@
         { id:'ri_l1', peso:'leve',    nome:"PV < 75%",                   desc:"Só pode usar com menos de 75% dos PV",                               bnf:"+1 grau/passo no dano do Hatsu" },
         { id:'ri_l2', peso:'leve',    nome:"Corpo a Corpo Obrigatório",   desc:"Exige ataque corpo a corpo para ativar o Hatsu",                     bnf:"Alvo sofre desvantagem em reação contra o Hatsu" },
         { id:'ri_l3', peso:'leve',    nome:"Sem Defesas",                 desc:"Não pode usar habilidades ou reações defensivas durante o uso",      bnf:"+1 na jogada de ataque com o Hatsu" },
-        { id:'ri_m1', peso:'moderada',nome:"Aumento por Rodada",          desc:"Efeitos de atributo, dano, cura ou RD ativados parcialmente (não de uma vez)", bnf:"+2 Graus de Potência no total de cada efeito similar" },
+        { id:'ri_m1', peso:'moderada',nome:"Aumento por Rodada",          desc:"Efeitos de atributo, dano, cura ou RD ativados parcialmente (não de uma vez)", bnf:"+2 Graus de Potência no efeito escolhido" },
         { id:'ri_m2', peso:'moderada',nome:"Sem Buffs Ativos",            desc:"Só pode ser usado sem buffs ativos",                                 bnf:"Ignora resistências a dano físico do alvo (uso/dia = proficiência)" },
         { id:'ri_m3', peso:'moderada',nome:"Inutilizável c/ +50% Aura",   desc:"Não pode usar com mais de 50% da aura",                             bnf:"+1 Grau de Potência no Hatsu" },
         { id:'ri_p1', peso:'pesada',  nome:"Dano de Aura",                desc:"Causa 5% da aura como dano ao usuário (≈1d6 com REN). +1 grau por dado rerolado", bnf:"Pode rerrolar um dos dados de dano" },
@@ -130,7 +130,7 @@
         { id:'ri_e1',  nome:"Aumento de Atributo",    desc:"Aumenta valor de atributo em 2 (mod. +1). Máximo: bônus +5",                 req:"Nível 1",  pn:1 },
         { id:'ri_e2',  nome:"Intensificação",          desc:"+1 Grau de Potência no Hatsu (Acerto, Atributos ou Redução de Custo)",       req:"Nível 1",  pn:1 },
         { id:'ri_e3',  nome:"Recuperação Veloz",       desc:"Cura 1d8 + CON de um alvo",                                                 req:"Nível 1",  pn:1 },
-        { id:'ri_e4',  nome:"Mais de 8000",            desc:"Poder transbordante compartilhado: divida 5% de aura por escolha com outros seres", req:"Nível 1",  pn:1 },
+        { id:'ri_e4',  nome:"Mais de 8000",            desc:"Sua aura pode ser dada a outras pessoas (5% por escolha do efeito). A aura dada SE PERDE mesmo que o alvo não a utilize, e só pode ser recuperada com Zetsu", req:"Nível 1",  pn:1 },
         { id:'ri_e5',  nome:"Estabilizar Aliado",      desc:"Impede morte de aliado adjacente, mantendo-o em 1 PV ao consumir 1 Reação", req:"Nível 2 — Recuperação Veloz", pn:1 },
         { id:'ri_e6',  nome:"Impacto Pesado",          desc:"TR de FOR: empurra em 3m alvo(s) que falhem, independente do dano",         req:"Nível 2",  pn:1 },
         { id:'ri_e7',  nome:"Pele de Pedra",           desc:"3 RD contra danos de Impacto, Perfurante e Cortante",                       req:"Nível 2",  pn:1 },
@@ -154,11 +154,11 @@
         { id:'ri_e25', nome:"Corpo de Aço",            desc:"10 RD contra Explosivo, Balístico ou Mortal (escolha um)",                  req:"Nível 8",  pn:1 },
         { id:'ri_e26', nome:"Vitalidade Extra",        desc:"Recupera 1d6+CON PV ao cair abaixo de 50% da vida (1x por combate)",        req:"Nível 8",  pn:1 },
         { id:'ri_e27', nome:"Força Titânica",          desc:"Ataques físicos recebem +5 de dano",                                        req:"Nível 9",  pn:1 },
-        { id:'ri_e28', nome:"Trabalho em Equipe",      desc:"Usa aura de aliados (10%) para ampliar dano/cura ou concede atributos a aliado/objeto", req:"Nível 9", pn:1 },
+        { id:'ri_e28', nome:"Trabalho em Equipe ou Simbiose",      desc:"Trabalho em Equipe: usa aura de aliados (10%) para AMPLIAR dano/cura ou REDUZIR TRs e danos de inimigos em 1 Grau de Potência. Simbiose: concede a um objeto ou criatura até 2 pontos de atributo, Reações ou 5% de aura", req:"Nível 9", pn:1 },
         { id:'ri_e29', nome:"Dano Fragilizante",       desc:"Dano >20: a)-3 durabilidade armadura b)-2 ataques c)-2 reações defensivas", req:"Nível 10", pn:1 },
-        { id:'ri_e30', nome:"Potencial Liberado",      desc:"Escolha por uso qualquer efeito da tabela de Potencial Liberado",           req:"Nível 10", pn:1 },
+        { id:'ri_e30', nome:"Potencial Liberado",      desc:"Escolha um efeito da tabela de Potencial Liberado por P.N gasto neste efeito. Comprar o MESMO efeito da tabela aumenta seu grau/passo",           req:"Nível 10", pn:1 },
         { id:'ri_e31', nome:"Força Descomunal",        desc:"Gasta 15% aura: dobra Força (bônus) em Testes ou Ataques",                  req:"Nível 12", pn:1 },
-        { id:'ri_e32', nome:"Resiliência Suprema",     desc:"1x/dia: ao cair a 0 PV, recupera imediatamente 30% da vida máxima",         req:"Nível 12", pn:1 },
+        { id:'ri_e32', nome:"Resiliência Suprema",     desc:"1x por dia, quando cairia a 0 PV (ou até metade do PV negativo), recupera imediatamente 30% da vida máxima",         req:"Nível 12", pn:1 },
       ]
     },
 
@@ -431,6 +431,156 @@ window.ID_DEDUP_CONJURACAO = {
     'rc_p1': 'rm_p1',   // Concentração Total        → Perde Ação Principal
     'rc_p2': 'rm_p2',   // Criatura Incontrolável    → Conjuração Controlável
     'rc_p3': 'rm_p3',   // Sacrifício Ritual         → Componentes Materiais
+};
+
+
+// ── ri_e30 "Potencial Liberado" (Reforço) ────────────────────────────────────
+// "Escolha um efeito da tabela de Potencial Liberado POR P.N GASTO neste efeito.
+//  Comprar o MESMO efeito da tabela aumenta seu grau/passo."
+//
+// Então: ri_e30 é repetível e cada compra (1 P.N) vale uma escolha. Escolher a
+// MESMA linha duas vezes não dá duas cópias do benefício — sobe um grau/passo.
+// Chaves por compra: 'ri_e30', 'ri_e30#1', 'ri_e30#2'… (padrão de rm_e2/eg15/ri_e1).
+//
+// As tabelas não existiam no app, então o efeito apontava para o nada. São duas:
+// Físico (por parte do corpo) e Sentidos. Linhas com duas variantes nomeadas no
+// livro (Troglodita × Cirurgião, Velocista × Ágil, Toph × "Hum, nem doeu",
+// Olfato Aguçado × Apotecário) viraram duas opções próprias, porque é assim que
+// se escolhe: uma por P.N.
+//
+// `aplica.grandeza` decide o que a recompra faz:
+//   'atributo' | 'deslocamento' | 'reacoes'  → sobe pelo `passo` a cada recompra
+//   'fixo'                                   → NÃO melhora (vantagem, imunidade,
+//                                              sentido, alcance dobrado). Recomprar
+//                                              não dá nada, e o app avisa.
+// `base` é o valor da 1ª compra (o do livro) e `passo` o que cada recompra soma.
+window.POTENCIAL_LIBERADO_PASSO = { atributo: 1, deslocamento: 1.5, reacoes: 1 };
+
+window.POTENCIAL_LIBERADO_FISICO = [
+    { id: 'pl_torso',      parte: 'Torso (Tronco)', variante: '',
+      efeito: 'Adicione +2 ao seu bônus de Constituição',
+      aplica: { grandeza: 'atributo', attr: 'CON', base: 2, passo: 1 } },
+    { id: 'pl_braco_for',  parte: 'Mãos/Braços',    variante: 'Troglodita',
+      efeito: 'Adicione +2 ao seu bônus de Força (acerto e dano físico)',
+      aplica: { grandeza: 'atributo', attr: 'FOR', base: 2, passo: 1 } },
+    { id: 'pl_braco_des',  parte: 'Mãos/Braços',    variante: 'Cirurgião',
+      efeito: 'Adicione +2 ao seu bônus de Destreza (acerto e dano físico)',
+      aplica: { grandeza: 'atributo', attr: 'DES', base: 2, passo: 1 } },
+    { id: 'pl_perna_desl', parte: 'Pernas',         variante: 'Velocista',
+      efeito: 'Adicione +3m em seu deslocamento',
+      aplica: { grandeza: 'deslocamento', base: 3, passo: 1.5 } },
+    { id: 'pl_perna_rea',  parte: 'Pernas',         variante: 'Ágil',
+      efeito: 'Adicione +2 aos resultados das reações',
+      aplica: { grandeza: 'reacoes', base: 2, passo: 1 } },
+    { id: 'pl_cabeca',     parte: 'Cabeça',         variante: '',
+      efeito: 'Vantagem contra efeitos que o deixem atordoado',
+      aplica: { grandeza: 'fixo' } },
+];
+
+window.POTENCIAL_LIBERADO_SENTIDOS = [
+    { id: 'pl_tato_sismico', parte: 'Tato',           variante: 'Toph',
+      efeito: 'Adquire sentido sísmico ("enxerga" formas físicas pelas vibrações)',
+      aplica: { grandeza: 'fixo' } },
+    { id: 'pl_tato_dor',     parte: 'Tato',           variante: '"Hum, nem doeu"',
+      efeito: 'Imunidade à redução de sanidade por efeito de dor física (como em torturas)',
+      aplica: { grandeza: 'fixo' } },
+    // Único bônus de atributo CONDICIONAL da tabela: vale só em fala e socialização,
+    // então sobe de grau como os outros mas não entra na soma geral do atributo.
+    { id: 'pl_paladar',      parte: 'Paladar/Dicção', variante: '',
+      efeito: 'Adicione +2 ao seu bônus de Presença envolvendo fala e socialização',
+      aplica: { grandeza: 'atributo', attr: 'PRE', base: 2, passo: 1, condicao: 'fala e socialização' } },
+    { id: 'pl_olfato_furt',  parte: 'Olfato',         variante: 'Olfato Aguçado',
+      efeito: 'Vantagem para perceber inimigos em furtividade baseado em olfato',
+      aplica: { grandeza: 'fixo' } },
+    { id: 'pl_olfato_venen', parte: 'Olfato',         variante: 'Apotecário',
+      efeito: 'Vantagem para identificar venenos e substâncias perigosas',
+      aplica: { grandeza: 'fixo' } },
+    // As duas linhas de Visão são as únicas sem nome de variante no livro (as
+    // células a) e b) estão vazias, enquanto Tato/Pernas/Olfato têm Toph,
+    // Velocista, Apotecário etc.). Ficam com os marcadores a)/b) do livro para
+    // não aparecerem idênticas na lista de escolha.
+    { id: 'pl_visao_furt',   parte: 'Visão',          variante: 'a)',
+      efeito: 'Vantagem para perceber inimigos baseado em visão',
+      aplica: { grandeza: 'fixo' } },
+    { id: 'pl_visao_alc',    parte: 'Visão',          variante: 'b)',
+      efeito: 'Dobra o alcance de acerto com armas à distância sem penalidade',
+      aplica: { grandeza: 'fixo' } },
+    { id: 'pl_audicao',      parte: 'Audição',        variante: 'Audição Aguçada',
+      efeito: 'Vantagem para perceber inimigos em furtividade baseado em audição',
+      aplica: { grandeza: 'fixo' } },
+];
+
+// As 14 opções numa lista só, com o grupo marcado — é o que o picker consome.
+window.potencialLiberadoTodos = function () {
+    return [].concat(
+        (window.POTENCIAL_LIBERADO_FISICO || []).map(function (o) { return Object.assign({ grupo: 'Físico' }, o); }),
+        (window.POTENCIAL_LIBERADO_SENTIDOS || []).map(function (o) { return Object.assign({ grupo: 'Sentidos' }, o); })
+    );
+};
+
+window.potencialLiberadoPorId = function (id) {
+    return (window.potencialLiberadoTodos() || []).filter(function (o) { return o.id === id; })[0] || null;
+};
+
+// Rótulo curto: "Mãos/Braços — Troglodita" ou "Cabeça".
+window.rotuloPotencialLiberado = function (o) {
+    if (!o) return '';
+    return o.parte + (o.variante ? ' — ' + o.variante : '');
+};
+
+// Recomprar melhora? Falso para vantagem, imunidade, sentido e alcance dobrado —
+// aí o app avisa em vez de deixar o jogador gastar P.N em nada.
+window.potencialLiberadoMelhora = function (o) {
+    return !!(o && o.aplica && o.aplica.grandeza !== 'fixo');
+};
+
+// Valor da opção quando escolhida `vezes` vezes: base na 1ª, +passo em cada recompra.
+window.valorPotencialLiberado = function (o, vezes) {
+    if (!window.potencialLiberadoMelhora(o)) return null;
+    const n = Math.max(1, parseInt(vezes) || 1);
+    return o.aplica.base + o.aplica.passo * (n - 1);
+};
+
+// Quantas vezes cada opção foi escolhida neste Hatsu: { pl_torso: 2, pl_cabeca: 1 }.
+// Aceita o Hatsu salvo (h.efeitos) e o rascunho do criador (hb.eg + hb.ec).
+window.chavePotencialLiberado = function (i) { return i > 0 ? ('ri_e30#' + i) : 'ri_e30'; };
+window.escolhasPotencialLiberado = function (h) {
+    const ids = Array.isArray((h || {}).efeitos) ? h.efeitos : [].concat((h || {}).eg || [], (h || {}).ec || []);
+    const compras = ids.filter(function (id) { return id === 'ri_e30'; }).length;
+    const sc = (h || {}).specialChoices || {};
+    const out = {};
+    for (let i = 0; i < compras; i++) {
+        const v = sc[window.chavePotencialLiberado(i)];
+        if (v) out[v] = (out[v] || 0) + 1;
+    }
+    return out;
+};
+
+// O que o Potencial Liberado concede, já somado e pronto para entrar em cálculo.
+// attrBonus  — soma geral de atributo (NÃO inclui o condicional do Paladar/Dicção)
+// condicionais — bônus que valem só em certa situação, listados à parte
+// deslocamento / resultadoReacoes — números
+// fixos — os benefícios sem número, para exibir
+window.bonusPotencialLiberado = function (h) {
+    const esc = window.escolhasPotencialLiberado(h);
+    const out = { attrBonus: {}, condicionais: [], deslocamento: 0, resultadoReacoes: 0, fixos: [] };
+    Object.keys(esc).forEach(function (id) {
+        const o = window.potencialLiberadoPorId(id);
+        if (!o) return;
+        const vezes = esc[id];
+        if (!window.potencialLiberadoMelhora(o)) { out.fixos.push({ opcao: o, vezes: vezes }); return; }
+        const v = window.valorPotencialLiberado(o, vezes);
+        const a = o.aplica;
+        if (a.grandeza === 'atributo') {
+            if (a.condicao) out.condicionais.push({ opcao: o, attr: a.attr, valor: v, condicao: a.condicao, vezes: vezes });
+            else out.attrBonus[a.attr] = (out.attrBonus[a.attr] || 0) + v;
+        } else if (a.grandeza === 'deslocamento') {
+            out.deslocamento += v;
+        } else if (a.grandeza === 'reacoes') {
+            out.resultadoReacoes += v;
+        }
+    });
+    return out;
 };
 
 
