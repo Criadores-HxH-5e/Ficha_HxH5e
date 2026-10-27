@@ -52,7 +52,7 @@
             if (m.for !== '—') {
               txt += `\`\`\`\n| FOR        | DES        | CON        | INT        | SAB        | CAR        |\n`;
               txt += `|------------|------------|------------|------------|------------|------------|\n`;
-              txt += `| ${m.for.padEnd(10)} | ${m.des.padEnd(10)} | ${m.con.padEnd(10)} | ${m.int.padEnd(10)} | ${m.sab.padEnd(10)} | ${m.car.padEnd(10)} |\n\`\`\`\n`;
+              txt += `| ${m.for.padEnd(10)} | ${m.des.padEnd(10)} | ${m.con.padEnd(10)} | ${m.int.padEnd(10)} | ${m.sab.padEnd(10)} | ${m.pre.padEnd(10)} |\n\`\`\`\n`;
             }
             if (m.pericias)         txt += `**Perícias:** ${m.pericias}\n`;
             if (m.trs)              txt += `**TRs:** ${m.trs}\n`;
@@ -60,7 +60,12 @@
             if (m.resistencias)     txt += `**Resistências:** ${m.resistencias}\n`;
             if (m.vulnerabilidades) txt += `**Vulnerabilidades:** ${m.vulnerabilidades}\n`;
             if (m.sentidos)         txt += `**Sentidos:** ${m.sentidos}\n`;
+            if (m.limiar)           txt += `**Limiar Mínimo de Dano:** ${m.limiar} (dano abaixo disso é superficial)\n`;
             if (m.lingua)           txt += `**Língua:** ${m.lingua}\n`;
+            if (m.naLicenca)        txt += `**N.A. por Licença:** ${m.naLicenca}\n`;
+            if (m.naEquipe)         txt += `**N.A. por Equipe:** ${m.naEquipe}\n`;
+            if (m.recomendado)      txt += `**Recomendado para:** ${m.recomendado}\n`;
+            if (m.tags)             txt += `**Tags:** ${String(m.tags).replace(/<br>/g, ' · ')}\n`;
             if (m.tracos && m.tracos.length) {
               txt += `${div}\n**Traços Especiais**\n`;
               m.tracos.forEach(t => { txt += `▸ **${t.n}.** ${t.d}\n`; });
@@ -83,7 +88,7 @@
             txt += `\n${div}\n`;
             txt += `\`\`\`\n| FOR        | DES        | CON        | INT        | SAB        | CAR        |\n`;
             txt += `|------------|------------|------------|------------|------------|------------|\n`;
-            txt += `| ${(gm.for||'10 (+0)').padEnd(10)} | ${(gm.des||'10 (+0)').padEnd(10)} | ${(gm.con||'10 (+0)').padEnd(10)} | ${(gm.int||'10 (+0)').padEnd(10)} | ${(gm.sab||'10 (+0)').padEnd(10)} | ${(gm.car||'10 (+0)').padEnd(10)} |\n\`\`\`\n`;
+            txt += `| ${(gm.for||'10 (+0)').padEnd(10)} | ${(gm.des||'10 (+0)').padEnd(10)} | ${(gm.con||'10 (+0)').padEnd(10)} | ${(gm.int||'10 (+0)').padEnd(10)} | ${(gm.sab||'10 (+0)').padEnd(10)} | ${(gm.pre||'10 (+0)').padEnd(10)} |\n\`\`\`\n`;
             if (gm.pericias)         txt += `**Perícias:** ${gm.pericias}\n`;
             if (gm.trs)              txt += `**TRs:** ${gm.trs}\n`;
             if (gm.imunidades)       txt += `**Imunidades:** ${gm.imunidades}\n`;
@@ -497,7 +502,7 @@
       ${['FOR','DES','CON','INT','SAB','CAR'].map((a,i)=>`
         <div style="background:#ffffff08;border-radius:6px;padding:5px 2px">
           <div style="font-size:8px;color:#64748b">${a}</div>
-          <div style="font-size:11px;font-weight:700;color:#e2e8f0">${[m.for,m.des,m.con,m.int,m.sab,m.car][i]}</div>
+          <div style="font-size:11px;font-weight:700;color:#e2e8f0">${[m.for,m.des,m.con,m.int,m.sab,m.pre][i]}</div>
         </div>`).join('')}
     </div>
   </div>` : ''}
@@ -521,8 +526,20 @@
     ${m.resistencias ? `<div><span style="color:#64748b">Resistências:</span> <span style="color:#60a5fa">${m.resistencias}</span></div>` : ''}
     ${m.vulnerabilidades ? `<div><span style="color:#64748b">Vulnerabilidades:</span> <span style="color:#f87171">${m.vulnerabilidades}</span></div>` : ''}
     ${m.sentidos ? `<div><span style="color:#64748b">Sentidos:</span> <span style="color:#cbd5e1">${m.sentidos}</span></div>` : ''}
+    ${m.limiar ? `<div><span style="color:#64748b">Limiar Mínimo de Dano:</span> <span style="color:#fbbf24;font-weight:700">${m.limiar}</span> <span style="color:#64748b;font-size:10px">— dano abaixo disso é superficial</span></div>` : ''}
     ${m.lingua ? `<div><span style="color:#64748b">Língua:</span> <span style="color:#cbd5e1">${m.lingua}</span></div>` : ''}
   </div>
+
+  <!-- Calibragem de encontro e Tags (fichas já convertidas ao formato novo do livro) -->
+  ${(m.naLicenca || m.naEquipe || m.recomendado || m.tags) ? `
+  <div style="padding:10px 16px;border-bottom:1px solid #ffffff10;display:flex;flex-direction:column;gap:6px">
+    ${(m.naLicenca || m.naEquipe) ? `<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:11px">
+      ${m.naLicenca ? `<div><span style="color:#64748b">N.A. por Licença:</span> <span style="color:#fbbf24;font-weight:700">${m.naLicenca}</span></div>` : ''}
+      ${m.naEquipe ? `<div><span style="color:#64748b">N.A. por Equipe:</span> <span style="color:#fbbf24;font-weight:700">${m.naEquipe}</span></div>` : ''}
+    </div>` : ''}
+    ${m.recomendado ? `<div style="font-size:11px"><span style="color:#64748b">Recomendado para:</span> <span style="color:#cbd5e1">${m.recomendado}</span></div>` : ''}
+    ${m.tags ? `<div style="background:#1e3a8a14;border-left:2px solid #3b82f6;border-radius:0 6px 6px 0;padding:7px 9px;font-size:11px;line-height:1.6;color:#cbd5e1">${m.tags}</div>` : ''}
+  </div>` : ''}
 
   <!-- Traços -->
   ${m.tracos && m.tracos.length ? `
