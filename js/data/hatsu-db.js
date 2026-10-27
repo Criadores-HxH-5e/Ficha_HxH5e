@@ -434,6 +434,72 @@ window.ID_DEDUP_CONJURACAO = {
 };
 
 
+// ── rm_e7 "Cópia Perfeita" ───────────────────────────────────────────────────
+// Copia um objeto OU criatura marcado por restrições, com TODAS as propriedades
+// originais EXCETO Dano, CA e PV. O livro fecha a regra assim: "Se esses três não
+// forem comprados por efeitos, valem: Dano 1d8, CA 10 e PV = nível do usuário + 10."
+// Então a pergunta que decide cada um dos três é só uma: o Hatsu comprou um efeito
+// (ou restrição) que concede aquilo? Se comprou, vale o valor do Hatsu/Constructo;
+// se não, vale o padrão do livro.
+// Chave do picker por cópia: 'rm_e7', 'rm_e7#1'… (rm_e7 é repetível).
+window.chaveCopiaPerfeita = function (i) { return i > 0 ? ('rm_e7#' + i) : 'rm_e7'; };
+
+window.COPIA_PERFEITA_PADRAO = { dano: '1d8', ca: 10, pvBonus: 10 };
+
+// OBJETO e CRIATURA não copiam a mesma coisa — a diferença é do efeito, não errata:
+//
+//   Objeto/arma simples: "copia tipo e natureza de dano, alcance, área,
+//     durabilidade do material, PV, tamanho (espaço/peso) e resistências".
+//     → O PV É COPIADO (vem da tabela tamanho × durabilidade, que é a mesma coisa
+//       que "durabilidade do material, PV, tamanho").
+//     → De dano copia-se o TIPO e a NATUREZA, não o valor.
+//     → CA não está na lista: fica no mínimo ou no comprado.
+//
+//   Criatura: "copia tudo da ficha, exceto Dano, CA e PV".
+//     → Os três no mínimo (nota do dicionário) ou no comprado.
+//
+// PV de objeto copiado: a mesma tabela do constructo, porque é a mesma pergunta
+// (que tamanho, e quão durável é o material).
+window.pvObjetoCopiado = function (tamanho, durabilidade) {
+    const t = (window.CONSTRUCTO_DB || {}).PV_POR_TAMANHO || {};
+    const linha = t[tamanho];
+    if (!linha) return null;
+    return linha[durabilidade === 'resistente' ? 'resistente' : 'fragil'] || null;
+};
+
+// Decide os três campos excetuados. `dano` vem de fora (o dano já calculado do
+// Hatsu), porque quem sabe disso é a tela de detalhe.
+// Cada campo devolve { valor, padrao } — padrao:true significa "o Hatsu não comprou
+// isso, então vale o valor do livro".
+// `opcoes` (opcional): { objeto: true, pvObjeto: <número> } para o caminho de objeto.
+window.excecoesCopiaPerfeita = function (h, char, danoDoHatsu, opcoes) {
+    const CDB = window.CONSTRUCTO_DB || {};
+    const ids = [].concat((h && h.efeitos) || [], (h && h.restricoes) || []);
+    const comprou = function (mapaEfeito, mapaRestr) {
+        return ids.some(function (id) {
+            return (mapaEfeito || {})[id] !== undefined || (mapaRestr || {})[id] !== undefined;
+        });
+    };
+    const temCA = comprou(CDB.EFEITO_CA, CDB.RESTRICAO_CA);
+    const temPV = comprou(CDB.EFEITO_PV, CDB.RESTRICAO_PV);
+    const nivel = parseInt((char || {}).level) || 1;
+    return {
+        dano: danoDoHatsu
+            ? { valor: danoDoHatsu, padrao: false }
+            : { valor: window.COPIA_PERFEITA_PADRAO.dano, padrao: true },
+        ca: temCA
+            ? { valor: null, padrao: false }      // null = ver a Ficha do Constructo
+            : { valor: window.COPIA_PERFEITA_PADRAO.ca, padrao: true },
+        // PV do OBJETO é copiado do original; o do animal/criatura não é.
+        pv: (opcoes && opcoes.objeto && opcoes.pvObjeto)
+            ? { valor: opcoes.pvObjeto, padrao: false, copiado: true }
+            : (temPV
+                ? { valor: null, padrao: false }
+                : { valor: nivel + window.COPIA_PERFEITA_PADRAO.pvBonus, padrao: true }),
+    };
+};
+
+
 // ── rm_e12 "Aura Condensada" ─────────────────────────────────────────────────
 // Como funciona na mesa:
 //   • A COMPRA só habilita o efeito e levanta o teto. Não há % escolhida na compra.

@@ -2496,6 +2496,123 @@ function renderHatsuDetail(container) {
     }
     // ── Fim Ficha do Constructo ─────────────────────────────────────────────────
 
+    // ── rm_e7 Cópia Perfeita: a ficha copiada ───────────────────────────────────
+    // Não entra na Ficha do Constructo porque não é um constructo: é a ficha de
+    // OUTRA criatura, com o formato do bestiário (24 campos de texto), enquanto o
+    // constructo tem 7 campos estruturados. Forçar um no outro perderia quase tudo
+    // — e o efeito manda copiar "tudo da ficha". Então o statblock é mostrado como
+    // statblock, só de leitura, com os três campos excetuados marcados.
+    let copiaPerfeitaHtml = '';
+    if ((h.efeitos || []).includes('rm_e7') && window.excecoesCopiaPerfeita) {
+        const _nCop7 = (h.efeitos || []).filter(function (id) { return id === 'rm_e7'; }).length;
+        // O dano do Hatsu já foi calculado acima (window._hatsuRollState). Se o Hatsu
+        // não tem dano próprio, cai no padrão do livro (1d8).
+        const _danoH = (window._hatsuRollState && window._hatsuRollState.hasBaseDmg)
+            ? window._hatsuRollState.dice : null;
+        const _sc7 = h.specialChoices || {};
+        const _esc7 = function (s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+        const _linha = function (rot, val) {
+            if (!val) return '';
+            return '<div style="font-size:9px;color:#9ca3af;margin-bottom:2px"><b style="color:#d1d5db">' + rot + ':</b> ' + _esc7(val) + '</div>';
+        };
+        const _excBadge = function (rot, campo) {
+            const cor = campo.copiado ? '#60a5fa' : (campo.padrao ? '#fbbf24' : '#4ade80');
+            const nota = campo.copiado
+                ? ' <span style="font-weight:600;color:#6b7280">(copiado)</span>'
+                : (campo.padrao ? ' <span style="font-weight:600;color:#6b7280">(mínimo)</span>' : '');
+            const txt = campo.valor === null
+                ? 'da Ficha do Constructo'
+                : (_esc7(campo.valor) + nota);
+            return '<div style="flex:1;min-width:80px;background:#0a0f1a;border:1px solid ' + cor + '44;border-radius:8px;padding:6px 8px">'
+                + '<div style="font-size:7px;font-weight:900;color:' + cor + ';text-transform:uppercase;letter-spacing:1px">' + rot + '</div>'
+                + '<div style="font-size:10px;font-weight:900;color:#d1d5db;margin-top:1px">' + txt + '</div></div>';
+        };
+
+        for (let _i = 0; _i < _nCop7; _i++) {
+            const _id7 = _sc7[window.chaveCopiaPerfeita(_i)] || '';
+            let _corpo = '';
+            let _titulo = 'Cópia Perfeita' + (_nCop7 > 1 ? ' ' + (_i + 1) : '');
+
+            if (!_id7) {
+                _corpo = '<div style="font-size:9px;color:#f87171">⚠ Nenhum alvo escolhido. Edite o Hatsu e escolha o que está sendo copiado.</div>';
+            } else if (_id7 === 'objeto') {
+                const _k7 = window.chaveCopiaPerfeita(_i);
+                const _txt7 = _sc7[_k7 + '_txt'] || '';
+                const _tam7 = _sc7[_k7 + '_tam'] || '';
+                const _dur7 = _sc7[_k7 + '_dur'] || '';
+                const _pv7 = (_tam7 && _dur7 && window.pvObjetoCopiado) ? window.pvObjetoCopiado(_tam7, _dur7) : null;
+                // Para objeto o PV É copiado — por isso o 4º argumento.
+                const _excO = window.excecoesCopiaPerfeita(h, char, _danoH, { objeto: true, pvObjeto: _pv7 });
+                _titulo += ' — ' + (_txt7 ? _esc7(_txt7) : 'objeto ou arma simples');
+                _corpo = (_txt7 ? '' : '<div style="font-size:9px;color:#f87171;margin-bottom:5px">⚠ Descreva o objeto copiado ao editar o Hatsu.</div>')
+                    + '<div style="font-size:7px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Copiado do original</div>'
+                    + _linha('Tipo e natureza do dano', _sc7[_k7 + '_dano'])
+                    + _linha('Alcance e área', _sc7[_k7 + '_alc'])
+                    + _linha('Resistências', _sc7[_k7 + '_res'])
+                    + _linha('Tamanho', _tam7 && (_tam7 + (_dur7 ? ' · ' + (_dur7 === 'resistente' ? 'Resistente' : 'Frágil') : '')))
+                    + (!_tam7 && !_dur7 && !_sc7[_k7 + '_dano'] && !_sc7[_k7 + '_alc'] && !_sc7[_k7 + '_res']
+                        ? '<div style="font-size:9px;color:#6b7280;font-style:italic">Nada descrito ainda. Edite o Hatsu para registrar o que foi copiado.</div>' : '')
+                    + '<div style="margin-top:7px;padding-top:6px;border-top:1px dashed #1f2937">'
+                    + '<div style="font-size:7px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Valor do dano e CA — valem os do Hatsu</div>'
+                    + '<div style="display:flex;gap:5px;flex-wrap:wrap">'
+                    + _excBadge('Dano', _excO.dano) + _excBadge('CA', _excO.ca) + _excBadge('PV', _excO.pv)
+                    + '</div>'
+                    + '<div style="font-size:8px;color:#4b5563;margin-top:4px">Objeto copia o PV do original (tamanho × durabilidade). De dano copia-se só o tipo; o valor e a CA ficam no mínimo ou no comprado.</div>'
+                    + '</div>';
+            } else {
+                const _m = window.criaturaPorId ? window.criaturaPorId(_id7) : null;
+                if (!_m) {
+                    _corpo = '<div style="font-size:9px;color:#f87171">⚠ A criatura "' + _esc7(_id7) + '" não está mais no bestiário. Escolha outra ao editar o Hatsu.</div>';
+                } else {
+                    // Criatura: os três no mínimo ou no comprado, sem exceção.
+                    const _exc = window.excecoesCopiaPerfeita(h, char, _danoH);
+                    _titulo += ' — ' + _esc7(_m.nome);
+                    _corpo = '<div style="font-size:8px;color:#6b7280;font-style:italic;margin-bottom:6px">' + _esc7(_m.tipo) + '</div>'
+                        + '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">'
+                        + ['for', 'des', 'con', 'int', 'sab', 'pre'].map(function (a) {
+                            return '<div style="flex:1;min-width:44px;background:#0a0f1a;border:1px solid #1f2937;border-radius:7px;padding:4px;text-align:center">'
+                                + '<div style="font-size:7px;font-weight:900;color:#4b5563">' + a.toUpperCase() + '</div>'
+                                + '<div style="font-size:9px;font-weight:900;color:#d1d5db">' + _esc7(_m[a]) + '</div></div>';
+                        }).join('')
+                        + '</div>'
+                        + _linha('Deslocamento', _m.desl)
+                        + _linha('Reações', _m.reacoes)
+                        + _linha('Perícias', _m.pericias)
+                        + _linha('Testes de Resistência', _m.trs)
+                        + _linha('Sentidos', _m.sentidos)
+                        + _linha('Idiomas', _m.lingua)
+                        + _linha('Imunidades', _m.imunidades)
+                        + _linha('Resistências', _m.resistencias)
+                        + _linha('Vulnerabilidades', _m.vulnerabilidades)
+                        + _linha('Limiar Mínimo de Dano', _m.limiar)
+                        + ((_m.tracos || []).length
+                            ? '<div style="margin-top:7px;padding-top:6px;border-top:1px dashed #1f2937"><div style="font-size:7px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Traços</div>'
+                                + _m.tracos.map(function (t2) { return '<div style="font-size:8px;color:#9ca3af;margin-bottom:3px;line-height:1.45"><b style="color:#d1d5db">' + _esc7(t2.n) + '.</b> ' + _esc7(t2.d) + '</div>'; }).join('')
+                                + '</div>'
+                            : '')
+                        + ((_m.acoes || []).length
+                            ? '<div style="margin-top:7px;padding-top:6px;border-top:1px dashed #1f2937"><div style="font-size:7px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Ações</div>'
+                                + _m.acoes.map(function (a2) { return '<div style="font-size:8px;color:#9ca3af;margin-bottom:3px;line-height:1.45"><b style="color:#d1d5db">' + _esc7(a2.n) + '.</b> ' + _esc7(a2.d) + '</div>'; }).join('')
+                                + '</div>'
+                            : '')
+                        + '<div style="margin-top:7px;padding-top:6px;border-top:1px dashed #1f2937">'
+                        + '<div style="font-size:7px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Não copiados — valem o mínimo ou o comprado</div>'
+                        + '<div style="display:flex;gap:5px;flex-wrap:wrap">'
+                        + _excBadge('Dano', _exc.dano) + _excBadge('CA', _exc.ca) + _excBadge('PV', _exc.pv)
+                        + '</div>'
+                        + '<div style="font-size:8px;color:#4b5563;margin-top:4px">A criatura original tem CA ' + _esc7(_m.ca) + ' e PV ' + _esc7(_m.pv) + ' — não são copiados.</div>'
+                        + '</div>';
+                }
+            }
+
+            copiaPerfeitaHtml += '<div style="background:#0d1117;border:1px solid ' + tc + '33;border-radius:12px;padding:14px;margin-bottom:20px">'
+                + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:11px;color:' + tc + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">🧬 ' + _titulo + '</div>'
+                + _corpo
+                + '</div>';
+        }
+    }
+    // ── Fim Cópia Perfeita ──────────────────────────────────────────────────────
+
     // ── Cálculo de Alcance e Duração ──────────────────────────────────────────
     const allSelIds = [...(h.restricoes||[]), ...(h.efeitos||[])];
     let alcanceBonus = [];
@@ -3253,6 +3370,7 @@ function renderHatsuDetail(container) {
             </div>
 
             ${constructoCardHtml}
+            ${copiaPerfeitaHtml}
 
             ${primeiroHatsuSection}
             ${grauVariavelSection}
