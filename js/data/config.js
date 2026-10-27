@@ -792,6 +792,53 @@ window.calcFontesRD = function (char) {
             condicao: res.pct + '% de aura guardados neste Hatsu. Vale enquanto ele estiver ativo.',
         });
     });
+    // ── RD dos efeitos de Hatsu (Reforço) ───────────────────────────────────────
+    // Três efeitos de Reforço concedem RD com número fechado e NENHUM deles entrava
+    // no cálculo: quem comprava "Corpo de Aço" tinha 10 de RD no livro e 0 no app.
+    // Entram como fontes CONDICIONAIS (passiva: false), desligadas por padrão, porque
+    // valem só contra certos tipos de dano — o jogador liga a que serve ao golpe, do
+    // mesmo jeito que já faz com as fontes das inclinações. E só com o Hatsu ATIVO:
+    // efeito de Hatsu não é traço permanente (mesma regra do Aumento de Atributo).
+    const _ativosRDH = char.hatsusAtivos || {};
+    ((char.hatsus) || []).forEach(function (h, i) {
+        if (!_ativosRDH[i] || !h) return;
+        const efeitos = h.efeitos || [];
+        const sc = h.specialChoices || {};
+        const nomeH = h.nome || ('Hatsu ' + (i + 1));
+
+        // ri_e7 Pele de Pedra: 3 RD contra Impacto, Perfurante e Cortante.
+        // Repetível: cada compra soma outros 3.
+        const nPedra = efeitos.filter(function (id) { return id === 'ri_e7'; }).length;
+        if (nPedra > 0) lista.push({
+            id: 'ri_e7_' + i, nome: 'Pele de Pedra — ' + nomeH,
+            passiva: false, valor: 3 * nPedra,
+            condicao: 'Só contra Impacto, Perfurante e Cortante'
+                + (nPedra > 1 ? ' · ' + nPedra + ' compras × 3' : ''),
+        });
+
+        // ri_e16 Barreira Interna: 5 RD contra Energia e Elementais, "+2 a cada nova escolha".
+        const nBarreira = efeitos.filter(function (id) { return id === 'ri_e16'; }).length;
+        if (nBarreira > 0) lista.push({
+            id: 'ri_e16_' + i, nome: 'Barreira Interna — ' + nomeH,
+            passiva: false, valor: 5 + 2 * (nBarreira - 1),
+            condicao: 'Só contra Energia e Elementais'
+                + (nBarreira > 1 ? ' · ' + nBarreira + ' compras (5 +2 por recompra)' : ''),
+        });
+
+        // ri_e25 Corpo de Aço: 10 RD contra UM tipo entre Explosivo, Balístico ou Mortal.
+        // O tipo é escolhido na compra; cada compra tem o seu (chaves ri_e25 / ri_e25#1…).
+        const nAco = efeitos.filter(function (id) { return id === 'ri_e25'; }).length;
+        for (let c = 0; c < nAco; c++) {
+            const tipo = sc[c > 0 ? ('ri_e25#' + c) : 'ri_e25'];
+            lista.push({
+                id: 'ri_e25_' + i + '_' + c, nome: 'Corpo de Aço — ' + nomeH,
+                passiva: false, valor: 10,
+                condicao: tipo
+                    ? ('Só contra dano ' + tipo)
+                    : 'Escolha o tipo de dano ao editar o Hatsu (Explosivo, Balístico ou Mortal)',
+            });
+        }
+    });
     return lista;
 };
 

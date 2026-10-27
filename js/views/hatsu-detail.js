@@ -3049,6 +3049,31 @@ function renderHatsuDetail(container) {
                 const _letra4 = _LETRAS[_eCopyIdx + 1] || ('#' + (_eCopyIdx + 2));
                 if (sc[_kAdd4]) specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">🔀 Modo ${_letra4} → ${_nomeEfeitoEg4(sc[_kAdd4])}</div>`;
             }
+            // Escolhas simples de Reforço: mostra a opção desta cópia no card do efeito.
+            // ri_e25 aparece também no modal de Dano Recebido (via calcFontesRD); os
+            // outros dois são lembretes de mesa, por não terem campo de destino no app.
+            const _ESC_REF_CARD = {
+                ri_e25: { icone: '🛡', pre: '10 RD contra ' },
+                ri_e14: { icone: '👊', pre: '' },
+                ri_e28: { icone: '🤝', pre: '' },
+            };
+            if (_ESC_REF_CARD[e.id]) {
+                const _cf = _ESC_REF_CARD[e.id];
+                const _kc = _eCopyIdx > 0 ? (e.id + '#' + _eCopyIdx) : e.id;
+                const _vc = sc[_kc];
+                specialDetail = _vc
+                    ? `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">${_cf.icone} ${_cf.pre}${_vc}</div>`
+                    : `<div style="margin-top:6px;font-size:9px;font-weight:700;color:#f87171;padding:4px 8px;background:#f8717118;border-radius:6px">⚠ Escolha a opção deste efeito ao editar o Hatsu.</div>`;
+            }
+            // ri_e29 Dano Fragilizante: mostra o TOTAL acumulado de cada opção, não a
+            // escolha da cópia — com duas compras de "−2 nos ataques" o jogador tem de
+            // ler −4, e o número precisa ser o mesmo em qualquer um dos cards.
+            if (e.id === 'ri_e29' && window.bonusDanoFragilizante) {
+                const _df = window.bonusDanoFragilizante(h);
+                specialDetail = _df.length
+                    ? `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">💥 Dano > 20: ${_df.map(function (x) { return '−' + x.total + ' ' + x.opcao.alvo + (x.vezes > 1 ? ' (' + x.vezes + '×)' : ''); }).join(' · ')}</div>`
+                    : `<div style="margin-top:6px;font-size:9px;font-weight:700;color:#f87171;padding:4px 8px;background:#f8717118;border-radius:6px">⚠ Escolha o que o dano acima de 20 provoca, ao editar o Hatsu.</div>`;
+            }
             // ri_e30: mostra a escolha DESTA compra e quanto ela vale na contagem atual.
             // O "+2 aos resultados das reações" (Ágil) aparece aqui com destaque porque
             // o app não tem onde aplicá-lo: não existe rolagem de reação, só o contador
