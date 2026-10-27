@@ -325,6 +325,27 @@
                             }).join('');
                             return `<div style="font-size:7px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">🌀 Hatsus${nAtivos ? ' — ' + nAtivos + ' ativo(s)' : ''}</div>${html}<div style="height:8px"></div>`;
                         })()}
+                        ${(() => {
+                            // ── Bônus nos resultados das reações ───────────────────────────────
+                            // A rolagem de reação (Esquiva, Bloqueio, Assumir Lugar) acontece na
+                            // MESA, não aqui. Mas os bônus vêm da ficha — Potencial Liberado,
+                            // Instâncias e Inclinações — e o jogador precisa vê-los para aplicar
+                            // quando joga sem a mesa aberta, e para conferir quando joga com ela.
+                            // calcBonusReacao/resumoBonusReacoes estão em js/data/config.js, que a
+                            // mesa também carrega: um cálculo só para os dois lados.
+                            if (!window.resumoBonusReacoes) return '';
+                            const _rb = window.resumoBonusReacoes(char);
+                            if (!_rb.length) return '';
+                            return `<div style="font-size:7px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">🛡 Bônus nas Reações</div>
+                            ${_rb.map(r => `<div style="background:#60a5fa10;border:1px solid #60a5fa33;border-radius:8px;padding:6px 9px;margin-bottom:5px">
+                                <div style="display:flex;align-items:center;gap:8px">
+                                    <div style="flex:1;min-width:0;font-size:9px;color:#60a5fa;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.nome}</div>
+                                    <span style="flex-shrink:0;font-family:Orbitron,sans-serif;font-weight:900;font-size:11px;color:#60a5fa">+${r.total}</span>
+                                </div>
+                                <div style="font-size:8px;color:#4b5563;margin-top:1px">${r.formula} +${r.total} · ${r.fontes.map(f => f.nome + ' +' + f.valor).join(' · ')}</div>
+                            </div>`).join('')}
+                            <div style="font-size:8px;color:#4b5563;margin-bottom:8px">A rolagem da reação acontece na mesa online; estes bônus somam ao resultado dela.</div>`;
+                        })()}
                         <div style="font-size:7px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">🔮 Princípios de NEN</div>
                         <div style="display:flex;gap:4px;flex-wrap:wrap">${btns}</div>
                     </div>`;
