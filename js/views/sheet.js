@@ -871,7 +871,20 @@
                             if (!ins) return '';
                             const n = _iInvest[id];
                             return ins.niveis.slice(0, n).map(function (d, ni) {
-                                return `<div class="bg-gray-900 border border-gray-800 rounded-xl p-3" style="border-left:3px solid #a855f7"><div class="flex items-center gap-2 mb-1 flex-wrap"><span class="text-xs font-bold" style="color:#c084fc">${ins.nome}</span><span class="text-[9px] px-1.5 rounded" style="background:#a855f71a;color:#c084fc;border:1px solid #a855f733">Nível ${ni + 1}</span>${(ins.etiquetas || []).map(function (e) { return `<span class="text-[8px] font-bold px-1.5 rounded" style="background:#1e3a8a33;color:#93c5fd;border:1px solid #3b82f644">${e}</span>`; }).join('')}</div><p class="text-[10px] text-gray-400 leading-relaxed">${d}</p></div>`;
+                                // Combatente Rápido nível 2 é a única Instância com "ou" na
+                                // descrição ("+2 na CA ou Ações de Esquivas"): precisa de escolha,
+                                // porque os dois destinos são calculados em lugares diferentes
+                                // (calcBonusCAInstancia e calcBonusReacao).
+                                let _esc = '';
+                                if (id === 'combatente_rapido' && ni === 1) {
+                                    const _at = (char.instanciaEscolhas || {}).combatente_rapido_2 || '';
+                                    const _bt = function (v, rot) {
+                                        const on = _at === v;
+                                        return `<button onclick="window._setInstanciaEscolha('combatente_rapido_2','${v}')" class="flex-1 px-2 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-colors" style="border:1.5px solid ${on ? '#a855f7' : '#374151'};background:${on ? '#a855f722' : 'transparent'};color:${on ? '#c084fc' : '#9ca3af'}">${on ? '✓ ' : ''}${rot}</button>`;
+                                    };
+                                    _esc = `<div class="mt-2 pt-2" style="border-top:1px dashed #a855f733"><div class="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Escolha o destino</div><div class="flex gap-2">${_bt('ca', '+2 na CA')}${_bt('esquiva', '+2 nas Esquivas')}</div>${_at ? '' : '<div class="text-[9px] text-red-400 mt-1.5">⚠ Sem escolha, o bônus não é aplicado.</div>'}</div>`;
+                                }
+                                return `<div class="bg-gray-900 border border-gray-800 rounded-xl p-3" style="border-left:3px solid #a855f7"><div class="flex items-center gap-2 mb-1 flex-wrap"><span class="text-xs font-bold" style="color:#c084fc">${ins.nome}</span><span class="text-[9px] px-1.5 rounded" style="background:#a855f71a;color:#c084fc;border:1px solid #a855f733">Nível ${ni + 1}</span>${(ins.etiquetas || []).map(function (e) { return `<span class="text-[8px] font-bold px-1.5 rounded" style="background:#1e3a8a33;color:#93c5fd;border:1px solid #3b82f644">${e}</span>`; }).join('')}</div><p class="text-[10px] text-gray-400 leading-relaxed">${d}</p>${_esc}</div>`;
                             }).join('');
                           }).join('');
                     const _iBotao = _iPorta.ok
@@ -3653,9 +3666,25 @@
             const arm = calcCAArmadura(char);
             // A maior entre "sem armadura" e a armadura vestida, e o escudo soma dos dois jeitos.
             const base = Math.max(calcCASemArmadura(char), arm.armadura) + arm.escudo;
-            return calcCAPrincipios(char, base).ca;
+            // Instância Combatente Rápido nível 2, quando o jogador escolheu CA.
+            // Primeiro bônus de CA vindo de Instância/Inclinação a entrar no cálculo —
+            // antes nada disso chegava aqui (ver a lacuna de CA no backlog).
+            const _bci = window.calcBonusCAInstancia ? window.calcBonusCAInstancia(char).total : 0;
+            return calcCAPrincipios(char, base + _bci).ca;
         }
         window.calcCAAtual = calcCAAtual;
+
+        // Escolha de uma Instância que oferece "ou" na descrição (hoje só o
+        // Combatente Rápido nível 2). Guarda em char.instanciaEscolhas para os
+        // dois destinos possíveis poderem ler de um lugar só.
+        window._setInstanciaEscolha = function (chave, valor) {
+            const char = state.currentChar;
+            if (!char) return;
+            if (!char.instanciaEscolhas) char.instanciaEscolhas = {};
+            char.instanciaEscolhas[chave] = valor;
+            saveCharacter(char);
+            render(true);
+        };
 
         // ── Durabilidade de Equipamentos de Proteção ─────────────────────────────────
         // Regra: a durabilidade de uma armadura é igual à CA que ela concede — Colete de
