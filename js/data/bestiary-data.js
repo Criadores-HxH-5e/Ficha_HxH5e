@@ -1,10 +1,30 @@
-﻿        window.BESTIARY_DATA = [
+﻿// ── BESTIÁRIO ────────────────────────────────────────────────────────────────
+// Sincronizado com a Enciclopédia Hunter de Raças e Bestas Mágicas (versão de out/2026).
+//
+// CAMPO `id`: slug estável, criado nesta sincronização. É ELE que identifica a criatura,
+// não o nome — o livro renomeou 8 criaturas (Hammerbeak → Bico de Martelo, Emperador
+// Armorshell → Imperador Couraça, Hyper Puffball → Pompom Supersônico, e outras). Sem id
+// estável, toda renomeação futura quebraria o que aponta para a criatura. É esse id que o
+// picker da Cópia Perfeita (rm_e7) usa.
+//
+// `car` passou a `pre`: o atributo se chama Presença na ficha, e é assim que o livro o
+// escreve (convenção de siglas: FOR/DES/CON/INT/SAB/PRE = modificador).
+//
+// FÓRMULA DE PV DO LIVRO: o total impresso é `N × X ÷ 2` — METADE DO MÁXIMO do dado, não
+// a média. Ex.: 13d8 → 13×8÷2 = 52. Confere nas 53 fichas. Não "corrija" para a média de
+// D&D ((X+1)/2): os valores ficariam todos 1 a 12 pontos acima do livro. O validador
+// window.validarPVBestiario() confere isso e aponta erro de digitação.
+//
+// CAMPOS NOVOS (só nas fichas que o livro já converteu): tags, naLicenca, naEquipe,
+// recomendado, limiar. Ausentes = o livro ainda não definiu. As tags marcadas
+// "(proposto)" são provisórias e seguem como texto, sem virar controle na interface.
+        window.BESTIARY_DATA = [
           // ── PANTANO NUMELE / KUKAN'YU ──────────────────────────
           {
-            nome:'Tartaruga Cabeça de Morango', tipo:'Besta Enorme, Neutro/Maligno', cat:'BESTA NATURAL',
-            ca:'18 (Defesa Natural)', pv:'170 (10d12+5 por nível)', desl:'9m', reacoes:null,
-            for:'26 (+8)',des:'6 (-2)',con:'20 (+5)',int:'7 (-2)',sab:'14 (+2)',car:'10 (+0)',
-            pericias:'Atletismo +11, Furtividade +1', trs:'For +11, Con +8, Sab +5',
+            id:'tartaruga_cabeca_de_morango', nome:'Tartaruga Cabeça de Morango', tipo:'Besta Enorme, Neutro/Maligno', cat:'BESTA NATURAL',
+            ca:'18 (Defesa Natural)', pv:'170 (17d20)', desl:'9m', reacoes:null,
+            for:'26 (+8)',des:'6 (-2)',con:'20 (+5)',int:'7 (-2)',sab:'14 (+2)',pre:'10 (+0)',
+            pericias:'Atletismo +11, Furtividade +1', trs:'FOR +11, CON +8, SAB +5',
             imunidades:'Agarrado, Derrubado, Impedido', resistencias:null, vulnerabilidades:null,
             sentidos:'Percepção Passiva 12', lingua:'Nenhuma',
             tracos:[
@@ -17,10 +37,10 @@
             ]
           },
           {
-            nome:'Sapopaciente', tipo:'Besta Enorme, Neutro', cat:'BESTA NATURAL',
-            ca:'14 (Defesa Natural)', pv:'70 (5d12+2)', desl:'3m', reacoes:null,
-            for:'10 (+0)',des:'15 (+2)',con:'16 (+3)',int:'10 (+0)',sab:'14 (+2)',car:'10 (+0)',
-            pericias:'Acrobacia +5, Furtividade +5, Percepção +5', trs:'Con +6',
+            id:'sapopaciente', nome:'Sapopaciente', tipo:'Besta Enorme, Neutro', cat:'BESTA NATURAL',
+            ca:'14 (Defesa Natural)', pv:'70 (7d20)', desl:'3m', reacoes:null,
+            for:'10 (+0)',des:'15 (+2)',con:'16 (+3)',int:'10 (+0)',sab:'14 (+2)',pre:'10 (+0)',
+            pericias:'Acrobacia +5, Furtividade +5, Percepção +5', trs:'CON +6',
             imunidades:'Agarrado, Derrubado', resistencias:null, vulnerabilidades:null,
             sentidos:'Percepção Passiva 12', lingua:'Nenhuma',
             tracos:[
@@ -31,12 +51,13 @@
             ]
           },
           {
-            nome:'Macaco com Cara de Homem', tipo:'Besta Mágica Média, Caótico', cat:'BESTA MÁGICA',
-            ca:'14 (Defesa Natural)', pv:'26 (3d10)', desl:'9m + 9m Escalada', reacoes:'4',
-            for:'16 (+3)',des:'20 (+5)',con:'10 (+0)',int:'12 (+1)',sab:'14 (+2)',car:'16 (+3)',
-            pericias:'Atletismo +6, Acrobacia +8, Furtividade +8', trs:'For +6, Car +6',
+            id:'macaco_com_cara_de_homem', nome:'Macaco com Cara de Homem', tipo:'Besta Mágica Média, Caótico', cat:'BESTA MÁGICA',
+            ca:'14 (Defesa Natural)', pv:'25 (5d10)', desl:'9m; Escalada 9m', reacoes:'4',
+            for:'16 (+3)',des:'20 (+5)',con:'10 (+0)',int:'12 (+1)',sab:'14 (+2)',pre:'16 (+3)',
+            pericias:'Atletismo +6, Acrobacia +8, Furtividade +8', trs:'FOR +6, PRE +6',
             imunidades:null, resistencias:null, vulnerabilidades:null,
             sentidos:'Visão no Escuro 18m, Percepção Passiva 14', lingua:'Comum',
+            tags:'⚠️ Enganador — Mímico Sonoro e Fingir de Morto✅ INT 12 — não é imune a Manipulação🛡️ Reações 4 — pool do CAP. 4🟡 VUL. TR CON (10)', naLicenca:'2', naEquipe:'1', recomendado:'1 Hunter de nível 1-2, com Hatsu',
             tracos:[
               {n:'Fingir de Morto',d:'Engana inimigos que causaram 15+ dano (a mais de 1,5m) ao cair convincentemente. Se mais próximo: teste de Enganação vs Intuição.'}
             ],
@@ -47,12 +68,13 @@
             ]
           },
           {
-            nome:'Corvo Ventríloquo', tipo:'Besta Pequena, Caótico — Bando de 3', cat:'BESTA MÁGICA',
-            ca:'12 (Defesa Natural)', pv:'17 (2d12+5)', desl:'9m de Voo', reacoes:'2',
-            for:'2 (-4)',des:'19 (+5)',con:'10 (+0)',int:'10 (+0)',sab:'7 (-2)',car:'14 (+2)',
-            pericias:'Acrobacia +8, Furtividade +8, Enganação +5', trs:'Des +8, Car +5',
+            id:'corvo_ventriloquo', nome:'Corvo Ventríloquo', tipo:'Besta Pequena, Caótico — Bando de 3', cat:'BESTA MÁGICA',
+            ca:'12 (Defesa Natural)', pv:'16 (4d8)', desl:'Voo 9m', reacoes:'2',
+            for:'2 (-4)',des:'19 (+4)',con:'10 (+0)',int:'10 (+0)',sab:'7 (-2)',pre:'14 (+2)',
+            pericias:'Acrobacia +7, Furtividade +7, Enganação +5', trs:'DES +7, PRE +5',
             imunidades:'Caído', resistencias:null, vulnerabilidades:null,
             sentidos:'Visão no Escuro 18m', lingua:'Comum',
+            tags:'⚠️ Bando de 3-5 — ficha individual; pool de encontro (3): PV total esperado 48 (3 × 16) · dano total esperado 18/rodada (3 × 6). Bando completo de 5: 80 PV · 30/rodada.🎯 Ventriloquismo — atrai vítimas simulando vozes🛡️ Reações 2 — Esquiva +2 pelo traço Evasão🔴 VUL. TR FOR (2) · 🔴 VUL. TR SAB (7) · 🟡 VUL. TR CON (10) · 🟡 VUL. TR INT (10)', naLicenca:'1', naEquipe:'1', recomendado:'1 Hunter de nível 0-1, com Hatsu',
             tracos:[
               {n:'Ventriloquismo Mímico',d:'Simula a voz de qualquer criatura que tenha ouvido. Se compreende o idioma, forma sentenças com eloquência.'},
               {n:'Evasão',d:'Manobra de fuga aérea: +2 na Reação de esquiva.'},
@@ -63,10 +85,10 @@
             ]
           },
           {
-            nome:'Borboleta Hipnótica', tipo:'Besta Mágica Miúda (enxame), Neutro — Bando de 3-5', cat:'BESTA MÁGICA',
-            ca:'12 (Defesa Natural)', pv:'5 (1d4+3)', desl:'9m de Voo', reacoes:null,
-            for:'2 (-4)',des:'14 (+2)',con:'9 (-1)',int:'6 (-2)',sab:'15 (+2)',car:'10 (+0)',
-            pericias:'Furtividade +3, Enganação +6', trs:null,
+            id:'borboleta_hipnotica', nome:'Borboleta Hipnótica', tipo:'Besta Mágica Miúda (enxame), Neutro — Bando de 3-5', cat:'BESTA MÁGICA',
+            ca:'12 (Defesa Natural)', pv:'4 (2d4)', desl:'Voo 9m', reacoes:null,
+            for:'2 (-4)',des:'14 (+2)',con:'9 (-1)',int:'6 (-2)',sab:'15 (+2)',pre:'10 (+0)',
+            pericias:'Furtividade +5, Enganação +3', trs:null,
             imunidades:'Caído, Amedrontado, Enfeitiçado', resistencias:null, vulnerabilidades:null,
             sentidos:'Visão no Escuro 18m', lingua:'Nenhuma',
             tracos:[
@@ -77,9 +99,9 @@
             ]
           },
           {
-            nome:'Fungo Selvagem Claymore', tipo:'Planta Miúda, Neutro', cat:'BESTA NATURAL',
-            ca:'10 (Defesa Natural)', pv:'12', desl:'—', reacoes:null,
-            for:'—',des:'—',con:'—',int:'—',sab:'—',car:'—',
+            id:'fungo_selvagem_claymore', nome:'Fungo Selvagem Claymore', tipo:'Planta Miúda, Neutro', cat:'BESTA NATURAL',
+            ca:'10 (Defesa Natural)', pv:'12 (4d6)', desl:'—', reacoes:null,
+            for:'—',des:'—',con:'—',int:'—',sab:'—',pre:'—',
             pericias:null, trs:null, imunidades:null, resistencias:null, vulnerabilidades:null,
             sentidos:null, lingua:'Nenhuma',
             tracos:[
@@ -91,14 +113,15 @@
           },
           // ── RESERVA FLORESTAL DE VISCA ──────────────────────────
           {
-            nome:'Porco Carimbador', tipo:'Besta Média, Maligno — Bandos de 6+', cat:'BESTA NATURAL',
-            ca:'16 (Defesa Natural) / 19 (Ponto sensível)', pv:'31 (3d8+3 por nível)', desl:'9m', reacoes:null,
-            for:'20 (+5)',des:'10 (+0)',con:'16 (+3)',int:'12 (+1)',sab:'14 (+2)',car:'16 (+3)',
-            pericias:'Atletismo +8, Natureza +5, Percepção +5', trs:'For +8, Con +6',
+            id:'porco_carimbador', nome:'Porco Carimbador', tipo:'Besta Média, Maligno — Bandos de 6+', cat:'BESTA NATURAL',
+            ca:'16 (Defesa Natural) / 19 (Ponto sensível)', pv:'32 (8d8)', desl:'9m', reacoes:null,
+            for:'20 (+5)',des:'10 (+0)',con:'16 (+3)',int:'12 (+1)',sab:'14 (+2)',pre:'16 (+3)',
+            pericias:'Atletismo +8, Natureza +4, Percepção +5', trs:'FOR +8, CON +6',
             imunidades:null,
             resistencias:'Qualquer dano que não seja de aura fora do ponto sensível.',
             vulnerabilidades:'Ponto atrás do focinho entre os olhos e a testa: Crítico (19) e Mortal x4.',
             sentidos:'Faro Aguçado, Percepção Passiva 15', lingua:'Nenhuma',
+            tags:'⚠️ Bando de 6+ — ficha individual; pool de encontro: PV total esperado 192 (6 × 32) · dano total esperado ~48/rodada (6 × 8). O N.A. de encontro do bando é calculado sobre o pool, nunca multiplicando o N.A. individual.🎯 Ponto Sensível (CA 19) — Crítico 19, Mortal x4🛡️ Resistência a todo dano que não seja de aura — NULA contra usuários de aura (carve-out do traço, confirmado em teste)🟡 VUL. TR DES (10)', naLicenca:'3 (individual)', naEquipe:'2 *(proposto — sem fórmula de derivação, gap §8.5)*', recomendado:'bando contra grupo de nível 2-3, com Hatsus e aura *(proposto)*',
             tracos:[],
             acoes:[
               {n:'Fucinho Carimbador',d:'+5 para acertar, 1,5m, 1 alvo. Dano: 8 (1d6+5).'},
@@ -106,14 +129,15 @@
             ]
           },
           {
-            nome:'Urso Negro de Grandes Chifres', tipo:'Besta Média/Grande, Maligno', cat:'BESTA NATURAL',
-            ca:'18 (Defesa Natural)', pv:'39 (4d10+4 por nível)', desl:'9m', reacoes:'6',
-            for:'22 (+6)',des:'12 (+1)',con:'18 (+4)',int:'9 (-1)',sab:'12 (+1)',car:'9 (-1)',
-            pericias:'Atletismo +9, Sobrevivência +4', trs:'For +9, Con +7',
+            id:'urso_negro_de_grandes_chifres', nome:'Urso Negro de Grandes Chifres', tipo:'Besta Média/Grande, Maligno', cat:'BESTA NATURAL',
+            ca:'18 (Defesa Natural)', pv:'40 (4d20)', desl:'9m', reacoes:'6',
+            for:'22 (+6)',des:'12 (+1)',con:'18 (+4)',int:'9 (-1)',sab:'12 (+1)',pre:'9 (-1)',
+            pericias:'Atletismo +9, Sobrevivência +4', trs:'FOR +9, CON +7',
             imunidades:null,
             resistencias:'Dano cortante, perfurante e de impacto (Escudo Natural/Couro).',
             vulnerabilidades:null,
             sentidos:'Visão no Escuro 18m', lingua:'Nenhuma',
+            tags:'🛡️ Regeneração — recupera 14 PV por rodada🛡️ RD cortante/perfurante/impacto (couro)🛡️ Reações 6 — pool do CAP. 4🔴 VUL. TR INT (9) · 🔴 VUL. TR PRE (9)🛡️ IMUNE: Manipulação (INT 9)', naLicenca:'3', naEquipe:'2 *(proposto — sem fórmula de derivação, gap §8.5)*', recomendado:'1 Hunter de nível 2-3, com Hatsus e aura *(proposto)*',
             tracos:[
               {n:'Regeneração',d:'Recupera 10+4 (CON) de PV por rodada.'}
             ],
@@ -124,10 +148,10 @@
             ]
           },
           {
-            nome:'Águia-Aranha', tipo:'Besta Mágica Grande, Neutro', cat:'BESTA MÁGICA',
-            ca:'17 (Defesa Natural)', pv:'34 (4d12+1)', desl:'9m + 9m Voo', reacoes:null,
-            for:'14 (+2)',des:'19 (+4)',con:'11 (+1)',int:'15 (+2)',sab:'18 (+4)',car:'8 (-1)',
-            pericias:'Acrobacia +7, Furtividade +7, Intuição +7, Sobrevivência +7', trs:'Des +7, Sab +7',
+            id:'aguia_aranha', nome:'Águia-Aranha', tipo:'Besta Mágica Grande, Neutro', cat:'BESTA MÁGICA',
+            ca:'17 (Defesa Natural)', pv:'35 (7d10)', desl:'9m; Voo 9m', reacoes:null,
+            for:'14 (+2)',des:'19 (+4)',con:'11 (+0)',int:'15 (+2)',sab:'18 (+4)',pre:'8 (-1)',
+            pericias:'Acrobacia +7, Furtividade +7, Intuição +7, Sobrevivência +7', trs:'DES +7, SAB +7',
             imunidades:null, resistencias:null, vulnerabilidades:null,
             sentidos:'Visão no Escuro 18m, Percepção Passiva 17', lingua:'Nenhuma',
             tracos:[
@@ -140,10 +164,10 @@
           },
           // ── ZABAN ──────────────────────────────────────────────
           {
-            nome:'Kiriko', tipo:'Besta Mágica Média, Caótico/Neutro', cat:'BESTA MÁGICA',
-            ca:'15 (Defesa Natural)', pv:'25 (3d8+1)', desl:'15m + 15m Voo', reacoes:'3',
-            for:'18 (+4)',des:'18 (+4)',con:'1 (-5)',int:'15 (+2)',sab:'16 (+3)',car:'12 (+1)',
-            pericias:'Atletismo +7, Acrobacia +7, Furtividade +7, Enganação +3, Sobrevivência +6', trs:'Sab +6',
+            id:'kiriko', nome:'Kiriko', tipo:'Besta Mágica Média, Caótico/Neutro', cat:'BESTA MÁGICA',
+            ca:'15 (Defesa Natural)', pv:'25 (5d10)', desl:'15m; Voo 15m', reacoes:'3',
+            for:'18 (+4)',des:'18 (+4)',con:'1 (-5)',int:'15 (+2)',sab:'16 (+3)',pre:'12 (+1)',
+            pericias:'Atletismo +7, Acrobacia +7, Furtividade +7, Enganação +4, Sobrevivência +6', trs:'SAB +6',
             imunidades:null, resistencias:null, vulnerabilidades:null,
             sentidos:'Visão no Escuro 18m, Percepção Passiva 16', lingua:'Comum',
             tracos:[
@@ -158,10 +182,10 @@
           },
           // ── ILHA ZEVIL ─────────────────────────────────────────
           {
-            nome:'Borboleta Hemotrópica', tipo:'Besta Miúda (enxame), Neutra', cat:'BESTA NATURAL',
-            ca:'10 (Defesa Natural)', pv:'1 (1d4-2)', desl:'6m de Voo', reacoes:null,
-            for:'2 (-4)',des:'10 (+0)',con:'12 (+1)',int:'6 (-2)',sab:'10 (+0)',car:'9 (-1)',
-            pericias:'Sobrevivência +3, Percepção +3', trs:'Con +4',
+            id:'borboleta_hemotropica', nome:'Borboleta Hemotrópica', tipo:'Besta Miúda (enxame), Neutra', cat:'BESTA NATURAL',
+            ca:'10 (Defesa Natural)', pv:'2 (1d4)', desl:'Voo 6m', reacoes:null,
+            for:'2 (-4)',des:'10 (+0)',con:'12 (+1)',int:'6 (-2)',sab:'10 (+0)',pre:'9 (-1)',
+            pericias:'Sobrevivência +3, Percepção +3', trs:'CON +4',
             imunidades:null, resistencias:null, vulnerabilidades:null,
             sentidos:'Sentidos Aguçados (Olfato)', lingua:'Nenhuma',
             tracos:[
@@ -172,12 +196,13 @@
             ]
           },
           {
-            nome:'Besta Voadora Hexápode', tipo:'Besta Mágica Enorme, Maligno', cat:'BESTA MÁGICA',
-            ca:'16 (Defesa Natural)', pv:'45 (4d12+5)', desl:'9m', reacoes:'2',
-            for:'24 (+7)',des:'11 (+0)',con:'16 (+3)',int:'6 (-2)',sab:'7 (-1)',car:'16 (+3)',
-            pericias:'Intimidação +6', trs:'For +10, Con +6',
+            id:'besta_voadora_hexapode', nome:'Besta Voadora Hexápode', tipo:'Besta Mágica Enorme, Maligno', cat:'BESTA MÁGICA',
+            ca:'16 (Defesa Natural)', pv:'42 (7d12)', desl:'9m; Voo 12m', reacoes:'2',
+            for:'24 (+7)',des:'11 (+0)',con:'16 (+3)',int:'6 (-2)',sab:'7 (-2)',pre:'16 (+3)',
+            pericias:'Intimidação +6', trs:'FOR +10, CON +6',
             imunidades:'Amedrontado, Surdo', resistencias:null, vulnerabilidades:null,
             sentidos:null, lingua:'Nenhuma',
+            tags:'⚠️ Perigo elevado para não-usuários de aura⚠️ Dano de equipe: 24/rodada (Mordida em 2 alvos agarrados)🎯 Grito/Risada — TR de SAB 14, área 9m, Amedrontado🎯 Engolir — se o dano superar 50% do PV total do alvo, remove-o do combate🔴 VUL. TR INT (6) · 🔴 VUL. TR SAB (7) · 🟡 VUL. TR DES (11)🛡️ IMUNE: Manipulação (INT 6)', naLicenca:'3', naEquipe:'2 *(proposto — sem fórmula de derivação, gap §8.5)*', recomendado:'1 Hunter de nível 2-3, com Hatsus e aura *(proposto)*',
             tracos:[
               {n:'Grito Aterrorizante',d:'Antes de atacar ou após Engolir: realiza grito/risada para amedrontar alvos do lado de fora.'}
             ],
@@ -187,9 +212,9 @@
             ]
           },
           {
-            nome:'Parasita Verme Sarapintado', tipo:'Besta Miúda Comum, Maligno — Enxame', cat:'BESTA NATURAL',
-            ca:'11 (Defesa Natural)', pv:'5 (1d8+3)', desl:'1m', reacoes:null,
-            for:'4 (-3)',des:'11 (+0)',con:'6 (-2)',int:'1 (-5)',sab:'12 (+1)',car:'4 (-3)',
+            id:'parasita_verme_sarapintado', nome:'Parasita Verme Sarapintado', tipo:'Besta Miúda Comum, Maligno — Enxame', cat:'BESTA NATURAL',
+            ca:'11 (Defesa Natural)', pv:'4 (2d4)', desl:'1m', reacoes:null,
+            for:'4 (-3)',des:'11 (+0)',con:'6 (-2)',int:'1 (-5)',sab:'12 (+1)',pre:'4 (-3)',
             pericias:'Furtividade +3, Sobrevivência +2', trs:null,
             imunidades:'Amedrontado, Surdo, Cego, Caído', resistencias:null, vulnerabilidades:null,
             sentidos:null, lingua:'Nenhuma',
@@ -202,10 +227,10 @@
           },
           // ── JAPÃO / ILHA DA BALEIA ──────────────────────────────
           {
-            nome:'Urso-Raposa', tipo:'Besta Média, Neutro', cat:'BESTA NATURAL',
-            ca:'16 (Defesa Natural)', pv:'24 (3d8+1)', desl:'9m', reacoes:null,
-            for:'18 (+4)',des:'15 (+2)',con:'12 (+1)',int:'10 (+0)',sab:'14 (+2)',car:'10 (+0)',
-            pericias:'Atletismo +7, Sobrevivência +5, Intimidação +3', trs:'For +7, Sab +5',
+            id:'urso_raposa', nome:'Urso-Raposa', tipo:'Besta Média, Neutro', cat:'BESTA NATURAL',
+            ca:'16 (Defesa Natural)', pv:'24 (6d8)', desl:'9m', reacoes:null,
+            for:'18 (+4)',des:'15 (+2)',con:'12 (+1)',int:'10 (+0)',sab:'14 (+2)',pre:'10 (+0)',
+            pericias:'Atletismo +7, Sobrevivência +5, Intimidação +3', trs:'FOR +7, SAB +5',
             imunidades:null, resistencias:null, vulnerabilidades:null,
             sentidos:'Visão no Escuro 9m, Percepção Passiva 14', lingua:'Nenhuma',
             tracos:[],
@@ -216,10 +241,10 @@
             ]
           },
           {
-            nome:'Rei do Pântano', tipo:'Besta Grande/Enorme, Neutro', cat:'BESTA NATURAL',
-            ca:'16 (Defesa Natural)', pv:'39 (3d12+6)', desl:'9m de Nado', reacoes:null,
-            for:'20 (+5)',des:'12 (+1)',con:'24 (+7)',int:'6 (-2)',sab:'12 (+1)',car:'9 (+0)',
-            pericias:'Atletismo +8, Sobrevivência +4', trs:'Con +10',
+            id:'rei_do_pantano', nome:'Rei do Pântano', tipo:'Besta Grande/Enorme, Neutro', cat:'BESTA NATURAL',
+            ca:'16 (Defesa Natural)', pv:'40 (4d20)', desl:'Natação 9m', reacoes:null,
+            for:'20 (+5)',des:'12 (+1)',con:'24 (+7)',int:'6 (-2)',sab:'12 (+1)',pre:'9 (-1)',
+            pericias:'Atletismo +8, Sobrevivência +4', trs:'CON +10',
             imunidades:'Sangramento (Sistema Hemostático)', resistencias:'Cortante, Perfurante (Carapaça de Quitina)', vulnerabilidades:null,
             sentidos:'Visão às Cegas', lingua:'Nenhuma',
             tracos:[
@@ -231,12 +256,13 @@
             ]
           },
           {
-            nome:'Cobra Gigante de Três Cabeças', tipo:'Besta Grande/Enorme, Mau', cat:'BESTA NATURAL',
-            ca:'17 (Defesa Natural)', pv:'50 (7d10+4)', desl:'9m Terrestre, Escalada e Nado', reacoes:null,
-            for:'23 (+6)',des:'23 (+6)',con:'18 (+4)',int:'6 (-2)',sab:'12 (+1)',car:'7 (-2)',
-            pericias:'Furtividade +9, Acrobacia +9, Sobrevivência +4, Enganação +1', trs:'Des +9, Con +7',
+            id:'cobra_gigante_de_tres_cabecas', nome:'Cobra Gigante de Três Cabeças', tipo:'Besta Grande/Enorme, Mau', cat:'BESTA NATURAL',
+            ca:'17 (Defesa Natural)', pv:'50 (10d10)', desl:'9m; Escalada 9m; Natação 9m', reacoes:'2',
+            for:'23 (+6)',des:'23 (+6)',con:'18 (+4)',int:'6 (-2)',sab:'12 (+1)',pre:'7 (-2)',
+            pericias:'Furtividade +9, Acrobacia +9, Sobrevivência +4, Enganação +1', trs:'DES +9, CON +7',
             imunidades:'Sangramento', resistencias:'Cortante, Perfurante (Carapaça)', vulnerabilidades:null,
             sentidos:'Visão às Cegas, Sentidos Aguçados (Olfato)', lingua:'Nenhuma',
+            tags:'🛡️ RD cortante/perfurante (quitina) — sob a Regra de Não-Divisão, neutraliza a dobra de aura (×2 × 0,5 = ×1)🛡️ Imune a Sangramento (Sistema Hemostático)🎯 Constritor — TR de FOR 17, Agarrado; Esmagamento automático no alvo agarrado🛡️ Reações 2 — pool do CAP. 4; Percepção às Cegas habilita Esquiva contra atacantes fora da linha de visão🔴 VUL. TR INT (6) · 🔴 VUL. TR PRE (7)🛡️ IMUNE: Manipulação (INT 6)', naLicenca:'2', naEquipe:'2 *(proposto — sem fórmula de derivação, gap §8.5)*', recomendado:'1 Hunter de nível 1-2, com Hatsus e aura *(proposto)*',
             tracos:[],
             acoes:[
               {n:'Ataques Múltiplos',d:'Até 3 ataques: 3 Botes, 2 Botes + 1 Constritor, ou 1 Constritor + 1 Esmagamento.'},
@@ -247,10 +273,10 @@
           },
           // ── GREED ISLAND ───────────────────────────────────────
           {
-            nome:'Cavalo Bolha (Bubble Horse)', tipo:'Besta de NEN, Médio, Caótico/Neutro', cat:'BESTA DE NEN',
-            ca:'15 (Defesa Natural)', pv:'15 (2d8+3)', desl:'9m', reacoes:null,
-            for:'12 (+1)',des:'17 (+3)',con:'10 (+0)',int:'8 (-2)',sab:'8 (-2)',car:'8 (-2)',
-            pericias:'Atletismo +4', trs:'Des +6',
+            id:'cavalo_bolha', nome:'Cavalo Bolha', tipo:'Besta de NEN, Médio, Caótico/Neutro', cat:'BESTA DE NEN',
+            ca:'15 (Defesa Natural)', pv:'15 (3d10)', desl:'9m', reacoes:null,
+            for:'12 (+1)',des:'17 (+3)',con:'10 (+0)',int:'8 (-1)',sab:'8 (-1)',pre:'8 (-1)',
+            pericias:'Atletismo +4', trs:'DES +6',
             imunidades:'Manipulado/Enfeitiçado, Dano não causado por aura.',
             resistencias:null,
             vulnerabilidades:'Quando Agarrado, o Cavalo Bolha se desfaz.',
@@ -263,10 +289,10 @@
             ]
           },
           {
-            nome:'Ciclope Gigante (Primeiro Gigante)', tipo:'Besta Mágica/Besta de NEN, Enorme/Imenso, Maligno', cat:'BESTA DE NEN',
-            ca:'12 (Defesa Natural)', pv:'86 (6d20)', desl:'Terrestre padrão', reacoes:null,
-            for:'26 (+8)',des:'4 (-3)',con:'28 (+9)',int:'2 (-4)',sab:'8 (+0)',car:'6 (-2)',
-            pericias:'Atletismo +11, Intimidação (com FOR +11)', trs:'For +11, Con +12',
+            id:'ciclope_gigante', nome:'Ciclope Gigante', tipo:'Besta Mágica/Besta de NEN, Enorme/Imenso, Maligno', cat:'BESTA DE NEN',
+            ca:'12 (Defesa Natural)', pv:'90 (9d20)', desl:'9m', reacoes:null,
+            for:'26 (+8)',des:'4 (-3)',con:'28 (+9)',int:'2 (-4)',sab:'8 (-1)',pre:'6 (-2)',
+            pericias:'Atletismo +11, Intimidação (usando FOR) +11', trs:'FOR +11, CON +12',
             imunidades:'Manipulado/Enfeitiçado, Dano não causado por aura.',
             resistencias:'Balístico, Cortante, Impacto, Explosivo ou Perfurante sem aura.',
             vulnerabilidades:'Ataques no único olho: Crítico x4.',
@@ -279,10 +305,10 @@
             ]
           },
           {
-            nome:'Rato Rádio-Ativo', tipo:'Besta Mágica/Besta de NEN, Miúdo, Caótico', cat:'BESTA DE NEN',
-            ca:'10 (Defesa Natural)', pv:'5 (1d4+1)', desl:'Terrestre padrão', reacoes:null,
-            for:'1 (-5)',des:'15 (+2)',con:'7 (-2)',int:'26 (+8)',sab:'15 (+2)',car:'10 (+0)',
-            pericias:'Arcanismo +11, Furtividade +5, Intuição +5', trs:'Des +5, Int +11',
+            id:'rato_radio_ativo', nome:'Rato Rádio-Ativo', tipo:'Besta Mágica/Besta de NEN, Miúdo, Caótico', cat:'BESTA DE NEN',
+            ca:'10 (Defesa Natural)', pv:'4 (2d4)', desl:'9m', reacoes:null,
+            for:'1 (-5)',des:'15 (+2)',con:'7 (-2)',int:'26 (+8)',sab:'15 (+2)',pre:'10 (+0)',
+            pericias:'Arcanismo +11, Furtividade +5, Intuição +5', trs:'DES +5, INT +11',
             imunidades:null, resistencias:null,
             vulnerabilidades:'Golpes de Impacto.',
             sentidos:'Visão Verdadeira', lingua:'Nenhuma',
@@ -296,10 +322,10 @@
             ]
           },
           {
-            nome:'Lagarto Melanino', tipo:'Besta Mágica/Besta de NEN, Enorme/Imenso, Maligno', cat:'BESTA DE NEN',
-            ca:'18 (Defesa Natural)', pv:'148 (7d20+12)', desl:'9m', reacoes:null,
-            for:'24 (+7)',des:'12 (+1)',con:'15 (+2)',int:'10 (+0)',sab:'14 (+2)',car:'10 (+0)',
-            pericias:'Percepção +5', trs:'For +10, Con +5',
+            id:'lagarto_melanino', nome:'Lagarto Melanino', tipo:'Besta Mágica/Besta de NEN, Enorme/Imenso, Maligno', cat:'BESTA DE NEN',
+            ca:'18 (Defesa Natural)', pv:'150 (15d20)', desl:'9m', reacoes:null,
+            for:'24 (+7)',des:'12 (+1)',con:'15 (+2)',int:'10 (+0)',sab:'14 (+2)',pre:'10 (+0)',
+            pericias:'Percepção +5', trs:'FOR +10, CON +5',
             imunidades:null,
             resistencias:'Balístico, Cortante, Impacto, Explosivo, Perfurante sem aura.',
             vulnerabilidades:'Ataques na moleira (oculta entre as manchas, Invest./Percepção CD 25): Crítico x4.',
@@ -311,10 +337,10 @@
             ]
           },
           {
-            nome:'Hyper Puffball', tipo:'Besta Mágica/Besta de NEN, Médio, Caótico/Neutro', cat:'BESTA DE NEN',
-            ca:'23 (Armadura Natural)', pv:'18 (3d8+2)', desl:'15m', reacoes:'10',
-            for:'7 (-2)',des:'30 (+10)',con:'16 (+3)',int:'12 (+1)',sab:'18 (+3)',car:'10 (+0)',
-            pericias:'Acrobacia +13, Intuição +6, Percepção +6, Sobrevivência +6', trs:'Des +13, Con +6, Sab +6',
+            id:'pompom_supersonico', nome:'Pompom Supersônico', tipo:'Besta Mágica/Besta de NEN, Médio, Caótico/Neutro', cat:'BESTA DE NEN',
+            ca:'23 (Armadura Natural)', pv:'18 (3d12)', desl:'15m', reacoes:'10',
+            for:'7 (-2)',des:'30 (+10)',con:'16 (+3)',int:'12 (+1)',sab:'18 (+4)',pre:'10 (+0)',
+            pericias:'Acrobacia +13, Intuição +7, Percepção +7, Sobrevivência +7', trs:'DES +13, CON +6, SAB +7',
             imunidades:'Ataques de Oportunidade.',
             resistencias:'Impacto.',
             vulnerabilidades:null,
@@ -327,10 +353,10 @@
             ]
           },
           {
-            nome:'Lobos de Matilha', tipo:'Besta Mágica/Besta de NEN, Médio, Maligno — Grupo de 3+', cat:'BESTA DE NEN',
-            ca:'12 (Defesa Natural)', pv:'26 (4d8)', desl:'9m', reacoes:'4',
-            for:'15 (+2)',des:'13 (+1)',con:'14 (+2)',int:'10 (+0)',sab:'11 (+0)',car:'10 (+0)',
-            pericias:'Furtividade +4, Percepção +3, Intimidação +3', trs:'For +5, Car +3',
+            id:'lobos_de_matilha', nome:'Lobos de Matilha', tipo:'Besta Mágica/Besta de NEN, Médio, Maligno — Grupo de 3+', cat:'BESTA DE NEN',
+            ca:'12 (Defesa Natural)', pv:'25 (5d10)', desl:'9m', reacoes:'4',
+            for:'15 (+2)',des:'13 (+1)',con:'14 (+2)',int:'10 (+0)',sab:'11 (+0)',pre:'10 (+0)',
+            pericias:'Furtividade +4, Percepção +3, Intimidação +3', trs:'FOR +5, PRE +3',
             imunidades:null, resistencias:null, vulnerabilidades:null,
             sentidos:'Sentidos Aguçados (Audição e Olfato)', lingua:'Comum',
             tracos:[
@@ -343,10 +369,10 @@
             ]
           },
           {
-            nome:'Alfa de Matilha', tipo:'Besta Mágica/Besta de NEN, Médio, Maligno', cat:'BESTA DE NEN',
-            ca:'12 (Defesa Natural)', pv:'35 (5d8+4)', desl:'9m', reacoes:'8',
-            for:'18 (+4)',des:'14 (+2)',con:'18 (+4)',int:'14 (+2)',sab:'12 (+1)',car:'10 (+0)',
-            pericias:'Atletismo +7, Furtividade +5, Percepção +4, Intimidação +3', trs:'For +5, Des +5',
+            id:'alfa_de_matilha', nome:'Alfa de Matilha', tipo:'Besta Mágica/Besta de NEN, Médio, Maligno', cat:'BESTA DE NEN',
+            ca:'12 (Defesa Natural)', pv:'35 (7d10)', desl:'9m', reacoes:'8',
+            for:'18 (+4)',des:'14 (+2)',con:'18 (+4)',int:'14 (+2)',sab:'12 (+1)',pre:'10 (+0)',
+            pericias:'Atletismo +7, Furtividade +5, Percepção +4, Intimidação +3', trs:'FOR +7, DES +5',
             imunidades:null, resistencias:null, vulnerabilidades:null,
             sentidos:'Sentidos Aguçados (Audição e Olfato)', lingua:'Comum',
             tracos:[
@@ -360,10 +386,10 @@
             ]
           },
           {
-            nome:'Panda Doméstico', tipo:'Besta Mágica/Besta de NEN, Médio, Heróico/Neutro', cat:'BESTA DE NEN',
-            ca:'12 (Defesa Natural)', pv:'26 (4d6+2 por nível)', desl:'9m', reacoes:null,
-            for:'16 (+3)',des:'10 (+0)',con:'14 (+2)',int:'18 (+4)',sab:'15 (+2)',car:'17 (+3)',
-            pericias:'História +7, Religião +7, Intuição +5, Lidar com Animais +5, Percepção +5, Persuasão +6', trs:'Int +7, Sab +5, Car +5',
+            id:'panda_domestico', nome:'Panda Doméstico', tipo:'Besta Mágica/Besta de NEN, Médio, Heróico/Neutro', cat:'BESTA DE NEN',
+            ca:'12 (Defesa Natural)', pv:'24 (8d6)', desl:'9m', reacoes:null,
+            for:'16 (+3)',des:'10 (+0)',con:'14 (+2)',int:'18 (+4)',sab:'15 (+2)',pre:'17 (+3)',
+            pericias:'História +7, Religião +7, Intuição +5, Lidar com Animais +5, Percepção +5, Persuasão +6', trs:'INT +7, SAB +5, PRE +6',
             imunidades:null, resistencias:null, vulnerabilidades:null,
             sentidos:null, lingua:'Comum',
             tracos:[
@@ -374,10 +400,10 @@
             ]
           },
           {
-            nome:'Toraemon', tipo:'Besta Mágica/Besta de NEN, Médio, Caótico/Neutro', cat:'BESTA DE NEN',
-            ca:'15 (Defesa Natural)', pv:'15 (2d8+3)', desl:'Terrestre padrão', reacoes:null,
-            for:'12 (+1)',des:'10 (+0)',con:'17 (+3)',int:'18 (+4)',sab:'10 (+0)',car:'16 (+3)',
-            pericias:'Arcanismo +7, História +7, Intuição +7, Investigação +7, Percepção +3, Persuasão +6', trs:'Int +7',
+            id:'toraemon', nome:'Toraemon', tipo:'Besta Mágica/Besta de NEN, Médio, Caótico/Neutro', cat:'BESTA DE NEN',
+            ca:'15 (Defesa Natural)', pv:'15 (3d10)', desl:'9m', reacoes:null,
+            for:'12 (+1)',des:'10 (+0)',con:'17 (+3)',int:'18 (+4)',sab:'10 (+0)',pre:'16 (+3)',
+            pericias:'Arcanismo +7, História +7, Intuição +3, Investigação +7, Percepção +3, Persuasão +6', trs:'INT +7, PRE +6',
             imunidades:null, resistencias:null, vulnerabilidades:null,
             sentidos:'Percepção Passiva 13', lingua:'Comum',
             tracos:[
@@ -389,10 +415,10 @@
           },
           // ── OUTROS ─────────────────────────────────────────────
           {
-            nome:'Pássaro di Nybdi', tipo:'Besta Enorme, Neutro', cat:'BESTA NATURAL',
-            ca:'14 (Defesa Natural)', pv:'30 (3d12+5)', desl:'9m + 9m Voo', reacoes:'2',
-            for:'18 (+4)',des:'12 (+1)',con:'20 (+5)',int:'12 (+1)',sab:'14 (+2)',car:'11 (+0)',
-            pericias:'Sobrevivência +5', trs:'Con +8, Sab +5',
+            id:'passaro_di_nybdi', nome:'Pássaro di Nybdi', tipo:'Besta Enorme, Neutro', cat:'BESTA NATURAL',
+            ca:'14 (Defesa Natural)', pv:'30 (5d12)', desl:'9m; Voo 9m', reacoes:'2',
+            for:'18 (+4)',des:'12 (+1)',con:'20 (+5)',int:'12 (+1)',sab:'14 (+2)',pre:'11 (+0)',
+            pericias:'Sobrevivência +5', trs:'CON +8, SAB +5',
             imunidades:null, resistencias:null, vulnerabilidades:null,
             sentidos:null, lingua:'Nenhum',
             tracos:[
@@ -404,12 +430,13 @@
             ]
           },
           {
-            nome:'Tigre Acampador', tipo:'Besta Média, Maligno', cat:'BESTA NATURAL',
-            ca:'14 (Defesa Natural)', pv:'52 (10d8+2)', desl:'9m', reacoes:'4',
-            for:'28 (+9)',des:'19 (+5)',con:'14 (+2)',int:'10 (+0)',sab:'16 (+3)',car:'17 (+3)',
-            pericias:'Atletismo +12, Sobrevivência +6, Lidar com Animais +6, Intimidação +6', trs:'For +12, Des +8',
+            id:'tigre_acampador', nome:'Tigre Acampador', tipo:'Besta Média, Maligno', cat:'BESTA NATURAL',
+            ca:'14 (Defesa Natural)', pv:'52 (13d8)', desl:'9m', reacoes:'4',
+            for:'28 (+9)',des:'19 (+4)',con:'14 (+2)',int:'10 (+0)',sab:'16 (+3)',pre:'17 (+3)',
+            pericias:'Atletismo +12, Sobrevivência +6, Lidar com Animais +6, Intimidação +6', trs:'FOR +12, DES +7',
             imunidades:null, resistencias:null, vulnerabilidades:null,
             sentidos:'Visão no Escuro 18m, Percepção Passiva 16', lingua:'Nenhum',
+            tags:'⚠️ Matilha de 4-6 — ficha individual; pool de encontro (4): PV total esperado 208 (4 × 52) · dano total esperado 100/rodada (4 × 25). Matilha completa de 6: 312 PV · 150/rodada.🛡️ Besta Mágica — não sofre dobra de aura🛡️ Reações 4 — pool do CAP. 4 (Esquiva 1d20+DES +4)🎯 Empalado — TR de FOR 20 após o acerto da investida, fica Agarrado🟡 VUL. TR INT (10)', naLicenca:'4', naEquipe:'2 *(proposto — sem fórmula de derivação, gap §8.5)*', recomendado:'1 Hunter de nível 3-4, com Hatsus e aura *(proposto)*',
             tracos:[
               {n:'Tática de Matilha',d:'Vantagem nas jogadas de ataque contra uma criatura se pelo menos 1 aliado estiver a 1,5m dela e não incapacitado.'}
             ],
@@ -420,10 +447,10 @@
             ]
           },
           {
-            nome:'Piko', tipo:'Besta Média/Grande, Neutra', cat:'BESTA NATURAL',
-            ca:'12 (Defesa Natural)', pv:'15 (1d4+5)', desl:'12m', reacoes:null,
-            for:'19 (+4)',des:'19 (+4)',con:'10 (+0)',int:'8 (-1)',sab:'12 (+1)',car:'10 (+0)',
-            pericias:'Atletismo +7, Acrobacia +7', trs:'Des +7',
+            id:'piko', nome:'Piko', tipo:'Besta Média/Grande, Neutra', cat:'BESTA NATURAL',
+            ca:'12 (Defesa Natural)', pv:'15 (3d10)', desl:'12m', reacoes:null,
+            for:'19 (+4)',des:'19 (+4)',con:'10 (+0)',int:'8 (-1)',sab:'12 (+1)',pre:'10 (+0)',
+            pericias:'Atletismo +7, Acrobacia +7', trs:'DES +7',
             imunidades:'Exaustão', resistencias:null, vulnerabilidades:null,
             sentidos:null, lingua:'Compreende Comum, mas não fala',
             tracos:[
@@ -435,12 +462,13 @@
             ]
           },
           {
-            nome:'Mike', tipo:'Besta Enorme, Neutro', cat:'BESTA NATURAL',
-            ca:'18 (Defesa Natural)', pv:'112 (10d12+3)', desl:'9m', reacoes:'4',
-            for:'30 (+10)',des:'19 (+4)',con:'16 (+3)',int:'6 (-2)',sab:'22 (+6)',car:'18 (+4)',
-            pericias:'Atletismo +13, Furtividade +7, Sobrevivência +9, Percepção +9, Intimidação +7', trs:'For +13, Des +7, Sab +9',
+            id:'mike', nome:'Mike', tipo:'Besta Enorme, Neutro', cat:'BESTA NATURAL',
+            ca:'18 (Defesa Natural)', pv:'110 (11d20)', desl:'9m', reacoes:'4',
+            for:'30 (+10)',des:'19 (+4)',con:'16 (+3)',int:'6 (-2)',sab:'22 (+6)',pre:'18 (+4)',
+            pericias:'Atletismo +13, Furtividade +7, Sobrevivência +9, Percepção +9, Intimidação +7', trs:'FOR +13, DES +7, SAB +9',
             imunidades:'Enfeitiçado/Manipulado Mentalmente', resistencias:null, vulnerabilidades:null,
             sentidos:'Visão no Escuro 18m', lingua:'Entende Comum, mas não fala',
+            tags:'⚠️ Dano de equipe: 108/rodada (Patada Devastadora em 3 alvos)🛡️ Transe Subserviente — permanentemente Manipulado pelos Zoldyck; não pode ser manipulado por outros🛡️ Reações 4 — pool do CAP. 4 (Esquiva 1d20+DES +4; Bloqueio CON+FOR)🎯 Patada Devastadora — dano 36 por alvo (4d12+10); sangramento aplicável🛡️ RD cortante/impacto/perfurante (couro)🔴 VUL. TR INT (6)', naLicenca:'4', naEquipe:'2 *(proposto — sem fórmula de derivação, gap §8.5)*', recomendado:'1 Hunter de nível 4-5, com Hatsus e aura *(proposto)*',
             tracos:[
               {n:'Transe Subserviente',d:'Imune a manipulações mentais.'},
               {n:'Sentidos Aguçados',d:'Vantagem em Percepção/Investigação baseados em Visão, Audição e Olfato.'},
@@ -452,10 +480,10 @@
           },
           // ── PLAYTEST / OUTRAS OBRAS ─────────────────────────────
           {
-            nome:'Pumba Fuça-Suja', tipo:'Besta Comum Média, Maligno — Bando de 4', cat:'PLAYTEST',
-            ca:'12 (Defesa Natural)', pv:'22 (3d12+2)', desl:'12m', reacoes:'4',
-            for:'16 (+4)',des:'12 (+1)',con:'26 (+8)',int:'5 (-3)',sab:'15 (+2)',car:'10 (+0)',
-            pericias:'Atletismo, Sobrevivência', trs:'Con, Car',
+            id:'pumba_fuca_suja', nome:'Pumba Fuça-Suja', tipo:'Besta Comum Média, Maligno — Bando de 4', cat:'PLAYTEST',
+            ca:'12 (Defesa Natural)', pv:'20 (4d10)', desl:'12m', reacoes:'4',
+            for:'16 (+3)',des:'12 (+1)',con:'26 (+8)',int:'5 (-3)',sab:'15 (+2)',pre:'10 (+0)',
+            pericias:'Atletismo +6, Sobrevivência +5', trs:'CON +11, PRE +3',
             imunidades:'Veneno e Envenenado', resistencias:null, vulnerabilidades:null,
             sentidos:null, lingua:'Nenhuma',
             tracos:[
@@ -467,10 +495,10 @@
             ]
           },
           {
-            nome:'Pássaro da Fé', tipo:'Besta Pequena, Caótico — Bando de 5', cat:'PLAYTEST',
-            ca:'15 (Defesa Natural)', pv:'12 (1d12+5)', desl:'9m de Voo', reacoes:'3',
-            for:'2 (-4)',des:'19 (+4)',con:'11 (+0)',int:'10 (+0)',sab:'18 (+4)',car:'9 (+0)',
-            pericias:'Acrobacia +8, Furtividade +8, Intuição +7', trs:'Int +3, Sab +7, Des +8',
+            id:'passaro_da_fe', nome:'Pássaro da Fé', tipo:'Besta Pequena, Caótico — Bando de 5', cat:'PLAYTEST',
+            ca:'15 (Defesa Natural)', pv:'12 (3d8)', desl:'Voo 9m', reacoes:'3',
+            for:'2 (-4)',des:'19 (+4)',con:'11 (+0)',int:'10 (+0)',sab:'18 (+4)',pre:'9 (-1)',
+            pericias:'Acrobacia +7, Furtividade +7, Intuição +7', trs:'DES +7, INT +3, SAB +7',
             imunidades:'Caído, Cego', resistencias:null, vulnerabilidades:null,
             sentidos:'Ecolocalização', lingua:'Nenhuma',
             tracos:[
@@ -483,10 +511,10 @@
             ]
           },
           {
-            nome:'Leãozinho da Inxia', tipo:'Besta Comum Média, Neutra', cat:'PLAYTEST',
-            ca:'14 (Defesa Natural)', pv:'25 (3d10+4)', desl:'9m', reacoes:null,
-            for:'18 (+4)',des:'17 (+3)',con:'14 (+2)',int:'10 (+0)',sab:'12 (+1)',car:'14 (+2)',
-            pericias:'Atletismo +7, Furtividade +6, Esquiva +6, Sobrevivência +4', trs:'For +7, Des +7',
+            id:'leaozinho_da_inxia', nome:'Leãozinho da Inxia', tipo:'Besta Comum Média, Neutra', cat:'PLAYTEST',
+            ca:'14 (Defesa Natural)', pv:'25 (5d10)', desl:'9m', reacoes:null,
+            for:'18 (+4)',des:'17 (+3)',con:'14 (+2)',int:'10 (+0)',sab:'12 (+1)',pre:'14 (+2)',
+            pericias:'Atletismo +7, Furtividade +6, Sobrevivência +4', trs:'FOR +7, DES +6',
             imunidades:null, resistencias:null, vulnerabilidades:null,
             sentidos:'Olfato', lingua:'Nenhuma',
             tracos:[
@@ -497,10 +525,10 @@
             ]
           },
           {
-            nome:'Mariposa Poodle', tipo:'Besta Mágica Média, Neutra', cat:'PLAYTEST',
-            ca:'16 (Defesa Natural)', pv:'15 (2d6+3)', desl:'6m de Voo', reacoes:null,
-            for:'1 (-5)',des:'19 (+4)',con:'6 (-2)',int:'8 (-1)',sab:'11 (+0)',car:'9 (-1)',
-            pericias:'Acrobacia +7, Furtividade +7', trs:'Des +7',
+            id:'mariposa_poodle', nome:'Mariposa Poodle', tipo:'Besta Mágica Média, Neutra', cat:'PLAYTEST',
+            ca:'16 (Defesa Natural)', pv:'15 (3d10)', desl:'Voo 6m', reacoes:null,
+            for:'1 (-5)',des:'19 (+4)',con:'6 (-2)',int:'8 (-1)',sab:'11 (+0)',pre:'9 (-1)',
+            pericias:'Acrobacia +7, Furtividade +7', trs:'DES +7',
             imunidades:'Caído', resistencias:null, vulnerabilidades:null,
             sentidos:null, lingua:'Nenhuma',
             tracos:[
@@ -511,10 +539,10 @@
             ]
           },
           {
-            nome:'Zebralo', tipo:'Besta Comum Média, Neutra', cat:'PLAYTEST',
-            ca:'16 (Defesa Natural)', pv:'40 (5dx)', desl:'15m', reacoes:null,
-            for:'22 (+6)',des:'16 (+3)',con:'15 (+2)',int:'10 (+0)',sab:'13 (+1)',car:'10 (+0)',
-            pericias:'Atletismo +9, Sobrevivência +4', trs:'For +9, Con +5, Sab +4',
+            id:'zebralo', nome:'Zebralo', tipo:'Besta Comum Média, Neutra', cat:'PLAYTEST',
+            ca:'16 (Defesa Natural)', pv:'40 (8d10)', desl:'15m', reacoes:null,
+            for:'22 (+6)',des:'16 (+3)',con:'15 (+2)',int:'10 (+0)',sab:'13 (+1)',pre:'10 (+0)',
+            pericias:'Atletismo +9, Sobrevivência +4', trs:'FOR +9, CON +5, SAB +4',
             imunidades:null, resistencias:null, vulnerabilidades:null,
             sentidos:null, lingua:'Nenhuma',
             tracos:[{n:'Tração Animal',d:'Capacidade de Carga dobrada.'}],
@@ -523,9 +551,9 @@
             ]
           },
           {
-            nome:'Thri-Kreen', tipo:'Besta Mágica Média, Neutra — Montarias Desérticas', cat:'PLAYTEST',
-            ca:'15 (Defesa Natural)', pv:'33 (6d8+6)', desl:'12m (Salto Parado 6m)', reacoes:'4',
-            for:'12 (+1)',des:'15 (+2)',con:'13 (+1)',int:'8 (-1)',sab:'12 (+1)',car:'7 (-2)',
+            id:'thri_kreen', nome:'Thri-Kreen', tipo:'Besta Mágica Média, Neutra — Montarias Desérticas', cat:'PLAYTEST',
+            ca:'15 (Defesa Natural)', pv:'32 (8d8)', desl:'12m (salto parado de 6m)', reacoes:'4',
+            for:'12 (+1)',des:'15 (+2)',con:'13 (+1)',int:'8 (-1)',sab:'12 (+1)',pre:'7 (-2)',
             pericias:'Furtividade +5, Percepção +4, Sobrevivência +4', trs:null,
             imunidades:'Sangramento',
             resistencias:null,
@@ -545,10 +573,10 @@
             ]
           },
           {
-            nome:'Boitatá Adulto', tipo:'Besta Mágica Enorme, Caótico/Maligno', cat:'PLAYTEST',
-            ca:'19 (Armadura Natural)', pv:'150 (5d20×3)', desl:'9m', reacoes:null,
-            for:'16 (+3)',des:'20 (+5)',con:'18 (+4)',int:'14 (+2)',sab:'11 (+0)',car:'7 (-2)',
-            pericias:'Acrobacia +8, Lidar com Animais +3, Intimidação +1, Percepção +3', trs:'For +3, Des +8, Con +7',
+            id:'boitata_adulto', nome:'Boitatá Adulto', tipo:'Besta Mágica Enorme, Caótico/Maligno', cat:'PLAYTEST',
+            ca:'19 (Armadura Natural)', pv:'150 (15d20)', desl:'9m', reacoes:null,
+            for:'16 (+3)',des:'20 (+5)',con:'18 (+4)',int:'14 (+2)',sab:'11 (+0)',pre:'7 (-2)',
+            pericias:'Acrobacia +8, Lidar com Animais +3, Intimidação +1, Percepção +3, Sobrevivência +3', trs:'FOR +6, DES +8, CON +7',
             imunidades:'Fogo', resistencias:null, vulnerabilidades:null,
             sentidos:'Percepção Passiva 13', lingua:'Nenhuma',
             tracos:[
@@ -560,10 +588,10 @@
             ]
           },
           {
-            nome:'Boitatá Jovem', tipo:'Besta Mágica Enorme, Caótico/Maligno', cat:'PLAYTEST',
-            ca:'19 (Armadura Natural)', pv:'60 (3d20×2)', desl:'9m', reacoes:null,
-            for:'16 (+3)',des:'20 (+5)',con:'14 (+2)',int:'12 (+2)',sab:'11 (+0)',car:'7 (-2)',
-            pericias:'Acrobacia +8, Lidar com Animais +3, Intimidação +1, Percepção +3', trs:'For +3, Des +8, Con +7',
+            id:'boitata_jovem', nome:'Boitatá Jovem', tipo:'Besta Mágica Enorme, Caótico/Maligno', cat:'PLAYTEST',
+            ca:'19 (Armadura Natural)', pv:'60 (6d20)', desl:'9m', reacoes:null,
+            for:'16 (+3)',des:'20 (+5)',con:'14 (+2)',int:'12 (+1)',sab:'11 (+0)',pre:'7 (-2)',
+            pericias:'Acrobacia +8, Lidar com Animais +3, Intimidação +1, Percepção +3, Sobrevivência +3', trs:'FOR +6, DES +8, CON +5',
             imunidades:'Fogo', resistencias:null, vulnerabilidades:null,
             sentidos:'Percepção Passiva 13', lingua:'Nenhuma',
             tracos:[
@@ -575,10 +603,10 @@
             ]
           },
           {
-            nome:'Canibal Hitoku', tipo:'Besta Mágica Média, Caótico — Rank C+', cat:'PLAYTEST',
-            ca:'15 (Defesa Natural)', pv:'50 (5d12)', desl:'9m', reacoes:null,
-            for:'14 (+2)',des:'14 (+2)',con:'18 (+4)',int:'10 (+0)',sab:'20 (+5)',car:'16 (+3)',
-            pericias:'Percepção +7, Furtividade +4, Intimidação +5', trs:'Con +6, Sab +7',
+            id:'canibal_hitoku', nome:'Canibal Hitoku', tipo:'Besta Mágica Média, Caótico — Rank C+', cat:'PLAYTEST',
+            ca:'15 (Defesa Natural)', pv:'50 (10d10)', desl:'9m', reacoes:null,
+            for:'14 (+2)',des:'14 (+2)',con:'18 (+4)',int:'10 (+0)',sab:'20 (+5)',pre:'16 (+3)',
+            pericias:'Percepção +8, Furtividade +5, Intimidação +6', trs:'CON +7, SAB +8',
             imunidades:'Derrubado',
             resistencias:null,
             vulnerabilidades:'Qualquer ataque de uma criatura que não tenha sido copiada: dano dobrado.',
@@ -592,10 +620,10 @@
             ]
           },
           {
-            nome:'Lefyurgo', tipo:'Aberração Média, Maligno', cat:'ABERRAÇÃO',
-            ca:'18 (Defesa Natural)', pv:'26 (3d10+1)', desl:'9m', reacoes:'8',
-            for:'18 (+4)',des:'13 (+1)',con:'17 (+3)',int:'18 (+4)',sab:'18 (+4)',car:'22 (+6)',
-            pericias:'+7 Atletismo, Investigação, Sobrevivência, Intuição, Percepção; +9 Intimidação', trs:'For +7, Car +7',
+            id:'lefyurgo', nome:'Lefyurgo', tipo:'Aberração Média, Maligno', cat:'ABERRAÇÃO',
+            ca:'18 (Defesa Natural)', pv:'25 (5d10)', desl:'9m', reacoes:'8',
+            for:'18 (+4)',des:'13 (+1)',con:'17 (+3)',int:'18 (+4)',sab:'18 (+4)',pre:'22 (+6)',
+            pericias:'Atletismo +7, Investigação +7, Intuição +7, Percepção +7, Sobrevivência +7, Intimidação +9', trs:'FOR +7, PRE +9',
             imunidades:'Agarrado/Preso/Enredado, Impedido', resistencias:null, vulnerabilidades:null,
             sentidos:'Visão no Escuro, Percepção Passiva 17', lingua:'Comum',
             tracos:[
@@ -609,10 +637,10 @@
           },
           // ── MADE IN ABYSS ───────────────────────────────────────
           {
-            nome:'Amakagame', tipo:'Aberração Imenso/Colossal, Neutro', cat:'ABERRAÇÃO',
-            ca:'12 (Defesa Natural)', pv:'36 (6d10+4)', desl:'6m', reacoes:null,
-            for:'5 (-3)',des:'5 (-3)',con:'18 (+4)',int:'12 (+1)',sab:'14 (+2)',car:'5 (-3)',
-            pericias:'Sobrevivência +5, Percepção +5', trs:'Con +7',
+            id:'amakagame', nome:'Amakagame', tipo:'Aberração Imenso/Colossal, Neutro', cat:'ABERRAÇÃO',
+            ca:'12 (Defesa Natural)', pv:'40 (4d20)', desl:'6m', reacoes:null,
+            for:'5 (-3)',des:'5 (-3)',con:'18 (+4)',int:'12 (+1)',sab:'14 (+2)',pre:'5 (-3)',
+            pericias:'Sobrevivência +5, Percepção +5', trs:'CON +7',
             imunidades:'Veneno, Ácido',
             resistencias:'Impacto (Concussão).',
             vulnerabilidades:'Fogo, Cortante.',
@@ -627,10 +655,10 @@
             ]
           },
           {
-            nome:'Emperador Armorshell', tipo:'Besta Mágica Médio-Grande, Caótico/Maligno', cat:'BESTA MÁGICA',
-            ca:'26 (Defesa Natural)', pv:'64 (5d12+8)', desl:'9m', reacoes:null,
-            for:'18 (+4)',des:'1 (-5)',con:'27 (+8)',int:'10 (+0)',sab:'10 (+0)',car:'10 (+0)',
-            pericias:'Atletismo +7, Sobrevivência +3', trs:'For +7, Con +11',
+            id:'imperador_couraca', nome:'Imperador Couraça', tipo:'Besta Mágica Médio-Grande, Caótico/Maligno', cat:'BESTA MÁGICA',
+            ca:'26 (Defesa Natural)', pv:'66 (11d12)', desl:'9m', reacoes:null,
+            for:'18 (+4)',des:'1 (-5)',con:'27 (+8)',int:'10 (+0)',sab:'10 (+0)',pre:'10 (+0)',
+            pericias:'Atletismo +7, Sobrevivência +3', trs:'FOR +7, CON +11',
             imunidades:'Veneno, Fogo, Eletricidade, Psíquico',
             resistencias:'Impacto, Cortante, Perfurante (precisão DES).',
             vulnerabilidades:'Perfurante (impacto FOR), Balístico, Armas de Cerco.',
@@ -646,10 +674,10 @@
             ]
           },
           {
-            nome:'Hidra do Deserto', tipo:'Aberração Médio/Médio Modificado, Maligno', cat:'ABERRAÇÃO',
-            ca:'18 (Defesa Natural)', pv:'86 (8d8+21)', desl:'9m', reacoes:'12',
-            for:'17 (+3)',des:'21 (+5)',con:'15 (+2)',int:'12 (+1)',sab:'15 (+2)',car:'10 (+0)',
-            pericias:'Atletismo +6, Furtividade +8, Percepção +5', trs:'For +6, Des +8, Con +5',
+            id:'hidra_do_deserto', nome:'Hidra do Deserto', tipo:'Aberração Médio/Médio Modificado, Maligno', cat:'ABERRAÇÃO',
+            ca:'18 (Defesa Natural)', pv:'84 (14d12)', desl:'9m', reacoes:'12',
+            for:'17 (+3)',des:'21 (+5)',con:'15 (+2)',int:'12 (+1)',sab:'15 (+2)',pre:'10 (+0)',
+            pericias:'Atletismo +6, Furtividade +8, Percepção +5', trs:'FOR +6, DES +8, CON +5',
             imunidades:'Sangramento',
             resistencias:'Cortante, Perfurante (Carapaça/Sistema Hemostático).',
             vulnerabilidades:'7 caudas sensíveis — ataques mirados com 10+ dano inutilizam a cauda.',
@@ -662,10 +690,10 @@
             ]
           },
           {
-            nome:'Fuzosheppu / Oogasumi', tipo:'Aberração Imenso/Colossal (mais leve que o ar), Neutro', cat:'ABERRAÇÃO',
-            ca:'12 (Defesa Natural)', pv:'10 (1d12+4) Camada Externa / 36 (6d10+4) Núcleo', desl:'15m de Voo', reacoes:null,
-            for:'5 (-3)',des:'5 (-3)',con:'18 (+4)',int:'12 (+1)',sab:'14 (+2)',car:'5 (-3)',
-            pericias:'Natureza +4, Sobrevivência +5', trs:'Con +7',
+            id:'fuzosheppu_oogasumi', nome:'Fuzosheppu/Oogasumi', tipo:'Aberração Imenso/Colossal (mais leve que o ar), Neutro', cat:'ABERRAÇÃO',
+            ca:'12 (Defesa Natural)', pv:'10 (1d12+4) Camada Externa / 36 (6d10+4) Núcleo', desl:'Voo 15m', reacoes:null,
+            for:'5 (-3)',des:'5 (-3)',con:'18 (+4)',int:'12 (+1)',sab:'14 (+2)',pre:'5 (-3)',
+            pericias:'Natureza +4, Sobrevivência +5', trs:'CON +7',
             imunidades:'Agarrado/Cortante/Impacto/Perfurante/Balístico (camada externa)',
             resistencias:null,
             vulnerabilidades:'Fogo e Vento — separa a camada externa do núcleo.',
@@ -679,10 +707,10 @@
             ]
           },
           {
-            nome:'Gogouge — Silkfang', tipo:'Besta Natural Enorme, Maligno — Próximo de Covil', cat:'BESTA NATURAL',
-            ca:'17 (Defesa Natural)', pv:'127 (7d20+8)', desl:'16m', reacoes:'6',
-            for:'18 (+4)',des:'22 (+6)',con:'18 (+4)',int:'12 (+1)',sab:'14 (+2)',car:'1 (+5)',
-            pericias:'Atletismo +7, Intuição +5, Percepção +5, Sobrevivência +5', trs:'Des +9, Con +7, Sab +5',
+            id:'gogouge_presa_de_seda', nome:'Gogouge — Presa de Seda', tipo:'Besta Natural Enorme, Maligno — Próximo de Covil', cat:'BESTA NATURAL',
+            ca:'17 (Defesa Natural)', pv:'126 (21d12)', desl:'15m', reacoes:'6',
+            for:'18 (+4)',des:'22 (+6)',con:'18 (+4)',int:'12 (+1)',sab:'14 (+2)',pre:'1 (-5)',
+            pericias:'Atletismo +7, Intuição +5, Percepção +5, Sobrevivência +5', trs:'DES +9, CON +7, SAB +5',
             imunidades:'Veneno, Ácido', resistencias:null, vulnerabilidades:null,
             sentidos:'Visão no Escuro', lingua:'Desconhecida',
             tracos:[
@@ -695,10 +723,10 @@
             ]
           },
           {
-            nome:'Hammerbeak (Bico de Martelo)', tipo:'Besta Mágica Média, Maligno', cat:'BESTA MÁGICA',
-            ca:'16 (Defesa Natural)', pv:'38 (5d8+3)', desl:'12m de Voo', reacoes:'4',
-            for:'17 (+3)',des:'18 (+4)',con:'17 (+3)',int:'12 (+1)',sab:'15 (+2)',car:'11 (+0)',
-            pericias:'+7 Esquiva e Esquiva Acrobática; +5 Percepção e Sobrevivência', trs:'Con +7, Sab +5',
+            id:'bico_de_martelo', nome:'Bico de Martelo', tipo:'Besta Mágica Média, Maligno', cat:'BESTA MÁGICA',
+            ca:'16 (Defesa Natural)', pv:'36 (6d12)', desl:'Voo 12m', reacoes:'4',
+            for:'17 (+3)',des:'18 (+4)',con:'17 (+3)',int:'12 (+1)',sab:'15 (+2)',pre:'11 (+0)',
+            pericias:'Acrobacia +7, Percepção +5, Sobrevivência +5', trs:'CON +6, SAB +5',
             imunidades:'Caído, Atordoado por som ou impacto', resistencias:null, vulnerabilidades:null,
             sentidos:'Percepção Passiva 17', lingua:'Bestial',
             tracos:[
@@ -712,10 +740,10 @@
             ]
           },
           {
-            nome:'Hanashirama', tipo:'Aberração Miúda, Neutra — Colônia de 10', cat:'ABERRAÇÃO',
-            ca:'22 (Defesa Natural)', pv:'2 (1d4-2)', desl:'9m de Nado', reacoes:'Ilimitadas (ao ser tocada ou mover)',
-            for:'1 (-5)',des:'12 (+0)',con:'6 (-2)',int:'9 (-1)',sab:'12 (+1)',car:'1 (-5)',
-            pericias:'Furtividade +3', trs:'Des +3, Sab +4',
+            id:'hanashirama', nome:'Hanashirama', tipo:'Aberração Miúda, Neutra — Colônia de 10', cat:'ABERRAÇÃO',
+            ca:'22 (Defesa Natural)', pv:'2 (1d4)', desl:'Natação 9m', reacoes:'Ilimitadas. Essa criatura não ataca em seu turno, mas reage toda vez que é tocada ou se move',
+            for:'1 (-5)',des:'12 (+1)',con:'6 (-2)',int:'9 (-1)',sab:'12 (+1)',pre:'1 (-5)',
+            pericias:'Furtividade +4', trs:'DES +4, SAB +4',
             imunidades:'Envenenado',
             resistencias:null,
             vulnerabilidades:'Esmagamento.',
@@ -728,10 +756,10 @@
             ]
           },
           {
-            nome:'Inbyos', tipo:'Monstruosidade Média, Mau — Bando de 3-5', cat:'MONSTRUOSIDADE',
-            ca:'16 (Defesa Natural)', pv:'34 (6d6+2)', desl:'9m (18m Transflorestal)', reacoes:'4',
-            for:'18 (+4)',des:'18 (+4)',con:'14 (+2)',int:'12 (+1)',sab:'15 (+2)',car:'10 (+0)',
-            pericias:'Atletismo +7, Furtividade +7, Acrobacia +7, Percepção +5', trs:'For +7, Des +7',
+            id:'inbyos', nome:'Inbyos', tipo:'Monstruosidade Média, Mau — Bando de 3-5', cat:'MONSTRUOSIDADE',
+            ca:'16 (Defesa Natural)', pv:'35 (7d10)', desl:'9m (18m em Movimento Transflorestal)', reacoes:'4',
+            for:'18 (+4)',des:'18 (+4)',con:'14 (+2)',int:'12 (+1)',sab:'15 (+2)',pre:'10 (+0)',
+            pericias:'Atletismo +7, Furtividade +7, Acrobacia +7, Percepção +5', trs:'FOR +7, DES +7',
             imunidades:null, resistencias:null,
             vulnerabilidades:'Luz.',
             sentidos:null, lingua:'Desconhecida',
@@ -745,10 +773,10 @@
             ]
           },
           {
-            nome:'Kuongatari', tipo:'Besta Natural Miúdo, Neutro — Colônia de 10', cat:'BESTA NATURAL',
-            ca:'14 (Defesa Natural)', pv:'5 (1d6+1) cada / 50 (colônia completa)', desl:'6m', reacoes:null,
-            for:'7 (-2)',des:'16 (+3)',con:'12 (+1)',int:'6 (-2)',sab:'10 (+0)',car:'3 (-4)',
-            pericias:'Natureza +3, Percepção +3', trs:'Con +4, Sab +3',
+            id:'kuongatari', nome:'Kuongatari', tipo:'Besta Natural Miúdo, Neutro — Colônia de 10', cat:'BESTA NATURAL',
+            ca:'14 (Defesa Natural)', pv:'4 (2d4) cada; 40 a colônia completa', desl:'6m', reacoes:null,
+            for:'7 (-2)',des:'16 (+3)',con:'12 (+1)',int:'6 (-2)',sab:'10 (+0)',pre:'3 (-4)',
+            pericias:'Natureza +1, Percepção +3', trs:'CON +4, SAB +3',
             imunidades:'Envenenado, Esmagamento, Impacto',
             resistencias:'Cortante.',
             vulnerabilidades:null,
@@ -763,10 +791,10 @@
             ]
           },
           {
-            nome:'Madokajacks', tipo:'Besta Mágica Grande, Mau — Sozinho ou em Par', cat:'BESTA MÁGICA',
-            ca:'21 (Defesa Natural) / 18 (Membrana das asas)', pv:'56 (5d12+3)', desl:'15m Voo / 9m Terrestre', reacoes:'6',
-            for:'20 (+5)',des:'20 (+5)',con:'15 (+2)',int:'14 (+2)',sab:'17 (+3)',car:'10 (+0)',
-            pericias:'Atletismo +8, Acrobacia +8, Intuição +5, Percepção +6', trs:'For +8, Des +8',
+            id:'madokajacks', nome:'Madokajacks', tipo:'Besta Mágica Grande, Mau — Sozinho ou em Par', cat:'BESTA MÁGICA',
+            ca:'21 (Defesa Natural) / 18 (Membrana das asas)', pv:'55 (11d10)', desl:'9m; Voo 15m', reacoes:'6',
+            for:'20 (+5)',des:'20 (+5)',con:'15 (+2)',int:'14 (+2)',sab:'17 (+3)',pre:'10 (+0)',
+            pericias:'Atletismo +8, Acrobacia +8, Intuição +6, Percepção +6', trs:'FOR +8, DES +8',
             imunidades:'Surdo',
             resistencias:null,
             vulnerabilidades:'Luz.',
@@ -782,12 +810,13 @@
             ]
           },
           {
-            nome:'Mandíbula Escarlate', tipo:'Besta Mágica Imenso/Colossal, Mau — Sozinho', cat:'BESTA MÁGICA',
-            ca:'25 (Defesa Natural)', pv:'255 (8d20+10)', desl:'27m de Voo (planando)', reacoes:null,
-            for:'30 (+10)',des:'18 (+4)',con:'30 (+10)',int:'10 (+0)',sab:'15 (+2)',car:'16 (+4)',
-            pericias:'Atletismo +13, Intimidação +7', trs:'For +13, Con +13',
+            id:'mandibula_escarlate', nome:'Mandíbula Escarlate', tipo:'Besta Mágica Imenso/Colossal, Mau — Sozinho', cat:'BESTA MÁGICA',
+            ca:'25 (Defesa Natural)', pv:'250 (25d20)', desl:'Voo 27m (ou planando)', reacoes:'5',
+            for:'30 (+10)',des:'18 (+4)',con:'30 (+10)',int:'10 (+0)',sab:'15 (+2)',pre:'16 (+3)',
+            pericias:'Atletismo +13, Intimidação +6', trs:'FOR +13, CON +13',
             imunidades:'Surdo, Assustado/Intimidado, Exausto', resistencias:null, vulnerabilidades:null,
             sentidos:'Percepção às Cegas', lingua:'Desconhecida',
+            tags:'⚠️ Dano de equipe: 120/rodada (Mordida 21 + Cauda 19 em até 3 alvos adjacentes)🛡️ Limiar Mínimo de Dano 40 — dano abaixo de 40 é superficial; peso próprio no N.A. (teto S)🛡️ RD cortante/impacto🛡️ Reações 5 — pool do CAP. 4🛡️ CA 25 — banda S (teto)🛡️ Imune a Amedrontado/Assustado, Exausto, Surdo🟡 VUL. TR INT (10)', naLicenca:'8 *(proposto — pendente de playtest dedicado)*', naEquipe:'(proposto — sem fórmula de derivação, gap §8.5)', recomendado:'1 Hunter de nível 7-8, com Hatsus e aura *(proposto)*', limiar:40,
             tracos:[
               {n:'Criatura de Cerco',d:'Dano crítico em construções e Constructos.'},
               {n:'Limiar de Dano',d:'Qualquer dano abaixo de 40 é insignificante contra esta criatura.'}
@@ -799,10 +828,10 @@
             ]
           },
           {
-            nome:'Nakikabane (Corpse Weeper / Lamentador de Cadáver)', tipo:'Besta Mágica Médio Modificado, Caótico/Mal — Próximo de Colônias', cat:'BESTA MÁGICA',
-            ca:'17 (Defesa Natural)', pv:'74 (10d10+24)', desl:'9m Terrestre / 21m Voo', reacoes:'6',
-            for:'14 (+2)',des:'18 (+4)',con:'9 (-1)',int:'12 (+1)',sab:'18 (+4)',car:'7 (-2)',
-            pericias:'Atletismo +5, Acrobacia +7, Intuição +7', trs:'For +5, Des +7, Sab +7',
+            id:'nakikabane_lamentador_de_cadaver', nome:'Nakikabane — Lamentador de Cadáver', tipo:'Besta Mágica Médio Modificado, Caótico/Mal — Próximo de Colônias', cat:'BESTA MÁGICA',
+            ca:'17 (Defesa Natural)', pv:'72 (12d12)', desl:'9m; Voo 21m', reacoes:'6',
+            for:'14 (+2)',des:'18 (+4)',con:'9 (-1)',int:'12 (+1)',sab:'18 (+4)',pre:'7 (-2)',
+            pericias:'Atletismo +5, Acrobacia +7, Intuição +7', trs:'FOR +5, DES +7, SAB +7',
             imunidades:'Assustado', resistencias:null, vulnerabilidades:null,
             sentidos:null, lingua:'Desconhecida',
             tracos:[
@@ -817,12 +846,13 @@
             ]
           },
           {
-            nome:'Dragão Turbinódio — Ryuusazai', tipo:'Besta Mágica Imenso/Colossal, Mau — Sozinho', cat:'BESTA MÁGICA',
-            ca:'23 (Defesa Natural)', pv:'187 (9d20+30)', desl:'18m Terrestre', reacoes:null,
-            for:'30 (+10)',des:'17 (+3)',con:'30 (+10)',int:'10 (+0)',sab:'26 (+8)',car:'10 (+0)',
-            pericias:'Atletismo +13, Percepção +11', trs:'For +13, Sab +11',
+            id:'dragao_turbinidio_ryuusazai', nome:'Dragão Turbinídio — Ryuusazai', tipo:'Besta Mágica Imenso/Colossal, Mau — Sozinho', cat:'BESTA MÁGICA',
+            ca:'23 (Defesa Natural)', pv:'190 (19d20)', desl:'18m', reacoes:null,
+            for:'30 (+10)',des:'17 (+3)',con:'30 (+10)',int:'10 (+0)',sab:'26 (+8)',pre:'10 (+0)',
+            pericias:'Atletismo +13, Percepção +11', trs:'FOR +13, SAB +11',
             imunidades:'Assustado, Sangrando, Queimando, Atordoado', resistencias:null, vulnerabilidades:null,
             sentidos:null, lingua:'Desconhecida',
+            limiar:50,
             tracos:[
               {n:'Limiar de Dano',d:'Dano abaixo de 50 é insignificante.'},
               {n:'Cuspe Ácido',d:'Expele líquido ácido com dano corrosivo e necrótico. Recarrega 5-6 (1d6) no fim do turno.'}
@@ -834,10 +864,10 @@
             ]
           },
           {
-            nome:'Tamaugachi', tipo:'Monstruosidade Médio Modificado, Mau — Sozinho', cat:'MONSTRUOSIDADE',
-            ca:'18 (Defesa Natural)', pv:'86 (7d12+8)', desl:'12m', reacoes:'17',
-            for:'28 (+9)',des:'24 (+7)',con:'30 (+10)',int:'7 (-2)',sab:'30 (+10)',car:'4 (-3)',
-            pericias:'Atletismo +12, Acrobacia +10, Natureza +13, Percepção +13', trs:'Con +13, Sab +13',
+            id:'tamaugachi', nome:'Tamaugachi', tipo:'Monstruosidade Médio Modificado, Mau — Sozinho', cat:'MONSTRUOSIDADE',
+            ca:'18 (Defesa Natural)', pv:'84 (14d12)', desl:'12m', reacoes:'17',
+            for:'28 (+9)',des:'24 (+7)',con:'30 (+10)',int:'7 (-2)',sab:'30 (+10)',pre:'4 (-3)',
+            pericias:'Atletismo +12, Acrobacia +10, Natureza +1, Percepção +13', trs:'CON +13, SAB +13',
             imunidades:'Cego, Surdo, Atordoado, Envenenado', resistencias:null,
             vulnerabilidades:'Intimidação com REN.',
             sentidos:'Visão às Cegas', lingua:'Desconhecida',
@@ -851,3 +881,23 @@
             ]
           }
         ];
+
+// Confere a fórmula de PV do livro (N × X ÷ 2 + bônus) em todas as fichas.
+// Chame no console: window.validarPVBestiario()
+window.validarPVBestiario = function () {
+    const ruins = [];
+    (window.BESTIARY_DATA || []).forEach(function (m) {
+        const s = String(m.pv || '');
+        const mt = s.match(/^\s*(\d+)/);
+        const md = s.match(/\((\d+)d(\d+)\s*([+-]\s*\d+)?\)/);
+        if (!mt || !md) return;
+        const esperado = (parseInt(md[1]) * parseInt(md[2])) / 2
+            + (md[3] ? parseInt(md[3].replace(/\s/g, '')) : 0);
+        if (parseInt(mt[1]) !== esperado) {
+            ruins.push({ id: m.id, nome: m.nome, pv: m.pv, esperado: esperado });
+        }
+    });
+    if (!ruins.length) console.log('✓ PV: todas as ' + (window.BESTIARY_DATA || []).length + ' fichas fecham com N × X ÷ 2');
+    else console.warn('✗ PV fora da fórmula:', ruins);
+    return ruins;
+};
