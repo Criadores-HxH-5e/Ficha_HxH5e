@@ -342,7 +342,8 @@
                                     <div style="flex:1;min-width:0;font-size:9px;color:#60a5fa;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.nome}</div>
                                     <span style="flex-shrink:0;font-family:Orbitron,sans-serif;font-weight:900;font-size:11px;color:#60a5fa">+${r.total}</span>
                                 </div>
-                                <div style="font-size:8px;color:#4b5563;margin-top:1px">${r.formula} +${r.total} · ${r.fontes.map(f => f.nome + ' +' + f.valor).join(' · ')}</div>
+                                <div style="font-size:8px;color:#4b5563;margin-top:1px">${r.formula} +${r.total} · ${r.fontes.filter(f => !f.condicional).map(f => f.nome + ' +' + f.valor).join(' · ')}</div>
+                                ${r.fontes.filter(f => f.condicional).map(f => `<div style="font-size:8px;color:#fbbf24;margin-top:2px">+ ${f.nome} +${f.valor} — ${f.condicao} (aplicar na mão)</div>`).join('')}
                             </div>`).join('')}
                             <div style="font-size:8px;color:#4b5563;margin-bottom:8px">A rolagem da reação acontece na mesa online; estes bônus somam ao resultado dela.</div>`;
                         })()}
@@ -2419,8 +2420,11 @@
             const char = state.currentChar;
             const mod = window.calcAtributoEfetivo ? window.calcAtributoEfetivo(char, attrKey).mod : getMod((char.attributes[attrKey] || {}).value || 10);
             const pb = getProficiencyBonus(char.level);
+            // Instâncias e Inclinações de acerto (Observador, Decisiva) — o mesmo
+            // calcBonusAcerto que o Hatsu usa, para os dois caminhos não divergirem.
+            const _baW = window.calcBonusAcerto ? window.calcBonusAcerto(char) : { total: 0, fontes: [] };
             const attackRoll = getRollResult(mode || state.rollMode);
-            const attackTotal = attackRoll.total + mod + pb;
+            const attackTotal = attackRoll.total + mod + pb + _baW.total;
 
             // ── REN: escalona +N Grau(s) de dano deste golpe (Manual: cada 5% Aura = +1 grau/passo) ──
             const renGraus = Math.max(0, parseInt(grausRen) || 0);
