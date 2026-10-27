@@ -722,7 +722,6 @@ window.calcDuracaoHatsu = function (h, char) {
     rod += efeitos.filter(function (id) { return id === 'eg2'; }).length;  // Aumento de Duração
     if (restr.includes('rg_p2')) rod += 3;                                 // Boneca Russa
     if (restr.includes('rm_l3')) rod += 2;                                 // 1 Item por Combate
-    if (restr.includes('rc_l3')) rod += 2;                                 // Uma Invocação por Combate
     if (restr.includes('rma_l2')) rod += 1;                                // Dano Quebra o Efeito
     const _escolheuRod = function (id) {
         const v = String((h.beneficioChoices || {})[id] || '').toLowerCase();
@@ -730,7 +729,6 @@ window.calcDuracaoHatsu = function (h, char) {
     };
     if (restr.includes('rg_m10') && _escolheuRod('rg_m10')) rod += 2;      // Limite de Uso Definitivo
     if (restr.includes('rm_p2') && _escolheuRod('rm_p2')) rod += 2;        // Conjuração Controlável
-    if (restr.includes('rc_p2') && _escolheuRod('rc_p2')) rod += 2;        // Criatura Incontrolável
     const bc = h.beneficioChoices || {};
     if (restr.includes('rg_m13')) {
         const esc = String(bc.rg_m13 || '').toLowerCase();
@@ -2254,7 +2252,12 @@ function renderHatsuDetail(container) {
             if (escL14ca.includes('ca')) { caRestricoes += 2; caFontes.push({ nome: 'Objeto Canalizador (CA)', bonus: 2 }); }
         }
         // rev. — regra homebrew do projeto: além do RAW (13 + INT do usuário), o CON distribuído no
-        // constructo também soma na CA. Não conta quando a CA é null (material Gasoso não tem CA).
+        // constructo também soma na CA. Não conta quando a CA é null.
+        //
+        // O ramo de CA null é LEGADO e fica de propósito: 'Gasoso' saiu do seletor do jogador
+        // (Materialização é de sólidos — ver hatsu-creator.js), mas um Hatsu salvo antes dessa
+        // mudança pode ter 'Gasoso' em specialChoices. Sem este ramo, a ficha dele quebraria
+        // ao abrir. Não remova enquanto houver fichas antigas no Supabase.
         const caConBonus = atributosDist.CON;
         const caTotal = (caBaseNum === null) ? null : (caBaseNum + caEfeitos + caRestricoes + caConBonus);
 
@@ -2519,18 +2522,18 @@ function renderHatsuDetail(container) {
     if (window.hatsuDanoMaximizado && window.hatsuDanoMaximizado(h)) {
         areaBonus.push({ valor: null, fonte: 'Condição Hostil (área dobrada)', unidade: 'dobro' });
     }
-    if ((h.restricoes||[]).includes('rc_l3')) duracaoBonus.push({ valor: 2, fonte: 'Uma Invocação por Combate', unidade: 'rodada' });
+    // rm_l3 ("1 Item por Combate"): o +2 rodadas já era somado no cálculo, mas só o
+    // gêmeo rc_l3 aparecia aqui — o jogador via a duração certa sem a fonte listada.
+    if ((h.restricoes||[]).includes('rm_l3')) duracaoBonus.push({ valor: 2, fonte: '1 Item por Combate', unidade: 'rodada' });
     if ((h.restricoes||[]).includes('rma_l2')) duracaoBonus.push({ valor: 1, fonte: 'Dano Quebra o Efeito', unidade: 'rodada' });
     // Benefício de escolha: "+2 Rodadas ou −15% de aura"
     if ((h.restricoes||[]).includes('rg_m10') && _escolheuRodadas('rg_m10')) {
         duracaoBonus.push({ valor: 2, fonte: 'Limite de Uso Definitivo (Rodadas)', unidade: 'rodada' });
     }
     // Benefícios de escolha múltipla que incluem duração
-    ['rm_p2', 'rc_p2'].forEach(function (id) {
-        if ((h.restricoes||[]).includes(id) && _escolheuRodadas(id)) {
-            duracaoBonus.push({ valor: 2, fonte: (id === 'rm_p2' ? 'Conjuração Controlável' : 'Criatura Incontrolável') + ' (Duração)', unidade: 'rodada' });
-        }
-    });
+    if ((h.restricoes||[]).includes('rm_p2') && _escolheuRodadas('rm_p2')) {
+        duracaoBonus.push({ valor: 2, fonte: 'Conjuração Controlável (Duração)', unidade: 'rodada' });
+    }
     // Condição Alheia ou Simbiótica: +4 rodadas POR MEMBRO — quantidade definida na mesa
     if ((h.restricoes||[]).includes('rg_e1') && _escolheuRodadas('rg_e1')) {
         duracaoBonus.push({ valor: null, fonte: 'Condição Alheia ou Simbiótica (+4 rodadas por membro)', unidade: 'variável' });
