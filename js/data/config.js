@@ -933,6 +933,42 @@ window.calcBonusReacao = function (char, k) {
         else if (temAcro) add('Defensiva Reativa Ágil (proficiência dobrada)', pb, 'Acrobacia proficiente: 1× → 2×');
     }
 
+    // Mestre do Fluxo, nível 2: "1x por rodada, qualquer reação sua possui +2 no
+    // resultado." É CONDICIONAL (uma vez por rodada), então NÃO entra no total —
+    // somar automático daria +2 em toda reação da rodada. Sai como fonte marcada
+    // `condicional`, para a ficha mostrar "disponível" e o jogador aplicar na que
+    // escolher. Mesma ideia das fontes desligadas do modal de Dano Recebido.
+    if ((parseInt(inst.mestre_do_fluxo) || 0) >= 2) {
+        fontes.push({ nome: 'Instância Mestre do Fluxo', valor: 2, condicional: true,
+            condicao: '1× por rodada, na reação que você escolher' });
+    }
+
+    return { total: total, fontes: fontes };
+};
+
+// ── Bônus nas jogadas de ACERTO vindos de Instâncias e Inclinações ───────────
+// Até aqui o acerto só somava bônus de restrições e efeitos do Hatsu (o ACERTO_BNF_MAP
+// em hatsu-detail.js). Instância e Inclinação não chegavam a nenhuma jogada — era a
+// lacuna "Acerto não lê combatInclinations" do backlog.
+// Vale para o ataque com arma E para o Hatsu, por isso fica aqui e não no detalhe.
+window.calcBonusAcerto = function (char) {
+    const fontes = [];
+    let total = 0;
+    if (!char) return { total: 0, fontes: fontes };
+    const add = function (nome, valor, condicao) {
+        if (!(valor > 0)) return;
+        total += valor;
+        fontes.push({ nome: nome, valor: valor, condicao: condicao || '' });
+    };
+
+    // Instância Observador, nível 1: "+3 para acertar."
+    const inst = char.instancias || {};
+    if ((parseInt(inst.observador) || 0) >= 1) add('Instância Observador', 3);
+
+    // Inclinação Decisiva, Básico: "+2 no acerto."
+    const ci = char.combatInclinations || {};
+    if ((parseInt(ci.decisiva) || 0) >= 1) add('Decisiva (Básico)', 2);
+
     return { total: total, fontes: fontes };
 };
 

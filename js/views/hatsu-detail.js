@@ -1834,6 +1834,17 @@ function renderHatsuDetail(container) {
     let acertoVantagem = false;
     const acertoBonusSources = [];
 
+    // Instâncias e Inclinações: calcBonusAcerto (config.js) vale para o Hatsu e para
+    // o ataque com arma, então mora fora deste arquivo. Até aqui o acerto só lia o
+    // ACERTO_BNF_MAP (restrições e efeitos do Hatsu) e ignorava as duas.
+    if (window.calcBonusAcerto) {
+        const _ba = window.calcBonusAcerto(char);
+        if (_ba.total > 0) {
+            acertoBonus += _ba.total;
+            _ba.fontes.forEach(function (f) { acertoBonusSources.push({ nome: f.nome, bonus: f.valor }); });
+        }
+    }
+
     [...restricoesSel, ...efeitosSel].forEach(item => {
         // Bônus fixos
         const bonus = ACERTO_BNF_MAP[item.id];

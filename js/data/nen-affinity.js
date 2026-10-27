@@ -408,7 +408,13 @@ window.calcTenRD = function(char) {
     if (!lvl) return 0;
     const base = lvl === 1 ? 2 : lvl === 2 ? 4 : 6;
     const extra = lvl === 3 ? Math.min(7, d.ten_pn || 0) : 0;
-    return base + extra;
+    // Instância Combatente Tanque, nível 1: "+5 na RD do seu TEN". Entra aqui e não
+    // em calcFontesRD porque é a RD DO TEN que cresce — assim o número certo já sai
+    // em todo lugar que consulta o TEN, inclusive na fonte "TEN (ativo)" do modal de
+    // Dano Recebido. Exige TEN treinado: sem TEN não há RD para aumentar.
+    const inst = ((char && char.instancias) || {});
+    const tanque = (parseInt(inst.combatente_tanque) || 0) >= 1 ? 5 : 0;
+    return base + extra + tanque;
 };
 
 // REN: grau/passo de dano (sempre ativo a partir do Básico) + testes de Intimidação/Arcanismo-Religião
