@@ -1223,6 +1223,97 @@ function renderHatsuCreator(container) {
                         + '</div>';
                 }
 
+                // ── rm_e7: Cópia Perfeita — QUAL criatura está sendo copiada ───────────────
+                // Liga a ficha ao Manual de Monstros pelo `id` da criatura, que foi adicionado
+                // ao bestiário exatamente para isso. Guarda o id, nunca o nome: renomear a
+                // criatura no livro não pode quebrar o Hatsu salvo.
+                // Repetível, então um seletor por cópia ('rm_e7', 'rm_e7#1'…).
+                // Objeto/arma simples não vem do bestiário — fica a opção "objeto", que
+                // libera o campo de texto livre.
+                if (item.id === 'rm_e7') {
+                    const _cop7 = [].concat(hb.eg || [], hb.ec || []).filter(function (x) { return x === 'rm_e7'; }).length;
+                    const _grupos = window.bestiarioPorCategoria ? window.bestiarioPorCategoria() : {};
+                    const _cats = Object.keys(_grupos).sort();
+                    let _blocos7 = '';
+                    for (let _i = 0; _i < Math.max(1, _cop7); _i++) {
+                        const _ch7 = window.chaveCopiaPerfeita(_i);
+                        const _sel7 = specialChoices[_ch7] || '';
+                        const _ehObj = _sel7 === 'objeto';
+                        const _cri = (!_ehObj && _sel7 && window.criaturaPorId) ? window.criaturaPorId(_sel7) : null;
+                        const _chTxt = _ch7 + '_txt';
+                        _blocos7 += '<div style="' + (_i > 0 ? 'margin-top:8px;padding-top:8px;border-top:1px dashed ' + color + '33;' : '') + '">'
+                            + (Math.max(1, _cop7) > 1 ? '<div style="font-size:8px;font-weight:700;color:#9ca3af;margin-bottom:4px">Cópia ' + (_i + 1) + '</div>' : '')
+                            + '<select onchange="event.stopPropagation();window._hSetSpecialChoice(\'' + _ch7 + '\', this.value)" '
+                            + 'style="width:100%;box-sizing:border-box;background:#111827;border:1px solid #374151;border-radius:8px;padding:7px 9px;color:#fff;font-size:9px;outline:none">'
+                            + '<option value=""' + (!_sel7 ? ' selected' : '') + '>— escolha o que está sendo copiado —</option>'
+                            + '<option value="objeto"' + (_ehObj ? ' selected' : '') + '>🔨 Objeto ou arma simples (descrever)</option>'
+                            + _cats.map(function (cat) {
+                                return '<optgroup label="' + cat + '">'
+                                    + _grupos[cat].map(function (m) {
+                                        return '<option value="' + m.id + '"' + (_sel7 === m.id ? ' selected' : '') + '>'
+                                            + String(m.nome).replace(/</g, '&lt;') + '</option>';
+                                    }).join('')
+                                    + '</optgroup>';
+                            }).join('')
+                            + '</select>';
+                        if (_ehObj) {
+                            // Objeto não vem de banco nenhum: o jogador declara o original.
+                            // Tamanho + durabilidade dão o PV pela mesma tabela do constructo —
+                            // é o que o efeito chama de "durabilidade do material, PV, tamanho".
+                            // Os demais campos são texto livre porque descrevem um objeto
+                            // arbitrário, e a mesa valida.
+                            const _kT = _ch7 + '_tam', _kD = _ch7 + '_dur';
+                            const _tam = specialChoices[_kT] || '';
+                            const _dur = specialChoices[_kD] || '';
+                            const _pvObj = (_tam && _dur && window.pvObjetoCopiado) ? window.pvObjetoCopiado(_tam, _dur) : null;
+                            const _ordem = ((window.CONSTRUCTO_DB || {}).TAMANHO_ORDEM) || ['Minúsculo','Pequeno','Médio','Grande','Enorme','Colossal'];
+                            const _campo = function (chave, rot, ph) {
+                                return '<div style="margin-top:5px"><div style="font-size:8px;font-weight:700;color:#9ca3af;margin-bottom:2px">' + rot + '</div>'
+                                    + '<input type="text" value="' + String(specialChoices[chave] || '').replace(/"/g, '&quot;') + '" '
+                                    + 'placeholder="' + ph + '" onclick="event.stopPropagation()" '
+                                    + 'onchange="window._hSetSpecialText(\'' + chave + '\', this.value)" '
+                                    + 'style="width:100%;box-sizing:border-box;background:#111827;border:1px solid #374151;border-radius:8px;padding:6px 9px;color:#fff;font-size:9px;outline:none" /></div>';
+                            };
+                            _blocos7 += _campo(_chTxt, 'Objeto copiado', 'Ex.: katana de aço, escudo de madeira')
+                                + '<div style="display:flex;gap:5px;margin-top:5px">'
+                                + '<div style="flex:1"><div style="font-size:8px;font-weight:700;color:#9ca3af;margin-bottom:2px">Tamanho</div>'
+                                + '<select onchange="event.stopPropagation();window._hSetSpecialChoice(\'' + _kT + '\', this.value)" '
+                                + 'style="width:100%;box-sizing:border-box;background:#111827;border:1px solid #374151;border-radius:8px;padding:6px 8px;color:#fff;font-size:9px;outline:none">'
+                                + '<option value="">—</option>'
+                                + _ordem.map(function (t3) { return '<option value="' + t3 + '"' + (_tam === t3 ? ' selected' : '') + '>' + t3 + '</option>'; }).join('')
+                                + '</select></div>'
+                                + '<div style="flex:1"><div style="font-size:8px;font-weight:700;color:#9ca3af;margin-bottom:2px">Durabilidade</div>'
+                                + '<select onchange="event.stopPropagation();window._hSetSpecialChoice(\'' + _kD + '\', this.value)" '
+                                + 'style="width:100%;box-sizing:border-box;background:#111827;border:1px solid #374151;border-radius:8px;padding:6px 8px;color:#fff;font-size:9px;outline:none">'
+                                + '<option value="">—</option>'
+                                + '<option value="fragil"' + (_dur === 'fragil' ? ' selected' : '') + '>Frágil</option>'
+                                + '<option value="resistente"' + (_dur === 'resistente' ? ' selected' : '') + '>Resistente</option>'
+                                + '</select></div>'
+                                + '</div>'
+                                + (_pvObj
+                                    ? '<div style="font-size:8px;color:#4ade80;margin-top:4px">✓ PV copiado do original: <b>' + _pvObj + '</b> (' + _tam + ' · ' + (_dur === 'resistente' ? 'Resistente' : 'Frágil') + ')</div>'
+                                    : '<div style="font-size:8px;color:#fbbf24;margin-top:4px">⚠ Escolha tamanho e durabilidade para o PV ser copiado. Sem isso vale o mínimo.</div>')
+                                + _campo(_ch7 + '_dano', 'Tipo e natureza do dano', 'Ex.: cortante; mágico')
+                                + _campo(_ch7 + '_alc', 'Alcance e área', 'Ex.: corpo a corpo 1,5m')
+                                + _campo(_ch7 + '_res', 'Resistências do original', 'Ex.: resistente a fogo')
+                                + '<div style="font-size:8px;color:#6b7280;margin-top:5px;line-height:1.45">Para objeto o <b>PV é copiado</b>. Só o <b>valor</b> do dano e a <b>CA</b> ficam no mínimo ou no comprado — de dano copia-se o tipo, não o valor.</div>';
+                        } else if (_cri) {
+                            _blocos7 += '<div style="font-size:8px;color:#4ade80;margin-top:4px">✓ ' + _cri.nome
+                                + ' <span style="color:#6b7280">— ' + String(_cri.tipo || '').split(',')[0] + '</span></div>'
+                                + '<div style="font-size:8px;color:#6b7280;margin-top:2px">A ficha inteira é copiada na tela do Hatsu. Para criatura, Dano, CA e PV ficam no mínimo ou no comprado.</div>';
+                        } else if (_sel7) {
+                            _blocos7 += '<div style="font-size:8px;color:#f87171;margin-top:4px">⚠ Criatura não encontrada no bestiário (id "' + _sel7 + '"). Escolha de novo.</div>';
+                        } else {
+                            _blocos7 += '<div style="font-size:8px;color:#f87171;margin-top:4px">⚠ Escolha o alvo da cópia.</div>';
+                        }
+                        _blocos7 += '</div>';
+                    }
+                    specialHtml += '<div style="margin-top:8px;background:#0a0f1a;border:1px solid ' + color + '33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
+                        + '<div style="font-size:8px;font-weight:900;color:' + color + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">🧬 O que está sendo copiado</div>'
+                        + _blocos7
+                        + '</div>';
+                }
+
                 // ── ri_e1: Aumento de Atributo — escolher QUAL atributo, por cópia ──────────
                 // Onde o grau conta é consequência automática (ver aumentoAtributoPorTeto em
                 // hatsu-detail.js): se o atributo aumentado for o do ataque, consome teto de

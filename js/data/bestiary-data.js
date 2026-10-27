@@ -938,6 +938,27 @@
 
 // Confere a fórmula de PV do livro (N × X ÷ 2 + bônus) em todas as fichas.
 // Chame no console: window.validarPVBestiario()
+// ── Consulta por id ──────────────────────────────────────────────────────────
+// O id foi adicionado justamente para a Cópia Perfeita (rm_e7) poder guardar uma
+// referência estável à criatura. Nome não serve: renomear no livro quebraria o
+// vínculo de todo Hatsu salvo que aponta para ela.
+window.criaturaPorId = function (id) {
+    if (!id) return null;
+    return (window.BESTIARY_DATA || []).filter(function (m) { return m.id === id; })[0] || null;
+};
+
+// Criaturas agrupadas por categoria, para montar o <select> do picker.
+window.bestiarioPorCategoria = function () {
+    const out = {};
+    (window.BESTIARY_DATA || []).forEach(function (m) {
+        (out[m.cat || 'OUTROS'] = out[m.cat || 'OUTROS'] || []).push(m);
+    });
+    Object.keys(out).forEach(function (k) {
+        out[k].sort(function (a, b) { return String(a.nome).localeCompare(String(b.nome), 'pt-BR'); });
+    });
+    return out;
+};
+
 window.validarPVBestiario = function () {
     const ruins = [];
     (window.BESTIARY_DATA || []).forEach(function (m) {
