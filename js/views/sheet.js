@@ -722,13 +722,13 @@
 
                             const rBon = window.calcRenBonus(char);
                             const zBon = window.calcZetsuBonus(char);
-                            const tenAprimoramento = aprimoramentoBox('ten', Math.min(7, d.ten_pn||0), 7, null,
+                            const tenAprimoramento = aprimoramentoBox('ten', Math.min(window.PN_APRIMORAMENTO_MAX, d.ten_pn||0), window.PN_APRIMORAMENTO_MAX, null,
                                 `RD total: <b>+${window.calcTenRD(char)}</b> (Maestria +6, +1 por P.N extra)`);
-                            const renAprimoramento = aprimoramentoBox('ren', Math.min(7, d.ren_pn||0), 7,
+                            const renAprimoramento = aprimoramentoBox('ren', Math.min(window.PN_APRIMORAMENTO_MAX, d.ren_pn||0), window.PN_APRIMORAMENTO_MAX,
                                 { value: d.ren_opcao||1, labels: ['① Grau de Dano', '② Testes com REN'] },
                                 rBon.opcao===1 ? `Opção 1: Grau/Passo de dano corpo-a-corpo: <b>+${rBon.grau}</b>`
                                     : `Opção 2: Testes com REN: <b>+${rBon.teste}</b> (padrão) / <b>+${rBon.teste1x}</b> (1×dia sem gastar aura)`);
-                            const zetsuAprimoramento = aprimoramentoBox('zetsu', Math.min(7, d.zetsu_pn||0), 7,
+                            const zetsuAprimoramento = aprimoramentoBox('zetsu', Math.min(window.PN_APRIMORAMENTO_MAX, d.zetsu_pn||0), window.PN_APRIMORAMENTO_MAX,
                                 { value: d.zetsu_opcao||1, labels: ['① Recuperação', '② Furtividade'] },
                                 zBon.opcao===1 ? `Opção 1: Recuperação de Aura: <b>+${zBon.auraPct}%</b> por conclusão`
                                     : `Opção 2: Furtividade: <b>+${zBon.furtividade}</b>`);
@@ -761,41 +761,41 @@
                                     `Detecta forma/movimento em ${enB.diametro}m de diâmetro. Ataque de reação sem gastar Ação Principal contra quem entrar. +10% Aura e +2 Reações a cada +3m adicional. Funciona contra ilusões. Emissores mantêm por +1 turno sem custo extra.`,
                                     'REN 2 + TEN 1', ren>=2 && ten>=1,
                                     { effect: 'Dobra o alcance base e permite mudar o formato entre Círculo, Cone (+3m), Linha (+4,5m) ou Cilindro (+3m).',
-                                      aprimoramento: aprimoramentoBox('en', Math.min(8, d.en_pn||0), 8, { value: d.en_opcao||1, labels: ['① Menos Reações', '② Mais Alcance'] },
+                                      aprimoramento: aprimoramentoBox('en', Math.min(window.PN_APRIMORAMENTO_MAX, d.en_pn||0), window.PN_APRIMORAMENTO_MAX, { value: d.en_opcao||1, labels: ['① Menos Reações', '② Mais Alcance'] },
                                           enB.opcao===1 ? `Opção 1: Custo de Reações: <b>${enB.reacoes}</b> (mínimo 1)` : `Opção 2: Diâmetro do EN: <b>${enB.diametro.toFixed(1)}m</b>`) })}
                                 ${advancedCard('inp','IN — Ocultar','🌑','Princípio Avançado do Zetsu — esconde objeto/material feito de NEN. Só é revelado com GYO. 5% Aura por rodada (1 item em sua posse/domínio/controle).',
                                     `Oculta por ${inB.rodadas} rodada(s). Custa 10% (5% acima do padrão) para Reforçadores, Manipuladores e Especialistas.`,
                                     'ZETSU 2', zetsu>=2,
                                     { effect: 'Duração aumentada para 2 Rodadas.',
-                                      aprimoramento: aprimoramentoBox('inp', Math.min(8, d.inp_pn||0), 8, null, `Duração do IN: <b>${inB.rodadas}</b> rodada(s) (+1 a cada 2 P.N extra)`) })}
+                                      aprimoramento: aprimoramentoBox('inp', Math.min(window.PN_APRIMORAMENTO_MAX, d.inp_pn||0), window.PN_APRIMORAMENTO_MAX, null, `Duração do IN: <b>${inB.rodadas}</b> rodada(s) (+1 a cada 2 P.N extra)`) })}
                                 ${advancedCard('gyo','GYO — Focar','🧠','Aplicação avançada de REN+ZETSU concentrada em uma parte do corpo. 10% Aura nos olhos/ouvidos (vê aura e oculto por IN, +5 Investigação/Percepção) ou 30% Aura em outra parte do corpo.',
                                     `Aplicado no corpo: +${gyB.attrBonus} temporário em FOR, DES ou CON por 1 rodada (propriedade de Arma de Cerco). Ataques com GYO forçam TR de FOR ou CON (CD = valor do ataque) para não ser empurrado 6m — bloqueado por GYO, KEN ou RYU no defensor.`,
                                     'ZETSU 2 + REN Maestria', ren>=3 && zetsu>=2,
                                     { effect: '1) Cancela condição de golpe mirado ao usar GYO em bloqueio reativo, mesmo com o ataque acertando. 2) Multiplica distância/altura de salto em 1,5m × valor de FOR ou Atletismo.',
-                                      aprimoramento: aprimoramentoBox('gyo', Math.min(8, d.gyo_pn||0), 8, null, `Bônus de atributo com GYO: <b>+${gyB.attrBonus}</b> (+1 a cada 2 P.N extra)`) })}
+                                      aprimoramento: aprimoramentoBox('gyo', Math.min(window.PN_APRIMORAMENTO_MAX, d.gyo_pn||0), window.PN_APRIMORAMENTO_MAX, null, `Bônus de atributo com GYO: <b>+${gyB.attrBonus}</b> (+1 a cada 2 P.N extra)`) })}
                                 ${advancedCard('shu','SHU — Agregar/Proteger','⚡','Envolve um item/objeto (até 1m) em aura completa. 10% Aura → +1d4 Dano e CA por 1 rodada, protegido de efeitos físicos. +5% para equipamentos maiores; +5% adicional para aumentar CA/Dano, aplicar Arma de Cerco, +1 rodada de duração ou +1m de tamanho.',
                                     `Duração: ${shB.rodadas} rodada(s). Só pode ser destruído por Hatsu, SHU, KO ou RYU. Golpe com item em SHU é considerado mirado/preciso sem o ônus da mecânica. Emissores, Manipuladores e Reforçadores (adjacentes à Emissão) mantêm por +1 rodada por uso.`,
                                     'TEN Maestria', ten>=3,
                                     { effect: 'Gasta a mesma aura independente do tamanho do objeto e aumenta Dano e CA ao mesmo tempo.',
-                                      aprimoramento: aprimoramentoBox('shu', Math.min(8, d.shu_pn||0), 8, null, `Duração do SHU: <b>${shB.rodadas}</b> rodada(s) (+1 por P.N extra)`) })}
+                                      aprimoramento: aprimoramentoBox('shu', Math.min(window.PN_APRIMORAMENTO_MAX, d.shu_pn||0), window.PN_APRIMORAMENTO_MAX, null, `Duração do SHU: <b>${shB.rodadas}</b> rodada(s) (+1 por P.N extra)`) })}
 
                                 <div style="font-size:8px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px">🌟 TÉCNICAS AVANÇADAS</div>
                                 ${advancedCard('ken','KEN — Fortificar','🏰','Mantém REN fora do corpo todo com proteção de TEN, defendendo contra ataques de qualquer direção sem precisar de GYO.',
                                     `${keB.auraCusto}% Aura + ${keB.reacoes} Reações → dobra a CA por 2 rodadas (o dobro de aura/reações para triplicar). Também aplica RD de TEN contra dano de queda: CA iguala a altura = 50% menos dano; CA supera a altura = nenhum dano.`,
                                     'TEN Maestria + REN Maestria', ten>=3 && ren>=3,
                                     { effect: 'Gaste 1 P.N para escolher, por uso: (1) Triplicar o RD de TEN na Maestria (3×6=18) OU (2) +5 CA até o início do próximo turno.',
-                                      aprimoramento: aprimoramentoBox('ken', Math.min(8, d.ken_pn||0), 8, { value: d.ken_opcao||1, labels: ['① −5% Aura', '② −1 Reação'] },
+                                      aprimoramento: aprimoramentoBox('ken', Math.min(window.PN_APRIMORAMENTO_MAX, d.ken_pn||0), window.PN_APRIMORAMENTO_MAX, { value: d.ken_opcao||1, labels: ['① −5% Aura', '② −1 Reação'] },
                                           keB.opcao===1 ? `Opção 1: Custo de Aura: <b>${keB.auraCusto}%</b>` : `Opção 2: Custo de Reações: <b>${keB.reacoes}</b> (mínimo 1)`) })}
                                 ${advancedCard('ko','KO — Endurecer','🔥','Toda a aura concentrada em uma parte do corpo, com Zetsu no resto. 30% Aura → triplica o dano, mas reduz a CA em 80% até o início do próximo turno (não pode ser interrompido intencionalmente).',
                                     `CA cai para a faixa 2–6 conforme CA inicial${koB.caBonus>0?` <b>+${koB.caBonus}</b>`:''} (tabela de impacto).`,
                                     'REN Maestria + ZETSU Maestria + TEN 1', ren>=3 && zetsu>=3 && ten>=1,
                                     { effect: 'CA mínima após o uso passa a ser 10 (em vez da faixa 2–6).',
-                                      aprimoramento: aprimoramentoBox('ko', Math.min(8, d.ko_pn||0), 8, null, `Bônus na CA restante após KO: <b>+${koB.caBonus}</b> (+1 a cada 2 P.N extra)`) })}
+                                      aprimoramento: aprimoramentoBox('ko', Math.min(window.PN_APRIMORAMENTO_MAX, d.ko_pn||0), window.PN_APRIMORAMENTO_MAX, null, `Bônus na CA restante após KO: <b>+${koB.caBonus}</b> (+1 a cada 2 P.N extra)`) })}
                                 ${advancedCard('ryu','RYU — Fluir','🌊','GYO em tempo real em várias partes do corpo simultaneamente, para combate corpo-a-corpo e armas de arremesso. 30% Aura → acesso aos Exemplos 1–3 (Bônus em CA e Ataque+Dano).',
                                     `Após os 3 turnos iniciais, escolha livremente entre as linhas restantes de qualquer tabela disponível, sem repetir uma linha da mesma tabela. Consome Reações para contra-ataques sem perder Ação Principal.`,
                                     'TEN + REN + ZETSU Maestria', ten>=3 && ren>=3 && zetsu>=3,
                                     { effect: 'Desbloqueia os Exemplos 4, 5 e 6 de RYU, que concedem Reações Extras.',
-                                      aprimoramento: aprimoramentoBox('ryu', Math.min(8, d.ryu_pn||0), 8, null, `Bônus em todos os valores das tabelas de RYU: <b>+${ryB.tabelaBonus}</b> (+1 a cada 2 P.N extra)`),
+                                      aprimoramento: aprimoramentoBox('ryu', Math.min(window.PN_APRIMORAMENTO_MAX, d.ryu_pn||0), window.PN_APRIMORAMENTO_MAX, null, `Bônus em todos os valores das tabelas de RYU: <b>+${ryB.tabelaBonus}</b> (+1 a cada 2 P.N extra)`),
                                       extraHtml: ryuTablesHtml })}
                             </div>`;
                         })()}
