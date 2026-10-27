@@ -1314,6 +1314,111 @@ function renderHatsuCreator(container) {
                         + '</div>';
                 }
 
+                // ── ri_e29: Dano Fragilizante — acumula ao repetir a mesma opção ───────────
+                // Comprar a+b+c dá os três ao mesmo tempo; comprar a MESMA duas vezes
+                // soma linearmente (duas de "−2 nos ataques" = −4). Por isso tem picker
+                // próprio em vez de entrar no bloco genérico: o rótulo mostra o total
+                // acumulado, para o jogador ver a soma antes de gastar o P.N.
+                if (item.id === 'ri_e29') {
+                    const _cop29 = [].concat(hb.eg || [], hb.ec || []).filter(function (x) { return x === 'ri_e29'; }).length;
+                    const _opc29 = window.DANO_FRAGILIZANTE_OPCOES || [];
+                    const _sel29 = [];
+                    for (let _i = 0; _i < _cop29; _i++) _sel29.push(specialChoices[window.chaveDanoFragilizante(_i)] || '');
+                    const _vezes29 = function (id, exceto) {
+                        let n = 0;
+                        _sel29.forEach(function (v, k) { if (v === id && k !== exceto) n++; });
+                        return n;
+                    };
+                    let _blocos29 = '';
+                    for (let _i = 0; _i < Math.max(1, _cop29); _i++) {
+                        const _ch29 = window.chaveDanoFragilizante(_i);
+                        const _at29 = _sel29[_i] || '';
+                        _blocos29 += '<div style="' + (_i > 0 ? 'margin-top:8px;padding-top:8px;border-top:1px dashed ' + color + '33;' : '') + '">'
+                            + (Math.max(1, _cop29) > 1 ? '<div style="font-size:8px;font-weight:700;color:#9ca3af;margin-bottom:4px">Compra ' + (_i + 1) + '</div>' : '')
+                            + '<div style="display:flex;gap:5px;flex-wrap:wrap">'
+                            + _opc29.map(function (o) {
+                                const active = _at29 === o.id;
+                                const n = _vezes29(o.id, _i) + 1;
+                                const total = o.base * n;
+                                const st = 'flex:1;min-width:104px;padding:7px 6px;border-radius:8px;font-size:9px;font-weight:900;cursor:pointer;text-align:center;border:1.5px solid '
+                                    + (active ? color : '#374151') + ';background:' + (active ? color + '22' : 'transparent')
+                                    + ';color:' + (active ? color : '#9ca3af');
+                                return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\'' + _ch29 + '\',\'' + o.id + '\')" style="' + st + '">'
+                                    + (active ? '✓ ' : '') + '−' + total
+                                    + '<div style="font-size:8px;font-weight:700;color:' + (active ? color : '#6b7280') + '">' + o.alvo + '</div>'
+                                    + (n > 1 ? '<div style="font-size:7px;font-weight:600;color:#fbbf24">' + n + ' compras</div>' : '')
+                                    + '</button>';
+                            }).join('')
+                            + '</div>'
+                            + (_at29
+                                ? (function () {
+                                    const o = window.danoFragilizantePorId(_at29);
+                                    const n = _vezes29(_at29, _i) + 1;
+                                    return '<div style="font-size:8px;color:#4ade80;margin-top:4px">✓ −' + (o ? o.base * n : 0) + ' ' + (o ? o.alvo : '')
+                                        + (n > 1 ? ' <span style="color:#9ca3af">(' + n + ' compras acumuladas)</span>' : '') + '</div>';
+                                })()
+                                : '<div style="font-size:8px;color:#f87171;margin-top:4px">⚠ Escolha o que este P.N provoca.</div>')
+                            + '</div>';
+                    }
+                    specialHtml += '<div style="margin-top:8px;background:#0a0f1a;border:1px solid ' + color + '33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
+                        + '<div style="font-size:8px;font-weight:900;color:' + color + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">💥 O que o dano acima de 20 provoca?</div>'
+                        + '<div style="font-size:8px;color:#6b7280;margin-bottom:7px;line-height:1.45">Só dispara em ataques que causem MAIS de 20 de dano. Comprando opções diferentes, todas valem juntas; repetindo a mesma, o valor acumula.</div>'
+                        + _blocos29
+                        + '</div>';
+                }
+
+                // ── Escolhas simples de Reforço (uma opção por compra) ─────────────────────
+                // Quatro efeitos de Reforço oferecem escolha e nenhum tinha picker: o
+                // jogador comprava e a opção ficava só na cabeça dele. Todos usam o mesmo
+                // formato de botões, uma linha por compra (os quatro são repetíveis).
+                // Chaves: 'ri_eNN' na 1ª compra, 'ri_eNN#1', '#2'… nas extras.
+                const _ESCOLHAS_REFORCO = {
+                    // 10 RD contra UM tipo de dano. A escolha é lida pelo calcFontesRD,
+                    // que monta a fonte de Redução de Dano com a condição certa.
+                    ri_e25: { icone: '🛡', titulo: 'Contra qual tipo de dano?',
+                        nota: 'Concede 10 de RD contra o tipo escolhido.',
+                        opcoes: ['Explosivo', 'Balístico', 'Mortal'] },
+                    // O nome do efeito no livro é "Socos e Chutes: a) Perfurante b) Atordoante".
+                    ri_e14: { icone: '👊', titulo: 'Socos e Chutes',
+                        nota: 'Perfurante: golpes com os punhos ganham a propriedade. Atordoante: aplica Atordoado ao tirar 18+ no acerto.',
+                        opcoes: ['Perfurante', 'Atordoante'] },
+                    // São dois efeitos alternativos sob o mesmo nome, não variações.
+                    ri_e28: { icone: '🤝', titulo: 'Trabalho em Equipe ou Simbiose?',
+                        nota: 'Trabalho em Equipe usa 10% da aura de aliados. Simbiose concede a um objeto ou criatura até 2 pontos de atributo, Reações ou 5% de aura.',
+                        opcoes: ['Trabalho em Equipe', 'Simbiose'] },
+                };
+                if (_ESCOLHAS_REFORCO[item.id]) {
+                    const _cfg = _ESCOLHAS_REFORCO[item.id];
+                    const _copR = [].concat(hb.eg || [], hb.ec || []).filter(function (x) { return x === item.id; }).length;
+                    const _kR = function (i) { return i > 0 ? (item.id + '#' + i) : item.id; };
+                    let _blocosR = '';
+                    for (let _i = 0; _i < Math.max(1, _copR); _i++) {
+                        const _ch = _kR(_i);
+                        const _at = specialChoices[_ch] || '';
+                        _blocosR += '<div style="' + (_i > 0 ? 'margin-top:8px;padding-top:8px;border-top:1px dashed ' + color + '33;' : '') + '">'
+                            + (Math.max(1, _copR) > 1 ? '<div style="font-size:8px;font-weight:700;color:#9ca3af;margin-bottom:4px">Compra ' + (_i + 1) + '</div>' : '')
+                            + '<div style="display:flex;gap:5px;flex-wrap:wrap">'
+                            + _cfg.opcoes.map(function (o) {
+                                const active = _at === o;
+                                const st = 'flex:1;min-width:92px;padding:7px 6px;border-radius:8px;font-size:9px;font-weight:900;cursor:pointer;text-align:center;border:1.5px solid '
+                                    + (active ? color : '#374151') + ';background:' + (active ? color + '22' : 'transparent')
+                                    + ';color:' + (active ? color : '#9ca3af');
+                                return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\'' + _ch + '\',\''
+                                    + o.replace(/'/g, "\\'") + '\')" style="' + st + '">' + (active ? '✓ ' : '') + o + '</button>';
+                            }).join('')
+                            + '</div>'
+                            + (_at
+                                ? '<div style="font-size:8px;color:#4ade80;margin-top:4px">✓ ' + _at + '</div>'
+                                : '<div style="font-size:8px;color:#f87171;margin-top:4px">⚠ Escolha uma opção.</div>')
+                            + '</div>';
+                    }
+                    specialHtml += '<div style="margin-top:8px;background:#0a0f1a;border:1px solid ' + color + '33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
+                        + '<div style="font-size:8px;font-weight:900;color:' + color + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">' + _cfg.icone + ' ' + _cfg.titulo + '</div>'
+                        + '<div style="font-size:8px;color:#6b7280;margin-bottom:7px;line-height:1.45">' + _cfg.nota + '</div>'
+                        + _blocosR
+                        + '</div>';
+                }
+
                 // ── ri_e30: Potencial Liberado — uma escolha POR P.N GASTO ─────────────────
                 // "Escolha um efeito da tabela por P.N gasto neste efeito. Comprar o MESMO
                 //  efeito aumenta seu grau/passo."

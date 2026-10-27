@@ -434,6 +434,54 @@ window.ID_DEDUP_CONJURACAO = {
 };
 
 
+// ── ri_e29 "Dano Fragilizante" (Reforço) ─────────────────────────────────────
+// "Um dano causado superior a 20 por ataque pode: a) reduzir a durabilidade da
+//  armadura do alvo em 3; b) aplicar −2 nos ataques do oponente; c) aplicar −2
+//  em reações defensivas."
+//
+// A escolha é NA COMPRA, e o efeito é repetível: comprando a+b+c o jogador recebe
+// os três ao mesmo tempo quando o dano passa de 20. Comprar a MESMA opção de novo
+// ACUMULA linearmente — duas compras de "−2 nos ataques" valem −4.
+//
+// Guarda o `id`, não o rótulo: a frase é longa e qualquer ajuste de texto no livro
+// quebraria as escolhas já salvas. O `base` fica aqui para a escala ser calculada
+// em um lugar só, em vez de extraída do texto.
+window.DANO_FRAGILIZANTE_OPCOES = [
+    { id: 'df_armadura', base: 3, alvo: 'na durabilidade da armadura do alvo',
+      rotulo: '−3 na durabilidade da armadura do alvo' },
+    { id: 'df_ataques',  base: 2, alvo: 'nos ataques do oponente',
+      rotulo: '−2 nos ataques do oponente' },
+    { id: 'df_reacoes',  base: 2, alvo: 'em reações defensivas',
+      rotulo: '−2 em reações defensivas' },
+];
+
+window.danoFragilizantePorId = function (id) {
+    return (window.DANO_FRAGILIZANTE_OPCOES || []).filter(function (o) { return o.id === id; })[0] || null;
+};
+
+window.chaveDanoFragilizante = function (i) { return i > 0 ? ('ri_e29#' + i) : 'ri_e29'; };
+
+// O que o Dano Fragilizante aplica neste Hatsu, já somado:
+// [{ opcao, vezes, total }] — uma entrada por opção escolhida, com o total acumulado.
+// Aceita o Hatsu salvo (h.efeitos) e o rascunho do criador (hb.eg + hb.ec).
+window.bonusDanoFragilizante = function (h) {
+    const ids = Array.isArray((h || {}).efeitos) ? h.efeitos : [].concat((h || {}).eg || [], (h || {}).ec || []);
+    const compras = ids.filter(function (id) { return id === 'ri_e29'; }).length;
+    const sc = (h || {}).specialChoices || {};
+    const vezes = {};
+    for (let i = 0; i < compras; i++) {
+        const v = sc[window.chaveDanoFragilizante(i)];
+        if (v) vezes[v] = (vezes[v] || 0) + 1;
+    }
+    const out = [];
+    (window.DANO_FRAGILIZANTE_OPCOES || []).forEach(function (o) {
+        const n = vezes[o.id] || 0;
+        if (n > 0) out.push({ opcao: o, vezes: n, total: o.base * n });
+    });
+    return out;
+};
+
+
 // ── ri_e30 "Potencial Liberado" (Reforço) ────────────────────────────────────
 // "Escolha um efeito da tabela de Potencial Liberado POR P.N GASTO neste efeito.
 //  Comprar o MESMO efeito da tabela aumenta seu grau/passo."
