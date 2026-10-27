@@ -71,6 +71,8 @@
             if (migrarBonusMaestria(char)) saveCharacter(char);
             // Dedup CONJURAÇÃO → MATERIALIZAÇÃO: converte restrições rc_* já salvas.
             if (migrarRestricoesConjuracao(char)) saveCharacter(char);
+            // eg4 (Efeito Alternativo): as 4 chaves passaram de nome para id.
+            if (migrarEg4ParaIds(char)) saveCharacter(char);
             // Aviso único da nova mecânica das Inclinações (só para quem já tinha pontos).
             setTimeout(function () { avisarRealocacaoInclinacoes(state.currentChar); }, 400);
             const clsData = SYSTEM_DB.classes.find(c => c.id === char.class);
@@ -1395,6 +1397,91 @@
             char.migracaoDedupConjuracao = true;
             // Retorna SEMPRE true, pelo mesmo motivo do migrarBonusMaestria: a flag
             // precisa ser gravada mesmo quando este personagem não tinha nenhum rc_*.
+            return true;
+        }
+
+        // ── eg4 (Efeito Alternativo): chaves de nome → id ──────────────────────────
+        // As 4 chaves do eg4 em specialChoices guardavam o NOME do efeito/restrição:
+        //   eg4            → efeito adicionado no modo
+        //   eg4_remove     → efeito removido no modo
+        //   eg4_restr_off  → restrições da raiz desligadas no modo
+        //   eg4_restr_add  → restrições exclusivas do modo
+        // Nome não é chave confiável: "Sem Movimento no Turno" existe como rt_l2
+        // (TRANSMUTAÇÃO, +2 Grau/Passo de Alcance) e em_l2 (EMISSÃO, ignora cobertura
+        // total), com benefícios diferentes, e o find() devolvia sempre o primeiro.
+        // Os 165 efeitos do banco têm nome único, então os dois campos de efeito são
+        // conversão direta; só as restrições precisam desempatar.
+        // Sufixo '#N' é o modo (eg4_restr_off#1 = Modo C).
+        function migrarEg4ParaIds(char) {
+            if (!char || char.migracaoEg4Ids) return false;
+            const D = window.HATSU_DB;
+            if (!D) return false;
+
+            const efeitos = [].concat(D.efeitos_gerais || []);
+            const restr = [];
+            const catDeRestr = {};   // id da restrição → categoria onde vive ('' = geral)
+            const vistos = [];
+            Object.keys(D.categorias || {}).forEach(function (k) {
+                const cat = D.categorias[k];
+                if (!cat || vistos.indexOf(cat) >= 0) return;   // CONJURAÇÃO é alias
+                vistos.push(cat);
+                (cat.efeitos || []).forEach(function (e) { efeitos.push(e); });
+                (cat.restricoes || []).forEach(function (r) { restr.push(r); catDeRestr[r.id] = k; });
+            });
+            Object.keys(D.restricoes_gerais || {}).forEach(function (k) {
+                const g = D.restricoes_gerais[k];
+                if (Array.isArray(g)) g.forEach(function (r) { restr.push(r); catDeRestr[r.id] = ''; });
+            });
+
+            const idEfeito = {};     // nome → id (nomes de efeito são únicos)
+            efeitos.forEach(function (e) { if (!idEfeito[e.nome]) idEfeito[e.nome] = e.id; });
+            const idsRestr = {};     // nome → [ids] (pode ter mais de um)
+            restr.forEach(function (r) { (idsRestr[r.nome] = idsRestr[r.nome] || []).push(r.id); });
+            const existeRestr = {};
+            restr.forEach(function (r) { existeRestr[r.id] = true; });
+
+            // Resolve um valor salvo. Devolve o id, o próprio valor se já era id, ou
+            // null quando não há como desempatar — aí o botão aparece desmarcado e o
+            // jogador reescolhe, que é melhor que aplicar a restrição errada em silêncio.
+            const resolver = function (valor, h, ehOff) {
+                if (typeof valor !== 'string' || !valor) return null;
+                if (existeRestr[valor]) return valor;          // já migrado
+                const cands = idsRestr[valor] || [];
+                if (cands.length === 0) return valor;           // nome desconhecido: preserva
+                if (cands.length === 1) return cands[0];
+                if (ehOff) {
+                    // A restrição desligada está na raiz do Hatsu: isso desempata sempre.
+                    const naRaiz = cands.filter(function (id) {
+                        return (h.restricoes || []).indexOf(id) >= 0;
+                    });
+                    if (naRaiz.length === 1) return naRaiz[0];
+                }
+                // Restrição exclusiva do modo: desempata pela categoria do Hatsu.
+                const cats = [h.classe, h.tipoA, h.tipoB].filter(Boolean);
+                const daCat = cands.filter(function (id) { return cats.indexOf(catDeRestr[id]) >= 0; });
+                if (daCat.length === 1) return daCat[0];
+                return null;
+            };
+
+            (char.hatsus || []).forEach(function (h) {
+                const sc = h && h.specialChoices;
+                if (!sc || typeof sc !== 'object') return;
+                Object.keys(sc).forEach(function (k) {
+                    if (/^eg4(_remove)?(#\d+)?$/.test(k)) {
+                        const v = sc[k];
+                        if (typeof v === 'string' && v && idEfeito[v]) sc[k] = idEfeito[v];
+                        return;
+                    }
+                    if (/^eg4_restr_(off|add)(#\d+)?$/.test(k) && Array.isArray(sc[k])) {
+                        const ehOff = k.indexOf('_off') >= 0;
+                        sc[k] = sc[k].map(function (v) { return resolver(v, h, ehOff); })
+                                     .filter(function (v) { return v !== null; });
+                    }
+                });
+            });
+
+            char.migracaoEg4Ids = true;
+            // Retorna SEMPRE true, pelo mesmo motivo das outras migrações.
             return true;
         }
 
