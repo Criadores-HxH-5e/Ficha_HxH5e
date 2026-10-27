@@ -326,9 +326,38 @@
               {n:'Titereiro',d:'O Rato Rádio-Ativo manipula um constructo em formato de armadilha, que realiza ataques enquanto estiver sob seu controle. Veja a ficha a seguir.'}
             ],
             acoes:[
-              {n:'Ataques Múltiplos (Constructo)',d:'2 ataques por turno.'},
-              {n:'Golpe de Espada',d:'+6 para acertar, 1,5m, 1 alvo. Dano: 7 (1d6+3) cortante.'},
-              {n:'Golpe Desarmado',d:'+6 para acertar, 1,5m, 1 alvo. Dano: 7 (1d6+3) impacto.'}
+              {n:'Sem ataque próprio',d:'O Rato Rádio-Ativo não ataca. Os golpes vêm do Constructo do Rato Rádio-Ativo, que tem ficha separada e age pelo traço Titereiro.'}
+            ]
+          },
+          // O constructo tem ficha PRÓPRIA no livro, e não ataques dentro da ficha do rato:
+          // ele é alvo legítimo, com CA e PV atacáveis, e para de agir se o rato cair.
+          // Enquanto os golpes moravam na ficha do rato, a mesa não tinha o que atacar.
+          //
+          // É a primeira (e por ora única) ficha com seção "### Reações" no livro. Em vez de
+          // criar um campo novo no schema para uma criatura, a reação entra em `acoes` com o
+          // sufixo "(Reação)" no nome — fica legível na ficha e no texto do Discord sem mexer
+          // na interface. Se outras criaturas ganharem reações, aí vale um campo próprio.
+          {
+            id:'constructo_do_rato_radio_ativo', nome:'Constructo do Rato Rádio-Ativo', tipo:'Constructo, Grande, Neutro, Lacaio', cat:'BESTA DE NEN',
+            ca:'12 (Defesa Natural)', pv:'50 (5d20)', desl:'9m', reacoes:'2',
+            for:'18 (+4)',des:'11 (+0)',con:'16 (+3)',int:'1 (-5)',sab:'6 (-2)',pre:'1 (-5)',
+            pericias:null, trs:'FOR +7, CON +6',
+            imunidades:'Veneno, Psíquico / Cego, Encantado, Surdo, Exausto, Amedrontado, Paralisado, Petrificado, Envenenado, Abalado',
+            resistencias:'Corte, Perfuração, Impacto, Fogo, Frio, Elétrico, Ácido', vulnerabilidades:null,
+            sentidos:'Percepção às Cegas 18m (cego além desse alcance)', lingua:'Nenhuma. Entende as ordens do seu criador, mas não fala',
+            limiar:12,
+            naLicenca:'3', naEquipe:'2', recomendado:'2 Hunters de nível 3-5, com aura — o N.A. considera o par Rato + Constructo, não o constructo isolado',
+            tags:'⚠️ Lacaio — não existe sozinho; o N.A. vale para o par Rato + Constructo<br>⚠️ Atrasador — 18 de dano por rodada obriga a reagir, mas derrubá-lo não resolve o encontro<br>🎯 Conexão — derrotar o Rato (4 PV, CA 10) desliga o constructo; é o caminho pretendido<br>🛡️ Limiar 12 — golpe de arma comum e dano residual não arranham; é preciso concentrar dano<br>🛡️ Resistência a todo dano físico e elemental — aura e dano concentrado passam<br>✅ INT 1 — imune à condição Manipulado; não pode ser tomado do rato<br>🟡 VUL. TR SAB (-2) · 🟡 VUL. TR INT (-5) · 🟡 VUL. TR PRE (-5)',
+            tracos:[
+              {n:'Limiar Mínimo de Dano (12)',d:'Compare o dano bruto com o limiar: abaixo de 12 é superficial e não reduz pontos de vida. Só depois de passar o limiar aplique as Resistências.'},
+              {n:'Conexão',d:'Este constructo é controlado pelo traço Titereiro do Rato Rádio-Ativo. Se o rato for derrotado, fugir ou desmaiar, o constructo para de agir imediatamente e desaba.'},
+              {n:'Sem Mente',d:'O constructo não toma decisões próprias: age somente pelas ordens do Titereiro. Nunca age na rodada em que o rato está Atordoado, Inconsciente ou em Zetsu.'}
+            ],
+            acoes:[
+              {n:'Ataques Múltiplos',d:'O constructo ataca 2 vezes em seu turno.'},
+              {n:'Golpe de Espada (ou adaptado ao constructo)',d:'Ataque Corpo-a-Corpo: +7 para acertar, alcance 1,5m, 1 alvo. Dano médio 9 (1d10+4) de dano cortante.'},
+              {n:'Esmagar',d:'Ataque Corpo-a-Corpo: +7 para acertar, alcance 1,5m, 1 alvo. Dano médio 9 (1d10+4) de dano de impacto. Se acertar, o alvo faz TR de FOR 14 ou fica Caído.'},
+              {n:'Barreira Animada (Reação)',d:'Quando uma criatura sai do alcance do constructo, ele gasta 1 Reação para um ataque de Esmagar contra ela.'}
             ]
           },
           {
