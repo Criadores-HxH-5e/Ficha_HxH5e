@@ -856,6 +856,20 @@ window.calcAtributoEfetivo = function (char, attr) {
             bonusValor += n * 2;
             fontes.push({ nome: 'Aumento de Atributo (' + (h.nome || ('Hatsu ' + (i + 1))) + ')', valor: '+' + (n * 2) });
         }
+
+        // Potencial Liberado (ri_e30): Torso → CON, Troglodita → FOR, Cirurgião → DES.
+        // Mesma regra de ativação: é efeito de Hatsu, vale enquanto o Hatsu estiver
+        // ligado. O Paladar/Dicção (PRE) fica FORA daqui porque é condicional — sai
+        // em `condicionais` de bonusPotencialLiberado e aparece como nota, não no
+        // valor do atributo.
+        if (window.bonusPotencialLiberado) {
+            const pl = window.bonusPotencialLiberado(h);
+            const vPl = (pl.attrBonus || {})[attr] || 0;
+            if (vPl > 0) {
+                bonusValor += vPl;
+                fontes.push({ nome: 'Potencial Liberado (' + (h.nome || ('Hatsu ' + (i + 1))) + ')', valor: '+' + vPl });
+            }
+        }
     });
 
     const valor = base + bonusValor;
@@ -864,6 +878,29 @@ window.calcAtributoEfetivo = function (char, attr) {
         mod: Math.floor((valor - 10) / 2) + bonusMod,
         bonusValor: bonusValor, bonusMod: bonusMod, fontes: fontes,
     };
+};
+
+// ── Deslocamento efetivo ─────────────────────────────────────────────────────
+// char.vitals.desl guarda o deslocamento terrestre (9m por padrão) e até agora era
+// exibido cru, sem nenhum caminho de bônus. O Potencial Liberado "Velocista"
+// (ri_e30 → pl_perna_desl) soma +3m na 1ª escolha e +1,5m em cada recompra, e vale
+// enquanto o Hatsu estiver ativo — mesma regra do Aumento de Atributo.
+// Devolve as fontes junto, para a ficha poder mostrar de onde vem.
+window.calcDeslocamentoEfetivo = function (char) {
+    const base = ((char && char.vitals && char.vitals.desl) != null) ? char.vitals.desl : 9;
+    const fontes = [];
+    let bonus = 0;
+    const ativos = (char && char.hatsusAtivos) || {};
+    ((char && char.hatsus) || []).forEach(function (h, i) {
+        if (!ativos[i]) return;
+        if (!window.bonusPotencialLiberado) return;
+        const pl = window.bonusPotencialLiberado(h);
+        if (pl.deslocamento > 0) {
+            bonus += pl.deslocamento;
+            fontes.push({ nome: 'Potencial Liberado (' + (h.nome || ('Hatsu ' + (i + 1))) + ')', valor: '+' + String(pl.deslocamento).replace('.', ',') + 'm' });
+        }
+    });
+    return { base: base, bonus: bonus, total: base + bonus, fontes: fontes };
 };
 
 // Bônus de Nen em perícias específicas.

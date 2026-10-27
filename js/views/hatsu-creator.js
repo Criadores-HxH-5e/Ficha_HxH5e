@@ -1314,6 +1314,77 @@ function renderHatsuCreator(container) {
                         + '</div>';
                 }
 
+                // ── ri_e30: Potencial Liberado — uma escolha POR P.N GASTO ─────────────────
+                // "Escolha um efeito da tabela por P.N gasto neste efeito. Comprar o MESMO
+                //  efeito aumenta seu grau/passo."
+                // Então: uma linha de escolha por compra, e o valor que cada opção mostra é
+                // quanto ela valeria SE escolhida ali — contando as outras compras que já
+                // apontam para ela. Assim o jogador vê a escada antes de decidir.
+                // As 8 opções sem número (vantagem, imunidade, sentido, alcance dobrado) não
+                // melhoram com recompra: ficam marcadas e o aviso sai no clique.
+                if (item.id === 'ri_e30') {
+                    const _cop30 = [].concat(hb.eg || [], hb.ec || []).filter(function (x) { return x === 'ri_e30'; }).length;
+                    const _todos30 = window.potencialLiberadoTodos ? window.potencialLiberadoTodos() : [];
+                    // Quantas vezes cada opção já foi escolhida, por índice de compra.
+                    const _porCompra = [];
+                    for (let _i = 0; _i < _cop30; _i++) _porCompra.push(specialChoices[window.chavePotencialLiberado(_i)] || '');
+                    const _vezesDe = function (id, exceto) {
+                        let n = 0;
+                        _porCompra.forEach(function (v, k) { if (v === id && k !== exceto) n++; });
+                        return n;
+                    };
+                    let _blocos30 = '';
+                    for (let _i = 0; _i < _cop30; _i++) {
+                        const _ch30 = window.chavePotencialLiberado(_i);
+                        const _at30 = _porCompra[_i];
+                        const _obj30 = _at30 && window.potencialLiberadoPorId ? window.potencialLiberadoPorId(_at30) : null;
+                        const _grupos30 = ['Físico', 'Sentidos'];
+                        _blocos30 += '<div style="' + (_i > 0 ? 'margin-top:8px;padding-top:8px;border-top:1px dashed ' + color + '33;' : '') + '">'
+                            + '<div style="font-size:8px;font-weight:700;color:#9ca3af;margin-bottom:4px">P.N ' + (_i + 1) + '</div>'
+                            + '<select onchange="event.stopPropagation();window._hEscolherPotencialLiberado(\'' + _ch30 + '\', this.value)" '
+                            + 'style="width:100%;box-sizing:border-box;background:#111827;border:1px solid #374151;border-radius:8px;padding:7px 9px;color:#fff;font-size:9px;outline:none">'
+                            + '<option value=""' + (!_at30 ? ' selected' : '') + '>— escolha um efeito —</option>'
+                            + _grupos30.map(function (g) {
+                                const lista = _todos30.filter(function (o) { return o.grupo === g; });
+                                if (!lista.length) return '';
+                                return '<optgroup label="' + g + '">'
+                                    + lista.map(function (o) {
+                                        const rot = window.rotuloPotencialLiberado(o);
+                                        let sufixo = '';
+                                        if (window.potencialLiberadoMelhora(o)) {
+                                            const v = window.valorPotencialLiberado(o, _vezesDe(o.id, _i) + 1);
+                                            const un = o.aplica.grandeza === 'deslocamento' ? 'm' : '';
+                                            sufixo = '  (+' + String(v).replace('.', ',') + un + (o.aplica.attr ? ' ' + o.aplica.attr : '') + ')';
+                                        } else if (_vezesDe(o.id, _i) > 0) {
+                                            sufixo = '  (já escolhido — não melhora)';
+                                        }
+                                        return '<option value="' + o.id + '"' + (_at30 === o.id ? ' selected' : '') + '>' + rot + sufixo + '</option>';
+                                    }).join('')
+                                    + '</optgroup>';
+                            }).join('')
+                            + '</select>';
+                        if (_obj30) {
+                            const _vz = _vezesDe(_obj30.id, _i) + 1;
+                            const _melhora = window.potencialLiberadoMelhora(_obj30);
+                            const _val = _melhora ? window.valorPotencialLiberado(_obj30, _vz) : null;
+                            _blocos30 += '<div style="font-size:8px;color:#6b7280;margin-top:3px;line-height:1.45">' + _obj30.efeito + '</div>'
+                                + (_melhora
+                                    ? '<div style="font-size:8px;color:#4ade80;margin-top:3px">✓ ' + (_vz > 1 ? _vz + 'ª escolha desta opção → ' : '') + '+' + String(_val).replace('.', ',')
+                                        + (_obj30.aplica.grandeza === 'deslocamento' ? 'm de deslocamento' : (_obj30.aplica.attr ? ' em ' + _obj30.aplica.attr : ' nas reações'))
+                                        + (_obj30.aplica.condicao ? ' <span style="color:#fbbf24">(só em ' + _obj30.aplica.condicao + ')</span>' : '') + '</div>'
+                                    : '<div style="font-size:8px;color:#fbbf24;margin-top:3px">⚠ Benefício sem número — recomprar esta opção não melhora nada.</div>');
+                        } else {
+                            _blocos30 += '<div style="font-size:8px;color:#f87171;margin-top:3px">⚠ Este P.N ainda não foi gasto em nada.</div>';
+                        }
+                        _blocos30 += '</div>';
+                    }
+                    specialHtml += '<div style="margin-top:8px;background:#0a0f1a;border:1px solid ' + color + '33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
+                        + '<div style="font-size:8px;font-weight:900;color:' + color + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">💪 Potencial Liberado — 1 escolha por P.N</div>'
+                        + _blocos30
+                        + '<div style="font-size:8px;color:#6b7280;margin-top:6px">Escolher a MESMA opção de novo sobe o grau/passo: atributo +1, deslocamento +1,5m, reações +1. Os benefícios valem enquanto o Hatsu estiver ativo.</div>'
+                        + '</div>';
+                }
+
                 // ── ri_e1: Aumento de Atributo — escolher QUAL atributo, por cópia ──────────
                 // Onde o grau conta é consequência automática (ver aumentoAtributoPorTeto em
                 // hatsu-detail.js): se o atributo aumentado for o do ataque, consome teto de
@@ -3531,6 +3602,34 @@ window._hSetTag = function (tagId) {
     hb.tag = tagId;
     // A aba de efeitos de Maldição só existe com a tag M; sair dela volta para Gerais.
     if (tagId !== 'M' && hb.efTab === 'maldicao') hb.efTab = 'gerais';
+    renderHatsuInPlace();
+};
+
+// ── ri_e30: escolhe uma opção de Potencial Liberado para um P.N ──────────────
+// Avisa quando a opção escolhida já foi comprada E não melhora com recompra —
+// o jogador estaria gastando um P.N em nada. O aviso não bloqueia: pode ser
+// escolha deliberada (um mestre liberando, ou um ajuste em andamento).
+window._hEscolherPotencialLiberado = function (chave, id) {
+    const hb = state.hatsuBuilder; if (!hb) return;
+    if (!hb.specialChoices) hb.specialChoices = {};
+    if (id) {
+        const obj = window.potencialLiberadoPorId ? window.potencialLiberadoPorId(id) : null;
+        if (obj && !window.potencialLiberadoMelhora(obj)) {
+            // Conta as OUTRAS compras que já apontam para esta mesma opção.
+            const total = [].concat(hb.eg || [], hb.ec || []).filter(function (x) { return x === 'ri_e30'; }).length;
+            let jaTem = 0;
+            for (let i = 0; i < total; i++) {
+                const k = window.chavePotencialLiberado(i);
+                if (k !== chave && hb.specialChoices[k] === id) jaTem++;
+            }
+            if (jaTem > 0) {
+                alert('Potencial Liberado — sem melhoria\n\n"' + window.rotuloPotencialLiberado(obj)
+                    + '" não tem valor numérico, então comprar de novo NÃO aumenta nada.\n\n'
+                    + obj.efeito + '\n\nEste P.N seria gasto sem efeito. Considere outra opção da tabela.');
+            }
+        }
+    }
+    hb.specialChoices[chave] = id;
     renderHatsuInPlace();
 };
 
