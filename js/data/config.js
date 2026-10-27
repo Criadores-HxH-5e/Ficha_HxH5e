@@ -946,6 +946,60 @@ window.calcBonusReacao = function (char, k) {
     return { total: total, fontes: fontes };
 };
 
+// ── Margem de acerto crítico ─────────────────────────────────────────────────
+// O app não tinha esse campo, e três coisas do livro mexem nele — nenhuma valia:
+//   ri_e9 Aura Afiada (Reforço)  "Reduz a margem em 1 (máx. 2 usos)"
+//   Instância Assassino Veterano N2  "Crítico em 18+"
+//   Instância Executor N1  "+1 na margem (19, ou 18 se a arma já tiver Crítico)"
+// Base 20 e PISO 18: acumular nunca desce abaixo disso.
+// A do Executor é CONDICIONAL — vale só no golpe decisivo, não em todo ataque —,
+// então sai em `condicionais` e não entra no valor, como o Mestre do Fluxo nas
+// reações. A Aura Afiada é efeito de Hatsu: só conta com o Hatsu ativo.
+window.MARGEM_CRITICO_BASE = 20;
+window.MARGEM_CRITICO_PISO = 18;
+
+window.calcMargemCritico = function (char) {
+    const base = window.MARGEM_CRITICO_BASE;
+    const piso = window.MARGEM_CRITICO_PISO;
+    const fontes = [];
+    const condicionais = [];
+    if (!char) return { valor: base, base: base, piso: piso, fontes: fontes, condicionais: condicionais };
+    let reducao = 0;
+
+    // ri_e9 Aura Afiada: −1 por compra, teto de 2 usos, só com o Hatsu ativo.
+    const ativos = char.hatsusAtivos || {};
+    (char.hatsus || []).forEach(function (h, i) {
+        if (!ativos[i] || !h) return;
+        const n = Math.min(2, (h.efeitos || []).filter(function (id) { return id === 'ri_e9'; }).length);
+        if (n > 0) {
+            reducao += n;
+            fontes.push({ nome: 'Aura Afiada (' + (h.nome || ('Hatsu ' + (i + 1))) + ')', valor: n });
+        }
+    });
+
+    // Instância Assassino Veterano, nível 2: "Crítico em 18+" — valor absoluto, que
+    // com o piso 18 equivale a −2. Fica como −2 para somar com as outras fontes.
+    const inst = char.instancias || {};
+    if ((parseInt(inst.assassino_veterano) || 0) >= 2) {
+        reducao += 2;
+        fontes.push({ nome: 'Instância Assassino Veterano', valor: 2 });
+    }
+
+    // Instância Executor, nível 1: só no golpe decisivo.
+    if ((parseInt(inst.executor) || 0) >= 1) {
+        condicionais.push({ nome: 'Instância Executor', valor: 1, condicao: 'só no golpe decisivo' });
+    }
+
+    const valor = Math.max(piso, base - reducao);
+    return {
+        valor: valor, base: base, piso: piso,
+        reducao: reducao,
+        // Quanto foi perdido para o piso, para a ficha poder avisar.
+        perdidoNoPiso: Math.max(0, (base - reducao) < piso ? piso - (base - reducao) : 0),
+        fontes: fontes, condicionais: condicionais,
+    };
+};
+
 // ── Bônus nas jogadas de ACERTO vindos de Instâncias e Inclinações ───────────
 // Até aqui o acerto só somava bônus de restrições e efeitos do Hatsu (o ACERTO_BNF_MAP
 // em hatsu-detail.js). Instância e Inclinação não chegavam a nenhuma jogada — era a
