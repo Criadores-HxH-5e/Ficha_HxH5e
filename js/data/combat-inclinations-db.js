@@ -470,7 +470,10 @@ window.COMBAT_INCLINATIONS_DB = [
     id: 'trapaceira',
     auraEtq: [['ZETSU'], ['ZETSU'], null],
     nome: 'Trapaceira',
-    etiquetas: ['ZETSU', 'REN'],
+    // A etiqueta REN saiu: os dois blocos "Com aura" da Trapaceira são de ZETSU, então
+    // REN não liberava nível nenhum e aparecia no card sem servir para nada. Removida
+    // também do livro.
+    etiquetas: ['ZETSU'],
     tiers: [
       'Seus golpes desarmados e armas Leves ganham a propriedade Finta/Oculto. Se a arma já tiver essa propriedade, você tem vantagem no teste da Finta.',
       '1x por rodada, com a Ação Bônus, faça um truque contra um alvo a até 1,5 m: jogue areia nos olhos, puxe a roupa, finja um golpe. Teste de Enganação contra a Percepção ou Intuição do alvo (escolha dele). Se vencer, escolha: o alvo fica Desprevenido até o fim do seu turno; ou você pega ou derruba um item que ele segura com uma mão.',

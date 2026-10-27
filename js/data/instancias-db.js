@@ -100,13 +100,20 @@ window.INST_GRUPO_OFENSIVA  = ['ofensiva_agil', 'ofensiva_bruta', 'ofensiva_prec
         {
             id: 'estrategista',
             nome: 'Estrategista',
-            // O livro pede "Tática Intermediária e (Analítica, Experiente ou Perceptiva
-            // Básica)", mas a inclinação "Tática" não existe no capítulo nem no app.
-            // Tratado como errata: vale só o segundo grupo. NÃO reintroduzir Tática aqui
-            // sem que ela exista em COMBAT_INCLINATIONS_DB, senão a Instância fica
-            // impossível de comprar.
-            reqTexto: 'Analítica, Experiente ou Perceptiva Básica. (O livro cita "Tática Intermediária", inclinação que não existe no capítulo — tratado como errata.)',
-            requisitos: umDe(['analitica', 'experiente', 'perceptiva'], 1),
+            // Requisito do livro: "Tática Intermediária E (Analítica, Experiente ou
+            // Perceptiva Básica)". A inclinação Tática está pendente de escrita no
+            // capítulo, e por decisão do Lucas (27/10) o requisito do livro entra como
+            // está — com a consequência aceita: enquanto `tatica` não existir em
+            // COMBAT_INCLINATIONS_DB, NINGUÉM consegue treinar Estrategista, porque o
+            // primeiro item do E nunca é satisfeito.
+            // Quem JÁ tem a Instância em char.instancias não perde nada: o requisito
+            // governa a compra, não o uso. E quando a Tática entrar no banco com os seus
+            // 3 níveis, isto passa a funcionar sem nenhuma alteração aqui.
+            reqTexto: 'Tática Intermediária e (Analítica, Experiente ou Perceptiva Básica). ⚠ A inclinação Tática ainda não existe no capítulo: até ela ser escrita, esta Instância fica indisponível.',
+            requisitos: E(
+                inc('tatica', 2),
+                umDe(['analitica', 'experiente', 'perceptiva'], 1)
+            ),
             niveis: [
                 'Depois de rolar a iniciativa, troque sua posição na ordem com a de um aliado disposto.',
                 'Quando um aliado a até 9 m que possa te ouvir for atacado, use sua Reação para dar vantagem na Reação dele contra esse ataque.',

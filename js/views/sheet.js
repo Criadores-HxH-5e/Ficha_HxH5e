@@ -369,6 +369,14 @@
                     const _desarmadoMarcial = _FEATS_1D6.indexOf(String(_featNome).trim()) >= 0;
                     const _danoDesarmado = _desarmadoMarcial ? '1d6' : '1d4';
                     const attacksList = [{ nome: 'Ataque Desarmado' + (_desarmadoMarcial ? ' (Marcial)' : ''), dano: _danoDesarmado, tipoDano: 'Impacto', tags: [] }, ...weapons];
+                    // Margem de crítico: quadradinho em cada linha de ataque. Fica amarelo
+                    // quando algo reduziu a margem, cinza no 20 natural.
+                    const _mc = window.calcMargemCritico ? window.calcMargemCritico(char) : { valor: 20, base: 20, piso: 18, fontes: [], condicionais: [], perdidoNoPiso: 0 };
+                    const _mcCor = _mc.valor < _mc.base ? '#fbbf24' : '#4b5563';
+                    const _mcHtml = `<div style="flex-shrink:0;width:34px;text-align:center;background:#0d1117;border:1px solid ${_mcCor}44;border-radius:7px;padding:3px 0" title="Margem de acerto crítico (piso ${_mc.piso})">
+                        <div style="font-size:7px;font-weight:900;color:${_mcCor};letter-spacing:.5px">CRÍT</div>
+                        <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:11px;color:${_mc.valor < _mc.base ? '#fbbf24' : '#9ca3af'}">${_mc.valor}+</div>
+                    </div>`;
                     const rows = attacksList.map(w => {
                         const tagsHtml = (w.tags || []).slice(0, 2).map(t => `<span style="font-size:7px;background:#111827;color:#6b7280;padding:1px 5px;border-radius:3px;border:1px solid #1f2937">${t}</span>`).join('');
                         const safeNome = w.nome.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
@@ -380,10 +388,21 @@
                                 <div style="display:flex;gap:3px;margin-top:2px;flex-wrap:wrap">${tagsHtml}</div>
                             </div>
                             <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:12px;color:#f87171;flex-shrink:0;margin:0 4px">${w.dano}</div>
+                            ${_mcHtml}
                             <button onclick="openAttackModal('${safeNome}','${safeDano}','${safeTipo}')" style="flex-shrink:0;background:#ef444422;border:1px solid #ef444455;color:#f87171;border-radius:8px;padding:6px 10px;font-size:10px;font-weight:900;cursor:pointer;letter-spacing:.5px">⚔️</button>
                         </div>`;
                     }).join('');
-                    const weaponsSection = `<div style="margin:0 16px 20px"><div style="font-size:8px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;border-top:1px solid #1f2937;padding-top:12px">⚔️ Ataques</div>${rows}</div>`;
+                    // ── Margem de crítico: coluna ao lado do dano ──────────────────────
+                    // Vale para todos os ataques (Aura Afiada e Assassino Veterano não
+                    // distinguem arma), então o número é o mesmo em todas as linhas. A do
+                    // Executor é condicional (só no golpe decisivo) e sai como nota abaixo.
+                    const _mcNota = (_mc.condicionais || []).length
+                        ? `<div style="font-size:8px;color:#fbbf24;margin-top:2px">🎯 ${_mc.condicionais.map(x => x.nome + ' −' + x.valor + ' (' + x.condicao + ')').join(' · ')}${_mc.valor <= _mc.piso ? ' — já no piso ' + _mc.piso : ''}</div>`
+                        : '';
+                    const _mcFontes = (_mc.fontes || []).length
+                        ? `<div style="font-size:8px;color:#4b5563;margin-top:2px">🎯 Margem ${_mc.valor}: ${_mc.fontes.map(f => f.nome + ' −' + f.valor).join(' · ')}${_mc.perdidoNoPiso > 0 ? ` · piso ${_mc.piso} cortou −${_mc.perdidoNoPiso}` : ''}</div>`
+                        : '';
+                    const weaponsSection = `<div style="margin:0 16px 20px"><div style="font-size:8px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;border-top:1px solid #1f2937;padding-top:12px">⚔️ Ataques</div>${rows}${_mcFontes}${_mcNota}</div>`;
                     if (!state.attackModal) return weaponsSection;
                     // ── Modal de escolha FOR/DES ──────────────────────────────
                     const wm = state.attackModal;
