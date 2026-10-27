@@ -842,6 +842,126 @@ window.calcFontesRD = function (char) {
     return lista;
 };
 
+// ── Bônus nos RESULTADOS das reações ─────────────────────────────────────────
+// A mesa online (mesa/mesa.html) já tem o sistema completo de reações: a tabela
+// REACOES com as 7 ações, o gasto de 1 Reação por uso e a rolagem de verdade
+// (rolarD20 / rolarDano). O que ela NÃO faz está escrito lá no modAt:
+//
+//     // Modificadores base (sem Hatsu/princípios, como o resto da mesa).
+//
+// Ou seja: a mesa monta "1d20 + DES" com o atributo cru e ignora de propósito tudo
+// que vem de Nen, Instâncias e Inclinações. Então os bônus que o livro dá para
+// Esquiva e Bloqueio nunca chegavam a nenhuma rolagem — nem aqui, nem lá.
+//
+// Esta função é a ponte. A mesa carrega este mesmo arquivo (<script src="../js/data/config.js">)
+// e já consome funções daqui (calcReacoesMax), então basta ela somar o que isto devolve.
+// Devolve SÓ os bônus — a fórmula base continua sendo da mesa, sem duplicar nada.
+window.REACOES_HXH = [
+    { k: 'esq',    n: 'Esquiva',                 f: '1d20 + DES' },
+    { k: 'acro',   n: 'Esquiva Acrobática',      f: '1d20 + Acrobacia' },
+    { k: 'bdes',   n: 'Bloqueio Desarmado',      f: '1d20 + CON + FOR' },
+    { k: 'barm',   n: 'Bloqueio Armado',         f: '1d20 + CON + FOR + arma' },
+    { k: 'lugar',  n: 'Assumir Lugar',           f: '1d6 + CA' },
+    { k: 'contra', n: 'Contra-ataque',           f: 'rolagem de ataque' },
+    { k: 'ado',    n: 'Ataque de Oportunidade',  f: 'rolagem de ataque' },
+];
+
+// Quais reações cada fonte alcança. 'todas' vale para as 7.
+const _REAC_ESQUIVAS = ['esq', 'acro'];
+
+window.calcBonusReacao = function (char, k) {
+    const fontes = [];
+    let total = 0;
+    if (!char) return { total: 0, fontes: fontes };
+    const add = function (nome, valor, condicao) {
+        if (!(valor > 0)) return;
+        total += valor;
+        fontes.push({ nome: nome, valor: valor, condicao: condicao || '' });
+    };
+
+    // ── Potencial Liberado "Pernas — Ágil" (ri_e30 → pl_perna_rea) ───────────
+    // "+2 aos resultados das reações", +1 por recompra. Vale em TODAS as reações
+    // e só com o Hatsu ativo, como todo efeito de Hatsu.
+    const ativos = char.hatsusAtivos || {};
+    (char.hatsus || []).forEach(function (h, i) {
+        if (!ativos[i] || !window.bonusPotencialLiberado) return;
+        const pl = window.bonusPotencialLiberado(h);
+        if (pl.resultadoReacoes > 0) {
+            add('Potencial Liberado (' + (h.nome || ('Hatsu ' + (i + 1))) + ')', pl.resultadoReacoes);
+        }
+    });
+
+    // ── Instâncias Shingen-Ryu ──────────────────────────────────────────────
+    // Ágil, nível 1: "+2 na Esquiva e na Esquiva Acrobática."
+    const inst = char.instancias || {};
+    if ((parseInt(inst.agil) || 0) >= 1 && _REAC_ESQUIVAS.indexOf(k) >= 0) {
+        add('Instância Ágil', 2);
+    }
+
+    // Combatente Rápido, nível 2: "+2 na CA OU Ações de Esquivas" — escolha do
+    // jogador, guardada em char.instanciaEscolhas. Só conta aqui se ele escolheu
+    // Esquivas; se escolheu CA, vai para o calcBonusCAInstancia.
+    if ((parseInt(inst.combatente_rapido) || 0) >= 2 && _REAC_ESQUIVAS.indexOf(k) >= 0
+        && ((char.instanciaEscolhas || {}).combatente_rapido_2 === 'esquiva')) {
+        add('Instância Combatente Rápido', 2);
+    }
+
+    // ── Inclinações de Combate ──────────────────────────────────────────────
+    // Defensiva Bruta, Básico: "+2 no Bloqueio Desarmado."
+    // Defensiva Precisa, Intermediário: "+2 no resultado final do Bloqueio Armado."
+    const ci = char.combatInclinations || {};
+    if ((parseInt(ci.defensiva_bruta) || 0) >= 1 && k === 'bdes') {
+        add('Defensiva Bruta (Básico)', 2);
+    }
+    if ((parseInt(ci.defensiva_precisa) || 0) >= 2 && k === 'barm') {
+        add('Defensiva Precisa (Intermediário)', 2);
+    }
+
+    // Defensiva Reativa Ágil, Intermediário: "Some o dobro da proficiência na
+    // Esquiva Acrobática." Dobrar = a proficiência passa a contar 2× EM VEZ de 1×.
+    // Com PB 2 e proficiência em Acrobacia, o total vai de DES+2 para DES+4; com
+    // PB 3, de DES+3 para DES+6. Como a fórmula base (modAcrobacia na mesa, ou a
+    // perícia na ficha) já soma 1×, o que falta somar aqui é exatamente +1 PB.
+    // Com Especialização a perícia já conta 2×: dobrar leva a 4×, então o extra
+    // é 2× PB. É a leitura literal de "dobre a proficiência".
+    if ((parseInt(ci.defensiva_reativa_agil) || 0) >= 2 && k === 'acro') {
+        const pb = Math.max(2, Math.floor(((parseInt(char.level) || 1) - 1) / 4) + 2);
+        const temAcro = (char.skills || []).indexOf('Acrobacia') >= 0;
+        const expAcro = (char.expertise || []).indexOf('Acrobacia') >= 0;
+        // Sem proficiência em Acrobacia não há o que dobrar.
+        if (expAcro) add('Defensiva Reativa Ágil (proficiência dobrada)', pb * 2, 'Acrobacia com Especialização: 2× → 4×');
+        else if (temAcro) add('Defensiva Reativa Ágil (proficiência dobrada)', pb, 'Acrobacia proficiente: 1× → 2×');
+    }
+
+    return { total: total, fontes: fontes };
+};
+
+// ── +2 na CA da Instância Combatente Rápido ──────────────────────────────────
+// A outra metade da escolha do nível 2: "+2 na CA ou Ações de Esquivas". Se o
+// jogador escolheu CA, o bônus entra aqui; se escolheu Esquivas, entra no
+// calcBonusReacao. Nunca nos dois.
+window.calcBonusCAInstancia = function (char) {
+    const fontes = [];
+    let total = 0;
+    if (!char) return { total: 0, fontes: fontes };
+    const inst = char.instancias || {};
+    if ((parseInt(inst.combatente_rapido) || 0) >= 2
+        && ((char.instanciaEscolhas || {}).combatente_rapido_2 === 'ca')) {
+        total += 2;
+        fontes.push({ nome: 'Instância Combatente Rápido', valor: 2 });
+    }
+    return { total: total, fontes: fontes };
+};
+
+// Resumo para a ficha: todas as reações que têm algum bônus agora.
+// [{ k, nome, formula, total, fontes }]
+window.resumoBonusReacoes = function (char) {
+    return (window.REACOES_HXH || []).map(function (r) {
+        const b = window.calcBonusReacao(char, r.k);
+        return { k: r.k, nome: r.n, formula: r.f, total: b.total, fontes: b.fontes };
+    }).filter(function (r) { return r.total > 0; });
+};
+
 // Reações máximas do personagem. Já existia embutido na ficha (sheet.js); virou função
 // para o contador de rodada poder somar as Reações concedidas pelo ZETSU ao completar.
 window.calcReacoesMax = function (char) {
