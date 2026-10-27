@@ -779,6 +779,21 @@ window.calcHatsuAuraCostFinal = function(h, idx, idsModo) {
     return { pct, reduced: pct < 50, phgCusto };
 };
 
+// Quanto espaço de Grau de Potência (característica "dano") ainda sobra neste Hatsu.
+// É a mesma conta do calcRenGrauDisponivel, mas SEM exigir o REN ativo: serve para
+// qualquer fonte que queira somar grau de dano — hoje o REN e a Aura Condensada
+// (rm_e12). As duas disputam o MESMO espaço, então quem soma depois usa o que sobrou.
+window.grauDanoDisponivel = function (h, char) {
+    if (!h || !char) return 0;
+    if (!window.calcGrausPotenciaPorCaracteristica || !window.calcMaxGrauPorNivel) return 0;
+    const grauMax = window.calcMaxGrauPorCaracteristica
+        ? window.calcMaxGrauPorCaracteristica(char.level, h.classe, 'dano')
+        : window.calcMaxGrauPorNivel(char.level);
+    if (grauMax === Infinity) return Infinity;
+    const totals = window.calcGrausPotenciaPorCaracteristica(h, char.level);
+    return Math.max(0, grauMax - totals.dano);
+};
+
 // rev. Manual 2.0 — REN só pode adicionar seu grau de dano se ainda houver espaço dentro do limite
 // de Grau de Potência do nível do personagem (mesma regra de qualquer outra fonte de grau).
 // Retorna a quantidade de graus de REN ainda disponíveis para este golpe (0 = sem espaço).
@@ -833,6 +848,62 @@ window._hCalcGrauVariavel = function(idx, restrId) {
 
 // Liga/desliga o Modo Alternativo do Hatsu (eg4). Guardado no próprio Hatsu, dentro
 // do JSONB do personagem — nenhuma alteração de banco necessária.
+// ── rm_e12: reserva 5% de aura dentro do item ────────────────────────────────
+// Só com o Hatsu ativo. Barra em dois limites: o teto do efeito (25% por compra)
+// e a aura que o personagem tem na hora. Enquanto a reserva não foi usada, pode
+// continuar somando.
+window._hReservarAuraCondensada = function (idx) {
+    const char = state.currentChar;
+    const h = (char.hatsus || [])[idx];
+    const ativo = ((char.hatsusAtivos || {})[idx]);
+    if (!h || !ativo) return;
+    const passo = window.AURA_CONDENSADA_PASSO;
+    const teto = window.tetoAuraCondensada(h);
+    const atual = window.reservaAuraCondensada(ativo);
+    if (atual.destino) { alert('Esta reserva já foi usada\n\nA reserva inteira vai para um destino só. Desligue e religue o Hatsu para começar outra.'); return; }
+    if (atual.pct + passo > teto) {
+        alert('Teto da Aura Condensada\n\nEste Hatsu guarda no máximo ' + teto + '% ('
+            + window.comprasAuraCondensada(h) + ' compra(s) × ' + window.AURA_CONDENSADA_TETO_POR_COMPRA + '%).');
+        return;
+    }
+    const aura = char.vitals.aura || 0;
+    if (aura < passo) { alert('Aura insuficiente\n\nReservar custa ' + passo + '% e você tem ' + aura + '%.'); return; }
+    char.vitals.aura = Math.max(0, aura - passo);
+    ativo.reservaCondensada = { pct: atual.pct + passo, destino: null };
+    saveCharacter(char);
+    render(true);
+};
+
+// Escolhe o destino da reserva — a decisão é feita AQUI, no uso, não na compra.
+// 'rd' resolve na hora: vira fonte de Redução de Dano enquanto o Hatsu durar.
+// 'dano' arma a reserva: a próxima rolagem de dano deste Hatsu soma os graus,
+// limitada pelo teto do nível, e zera a reserva.
+window._hUsarAuraCondensada = function (idx, destino) {
+    const char = state.currentChar;
+    const h = (char.hatsus || [])[idx];
+    const ativo = ((char.hatsusAtivos || {})[idx]);
+    if (!h || !ativo) return;
+    if (destino !== 'dano' && destino !== 'rd') return;
+    const atual = window.reservaAuraCondensada(ativo);
+    if (!atual.pct || atual.destino) return;
+    ativo.reservaCondensada = { pct: atual.pct, destino: destino };
+    saveCharacter(char);
+    render(true);
+};
+
+// Desfaz a escolha de destino enquanto ela ainda não foi gasta (a reserva continua
+// guardada). Não devolve aura: ela já foi consumida para carregar o item.
+window._hDesarmarAuraCondensada = function (idx) {
+    const char = state.currentChar;
+    const ativo = ((char.hatsusAtivos || {})[idx]);
+    if (!ativo) return;
+    const atual = window.reservaAuraCondensada(ativo);
+    if (!atual.pct) return;
+    ativo.reservaCondensada = { pct: atual.pct, destino: null };
+    saveCharacter(char);
+    render(true);
+};
+
 window._hSetModoAtivo = function(idx, modoIdx) {
     const char = state.currentChar;
     const h = (char.hatsus || [])[idx];

@@ -774,6 +774,24 @@ window.calcFontesRD = function (char) {
             condicao: 'Só contra Corte, Impacto e Explosão',
         });
     }
+    // rm_e12 Aura Condensada com destino 'rd': cada 5% guardados valem 1 ponto de RD,
+    // sem rolagem. Entra PASSIVA (já ligada) porque o jogador decidiu gastar a reserva
+    // nisso — não é condicional ao golpe. Vive enquanto o Hatsu estiver ativo: desligar
+    // apaga hatsusAtivos[idx] e a fonte sai daqui sozinha.
+    const _ativosAC = char.hatsusAtivos || {};
+    Object.keys(_ativosAC).forEach(function (k) {
+        const res = (_ativosAC[k] || {}).reservaCondensada;
+        if (!res || res.destino !== 'rd') return;
+        const pontos = window.passosAuraCondensada ? window.passosAuraCondensada(res.pct) : 0;
+        if (pontos <= 0) return;
+        const hh = (char.hatsus || [])[parseInt(k)] || {};
+        lista.push({
+            id: 'aura_condensada_' + k,
+            nome: 'Aura Condensada — ' + (hh.nome || ('Hatsu ' + (parseInt(k) + 1))),
+            passiva: true, valor: pontos,
+            condicao: res.pct + '% de aura guardados neste Hatsu. Vale enquanto ele estiver ativo.',
+        });
+    });
     return lista;
 };
 

@@ -433,6 +433,54 @@ window.ID_DEDUP_CONJURACAO = {
     'rc_p3': 'rm_p3',   // Sacrifício Ritual         → Componentes Materiais
 };
 
+
+// ── rm_e12 "Aura Condensada" ─────────────────────────────────────────────────
+// Como funciona na mesa:
+//   • A COMPRA só habilita o efeito e levanta o teto. Não há % escolhida na compra.
+//   • Com o Hatsu ATIVO, o botão "Reservar +5%" aparece na aba Ficha, junto do
+//     "Desligar" daquele Hatsu, e cada clique tira 5% da aura do personagem e
+//     guarda dentro do item.
+//   • A reserva inteira vai para UM destino só, escolhido no momento do uso:
+//       – Dano: cada 5% vale +1 Grau/Passo no dano DO PRÓPRIO HATSU. Por ser grau,
+//               obedece ao teto de Grau de Potência do nível, igual a qualquer
+//               outra fonte (mesma regra do REN).
+//       – RD:   cada 5% vale 1 ponto de Redução de Dano, sem rolagem.
+//   • Teto: 25% por compra (5 cliques). Duas compras = 50% / 10 graus ou 10 de RD.
+//   • A reserva morre com a desativação do Hatsu: a aura já foi gasta para carregar.
+// A tabela do livro (5%=1d8 · 10%=1d10 · 15%=1d12 · 20%=2d6 · 25%=2d8) é a MESMA
+// regra lida na DAMAGE_TABLE: partindo de 1d6 (índice 1), cada 5% sobe um degrau e
+// 25% chega em 2d8 (índice 6). Não é uma escala paralela.
+window.AURA_CONDENSADA_PASSO = 5;    // % de aura por clique
+window.AURA_CONDENSADA_TETO_POR_COMPRA = 25;
+
+// Quantas vezes o Hatsu comprou rm_e12. Aceita o Hatsu salvo (h.efeitos) e o
+// rascunho do criador (hb.eg + hb.ec).
+window.comprasAuraCondensada = function (h) {
+    if (!h) return 0;
+    const ids = Array.isArray(h.efeitos) ? h.efeitos : [].concat(h.eg || [], h.ec || []);
+    return ids.filter(function (id) { return id === 'rm_e12'; }).length;
+};
+
+// Teto de aura reservável neste Hatsu, em %.
+window.tetoAuraCondensada = function (h) {
+    return window.comprasAuraCondensada(h) * window.AURA_CONDENSADA_TETO_POR_COMPRA;
+};
+
+// A reserva viva fica em char.hatsusAtivos[idx] — ou seja, só existe com o Hatsu
+// ativo. { pct, destino: null | 'dano' | 'rd', rdAplicada }
+window.reservaAuraCondensada = function (ativo) {
+    const r = (ativo || {}).reservaCondensada;
+    return {
+        pct: Math.max(0, parseInt((r || {}).pct) || 0),
+        destino: ((r || {}).destino) || null,
+    };
+};
+
+// Quantos "passos" (graus de dano, ou pontos de RD) a reserva atual vale.
+window.passosAuraCondensada = function (pct) {
+    return Math.floor((Math.max(0, parseInt(pct) || 0)) / window.AURA_CONDENSADA_PASSO);
+};
+
 // ── Conjuração ≡ Materialização ───────────────────────────────────────────────
 // No livro as duas palavras são SINÔNIMAS e aparecem trocadas à vontade. No app isso
 // confundia: havia "Imbuir Conjuração" e "Conjuração Modular" dentro da categoria

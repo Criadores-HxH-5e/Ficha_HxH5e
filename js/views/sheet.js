@@ -260,9 +260,60 @@
                                 const a = ha[i];
                                 if (a) {
                                     const txt = a.constante ? 'constante' : ('restam ' + (a.rodadas || 0) + '/' + a.max + ' rod.');
-                                    return `<div style="display:flex;align-items:center;gap:8px;background:#4ade8012;border:1px solid #4ade8033;border-radius:8px;padding:6px 9px;margin-bottom:5px">
-                                        <div style="flex:1;min-width:0;font-size:9px;color:#4ade80;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">⚡ ${h.nome || ('Hatsu ' + (i+1))} <span style="color:#6b7280;font-weight:400">(${txt})</span></div>
-                                        <button onclick="window._desativarHatsu(${i})" style="flex-shrink:0;padding:3px 8px;border-radius:6px;background:transparent;border:1px solid #4ade8055;color:#4ade80;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer">Desligar</button>
+                                    // ── rm_e12 Aura Condensada ──────────────────────────────────────
+                                    // Fica aqui, e não na tela do Hatsu, porque a reserva é decidida
+                                    // DURANTE o combate: é no mesmo lugar onde o jogador já desliga o
+                                    // Hatsu e passa a rodada. Mostra os dois destinos lado a lado,
+                                    // com o número que cada um entrega, para a escolha ser informada.
+                                    const _e12Html = (function () {
+                                        if (!window.tetoAuraCondensada) return '';
+                                        const teto = window.tetoAuraCondensada(h);
+                                        if (!teto) return '';
+                                        const res = window.reservaAuraCondensada(a);
+                                        const passos = window.passosAuraCondensada(res.pct);
+                                        const espaco = window.grauDanoDisponivel ? window.grauDanoDisponivel(h, char) : 0;
+                                        const grausReais = (espaco === Infinity) ? passos : Math.min(passos, espaco);
+                                        const auraOk = (char.vitals.aura || 0) >= window.AURA_CONDENSADA_PASSO;
+                                        const cheio = res.pct >= teto;
+
+                                        let corpo = '';
+                                        if (res.destino === 'rd') {
+                                            corpo = '<div style="font-size:9px;font-weight:900;color:#60a5fa">🛡 ' + passos
+                                                + ' de RD ativos <span style="font-weight:600;color:#6b7280">(' + res.pct + '% guardados)</span></div>'
+                                                + '<div style="font-size:8px;color:#4b5563">Aparece no cálculo de Dano Recebido enquanto o Hatsu durar.</div>';
+                                        } else if (res.destino === 'dano') {
+                                            corpo = '<div style="font-size:9px;font-weight:900;color:#f87171">⚔ +' + grausReais
+                                                + ' Grau(s) na próxima rolagem de dano'
+                                                + (grausReais < passos ? ' <span style="font-weight:600;color:#fbbf24">(teto do nível cortou ' + (passos - grausReais) + ')</span>' : '')
+                                                + '</div>'
+                                                + '<button onclick="window._hDesarmarAuraCondensada(' + i + ')" style="margin-top:4px;padding:3px 8px;border-radius:6px;background:transparent;border:1px solid #37415188;color:#9ca3af;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer">↩ Trocar destino</button>';
+                                        } else if (res.pct > 0) {
+                                            corpo = '<div style="font-size:9px;font-weight:900;color:#fbbf24">🔋 ' + res.pct + '% guardados'
+                                                + '<span style="font-weight:600;color:#6b7280"> de ' + teto + '%</span></div>'
+                                                + '<div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap">'
+                                                + (cheio || !auraOk ? '' : '<button onclick="window._hReservarAuraCondensada(' + i + ')" style="padding:4px 8px;border-radius:6px;background:#fbbf2418;border:1px solid #fbbf2455;color:#fbbf24;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer">+5%</button>')
+                                                + '<button onclick="window._hUsarAuraCondensada(' + i + ',\'dano\')" style="padding:4px 8px;border-radius:6px;background:#f8717118;border:1px solid #f8717155;color:#f87171;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer">⚔ +'
+                                                + grausReais + ' Grau</button>'
+                                                + '<button onclick="window._hUsarAuraCondensada(' + i + ',\'rd\')" style="padding:4px 8px;border-radius:6px;background:#60a5fa18;border:1px solid #60a5fa55;color:#60a5fa;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer">🛡 '
+                                                + passos + ' RD</button>'
+                                                + '</div>'
+                                                + (grausReais < passos ? '<div style="font-size:8px;color:#fbbf24;margin-top:3px">⚠ O teto de Grau do nível só aceita +' + grausReais + '. Como RD valem ' + passos + '.</div>' : '');
+                                        } else {
+                                            corpo = '<div style="display:flex;align-items:center;gap:6px">'
+                                                + '<div style="flex:1;min-width:0;font-size:8px;color:#6b7280">🔋 Aura Condensada — até ' + teto + '%, 5% por clique</div>'
+                                                + (auraOk
+                                                    ? '<button onclick="window._hReservarAuraCondensada(' + i + ')" style="flex-shrink:0;padding:4px 8px;border-radius:6px;background:#fbbf2418;border:1px solid #fbbf2455;color:#fbbf24;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer">Reservar +5%</button>'
+                                                    : '<span style="flex-shrink:0;font-size:8px;color:#f87171">aura insuficiente</span>')
+                                                + '</div>';
+                                        }
+                                        return '<div style="margin-top:5px;padding-top:5px;border-top:1px dashed #4ade8033">' + corpo + '</div>';
+                                    })();
+                                    return `<div style="background:#4ade8012;border:1px solid #4ade8033;border-radius:8px;padding:6px 9px;margin-bottom:5px">
+                                        <div style="display:flex;align-items:center;gap:8px">
+                                            <div style="flex:1;min-width:0;font-size:9px;color:#4ade80;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">⚡ ${h.nome || ('Hatsu ' + (i+1))} <span style="color:#6b7280;font-weight:400">(${txt})</span></div>
+                                            <button onclick="window._desativarHatsu(${i})" style="flex-shrink:0;padding:3px 8px;border-radius:6px;background:transparent;border:1px solid #4ade8055;color:#4ade80;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer">Desligar</button>
+                                        </div>
+                                        ${_e12Html}
                                     </div>`;
                                 }
                                 return `<div class="aviso-tag-piscando" style="display:flex;align-items:center;gap:8px;background:${tc2}12;border:1px solid ${tc2}33;border-radius:8px;padding:6px 9px;margin-bottom:5px">
@@ -1716,10 +1767,40 @@
             // ── REN: escalona +N Grau(s) de dano neste ataque (já validado o teto de grau antes de perguntar) ──
             const renGraus = Math.max(0, parseInt(grausRen) || 0);
             const useRen = renGraus > 0;
+
+            // ── rm_e12 Aura Condensada armada para DANO ─────────────────────────────
+            // Cada 5% guardados vale +1 Grau/Passo. É grau como qualquer outro, então
+            // obedece ao teto do nível — e divide esse teto com o REN: o REN é escolhido
+            // na pergunta da rolagem, então entra primeiro e a Aura Condensada usa o que
+            // sobrou. A reserva é de uso único: zera nesta rolagem, tenha ela caber ou não.
+            const _acAtivo = ((char.hatsusAtivos || {})[state.hatsuDetailIdx]) || null;
+            const _acRes = (window.reservaAuraCondensada && _acAtivo)
+                ? window.reservaAuraCondensada(_acAtivo) : { pct: 0, destino: null };
+            let acGraus = 0;
+            let acPerdidos = 0;
+            if (_acRes.destino === 'dano' && _acRes.pct > 0 && h) {
+                const _acPassos = window.passosAuraCondensada(_acRes.pct);
+                const _espaco = window.grauDanoDisponivel ? window.grauDanoDisponivel(h, char) : 0;
+                const _sobra = (_espaco === Infinity) ? _acPassos : Math.max(0, _espaco - renGraus);
+                acGraus = Math.min(_acPassos, _sobra);
+                acPerdidos = _acPassos - acGraus;
+                // Gasta a reserva agora. Fica null em vez de ser apagada para o painel
+                // mostrar que o Hatsu já usou a sua carga nesta ativação.
+                _acAtivo.reservaCondensada = { pct: 0, destino: null };
+            }
+
+            const _grausExtra = renGraus + acGraus;
             let renDice = rs.dice;
-            if (useRen && window.DAMAGE_TABLE) {
+            if (_grausExtra > 0 && window.DAMAGE_TABLE) {
                 const _idxD = window.DAMAGE_TABLE.indexOf(rs.dice);
-                if (_idxD >= 0) renDice = window.DAMAGE_TABLE[Math.min(_idxD + renGraus, window.DAMAGE_TABLE.length - 1)];
+                if (_idxD >= 0) renDice = window.DAMAGE_TABLE[Math.min(_idxD + _grausExtra, window.DAMAGE_TABLE.length - 1)];
+            }
+            if (acPerdidos > 0) {
+                setTimeout(function () {
+                    alert('Aura Condensada\n\nO teto de Grau de Potência do seu nível aceitou +' + acGraus
+                        + ' de ' + (acGraus + acPerdidos) + '.\n\n' + acPerdidos
+                        + ' grau(s) foram perdidos. Da próxima vez, com o teto cheio, liberar como RD aproveita tudo.');
+                }, 60);
             }
 
             // ── Custo de Aura: ativação do Hatsu + REN (1º grau grátis 1x/dia no REN nível 3; demais 5% cada) ──
@@ -1789,9 +1870,11 @@
             const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
             const modeLabel = effectiveMode === 'NORMAL' ? '' : ` (${effectiveMode.charAt(0) + effectiveMode.slice(1).toLowerCase()})`;
             const renLabel = useRen ? ' 💪REN' : '';
+            // Marca no histórico quando a Aura Condensada entrou nesta rolagem.
+            const acLabel = acGraus > 0 ? (' 🔋+' + acGraus + 'G') : '';
             // Dano causado POR MEIO de constructo/arma/criatura: o rótulo diz quem bate.
             const origemLabel = rs.origem ? ` · por meio de ${rs.origem}` : '';
-            char.history.push({ time, label: `⚡ ${rs.nome} (${rs.attr})${modeLabel}${renLabel}${origemLabel}`, dice: dmgResult.rolls.join(', ') + (extraDiceTotal > 0 ? ` (+${extraDiceTotal} extra)` : ''), mod: mod + flatBonus, total, img: state.pendingRollImage || '' });
+            char.history.push({ time, label: `⚡ ${rs.nome} (${rs.attr})${modeLabel}${renLabel}${acLabel}${origemLabel}`, dice: dmgResult.rolls.join(', ') + (extraDiceTotal > 0 ? ` (+${extraDiceTotal} extra)` : ''), mod: mod + flatBonus, total, img: state.pendingRollImage || '' });
             if (char.history.length > 50) char.history.shift();
             saveCharacter(char);
 
