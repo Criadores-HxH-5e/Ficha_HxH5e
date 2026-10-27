@@ -3049,6 +3049,41 @@ function renderHatsuDetail(container) {
                 const _letra4 = _LETRAS[_eCopyIdx + 1] || ('#' + (_eCopyIdx + 2));
                 if (sc[_kAdd4]) specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${ec};padding:4px 8px;background:${ec}18;border-radius:6px">🔀 Modo ${_letra4} → ${_nomeEfeitoEg4(sc[_kAdd4])}</div>`;
             }
+            // ri_e30: mostra a escolha DESTA compra e quanto ela vale na contagem atual.
+            // O "+2 aos resultados das reações" (Ágil) aparece aqui com destaque porque
+            // o app não tem onde aplicá-lo: não existe rolagem de reação, só o contador
+            // de Reações disponíveis. Fica visível para a mesa aplicar na mão — mesma
+            // situação dos bônus de Esquiva/Bloqueio das Instâncias Shingen-Ryu.
+            if (e.id === 'ri_e30') {
+                const _k30 = window.chavePotencialLiberado(_eCopyIdx);
+                const _id30 = sc[_k30] || '';
+                const _o30 = _id30 && window.potencialLiberadoPorId ? window.potencialLiberadoPorId(_id30) : null;
+                if (!_o30) {
+                    specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:#f87171;padding:4px 8px;background:#f8717118;border-radius:6px">⚠ Este P.N não foi gasto em nenhum efeito da tabela de Potencial Liberado.</div>`;
+                } else {
+                    // Quantas vezes esta opção foi escolhida até esta cópia (inclusive).
+                    const _tot30 = (h.efeitos || []).filter(function (x) { return x === 'ri_e30'; }).length;
+                    let _vz30 = 0;
+                    for (let _q = 0; _q <= _eCopyIdx && _q < _tot30; _q++) {
+                        if (sc[window.chavePotencialLiberado(_q)] === _id30) _vz30++;
+                    }
+                    const _mel30 = window.potencialLiberadoMelhora(_o30);
+                    const _val30 = _mel30 ? window.valorPotencialLiberado(_o30, _vz30) : null;
+                    const _a30 = _o30.aplica || {};
+                    let _txt30;
+                    if (!_mel30) {
+                        _txt30 = _o30.efeito;
+                    } else if (_a30.grandeza === 'deslocamento') {
+                        _txt30 = '+' + String(_val30).replace('.', ',') + 'm de deslocamento';
+                    } else if (_a30.grandeza === 'reacoes') {
+                        _txt30 = '+' + _val30 + ' nos RESULTADOS das reações — aplicar na mesa (o app não rola reação)';
+                    } else {
+                        _txt30 = '+' + _val30 + ' em ' + _a30.attr + (_a30.condicao ? ' (só em ' + _a30.condicao + ')' : '');
+                    }
+                    const _cor30 = (_a30.grandeza === 'reacoes' || _a30.condicao) ? '#fbbf24' : ec;
+                    specialDetail = `<div style="margin-top:6px;font-size:9px;font-weight:700;color:${_cor30};padding:4px 8px;background:${_cor30}18;border-radius:6px">💪 ${window.rotuloPotencialLiberado(_o30)}${_vz30 > 1 ? ' <span style="font-weight:600;color:#9ca3af">(' + _vz30 + 'ª vez)</span>' : ''} — ${_txt30}</div>`;
+                }
+            }
             // rm_e4: a capacidade vem da contagem de compras (3 na primeira, +3 por
             // recompra). Escala própria do efeito — ver o bloco em hatsu-creator.js.
             if (e.id === 'rm_e4') {
