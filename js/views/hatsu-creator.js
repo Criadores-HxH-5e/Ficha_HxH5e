@@ -1371,14 +1371,32 @@ function renderHatsuCreator(container) {
                 // era impossível ter dois Golems diferentes. Cópia 0 usa a chave sem sufixo (mantém
                 // compatibilidade com hatsus salvos antes desta correção); cópias extras usam "#N".
                 if (item.id === 'rm_e2') {
-                   const MATERIAIS = [
+                   // ── Materialização é de SÓLIDOS ──────────────────────────────────
+                    // "Gasoso" saiu da lista (e "Energia", que o livro passou a trazer, não
+                    // entrou). Materialização/Conjuração cria o que tem corpo e massa — algo
+                    // que pode ser atingido. Constructo de energia é EMISSÃO; de gás ou
+                    // fumaça é TRANSMUTAÇÃO (Forma Esculpida Maleável, que cresce 1,5x1,5m
+                    // a cada recompra).
+                    //
+                    // O motivo não é só narrativo: material era escolha livre do jogador, e
+                    // gás/energia carregam imunidade a dano físico. Qualquer um que entendesse
+                    // a mecânica escolheria sempre esses dois. Tirar do cardápio resolve sem
+                    // precisar de regra de exceção.
+                    //
+                    // Líquido/Gel FICA: tem massa, agarra, segura e pode ser atingido — o
+                    // critério que vale é "tem corpo atingível", não "sólido" ao pé da letra.
+                    //
+                    // A tabela CA_POR_MATERIAL em constructo-db.js mantém 'Gasoso' de
+                    // propósito: o bestiário usa gás em criatura (o Cavalo Bolha tem "Corpo
+                    // Gasoso de Núcleo Sólido"), e fichas salvas antes desta mudança podem
+                    // tê-lo escolhido. A restrição é só do seletor do jogador.
+                    const MATERIAIS = [
                         { nome:'Tecido/Papel',      ca:11, icon:'📄' },
                         { nome:'Cristal/Vidro',     ca:12, icon:'💎' },
                         { nome:'Madeira/Orgânico',  ca:13, icon:'🌿' },
                         { nome:'Mineral/Pedra',     ca:14, icon:'🪨' },
                         { nome:'Líquido/Gel',       ca:14, icon:'💧' },
                         { nome:'Metal',             ca:15, icon:'⚙️' },
-                        { nome:'Gasoso',            ca:'—', icon:'💨' },
                     ];
                     const CARACTS_E2 = window.CARACTERISTICAS_INVOCACAO || [];
                     const totalCopiasRm2 = Math.max(1, (hb.ec||[]).filter(function(x){ return x === 'rm_e2'; }).length);

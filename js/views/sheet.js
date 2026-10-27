@@ -69,6 +69,8 @@
             // Migração dos bônus de Maestria (roda antes do aviso, para o jogador já abrir
             // o modal com os atributos corretos).
             if (migrarBonusMaestria(char)) saveCharacter(char);
+            // Dedup CONJURAÇÃO → MATERIALIZAÇÃO: converte restrições rc_* já salvas.
+            if (migrarRestricoesConjuracao(char)) saveCharacter(char);
             // Aviso único da nova mecânica das Inclinações (só para quem já tinha pontos).
             setTimeout(function () { avisarRealocacaoInclinacoes(state.currentChar); }, 400);
             const clsData = SYSTEM_DB.classes.find(c => c.id === char.class);
@@ -1290,6 +1292,58 @@
             // Sem isso, um personagem sem nada a migrar não salvaria a marca e a migração
             // rodaria de novo no próximo render — e aí, num personagem que TINHA algo a
             // migrar, o bônus antigo seria subtraído duas vezes.
+            return true;
+        }
+
+        // ── Dedup CONJURAÇÃO → MATERIALIZAÇÃO (restrições de categoria) ─────────────
+        // As 9 restrições rc_l*/rc_m*/rc_p* saíram do banco por serem duplicatas exatas
+        // das rm_*. O Hatsu salvo guarda o ID CRU em h.restricoes, então sem esta
+        // conversão `catDB.restricoes.find(r => r.id === id)` devolveria undefined, o
+        // .filter(Boolean) dropava a restrição e o jogador perderia o benefício, o
+        // desconto de aura e os graus de potência que pagou — sem nenhuma mensagem.
+        // Converte também as chaves paralelas (beneficioChoices, pureRestrictions,
+        // specialChoices), porque rc_p2 tinha benefício de escolha.
+        function migrarRestricoesConjuracao(char) {
+            if (!char || char.migracaoDedupConjuracao) return false;
+            const MAPA = window.ID_DEDUP_CONJURACAO;
+            if (!MAPA) return false;
+
+            (char.hatsus || []).forEach(function (h) {
+                if (!h) return;
+
+                // h.restricoes: troca pelo equivalente e remove duplicata, para quem
+                // tinha as DUAS marcadas não ficar com o mesmo id repetido no array.
+                if (Array.isArray(h.restricoes)) {
+                    const vistos = {};
+                    h.restricoes = h.restricoes.map(function (id) {
+                        return MAPA[id] || id;
+                    }).filter(function (id) {
+                        if (vistos[id]) return false;
+                        vistos[id] = true;
+                        return true;
+                    });
+                }
+
+                // Chaves por id. A chave do rm_* equivalente tem prioridade: se o
+                // jogador preencheu as duas, a que ele escolheu no Hatsu "oficial" vence.
+                ['beneficioChoices', 'pureRestrictions', 'specialChoices'].forEach(function (campo) {
+                    const obj = h[campo];
+                    if (!obj || typeof obj !== 'object') return;
+                    Object.keys(obj).forEach(function (k) {
+                        // cobre 'rc_p2' e sufixos como 'rc_p2_carac'
+                        const base = k.slice(0, 5);
+                        const novo = MAPA[base];
+                        if (!novo) return;
+                        const kNovo = novo + k.slice(5);
+                        if (obj[kNovo] === undefined) obj[kNovo] = obj[k];
+                        delete obj[k];
+                    });
+                });
+            });
+
+            char.migracaoDedupConjuracao = true;
+            // Retorna SEMPRE true, pelo mesmo motivo do migrarBonusMaestria: a flag
+            // precisa ser gravada mesmo quando este personagem não tinha nenhum rc_*.
             return true;
         }
 

@@ -218,52 +218,57 @@
         { id:'rm_p1', peso:'pesada',  nome:"Perde Ação Principal",        desc:"Perde Ação Principal enquanto a Conjuração estiver ativa",           bnf:"A criatura age com +4 em testes ofensivos" },
         { id:'rm_p2', peso:'pesada',  nome:"Conjuração Controlável",      desc:"Conjuração pode ser manipulada/usada por outros contra a vontade do usuário (reverter: 1 teste SAB CD 15)", bnf:"Dado de dano máximo ou alcance dobra ou custo -15% ou dura +2 rodadas" },
         { id:'rm_p3', peso:'pesada',  nome:"Componentes Materiais",       desc:"O Hatsu depende de componentes materiais que são consumidos ao conjurar", bnf:"A criatura tem +2 em CA e +10 PV ao ser criada" },
-        { id:'rc_l1', peso:'leve',    nome:"Vínculo de Alcance",          desc:"A criatura conjurada não pode se afastar mais de 6 metros do conjurador",                              bnf:"A criatura recebe +1 na CA" },
-        { id:'rc_l2', peso:'leve',    nome:"Criatura Pacífica",           desc:"A criatura conjurada não causa dano direto",                                                            bnf:"+2 bônus em suporte (cura, sensor, defesa)" },
-        { id:'rc_l3', peso:'leve',    nome:"Uma Invocação por Combate",   desc:"Só pode conjurar 1 criatura do mesmo tipo por combate",                                                 bnf:"A criatura ganha +2 rodadas de duração" },
-        { id:'rc_m1', peso:'moderada',nome:"Sustento de Aura",            desc:"A criatura conjurada consome 5% de aura por rodada",                                                    bnf:"Pode realizar 1 ação bônus extra em seu turno" },
-        { id:'rc_m2', peso:'moderada',nome:"Vínculo de Alma",             desc:"Usuário sofre dano = metade da vida da criatura se ela for destruída",                                  bnf:"A criatura explode ao morrer causando 1d6 em 3m de área (círculo)" },
-        { id:'rc_m3', peso:'moderada',nome:"Ritual de Invocação",         desc:"Só pode conjurar em local fixo ou calmo predeterminado (ex: em casa/carro ou fora de combate)",        bnf:"Conjurador ganha vantagem no primeiro teste que realizar" },
-        { id:'rc_p1', peso:'pesada',  nome:"Concentração Total",          desc:"Perde Ação Principal enquanto a criatura conjurada estiver ativa",                                      bnf:"A criatura age com +4 em testes ofensivos" },
-        { id:'rc_p2', peso:'pesada',  nome:"Criatura Incontrolável",      desc:"A criatura pode ser manipulada/usada por outros contra a vontade do usuário (reverter: 1 teste SAB CD 15)", bnf:"Um dos dados de dano se torna máx. ou alcance dobra ou custo -15% ou dura +2 rodadas" },
-        { id:'rc_p3', peso:'pesada',  nome:"Sacrifício Ritual",           desc:"O Hatsu depende de componentes materiais que são consumidos ao conjurar",                               bnf:"A criatura tem +2 em CA e +10 PV ao ser criada" },
+        // ── rc_l1..rc_p3 REMOVIDAS (dedup MATERIALIZAÇÃO × CONJURAÇÃO) ──────────
+        // Quando as duas categorias foram unificadas, as 9 restrições de CONJURAÇÃO
+        // (rc_*) ficaram no array junto com as 9 de MATERIALIZAÇÃO (rm_*). Eram as
+        // MESMAS nove limitações com outro nome e o MESMO benefício — e, sem exclusão
+        // mútua, o jogador podia marcar as duas e receber o benefício e o desconto de
+        // aura em dobro pela mesma limitação. O livro tem 9 linhas; o app agora também.
+        // NÃO reaproveitar os ids rc_l*/rc_m*/rc_p*: Hatsus salvos podem carregá-los e
+        // são convertidos para o rm_* equivalente por ID_DEDUP_CONJURACAO (abaixo).
+        // Os EFEITOS rc_e* continuam válidos — a remoção é só das restrições.
       ],
       efeitos: [
         // ── Nível 1 ──────────────────────────────────────────────
         { id:'rm_e1',  nome:"Forjar Objeto, Arma ou Equipamento Conjurada(o)", desc:"Cria um objeto, equipamento ou arma com as mesmas propriedades de um real, que pode ser \"alimentado\" por aura (ao usar munições). Causa 2d6 de dano ao escolher arma.", req:"Nível 1", pn:1 },
-        { id:'rm_e2',  nome:"Golem de Aura",             desc:"Cria um constructo pequeno com o material escolhido (PV = 5 + CON ×2, 1 ação por rodada e 1 Característica de Invocação).", req:"Nível 1 + Acesso a Manipulação", pn:1 },
-        { id:'rm_e3',  nome:"Características Básicas",   desc:"Adiciona uma Característica de Invocação.", req:"Nível 1", pn:1 },
-        { id:'rm_e4',  nome:"Dimensão de Bolso",         desc:"Envia até 3 objetos ou criaturas para a Dimensão em até o dobro de tamanho/peso do alvo (cada).", req:"Nível 1 — Característica Dimensão", pn:1 },
-        { id:'rm_e5',  nome:"Aparências Enganam",        desc:"Permite acessar a Tabela de Conjuração com Alterações Físicas.", req:"Nível 1", pn:1 },
+        { id:'rm_e2',  nome:"Golem de Aura",             desc:"Cria um constructo pequeno com o material escolhido (PV = 5 + CON ×2, 1 ação por rodada e 1 Característica de Invocação).", req:"Nível 1", pn:1 },
+        { id:'rm_e3',  nome:"Características Básicas",   desc:"Adiciona uma Característica de Invocação. A cada P.N, adicione uma característica NOVA ou melhore uma já escolhida.", req:"Nível 1", pn:1 },
+        { id:'rm_e4',  nome:"Dimensão de Bolso",         desc:"Envia até 3 objetos ou criaturas para a Dimensão em até o dobro de tamanho/peso do alvo (cada). Cada P.N gasto neste efeito aumenta a quantidade em +3 — escala própria, diferente do aumento padrão de grau/passo. No nível 12, comprando em todos os níveis, chega a 36.", req:"Nível 1 — Característica Dimensão", pn:1 },
+        { id:'rm_e5',  nome:"Aparências Enganam",        desc:"Permite acessar a Tabela de Materialização com Alterações Físicas.", req:"Nível 1", pn:1 },
         // ── Nível 2 ──────────────────────────────────────────────
-        { id:'rm_e6',  nome:"Conjuração Modular",        desc:"O(s) Objeto(s), Arma(s) ou Equipamento(s) Conjurado(s) podem ser diferentes cada vez que conjura. Alternar entre eles depois de conjurados requer Ação bônus ou Reação.", req:"Nível 2 + Forjar Objeto, Arma ou Equipamento Conjurada(o)", pn:1 },
-        { id:'rm_e7',  nome:"Cópia Perfeita",            desc:"Permite copiar, através de conjuração, um objeto marcado ou tocado, reproduzindo-o uma vez com todas as suas propriedades originais, desde que seja um objeto comum (não podendo copiar objetos oriundos de outros Hatsus).", req:"Nível 2", pn:1 },
-        { id:'rm_e8',  nome:"Imbuir Conjuração",         desc:"Adiciona um efeito de qualquer categoria até seu nível que não possua pré-requisitos (como outro efeito dependente ou determinado valor de atributo). Não aplicável a efeitos de Especialização.", req:"Nível 2", pn:1 },
-        { id:'rm_e9',  nome:"Pesos e Medidas",           desc:"Permite reduzir e/ou aumentar o peso e/ou tamanho da conjuração na metade (reduzindo) ou no dobro (aumentando).", req:"Nível 2", pn:1 },
+        { id:'rm_e6',  nome:"Materialização Modular",   desc:"As Materializações podem ser diferentes cada vez que conjura. Alternar entre elas depois de materializadas requer Ação bônus ou Reação (exceto por restrições).", req:"Nível 2 + Forjar Objeto, Arma ou Equipamento Conjurada(o) ou Golem de Aura", pn:1 },
+        { id:'rm_e7',  nome:"Cópia Perfeita",            desc:"Permite copiar, por Materialização, 1 objeto OU criatura marcado(s) ou tocado(s) POR RESTRIÇÕES, com todas as suas propriedades originais, EXCETO Dano, CA e PV. Para armas e objetos simples copia tipo e natureza de dano, alcance, área, durabilidade do material, PV, tamanho (espaço/peso) e resistências. Para criaturas copia tudo da ficha, exceto Dano, CA e PV. Se esses três não forem comprados por efeitos, valem: Dano 1d8, CA 10 e PV = nível do usuário + 10.", req:"Nível 2", pn:1 },
+        { id:'rm_e8',  nome:"Imbuir Materialização",    desc:"Adiciona um efeito de qualquer categoria até seu nível que não possua pré-requisitos (como outro efeito dependente ou determinado valor de atributo). Não aplicável a efeitos de Especialização.", req:"Nível 2", pn:1 },
+        { id:'rm_e9',  nome:"Pesos e Medidas",           desc:"Permite reduzir e/ou aumentar o peso e/ou tamanho da Materialização na metade (reduzindo) ou no dobro (aumentando).", req:"Nível 2", pn:1 },
         // ── Nível 4 ──────────────────────────────────────────────
+        // rm_e10 NÃO EXISTE, e é de propósito. Era o "Vínculo Persistente" (manter o Hatsu
+        // ao perder a consciência, como os prédios de Kortopi). O efeito foi removido do livro:
+        // a mesma função passou a ser coberta pela compra de Duração + Experiência Comprovada +
+        // Evolução de Conjuração. Não reaproveite este id: um Hatsu salvo antes da remoção pode
+        // tê-lo em h.efeitos, e reusar o número o transformaria em outro efeito silenciosamente.
         { id:'rm_e11', nome:"Vínculo Sustentado",        desc:"O Hatsu dura enquanto o usuário mantiver concentração e gastar 5% de aura a cada 2 rodadas. Para compartilhar sentidos, o gasto passa a ser por rodada.", req:"Nível 4", pn:1 },
         // ── Nível 5 ──────────────────────────────────────────────
-        { id:'rm_e12', nome:"Aura Condensada",           desc:"O item armazena até 10% da aura para liberar depois como impulso de dano +1d8 ou de defesa (1d8 RD).", req:"Nível 5", pn:1 },
-        { id:'rm_e13', nome:"Forja Avançada",            desc:"Ao gastar uma ação bônus, a arma ganha +1d8 de dano pela duração de 1 rodada.", req:"Nível 5", pn:1 },
+        { id:'rm_e12', nome:"Aura Condensada",           desc:"O item armazena entre 5% e 25% da aura, escolhidos na compra, para liberar depois como impulso de dano ou de defesa (RD). Escala: 5% = 1d8, 10% = 1d10, 15% = 1d12, 20% = 2d6, 25% = 2d8. A aura é consumida no momento do uso.", req:"Nível 5", pn:1 },
+        { id:'rm_e13', nome:"Forja Avançada",            desc:"Ao gastar uma ação bônus, a arma ganha +1d8 de dano. Um uso por rodada. Não é aumento de grau: é transformar a Ação Bônus em +1d8, e o benefício não se mantém.", req:"Nível 5", pn:1 },
         // ── Nível 6 ──────────────────────────────────────────────
         { id:'rm_e14', nome:"Forma Evoluída",            desc:"10 PV, +2 CA e uma Característica de Invocação adicional.", req:"Nível 6", pn:1 },
         { id:'rm_e15', nome:"Lugar Secreto / Pique Esconde", desc:"A Dimensão pode ser usada como um espaço de 12×12m com a composição (ambiente, aparência, mobília) que o usuário pré-definir.", req:"Nível 6 — Característica Dimensão", pn:1 },
         { id:'rm_e16', nome:"Invencível",                desc:"Não pode ser destruída ou desfeita a não ser pelo usuário ou pela duração. Adiciona temporariamente o valor máximo natural em 2 atributos. Requer consciência. Req. especial: o Hatsu não pode causar dano direto pelo usuário. Requer 2 Restrições Pesadas OU 1 Restrição Extrema.", req:"Nível 6 + Restrições Específicas", pn:1 },
         // ── Nível 7 ──────────────────────────────────────────────
-        { id:'rm_e17', nome:"Proativo",                  desc:"A conjuração pode realizar um ataque a mais no turno, consumindo reações do usuário.", req:"Nível 7", pn:1 },
+        { id:'rm_e17', nome:"Proativo",                  desc:"A Materialização pode realizar um ataque a mais no turno, consumindo reações do usuário.", req:"Nível 7", pn:1 },
         // ── Nível 8 ──────────────────────────────────────────────
         { id:'rm_e18', nome:"Encantamento Especializado", desc:"Escolhe uma das propriedades: Desarmar, Mortal ×3, Oculto/Finta.", req:"Nível 8", pn:1 },
-        { id:'rm_e19', nome:"Fusão ou Divisão de Constructos", desc:"Ao fundir duas criaturas conjuradas: +10 PV, unindo suas habilidades e +1 grau/passo em acerto ou dano. Ao dividir: -10 PV, -5 CA e -1 grau/passo em acerto ou dano.", req:"Nível 8 + Forjar Objeto, Arma ou Equipamento Conjurada(o) ou Golem de Aura", pn:1 },
+        { id:'rm_e19', nome:"Fusão ou Divisão de Constructos", desc:"Ao fundir duas criaturas materializadas: +10 PV, unindo suas habilidades e +1 grau/passo em acerto ou dano. Ao dividir: -10 PV, -5 CA e -1 grau/passo em acerto ou dano.", req:"Nível 8 + Forjar Objeto, Arma ou Equipamento Conjurada(o) ou Golem de Aura", pn:1 },
         // ── Nível 11 ─────────────────────────────────────────────
         { id:'rm_e20', nome:"Constructo Apex",           desc:"Sua criatura ganha +1 Ação Principal e um efeito de outra categoria (respeitando a tabela de acesso).", req:"Nível 11", pn:1 },
         // ── Nível 12 ─────────────────────────────────────────────
-        { id:'rm_e21', nome:"Relíquia Viva",             desc:"Artefato se torna permanente independente do tempo de duração ou concentração. Pode ser desfeito apenas ao ser destruído.", req:"Nível 12", pn:1 },
+        { id:'rm_e21', nome:"Relíquia Viva",             desc:"Artefato se torna permanente SEM custar aura por rodada, independente do tempo de duração ou concentração. Pode ser desfeito apenas ao ser destruído.", req:"Nível 12", pn:1 },
         // ── Conjuração com Alterações Físicas (via Aparências Enganam) ──
         { id:'rm_e22', nome:"Aparência por Partes",      desc:"Permite simular, imitar ou reproduzir até no máximo 3 características (voz, cor da pele, olhos, tamanho e peso da mesma categoria, cabelo, roupas e detalhes menores) de uma criatura qualquer ou objeto/material. Custo de aura +10% por categoria de tamanho acima do usuário.", req:"Nível 1 + Aparências Enganam + Interação Sensorial Simples sobre o alvo", pn:1 },
         { id:'rm_e23', nome:"Aparência Completa",        desc:"Permite simular, imitar ou reproduzir completamente a aparência de uma criatura qualquer ou objeto/material (da mesma categoria de tamanho). Custo de aura +10% por categoria de tamanho acima do usuário.", req:"Nível 5 + Aparências Enganam + Interação Sensorial Simples + Conhecimento do Alvo", pn:1 },
         { id:'rm_e24', nome:"Funções em Partes",         desc:"Permite simular, imitar ou reproduzir outras partes físicas (extras ou não) de uma criatura qualquer ou objeto/material por suas funções. Ex.: guelras para respirar embaixo d'água, asas para voar, braço que se transforma em corda. Custo de aura +10% por categoria de tamanho acima do usuário.", req:"Nível 1 + Aparências Enganam + conhecimento profundo das dimensões e propriedades (interações constantes/profundas ou algo específico como ferimento)", pn:1 },
         { id:'rm_e25', nome:"Funções Completas",         desc:"Permite simular, imitar ou reproduzir completamente funções de uma criatura qualquer ou objeto/material. Normalmente requer alteração na categoria de tamanho. Ex.: transformar-se em moto ou pequeno avião. Custo de aura +10% por categoria de tamanho acima do usuário.", req:"Nível 5 + Aparências Enganam + conhecimento profundo com interações profundas/constantes ou pontuais mas importantes (como um trauma)", pn:1 },
-        { id:'rm_e26', nome:"Ben 10",                   desc:"A conjuração pode assumir os Atributos Físicos além das funções no caso de seres vivos.", req:"Nível 6 + Funções em Partes ou Funções Completas", pn:1 },
+        { id:'rm_e26', nome:"Ben 10",                   desc:"A Materialização pode assumir os Atributos Físicos além das funções no caso de seres vivos.", req:"Nível 6 + Funções em Partes ou Funções Completas", pn:1 },
         { id:'rc_e1',  nome:"Invocar Criatura",        desc:"Invoca uma criatura pequena de aura (PV = 5 + CON, ataque 1d6). Controla com 1 ação por rodada",                       req:"Nível 1",  pn:1 },
         { id:'rc_e2',  nome:"Corpo Evoluído 1",        desc:"A criatura conjurada recebe +5 PV e +1 CA",                                                                              req:"Nível 1",  pn:1 },
         { id:'rc_e3',  nome:"Propriedade Natural",     desc:"A criatura recebe uma propriedade natural (veneno, fogo, gelo, elétrico...)",                                             req:"Nível 2",  pn:1 },
@@ -409,6 +414,49 @@
 }; // fim HATSU_DB
 // Alias para compatibilidade retroativa: hatsus salvos com classe='CONJURAÇÃO' usam MATERIALIZAÇÃO
 window.HATSU_DB.categorias['CONJURAÇÃO'] = window.HATSU_DB.categorias['MATERIALIZAÇÃO'];
+
+// ── Dedup CONJURAÇÃO → MATERIALIZAÇÃO (restrições de categoria) ──────────────
+// As 9 restrições rc_* saíram do banco por serem duplicatas exatas das rm_*. Hatsus
+// já salvos no Supabase guardam o ID CRU em h.restricoes, então sem esta tabela a
+// restrição simplesmente desapareceria da ficha — levando com ela o desconto de aura
+// e os graus de potência que o jogador pagou. migrarRestricoesConjuracao() em
+// sheet.js consome este mapa uma única vez por personagem.
+window.ID_DEDUP_CONJURACAO = {
+    'rc_l1': 'rm_l1',   // Vínculo de Alcance        → Alcance Máximo 6m
+    'rc_l2': 'rm_l2',   // Criatura Pacífica         → Sem Dano Direto
+    'rc_l3': 'rm_l3',   // Uma Invocação por Combate → 1 Item por Combate
+    'rc_m1': 'rm_m1',   // Sustento de Aura          → 5% de Aura por Rodada
+    'rc_m2': 'rm_m2',   // Vínculo de Alma           → Dano ao Destruir
+    'rc_m3': 'rm_m3',   // Ritual de Invocação       → Local Fixo ou Calmo
+    'rc_p1': 'rm_p1',   // Concentração Total        → Perde Ação Principal
+    'rc_p2': 'rm_p2',   // Criatura Incontrolável    → Conjuração Controlável
+    'rc_p3': 'rm_p3',   // Sacrifício Ritual         → Componentes Materiais
+};
+
+// ── Conjuração ≡ Materialização ───────────────────────────────────────────────
+// No livro as duas palavras são SINÔNIMAS e aparecem trocadas à vontade. No app isso
+// confundia: havia "Imbuir Conjuração" e "Conjuração Modular" dentro da categoria
+// MATERIALIZAÇÃO, e o jogador lia como se fosse outra categoria. O app foi padronizado
+// em "Materialização"; o alias de categoria acima continua valendo.
+//
+// Este mapa existe para a conferência livro × app: ao comparar os textos, uma diferença
+// que caia aqui NÃO é divergência de regra, é só escolha de palavra. Sem isso, cada
+// sincronização futura acusaria dezenas de divergências falsas.
+window.SINONIMOS_MATERIALIZACAO = {
+    'Conjuração': 'Materialização',   'conjuração': 'materialização',
+    'Conjurador': 'Materializador',   'conjurador': 'materializador',
+    'Conjurada':  'Materializada',    'conjurada':  'materializada',
+    'Conjurado':  'Materializado',    'conjurado':  'materializado',
+    'conjurar':   'materializar',     'conjura':    'materializa',
+};
+// Normaliza um texto para comparação, trocando os sinônimos pela forma do app.
+window.normalizarSinonimosMat = function (s) {
+    let out = String(s || '');
+    Object.keys(window.SINONIMOS_MATERIALIZACAO).forEach(function (de) {
+        out = out.split(de).join(window.SINONIMOS_MATERIALIZACAO[de]);
+    });
+    return out;
+};
 
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
