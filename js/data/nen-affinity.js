@@ -374,16 +374,16 @@ window.calcPNSpentInDominio = function(char) {
     const d = char.nenDominio || {};
     let spent = 0;
     // Fundamentais: Ten, Ren, Zetsu → 1 ponto por nível (0-3) + Aprimoramento (P.N extra após a Maestria)
-    spent += (d.ten || 0) + (d.ten===3 ? Math.min(7, d.ten_pn||0) : 0);
-    spent += (d.ren || 0) + (d.ren===3 ? Math.min(7, d.ren_pn||0) : 0);
-    spent += (d.zetsu || 0) + (d.zetsu===3 ? Math.min(7, d.zetsu_pn||0) : 0);
+    spent += (d.ten || 0) + (d.ten===3 ? Math.min(window.PN_APRIMORAMENTO_MAX, d.ten_pn||0) : 0);
+    spent += (d.ren || 0) + (d.ren===3 ? Math.min(window.PN_APRIMORAMENTO_MAX, d.ren_pn||0) : 0);
+    spent += (d.zetsu || 0) + (d.zetsu===3 ? Math.min(window.PN_APRIMORAMENTO_MAX, d.zetsu_pn||0) : 0);
     // Avançados: 1 P.N para desbloquear + 1 P.N para o nível Superior + Aprimoramento (até 8 P.N extra)
     window.NEN_AVANCADOS.forEach(function(key) {
         if (!d[key]) return;
         spent += 1;
         if (d[key + '_sup']) {
             spent += 1;
-            spent += Math.min(8, d[key + '_pn'] || 0);
+            spent += Math.min(window.PN_APRIMORAMENTO_MAX, d[key + '_pn'] || 0);
         }
     });
     // Instâncias Shingen-Ryu: 2 P.N no Nível 1 e 3 no Nível 2, do MESMO bolo.
@@ -402,12 +402,21 @@ window.NEN_AVANCADOS = ['en', 'inp', 'gyo', 'shu', 'ken', 'ko', 'ryu'];
 // (ver "Atualizações -> Princípios e Técnicas de Nen")
 
 // TEN: Maestria (+6 RD) + 1 RD para cada P.N investido alem da Maestria (máx. P.N total = 10)
+// ── Teto de P.N por Aprimoramento ────────────────────────────────────────────
+// Cada caixa "APRIMORANDO <princípio>" do capítulo de Domínio de NEN repete a mesma
+// frase: "Além da maestria (ou do nível Superior), o máximo de P.N aplicáveis é = 10."
+// O app usava 7 nos fundamentais e 8 nos avançados, em 18 lugares diferentes — então
+// um TEN em maestria com 10 P.N rendia RD 13 em vez de 16, e o P.N acima do teto nem
+// era contado como gasto: o jogador investia e não recebia nada.
+// Vale para TODOS: TEN, REN, ZETSU, EN, IN, GYO, SHU, KEN, KO e RYU.
+window.PN_APRIMORAMENTO_MAX = 10;
+
 window.calcTenRD = function(char) {
     const d = (char && char.nenDominio) || {};
     const lvl = d.ten || 0;
     if (!lvl) return 0;
     const base = lvl === 1 ? 2 : lvl === 2 ? 4 : 6;
-    const extra = lvl === 3 ? Math.min(7, d.ten_pn || 0) : 0;
+    const extra = lvl === 3 ? Math.min(window.PN_APRIMORAMENTO_MAX, d.ten_pn || 0) : 0;
     // Instância Combatente Tanque, nível 1: "+5 na RD do seu TEN". Entra aqui e não
     // em calcFontesRD porque é a RD DO TEN que cresce — assim o número certo já sai
     // em todo lugar que consulta o TEN, inclusive na fonte "TEN (ativo)" do modal de
@@ -424,7 +433,7 @@ window.calcRenBonus = function(char) {
     const lvl = d.ren || 0;
     if (!lvl) return { grau: 0, teste: 0, teste1x: 0, freeUso: false, opcao: 1, extra: 0 };
     const opcao = d.ren_opcao || 1;
-    const extra = lvl === 3 ? Math.min(7, d.ren_pn || 0) : 0;
+    const extra = lvl === 3 ? Math.min(window.PN_APRIMORAMENTO_MAX, d.ren_pn || 0) : 0;
     let grau = 1;
     let teste = lvl >= 2 ? 3 : 0;
     let teste1x = lvl >= 3 ? 6 : 0;
@@ -442,7 +451,7 @@ window.calcZetsuBonus = function(char) {
     const lvl = d.zetsu || 0;
     if (!lvl) return { auraPct: 0, furtividade: 0, reacoes: 0, rodadas: 0, opcao: 1, extra: 0 };
     const opcao = d.zetsu_opcao || 1;
-    const extra = lvl === 3 ? Math.min(7, d.zetsu_pn || 0) : 0;
+    const extra = lvl === 3 ? Math.min(window.PN_APRIMORAMENTO_MAX, d.zetsu_pn || 0) : 0;
     const base = lvl === 1 ? { auraPct: 5, furtividade: 3, reacoes: 1, rodadas: 3 }
         : lvl === 2 ? { auraPct: 10, furtividade: 3, reacoes: 1, rodadas: 2 }
         : { auraPct: 10, furtividade: 6, reacoes: 2, rodadas: 1 };
@@ -509,7 +518,7 @@ window.calcAvancadoBonus = function(char, key) {
     const d = (char && char.nenDominio) || {};
     const active = !!d[key];
     const sup = active && !!d[key + '_sup'];
-    const extra = sup ? Math.min(8, d[key + '_pn'] || 0) : 0;
+    const extra = sup ? Math.min(window.PN_APRIMORAMENTO_MAX, d[key + '_pn'] || 0) : 0;
     const opcao = d[key + '_opcao'] || 1;
     const out = { active, sup, extra, opcao };
     switch (key) {
