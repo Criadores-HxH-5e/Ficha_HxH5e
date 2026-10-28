@@ -158,13 +158,18 @@ window.DANO_PROPRIO_MAP = {
     'rm_e1':  { dado: '2d6',      tipo: 'Arma/Objeto', desc: 'Forjar Objeto/Arma Conjurada' },
     'rc_e1':  { dado: '1d6',      tipo: 'Criatura',   desc: 'Invocar Criatura' },
     'rc_e9':  { dado: '1d8',      tipo: 'Corporal',   desc: 'Metamorfose Corporal' },
-    'em_e1':  { dado: '1d8',      tipo: 'Projétil',   desc: 'Projétil de Aura' },
-    'em_e3':  { dado: '2d6',      tipo: 'Potente',    desc: 'Disparo Potente' },
-    // 'em_e6' e 'em_e9' saíram daqui. O mapa dizia "Canhão de Aura 3d6" e "Bomba de
-    // Aura 4d6", mas esses efeitos NÃO EXISTEM — nem no livro, nem no banco. Os ids
-    // pertencem a "Transporte de Cargas" (teleporte de 3m) e "Troca Estratégica"
-    // (troca de lugar com constructo), que não causam dano nenhum. Os dados 3d6 e 4d6
-    // também não estão na tabela de grau/passo, o que confirmava a inconsistência.
+    // ── Emissão: os ids estavam DESLOCADOS ─────────────────────────────────────
+    // O bloco inteiro foi escrito contra uma numeração antiga da categoria. Já tinha
+    // sido limpo pela METADE: 'em_e6' e 'em_e9' saíram porque diziam "Canhão de Aura
+    // 3d6" e "Bomba de Aura 4d6", efeitos que não existem — os ids são Transporte de
+    // Cargas e Troca Estratégica, que não causam dano.
+    // Faltava a outra metade, que é o que se corrige agora:
+    //   'em_e1' estava como "Projétil de Aura 1d8" → em_e1 é AURA VIVA (constructos)
+    //   'em_e3' estava como "Disparo Potente 2d6"  → em_e3 é PLANO AVANÇADO (marca)
+    // Resultado em mesa: quem comprava Aura Viva ganhava 1d8 fantasma, quem comprava
+    // Plano Avançado (que é uma marca, sem dano) ganhava 2d6 fantasma, e os efeitos
+    // de verdade — em_e4 e em_e20 — não davam dano nenhum.
+    'em_e20': { dado: '+ 2d6',    tipo: 'Potente',    desc: 'Disparo Potente' },
     'rt_e16': { dado: '+5 dano',  tipo: 'Ferida',     desc: 'Ferida Interna' },
     'ri_e12': { dado: '+5',       tipo: 'Perfurante', desc: 'Penetração Dolorosa' },
 };
@@ -190,8 +195,7 @@ window.DANO_PROPRIO_ESCALA = {
     'rm_e1':  { tipo: 'dado',  base: '2d6' },          // Forjar Objeto/Arma
     'rc_e1':  { tipo: 'dado',  base: '1d6' },          // Invocar Criatura
     'rc_e9':  { tipo: 'dado',  base: '1d8' },          // Metamorfose Corporal
-    'em_e1':  { tipo: 'dado',  base: '1d8' },          // Projétil de Aura
-    'em_e3':  { tipo: 'dado',  base: '2d6' },          // Disparo Potente
+    'em_e20': { tipo: 'dado',  base: '2d6' },          // Disparo Potente (era 'em_e3')
     'eg10':   { tipo: 'dado',  base: '1d10' },         // Flagelo da Mente (dano em SANIDADE)
     // Valor BRUTO sobe de 1 em 1, qualquer que seja a base: +5 vira +6, não +10.
     // Só os efeitos com DADO usam a tabela de grau/passo.
@@ -212,7 +216,10 @@ window.ALCANCE_GRAU_MAP = {
     'rt_l2':  2, // Sem Movimento no Turno (Transmutação): +3m = 2 graus
     'em_l1':  4, // Linha Reta Apenas (Emissão): +6m = 4 graus
     'em_e2':  4, // Distância Segura: +6m = 6m ÷ 1,5m/grau = 4 graus
-    'em_e14': 2, // Expansão de Domínio, opção Alcance: +3m = 2 graus
+    // em_e14 SAIU daqui: pelo dicionário do livro, as duas opções da Expansão de
+    // Domínio adicionam ÁREA — o que muda é o ponto de partida (6m a partir de si
+    // quando o Hatsu não tem alcance além de toque, 3m quando já tem). O app lia a
+    // opção "b" como Alcance, que é outra característica.
     'em_e20': 12, // Disparo Potente: +18m = 18m ÷ 1,5m/grau = 12 graus
 };
 window.AREA_GRAU_MAP    = {
@@ -220,9 +227,26 @@ window.AREA_GRAU_MAP    = {
     'rg_l10': 1, // Interação Sensorial Simples (escolha: Alcance ou Área): +1,5m = 1 grau
     'rt_m2':  1, // Sem Aliados a 3m (Transmutação): +1,5m = 1 grau
     'em_e2':  2, // Distância Segura: +3m = 3m ÷ 1,5m/grau = 2 graus
-    'em_e14': 4, // Expansão de Domínio, opção Área: +6m = 4 graus
+    // Expansão de Domínio: 4 graus (6m, partindo de si) ou 2 (3m, à distância).
+    // O valor abaixo é o da opção de 6m; a de 3m é resolvida em grausExpansaoDominio.
+    'em_e14': 4,
     'em_e20': 12, // Disparo Potente: +18m = 18m ÷ 1,5m/grau = 12 graus
 };
+// ── Expansão de Domínio (em_e14): qual das duas áreas ────────────────────────
+// Grava 'si' (6m, partindo de si/marca) ou 'distancia' (3m, à distância). Fichas
+// salvas antes desta correção têm 'Área' e 'Alcance', que eram os rótulos antigos —
+// aceitos aqui pelo valor que produziam, para não precisar de migração: 'Área' dava
+// 6m e 'Alcance' dava 3m.
+window.EXPANSAO_DOMINIO_OPCOES = [
+    { id: 'si',        metros: 6, graus: 4, rotulo: '6m a partir de si ou de uma marca' },
+    { id: 'distancia', metros: 3, graus: 2, rotulo: '3m à distância' },
+];
+window.opcaoExpansaoDominio = function (valorSalvo) {
+    const v = String(valorSalvo || '');
+    const ehDistancia = (v === 'distancia' || v === 'Alcance');
+    return window.EXPANSAO_DOMINIO_OPCOES[ehDistancia ? 1 : 0];
+};
+
 window.DURACAO_GRAU_MAP = {
     'rg_m13': 2, // Zetsu Protetivo (escolha: Rodadas/Duração, Acerto ou Dano)
     'rg_v2':  1, // Canalizar com Concentração (escolha: Duração em vez de Dano/Cura)
@@ -382,11 +406,13 @@ window.calcGrausPotenciaPorCaracteristica = function(h, charLevel) {
         if (id === 'eg2') totals.duracao += 1; // Aumento de Duração
         if (id === 'eg9') totals.area += 1;    // Ajuste de Forma (Área)
         // Efeitos de categoria com bônus fixo de Alcance/Área (mesma lógica de escolha do eg1)
-        if (id === 'em_e2' || id === 'em_e14') { // Distância Segura / Expansão de Domínio
+        if (id === 'em_e2') { // Distância Segura: Alcance OU Área, escolha do jogador
             const escolha = sc[id] || '';
             if (escolha === 'Área') totals.area += window.AREA_GRAU_MAP[id] || 0;
             else if (escolha === 'Alcance') totals.alcance += window.ALCANCE_GRAU_MAP[id] || 0;
         }
+        // Expansão de Domínio: SEMPRE área; a escolha define quantos graus.
+        if (id === 'em_e14') totals.area += window.opcaoExpansaoDominio(sc[id]).graus;
         // em_e20 (Disparo Potente) e outros itens sem escolha caem no bloco genérico acima
     });
 
@@ -1276,14 +1302,20 @@ function renderHatsuDetail(container) {
     // também dá dano base — inclusive num Hatsu de suporte, porque aí foi o jogador que
     // marcou a cópia como dano. Calculado aqui em cima, e não lá dentro do bloco de
     // dano, porque agora é ele que ajuda a decidir SE existe bloco de dano.
+    // Projétil de Aura: "Um Hatsu Hostil (de dano) criado com esse efeito inicia com 2d6
+    // de dano. Um hatsu de suporte ou outros tipos, iniciam em 1d8." Ou seja, ele concede
+    // o dano BASE — não uma linha extra —, e sobe esse base para 2d6 quando o Hatsu é
+    // hostil, exatamente como o Dano/Cura Focal já fazia.
+    const _temProjetilAura = efeitosSel.some(function (e) { return e.id === 'em_e4'; });
     const _temForjarArmaBase = efeitosSel.some(function (e) { return e.id === 'rm_e1'; })
         && (h.specialChoices || {})['rm_e1_tipo'] === 'Arma';
     const _tagsFocalBase = window.contarTagsFocal
         ? window.contarTagsFocal(h, efeitosSel) : { dano: 0, cura: 0 };
-    const _temDanoFocalBase = _tagsFocalBase.dano > 0 || _temForjarArmaBase;
+    const _temDanoFocalBase = _tagsFocalBase.dano > 0 || _temForjarArmaBase
+        || (_temProjetilAura && isHostil);
     // Uma variável só para "este Hatsu tem a linha de dano BASE", usada em todos os
     // pontos que antes repetiam (isHostil || catDmg).
-    const temDanoBase = isHostil || catDmg || _temDanoFocalBase;
+    const temDanoBase = isHostil || catDmg || _temDanoFocalBase || _temProjetilAura;
 
     // Detects sanity damage from restrictions/effects (beyond eg10)
     // Map of items that deal sanity damage with their values
@@ -1426,7 +1458,9 @@ function renderHatsuDetail(container) {
     };
 
     // Detect if attack is ranged (has emission effects or ranged attack)
-    const isRanged = (h.efeitos||[]).some(id => ['em_e1','em_e3','em_e6','em_e9','em_e2','em_e14'].includes(id));
+    // em_e4 (Projétil de Aura) e em_e20 (Disparo Potente) faltavam aqui — eram os dois
+    // efeitos mais obviamente à distância da categoria.
+    const isRanged = (h.efeitos||[]).some(id => ['em_e1','em_e2','em_e3','em_e4','em_e6','em_e9','em_e14','em_e20'].includes(id));
     // Player-chosen modifier (stored in h.dmgMod); default by category/range
     let defaultAttr = attrMap[hatsuClasse] || 'FOR';
     if (hatsuClasse === 'MANIPULAÇÃO') {
@@ -2735,11 +2769,9 @@ function renderHatsuDetail(container) {
         else alcanceBonus.push({ valor: 6, fonte: 'Distância Segura (Alcance)', grau: window.ALCANCE_GRAU_MAP['em_e2']||0 });
     }
     if ((h.efeitos||[]).includes('em_e14')) {
-        const c = (h.specialChoices||{})['em_e14'] || 'Alcance';
-        // rev. — corrige troca pré-existente: pela própria descrição do efeito (hatsu-db.js), a opção
-        // Área concede 6m (4 Grau/Passo) e a opção Alcance concede 3m (2 Grau/Passo), não o inverso.
-        if (c === 'Área') areaBonus.push({ valor: 6, fonte: 'Expansão de Domínio (Área)', grau: window.AREA_GRAU_MAP['em_e14']||0 });
-        else alcanceBonus.push({ valor: 3, fonte: 'Expansão de Domínio (Alcance)', grau: window.ALCANCE_GRAU_MAP['em_e14']||0 });
+        // As duas opções somam ÁREA — ver EXPANSAO_DOMINIO_OPCOES.
+        const op = window.opcaoExpansaoDominio((h.specialChoices||{})['em_e14']);
+        areaBonus.push({ valor: op.metros, fonte: 'Expansão de Domínio (' + op.rotulo + ')', grau: op.graus });
     }
 
     // Restrições — Alcance/Área (usando specialChoices para saber qual)
