@@ -60,7 +60,15 @@
   .live { display: inline-flex; align-items: center; gap: 6px; font: 800 11px/1 var(--f-body); letter-spacing: .08em; text-transform: uppercase; color: var(--red-6); white-space: nowrap; }
   .live::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--red-6); animation: pulse 1.6s infinite; }
   @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .3 } }
-  .mbar .right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  /* O grupo da direita (CONVITE, largura e o botão "Painel") NÃO encolhe. Sem isto,
+     numa tela estreita o .title encolhe até o limite, .role e .live são nowrap e não
+     cedem, e quem sobrava espremido era o .right — o botão "Painel" saía da tela.
+     Mesmo flex:none que .mbar .sair já usa. */
+  .mbar .right { margin-left: auto; display: flex; align-items: center; gap: 8px; flex: none; }
+  /* Com a direita fixa, quem cede espaço é o selo "Ao vivo": ele corta no fim em vez
+     de empurrar o botão para fora. O título já encolhia por conta própria. */
+  .mbar #liveTag { min-width: 0; overflow: hidden; }
+  .mbar #liveTag .live { max-width: 100%; }
   .faces { display: flex; }
   .faces .av { width: 30px; height: 30px; border: 2px solid var(--surface); margin-left: -8px; }
   .faces .av:first-child { margin-left: 0; }
@@ -181,7 +189,11 @@
   }
   .prevnote { margin-top: 12px; padding: 10px 12px; border-radius: var(--r-md); background: var(--orange-1); border: 1px solid var(--orange-2); font-size: 13px; font-weight: 700; color: var(--orange-8); }
   .sel2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .side-toggle { display: none; }
+  /* Vale nos dois formatos. No celular ele abre e fecha a gaveta (side-open); no
+     desktop recolhe a coluna da direita (side-off) — que o CSS já sabia fazer, mas
+     que nenhum botão acionava: o painel do desktop trava em 300px no aplicarLargura,
+     então não havia como ver o mapa inteiro. */
+  .side-toggle { display: inline-flex; }
   @media (max-width: 860px) {
     .app { grid-template-columns: 1fr; grid-template-rows: 56px minmax(0, 1fr); }
     .side-grip, #sideWide { display: none; }
@@ -728,7 +740,12 @@
       <aside class="side" id="side"><div class="side-grip" id="sideGrip" title="Arraste para mudar a largura · duplo clique volta ao padrão"></div><nav class="tabs" id="tabs"></nav><div class="pane" id="pane"></div></aside>
     </div>`;
     $('#codeBtn').onclick = () => { navigator.clipboard.writeText(location.origin + location.pathname.replace(/[^/]*$/, '') + 'mesa.html?entrar=' + S.mesa.codigo).then(() => toast('Link do convite copiado', 'link')); };
-    $('#sideBtn').onclick = () => $('#app').classList.toggle('side-open');
+    // Celular: gaveta de baixo (side-open). Desktop: coluna da direita (side-off).
+    // O 860px é o mesmo breakpoint do CSS logo acima.
+    $('#sideBtn').onclick = () => {
+      const app = $('#app');
+      app.classList.toggle(matchMedia('(max-width: 860px)').matches ? 'side-open' : 'side-off');
+    };
     montarLargura();
     renderBar(); renderStage(); renderSide();
     aplicarTrilha();
