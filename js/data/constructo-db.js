@@ -44,7 +44,7 @@ window.CONSTRUCTO_DB = {
         rc_e7: 2,    // Corpo Evoluído 3
         rc_e10: 2,   // Corpo Evoluído 4
         rc_e13: 3,   // Forma Suprema
-        em_e1: 12,   // Aura Viva (CA fixa 12)
+        em_e1: 10,   // Aura Viva (CA fixa 10 — o livro diz "CA = 10"; o app tinha 12)
     },
     // Quantos "slots" de Característica de Invocação cada efeito concede ao ser comprado
     EFEITO_CARACTERISTICAS: {

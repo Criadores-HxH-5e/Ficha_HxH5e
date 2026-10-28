@@ -1608,16 +1608,22 @@ function renderHatsuCreator(container) {
                         + '</div>';
                 }
 
-                // em_e2: Distância Segura (+6m Alcance ou +3m Área) / em_e14: Expansão de Domínio (+3m Alcance ou +6m Área)
+                // em_e2: Distância Segura (+6m Alcance ou +3m Área)
+                // em_e14: Expansão de Domínio — as DUAS opções são Área; muda o ponto de
+                // partida. Os rótulos antigos ("Alcance"/"Área") ficaram gravados em fichas
+                // salvas e continuam sendo entendidos por opcaoExpansaoDominio.
                 if (item.id === 'em_e2' || item.id === 'em_e14') {
                     const scKey = item.id;
                     const chosen = specialChoices[scKey] || '';
                     const opts = item.id === 'em_e2'
                         ? [['Alcance','📐','+6m · 4 Grau/Passo'],['Área','🔵','+3m · 2 Grau/Passo']]
-                        : [['Alcance','📐','+3m à distância · 2 Grau/Passo'],['Área','🔵','+6m em forma · 4 Grau/Passo']];
+                        : [['si','🎯','Área 6m, partindo de si · 4 Grau/Passo'],['distancia','📐','Área 3m, à distância · 2 Grau/Passo']];
                     const confirmLabel = item.id === 'em_e2'
                         ? { Alcance: '+6m · 4 Grau/Passo', 'Área': '+3m · 2 Grau/Passo' }
-                        : { Alcance: '+3m à distância · 2 Grau/Passo', 'Área': '+6m em forma · 4 Grau/Passo' };
+                        : { si: 'Área de 6m a partir de si ou de uma marca · 4 Grau/Passo',
+                            distancia: 'Área de 3m à distância · 2 Grau/Passo',
+                            'Área': 'Área de 6m a partir de si ou de uma marca · 4 Grau/Passo',
+                            Alcance: 'Área de 3m à distância · 2 Grau/Passo' };
                     specialHtml = '<div style="margin-top:8px;background:#0a0f1a;border:1px solid '+ color +'33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
                         + '<div style="font-size:8px;font-weight:900;color:'+ color +';text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">📐 Aplicar bônus em:</div>'
                         + '<div style="display:flex;gap:6px">'
