@@ -426,6 +426,26 @@
   .tr-ctl .btn { flex: 1; padding: 0 8px; }
   .tr-ctl .btn.on { border-color: var(--blue-6); color: var(--blue-6); background: var(--blue-1); }
   @media (max-width: 860px) { .som { flex: none; } .som-t, .som-vol { display: none; } }
+
+  /* ── A barra do topo no celular ─────────────────────────────────────────────
+     Ela é um flex de uma linha só, e quase todo filho é nowrap ou flex:none — o
+     título, o selo "Ao vivo", o papel, o widget de som. Numa tela de 360px a soma
+     passa da largura e quem era empurrado para fora era o .right, justamente onde
+     mora o botão "Painel": no celular ele é o ÚNICO jeito de fechar a gaveta de
+     abas e ver o mapa inteiro.
+     Tentar encolher cada widget vira uma caça sem fim (hoje é o som, amanhã é outro).
+     Então a barra ROLA na horizontal e o grupo da direita fica preso na borda: o
+     botão está sempre visível, nada é escondido, e o resto da barra desliza por
+     baixo dele. Mesmo scrollbar-width:none que .tabs já usa. */
+  @media (max-width: 860px) {
+    .mbar { overflow-x: auto; overflow-y: hidden; scrollbar-width: none; gap: 8px; }
+    .mbar::-webkit-scrollbar { display: none; }
+    .mbar .right {
+      position: sticky; right: 0; flex: none;
+      padding-left: 10px; margin-left: auto;
+      background: linear-gradient(90deg, transparent, var(--surface) 10px);
+    }
+  }
   /* ordem de iniciativa (canto do palco) */
   .ordem { position: absolute; top: 12px; right: 12px; z-index: 7; width: 260px; max-width: calc(100% - 24px); padding: 10px; border-radius: var(--r-lg); background: rgba(17,24,39,.94); backdrop-filter: blur(8px); border: 1px solid var(--border); box-shadow: var(--sh-3); }
   .ordem-h { display: flex; align-items: center; gap: 8px; }
