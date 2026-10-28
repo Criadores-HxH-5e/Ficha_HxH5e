@@ -698,6 +698,80 @@ window.excecoesCopiaPerfeita = function (h, char, danoDoHatsu, opcoes) {
 };
 
 
+// ── em_e1 "Aura Viva" e em_e11 "Unificação de Constructos" ───────────────────
+// Dicionário da Emissão: "Em novas escolhas do efeito adicione 1 massa de aura OU um
+// passo/grau no dado de dano e PV do Constructo, que por sua vez inicia cheia."
+// E na Unificação: "em novas escolhas do efeito Dobre o PV(1), Adicione 1 à CA(2)."
+//
+// Até aqui as duas eram tratadas como efeito de valor fixo: cada cópia somava os
+// mesmos +6 de PV, sem escolha nenhuma. O jogador comprava de novo e recebia sempre
+// a mesma coisa, que não é o que o livro oferece.
+//
+// A PRIMEIRA compra é a base; a escolha existe a partir da SEGUNDA, e é por cópia —
+// mesmo padrão de chave do resto do app ('em_e1', 'em_e1#1', 'em_e1#2'…).
+window.AURA_VIVA_BASE = { massas: 2, dado: '1d6', ca: 10 };
+window.AURA_VIVA_OPCOES = [
+    { id: 'massa', rotulo: '+1 massa de aura' },
+    { id: 'grau',  rotulo: '+1 grau/passo no dado de dano e PV' },
+];
+window.UNIFICACAO_OPCOES = [
+    { id: 'pv', rotulo: 'Dobrar o PV' },
+    { id: 'ca', rotulo: '+1 na CA' },
+];
+window.chaveCopia = function (id, i) { return i > 0 ? (id + '#' + i) : id; };
+
+// "PV = 1d6 (cheio)": cheio é o valor MÁXIMO do dado, não uma rolagem.
+window.dadoCheio = function (dado) {
+    const m = String(dado || '').match(/^(\d+)d(\d+)$/);
+    return m ? parseInt(m[1]) * parseInt(m[2]) : 0;
+};
+
+// Estado da Aura Viva neste Hatsu: massas, dado (dano e PV andam juntos) e PV cheio.
+window.statusAuraViva = function (h) {
+    const base = window.AURA_VIVA_BASE;
+    const copias = ((h || {}).efeitos || []).filter(function (id) { return id === 'em_e1'; }).length;
+    if (!copias) return null;
+    const sc = (h || {}).specialChoices || {};
+    const T = window.DAMAGE_TABLE || ['1d4', '1d6', '1d8', '1d10', '1d12'];
+    let massas = base.massas, passos = 0;
+    const escolhas = [];
+    for (let i = 1; i < copias; i++) {               // a 1ª compra é a base
+        const esc = sc[window.chaveCopia('em_e1', i)] || '';
+        escolhas.push(esc);
+        if (esc === 'grau') passos++;
+        else if (esc === 'massa') massas++;
+    }
+    const i0 = Math.max(0, T.indexOf(base.dado));
+    const dado = T[Math.min(i0 + passos, T.length - 1)];
+    return {
+        copias: copias, massas: massas, passos: passos, escolhas: escolhas,
+        dado: dado, pv: window.dadoCheio(dado), ca: base.ca,
+        // Quantas cópias ainda não têm escolha marcada — o criador avisa.
+        semEscolha: escolhas.filter(function (e) { return !e; }).length,
+    };
+};
+
+// Unificação: cada cópia dobra o PV ou soma 1 na CA. Aplicada SOBRE o que a Aura Viva
+// (ou outro efeito de constructo) já montou, por isso devolve multiplicador e soma.
+window.statusUnificacao = function (h) {
+    const copias = ((h || {}).efeitos || []).filter(function (id) { return id === 'em_e11'; }).length;
+    if (!copias) return null;
+    const sc = (h || {}).specialChoices || {};
+    let dobras = 0, caExtra = 0;
+    const escolhas = [];
+    for (let i = 0; i < copias; i++) {
+        const esc = sc[window.chaveCopia('em_e11', i)] || '';
+        escolhas.push(esc);
+        if (esc === 'pv') dobras++;
+        else if (esc === 'ca') caExtra++;
+    }
+    return {
+        copias: copias, dobras: dobras, caExtra: caExtra, escolhas: escolhas,
+        multPV: Math.pow(2, dobras),
+        semEscolha: escolhas.filter(function (e) { return !e; }).length,
+    };
+};
+
 // ── rm_e12 "Aura Condensada" ─────────────────────────────────────────────────
 // Como funciona na mesa:
 //   • A COMPRA só habilita o efeito e levanta o teto. Não há % escolhida na compra.

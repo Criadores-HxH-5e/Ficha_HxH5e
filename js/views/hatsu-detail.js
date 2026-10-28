@@ -2411,7 +2411,17 @@ function renderHatsuDetail(container) {
         const pvBase = (CDB.PV_POR_TAMANHO[tamanho] || {})[durabilidadeEfetiva] || 0;
         let pvEfeitos = 0;
         const pvFontes = [];
+        // ── Aura Viva: a conta é por ESCOLHA, não por cópia ────────────────────
+        // Antes cada cópia somava os mesmos +6 de PV. Agora a 1ª compra dá a base e as
+        // seguintes aplicam o que o jogador escolheu: mais massas (não mexe no PV) ou
+        // um degrau no dado de dano e PV. Ver statusAuraViva em hatsu-db.js.
+        const _av = window.statusAuraViva ? window.statusAuraViva(h) : null;
+        if (_av) {
+            pvEfeitos += _av.pv;
+            pvFontes.push({ nome: 'Aura Viva (' + _av.dado + ' cheio · ' + _av.massas + ' massas)', bonus: _av.pv });
+        }
         constructEffectIds.forEach(id => {
+            if (id === 'em_e1') return;   // já contado acima, com a escolha
             let b = CDB.EFEITO_PV[id];
             if (!b) return;
             // Golem de Aura (rm_e2): a própria descrição do efeito documenta "PV = 5 + CON×2" — o
@@ -2435,7 +2445,11 @@ function renderHatsuDetail(container) {
             const escL14 = String((h.beneficioChoices || {})['rg_l14'] || '').toLowerCase();
             if (escL14.includes('pv')) { pvRestricoes += 5; pvFontes.push({ nome: 'Objeto Canalizador (PV)', bonus: 5 }); }
         }
-        const pvTotal = pvBase + pvEfeitos + pvRestricoes + robustezBonus;
+        // A Unificação dobra o PV por cópia que escolheu PV — depois de tudo somado,
+        // porque o livro diz "Dobre o PV", não "+X de PV".
+        const _pvSomado = pvBase + pvEfeitos + pvRestricoes + robustezBonus;
+        const pvTotal = _un ? _pvSomado * _un.multPV : _pvSomado;
+        if (_un && _un.multPV > 1) pvFontes.push({ nome: 'Unificação de Constructos (×' + _un.multPV + ')', bonus: pvTotal - _pvSomado });
 
         // ── CA ──
         // NOTA: "Ficha do Constructo" (nome/imagem/atributos/PV/CA/ataque) ainda é 1 bloco só por
@@ -2449,10 +2463,20 @@ function renderHatsuDetail(container) {
         const caBaseNum = (caBaseMaterial !== undefined) ? caBaseMaterial : (13 + intMod);
         let caEfeitos = 0;
         const caFontes = [];
+        // Aura Viva: CA 10 fixa, contada UMA vez por mais cópias que existam — as
+        // cópias extras viram massa ou grau no dado, nunca CA.
+        if (_av) { caEfeitos += _av.ca; caFontes.push({ nome: 'Aura Viva', bonus: _av.ca }); }
         constructEffectIds.forEach(id => {
+            if (id === 'em_e1' && _av) return;   // já contada acima
             const b = CDB.EFEITO_CA[id];
             if (b) { caEfeitos += b; const efObj = efeitosSel.find(e => e.id === id); caFontes.push({ nome: efObj ? efObj.nome : id, bonus: b }); }
         });
+        // ── Unificação de Constructos: +1 na CA por cópia que escolheu CA ──────
+        const _un = window.statusUnificacao ? window.statusUnificacao(h) : null;
+        if (_un && _un.caExtra > 0) {
+            caEfeitos += _un.caExtra;
+            caFontes.push({ nome: 'Unificação de Constructos', bonus: _un.caExtra });
+        }
         let caRestricoes = 0;
         (h.restricoes || []).forEach(id => {
             const b = (CDB.RESTRICAO_CA || {})[id];
