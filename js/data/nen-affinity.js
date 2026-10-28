@@ -549,6 +549,86 @@ window.calcAvancadoBonus = function(char, key) {
     return out;
 };
 
+// ── Gastar mais aura e Reações para escalar o princípio ──────────────────────
+// Cap. 6 "Domínio de NEN". Três princípios aceitam pagar PACOTES do custo base:
+//
+//   TEN  "É possível gastar mais aura para aumentar a RD proporcionalmente, como
+//        por exemplo, 40% e 2 reações para +4 RD se o domínio é apenas o nível
+//        Básico." Multiplica o MÁXIMO DESBLOQUEADO (decisão de regra do Lucas):
+//        um TEN em Maestria com aprimoramento e Combatente Tanque somando RD 16
+//        rende 32 com 2 pacotes, não 22.
+//   EN   "Para ampliar o efeito de maneira natural, gasta-se +10% de aura e +2
+//        reações para aumentar a distância a cada 3m." (30% e 6 Reações = 9m)
+//   KEN  "É possível gastar o dobro de aura e Reações para triplicar a CA original
+//        no lugar de dobrar." Daí em diante na mesma proporção: 3 pacotes = ×4.
+//
+// O limite é a aura e as Reações disponíveis, mais o teto do nível — não existe
+// teto numérico próprio. O PRINCIPIO_PACOTES_MAX abaixo só evita que a interface
+// desenhe uma régua sem fim; o 3º pacote do KEN já custa 90% e 12 Reações.
+//
+// O SHU também escala, mas com menu de alternativas em vez de pacotes — fica para
+// o patch seguinte.
+window.PRINCIPIO_PACOTES_MAX = 6;
+window.PRINCIPIOS_ESCALAVEIS = ['ten', 'en', 'ken'];
+window.principioEscalavel = function (key) {
+    return window.PRINCIPIOS_ESCALAVEIS.indexOf(key) >= 0;
+};
+
+// Custo de UM pacote: o mesmo custo base do princípio, aura e Reações.
+window.custoPacotePrincipio = function (char, key) {
+    const d = (char && char.nenDominio) || {};
+    const adv = window.calcAvancadoBonus ? window.calcAvancadoBonus(char, key) : {};
+    if (key === 'ten') {
+        // Eficiência de Aura: Reforço/Intensificação paga 10/5/10 em vez de 20.
+        const isR = char && (char.class === 'REFORÇO' || char.class === 'INTENSIFICAÇÃO');
+        const nv = d.ten || 1;
+        return { aura: isR ? (nv === 2 ? 5 : 10) : 20, reacoes: 1 };
+    }
+    if (key === 'en') {
+        return { aura: 10, reacoes: (adv.reacoes != null) ? adv.reacoes : 2 };
+    }
+    if (key === 'ken') {
+        return { aura: (adv.auraCusto != null) ? adv.auraCusto : 30,
+                 reacoes: (adv.reacoes != null) ? adv.reacoes : 4 };
+    }
+    return null;
+};
+
+// Pacotes pagos na ativação atual. 1 = só o custo base (comportamento de sempre).
+window.pacotesPrincipio = function (char, key) {
+    const p = ((char || {}).principiosPacotes || {})[key];
+    return Math.max(1, parseInt(p) || 1);
+};
+
+// Quantos pacotes a aura e as Reações de agora permitem pagar.
+window.pacotesPossiveisPrincipio = function (char, key) {
+    const c = window.custoPacotePrincipio(char, key);
+    if (!c) return 1;
+    const vit = (char || {}).vitals || {};
+    const aura = vit.aura || 0;
+    const reaMax = window.calcReacoesMax ? window.calcReacoesMax(char) : 7;
+    const rea = (vit.rea !== undefined) ? vit.rea : reaMax;
+    const porAura = c.aura > 0 ? Math.floor(aura / c.aura) : window.PRINCIPIO_PACOTES_MAX;
+    const porRea = c.reacoes > 0 ? Math.floor(rea / c.reacoes) : window.PRINCIPIO_PACOTES_MAX;
+    return Math.max(0, Math.min(window.PRINCIPIO_PACOTES_MAX, porAura, porRea));
+};
+
+// RD do TEN já com os pacotes. calcTenRD segue sendo o "máximo desbloqueado" puro,
+// porque é ele que a tela de domínio mostra como valor do princípio.
+window.calcTenRDAtivo = function (char) {
+    const base = window.calcTenRD ? window.calcTenRD(char) : 0;
+    return base * window.pacotesPrincipio(char, 'ten');
+};
+// KEN: 1 pacote dobra a CA, 2 triplicam, 3 quadruplicam.
+window.multiplicadorKen = function (char) {
+    return 1 + window.pacotesPrincipio(char, 'ken');
+};
+// EN: +3m de diâmetro por pacote além do primeiro.
+window.diametroEnAtivo = function (char) {
+    const adv = window.calcAvancadoBonus ? window.calcAvancadoBonus(char, 'en') : { diametro: 3 };
+    return (adv.diametro || 3) + (window.pacotesPrincipio(char, 'en') - 1) * 3;
+};
+
 window.calcPNSpentInOtherHatsus = function(char, editingIdx) {
     if (!char || !char.hatsus) return 0;
     let spent = 0;

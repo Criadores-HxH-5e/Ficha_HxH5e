@@ -178,7 +178,7 @@
                               if (isR) return nv === 2 ? 5 : 10;
                               return 20;
                           })(),
-                        efeito: `+${tenRD} RD`,
+                          efeito: `+${(window.calcTenRDAtivo && window.principioAtivo && window.principioAtivo(char,'ten')) ? window.calcTenRDAtivo(char) : tenRD} RD`,
                            desc: 'Reação ou Ação Bônus — RD contra Corte/Impacto/Explosão', show: (d.ten||0)>0 },
                         { key:'ren', label:'REN', icon:'💪', custo:10,
                           efeito: rBon.opcao===2 && rBon.extra>0 ? `+${rBon.teste} Intim./Arc.` : `+${rBon.grau} Grau dano`,
@@ -187,7 +187,8 @@
                           efeito: `+${zBon.auraPct}% Aura/${zBon.rodadas}rod`,
                           desc: 'Ação Bônus — recupera aura', show: (d.zetsu||0)>0 },
                         { key:'en', label:'EN', icon:'🔵', custo:10,
-                          efeito: `Detecta ${enB.diametro}m`, desc: `10% + ${enB.reacoes} Reações`, show: !!d.en },
+                          efeito: `Detecta ${(window.diametroEnAtivo && window.principioAtivo && window.principioAtivo(char,'en')) ? window.diametroEnAtivo(char) : enB.diametro}m`,
+                          desc: `10% + ${enB.reacoes} Reações`, show: !!d.en },
                         { key:'inp', label:'IN', icon:'🌑', custo:5,
                           efeito: `Oculta ${inB.rodadas}rod`, desc: '5% por rodada', show: !!d.inp },
                         { key:'gyo', label:'GYO', icon:'🔍', custo:10,
@@ -195,7 +196,8 @@
                         { key:'shu', label:'SHU', icon:'⚡', custo:10,
                           efeito: `+1d4 dano+CA ${shB.rodadas}rod`, desc: '10% em objeto 1m', show: !!d.shu },
                         { key:'ken', label:'KEN', icon:'🏰', custo: keB.auraCusto,
-                          efeito: 'CA ×2 por 2rod', desc: `${keB.auraCusto}% + ${keB.reacoes} Reações`, show: !!d.ken },
+                          efeito: `CA ×${(window.multiplicadorKen && window.principioAtivo && window.principioAtivo(char,'ken')) ? window.multiplicadorKen(char) : 2} por 2rod`,
+                          desc: `${keB.auraCusto}% + ${keB.reacoes} Reações`, show: !!d.ken },
                         { key:'ko', label:'KO', icon:'🔥', custo:30,
                           efeito: `Dano ×3, CA −80%${koB.caBonus>0?` (+${koB.caBonus})`:''}`, desc: '30% Aura', show: !!d.ko },
                         { key:'ryu', label:'RYU', icon:'🌊', custo:30,
@@ -209,9 +211,15 @@
                         // ZETSU custa 0 e serve de carga: sempre pode ser iniciado.
                         const canAct = ativo || p.key === 'zetsu' || aura >= p.custo;
                         const col = ativo ? '#4ade80' : (canAct ? tc2 : '#374151');
+                        // Princípio escalável (TEN, EN, KEN) abre o balão de pacotes, para o
+                        // jogador decidir quanta aura e quantas Reações vai pagar. Os outros
+                        // continuam ativando com um clique, no custo fechado.
+                        const _esc = window.principioEscalavel && window.principioEscalavel(p.key);
                         const acao = ativo
                             ? `window._desativarPrincipio('${p.key}')`
-                            : `window._activatePrincipio('${p.key}',${p.custo})`;
+                            : (_esc
+                                ? `window._abrirEscalaPrincipio('${p.key}',${p.custo})`
+                                : `window._activatePrincipio('${p.key}',${p.custo})`);
                         return `<button onclick="${acao}"
                             style="display:flex;flex-direction:column;align-items:center;padding:8px 6px;border-radius:10px;border:1.5px solid ${col}44;background:${col}11;cursor:${canAct?'pointer':'not-allowed'};opacity:${canAct?1:0.5};min-width:56px;flex:1;transition:all .15s"
                             title="${ativo ? 'ATIVO — clique para desligar' : p.desc}">
@@ -1180,6 +1188,7 @@
                 }
                 ${renderRollModeModalHtml()}
                 ${renderRenPromptModalHtml()}
+                ${renderEscalaPrincipioModalHtml()}
                 ${renderRenAttackPromptModalHtml()}
                 ${renderZetsuPromptModalHtml()}
                 <div class="h-auto min-h-[4rem] bg-[#0e0e14] border-t border-gray-800 flex items-center justify-around px-2 relative z-50 pb-safe pt-2">
@@ -2407,6 +2416,90 @@
             if (!pr) return;
             rollHatsuDamage(pr.mode, useRen ? (pr.grausEscolhidos || 1) : 0);
         };
+        // ── Balão de PACOTES dos princípios escaláveis (TEN, EN, KEN) ───────────────
+        // Mesmo desenho do balão de ativação do Hatsu e do popup de REN: contador, custo
+        // somado e o resultado antes de confirmar. O botão de confirmar fica apagado
+        // quando a aura ou as Reações não cobrem a escolha — foi o que o Lucas pediu.
+        window._abrirEscalaPrincipio = function (key, custo) {
+            const char = state.currentChar;
+            const maxPac = window.pacotesPossiveisPrincipio ? window.pacotesPossiveisPrincipio(char, key) : 1;
+            if (maxPac <= 0) {
+                const c = window.custoPacotePrincipio ? window.custoPacotePrincipio(char, key) : { aura: custo, reacoes: 0 };
+                alert('Recurso insuficiente para ativar.\n\nUm pacote custa ' + c.aura + '% de aura'
+                    + (c.reacoes > 0 ? ' e ' + c.reacoes + ' Reaç' + (c.reacoes > 1 ? 'ões' : 'ão') : '') + '.');
+                return;
+            }
+            // Com um pacote só disponível não há escolha a fazer: ativa direto.
+            if (maxPac === 1) { window._activatePrincipio(key, custo, 1); return; }
+            state.pendingEscala = { key: key, custo: custo, pacotes: 1, maxPac: maxPac };
+            render(true);
+        };
+        window._setEscalaPacotes = function (n) {
+            if (!state.pendingEscala) return;
+            const max = state.pendingEscala.maxPac || 1;
+            state.pendingEscala.pacotes = Math.max(1, Math.min(max, parseInt(n) || 1));
+            render(true);
+        };
+        window._fecharEscalaPrincipio = function () { state.pendingEscala = null; render(true); };
+        window._confirmarEscalaPrincipio = function () {
+            const pe = state.pendingEscala;
+            state.pendingEscala = null;
+            if (!pe) return;
+            window._activatePrincipio(pe.key, pe.custo, pe.pacotes);
+        };
+        // Resultado de cada princípio para N pacotes, só para mostrar no balão.
+        function _resultadoEscala(char, key, pac) {
+            if (key === 'ten') {
+                const base = window.calcTenRD ? window.calcTenRD(char) : 0;
+                return '+' + (base * pac) + ' RD' + (pac > 1 ? ' (era +' + base + ')' : '');
+            }
+            if (key === 'en') {
+                const adv = window.calcAvancadoBonus ? window.calcAvancadoBonus(char, 'en') : { diametro: 3 };
+                const d0 = adv.diametro || 3;
+                const dv = d0 + (pac - 1) * 3;
+                return String(dv).replace('.', ',') + 'm de diâmetro' + (pac > 1 ? ' (era ' + String(d0).replace('.', ',') + 'm)' : '');
+            }
+            if (key === 'ken') return 'CA ×' + (1 + pac) + (pac > 1 ? ' (era ×2)' : '');
+            return '';
+        }
+        function renderEscalaPrincipioModalHtml() {
+            if (!state.pendingEscala) return '';
+            const char = state.currentChar;
+            const pe = state.pendingEscala;
+            const key = pe.key, pac = pe.pacotes || 1, maxPac = pe.maxPac || 1;
+            const NOMES = { ten: 'TEN', en: 'EN', ken: 'KEN' };
+            const c = window.custoPacotePrincipio ? window.custoPacotePrincipio(char, key) : { aura: pe.custo, reacoes: 0 };
+            const auraTot = c.aura * pac, reaTot = c.reacoes * pac;
+            const reaMax = window.calcReacoesMax ? window.calcReacoesMax(char) : 7;
+            const reaAtual = (char.vitals.rea !== undefined) ? char.vitals.rea : reaMax;
+            const cabe = (char.vitals.aura || 0) >= auraTot && reaAtual >= reaTot;
+            const steps = Array.from({ length: maxPac }, function (_, i) { return i + 1; }).map(function (n) {
+                const sel = pac === n;
+                return '<button onclick="window._setEscalaPacotes(' + n + ')" style="width:34px;height:34px;border-radius:9px;'
+                    + 'font-family:Orbitron,sans-serif;font-weight:900;font-size:13px;cursor:pointer;border:1.5px solid '
+                    + (sel ? '#60a5fa' : '#374151') + ';background:' + (sel ? '#60a5fa33' : '#1f2937')
+                    + ';color:' + (sel ? '#60a5fa' : '#9ca3af') + '">' + n + '</button>';
+            }).join('');
+            return '<div style="position:fixed;inset:0;background:#000000cc;display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;font-family:Rajdhani,sans-serif">'
+                + '<div style="background:#0d1117;border:2px solid #60a5fa;border-radius:18px;padding:22px;width:100%;max-width:340px;box-shadow:0 0 40px #60a5fa44;text-align:center">'
+                + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:13px;color:#60a5fa;text-transform:uppercase;letter-spacing:2px">'
+                + 'Quanto pagar no ' + (NOMES[key] || key.toUpperCase()) + '?</div>'
+                + '<div style="font-size:9px;color:#6b7280;margin-top:6px;line-height:1.5">Cada pacote custa <b style="color:#9ca3af">'
+                + c.aura + '% de aura' + (c.reacoes > 0 ? ' e ' + c.reacoes + ' Reaç' + (c.reacoes > 1 ? 'ões' : 'ão') : '') + '</b>.</div>'
+                + '<div style="display:flex;gap:4px;justify-content:center;margin-top:12px">' + steps + '</div>'
+                + '<div style="font-size:8px;color:#6b7280;margin-top:6px">Pacotes (máx. ' + maxPac + ' — aura e Reações disponíveis)</div>'
+                + '<div style="background:#60a5fa10;border:1px solid #60a5fa33;border-radius:10px;padding:10px;margin-top:12px">'
+                + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:15px;color:#60a5fa">'
+                + _resultadoEscala(char, key, pac) + '</div>'
+                + '<div style="font-size:9px;color:#9ca3af;margin-top:4px">Custo: ' + auraTot + '% de aura'
+                + (reaTot > 0 ? ' · ' + reaTot + ' Reaç' + (reaTot > 1 ? 'ões' : 'ão') : '') + '</div></div>'
+                + '<div style="display:flex;gap:8px;margin-top:16px">'
+                + '<button onclick="window._fecharEscalaPrincipio()" style="flex:1;padding:12px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Cancelar</button>'
+                + '<button ' + (cabe ? 'onclick="window._confirmarEscalaPrincipio()"' : 'disabled')
+                + ' style="flex:2;padding:12px;border-radius:10px;background:#60a5fa;border:none;color:#000;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:'
+                + (cabe ? 'pointer' : 'not-allowed') + ';opacity:' + (cabe ? '1' : '0.5') + '">Ativar</button>'
+                + '</div></div></div>';
+        }
         function renderRenPromptModalHtml() {
             if (!state.pendingRenRoll) return '';
             const char = state.currentChar;
@@ -3843,7 +3936,12 @@
             const at = (char && char.principiosAtivos) || {};
             const fontes = [];
             let ca = caBase;
-            if (at.ken) { ca = ca * 2; fontes.push('KEN (×2)'); }
+            if (at.ken) {
+                // 1 pacote dobra, 2 triplicam, 3 quadruplicam — "gastar o dobro de aura e
+                // Reações para triplicar a CA original no lugar de dobrar".
+                const _mk = window.multiplicadorKen ? window.multiplicadorKen(char) : 2;
+                ca = ca * _mk; fontes.push('KEN (×' + _mk + ')');
+            }
             if (at.ko) {
                 const koB = window.calcAvancadoBonus ? window.calcAvancadoBonus(char, 'ko') : { caBonus: 0 };
                 ca = Math.round(ca * 0.2) + (koB.caBonus || 0);
