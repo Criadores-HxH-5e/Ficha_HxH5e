@@ -629,6 +629,94 @@ window.diametroEnAtivo = function (char) {
     return (adv.diametro || 3) + (window.pacotesPrincipio(char, 'en') - 1) * 3;
 };
 
+// ── SHU: menu de alternativas a 5% cada ──────────────────────────────────────
+// Cap. 6: "Gasta-se 10% de aura para aplicar +1d4 no Dano e CA ao item de 1m (...)
+// por uma rodada." E depois: "É possível gastar 5% a mais de aura para:
+//   1. Aumentar a CA ou Dano do item (como REN)
+//   2. Aplicar a propriedade de Arma de Cerco
+//   3. Aumentar em uma rodada o tempo de duração
+//   4. Englobar itens maiores que 1m. Sendo 5% para cada metro"
+// O Lucas confirmou que acumula: "é possível acumular pegando 3 coisas diferentes
+// ao custo de 15%, mas lembre-se que dura por uma rodada, por padrão."
+//
+// SHU SUPERIOR muda duas das quatro: "gastar a mesma aura independente do tamanho
+// do objeto E aumentar dano e CA ao mesmo tempo". Então no Superior o item 4 sai de
+// graça e o item 1 sobe os DOIS em vez de pedir escolha.
+//
+// "Como REN" no item 1 = um degrau na escada de grau/passo, partindo do 1d4 base.
+window.SHU_BASE_AURA = 10;
+window.SHU_DADO_BASE = '1d4';
+window.SHU_MENU = [
+    { id: 'mais',    rotulo: 'Aumentar CA ou Dano (como REN)', custo: 5, tipo: 'contador' },
+    { id: 'cerco',   rotulo: 'Propriedade Arma de Cerco',      custo: 5, tipo: 'toggle'   },
+    { id: 'duracao', rotulo: '+1 rodada de duração',           custo: 5, tipo: 'contador' },
+    { id: 'tamanho', rotulo: 'Englobar +1m de tamanho',        custo: 5, tipo: 'contador' },
+];
+window.SHU_MENU_MAX = 6;   // só para a interface não virar régua infinita
+
+window.escolhasShu = function (char) {
+    const e = ((char || {}).shuEscolhas) || {};
+    return {
+        mais: Math.max(0, parseInt(e.mais) || 0),
+        alvoMais: (e.alvoMais === 'ca') ? 'ca' : 'dano',
+        cerco: !!e.cerco,
+        duracao: Math.max(0, parseInt(e.duracao) || 0),
+        tamanho: Math.max(0, parseInt(e.tamanho) || 0),
+        item: e.item || '',
+    };
+};
+
+// Custo total: 10% de base + 5% por unidade escolhida. No Superior o tamanho é grátis.
+window.custoShu = function (char, esc) {
+    const e = esc || window.escolhasShu(char);
+    const sup = !!(((char || {}).nenDominio) || {}).shu_sup;
+    let pct = window.SHU_BASE_AURA;
+    pct += 5 * e.mais;
+    pct += e.cerco ? 5 : 0;
+    pct += 5 * e.duracao;
+    if (!sup) pct += 5 * e.tamanho;
+    return pct;
+};
+
+// Estado do SHU ativo: dados de dano e CA, duração, Arma de Cerco e o item envolvido.
+window.calcShuAtivo = function (char) {
+    const e = window.escolhasShu(char);
+    const sup = !!(((char || {}).nenDominio) || {}).shu_sup;
+    const T = window.DAMAGE_TABLE || ['1d4', '1d6', '1d8'];
+    const i0 = Math.max(0, T.indexOf(window.SHU_DADO_BASE));
+    const sobe = function (passos) { return T[Math.min(i0 + Math.max(0, passos), T.length - 1)]; };
+    // No Superior os passos valem para os dois ao mesmo tempo; fora dele, só para o
+    // alvo escolhido — "Aumentar a CA OU Dano do item".
+    const passosDano = sup ? e.mais : (e.alvoMais === 'dano' ? e.mais : 0);
+    const passosCA   = sup ? e.mais : (e.alvoMais === 'ca'   ? e.mais : 0);
+    // No Dano o item 1 anda na escada ("como REN"); na CA ele é +1 por compra.
+    const dadoDano = sobe(passosDano);
+    // A CA NÃO usa escada nem média: o livro dá "+1d4 no Dano e CA", e o Lucas
+    // confirmou que é o RESULTADO do 1d4 que entra na CA — não a média. O dado é
+    // rolado UMA vez, na ativação, e guardado em char.shuCaRolado: a CA é um número
+    // só na ficha, e rolar a cada render faria ela dançar entre 11 e 14.
+    // E o item 1 do menu vale "+1 na CA para cada 5%" (decisão do Lucas), em vez do
+    // degrau de escada que vale só para o Dano.
+    // 0 = ainda não rolado (é o que o balão usa para mostrar "1d4 + N" na prévia).
+    // O Math.max(1, ...) que eu tinha escrito aqui forçava 1 nesse caso e inventava
+    // um bônus que ninguém rolou.
+    const _cr = parseInt((char || {}).shuCaRolado) || 0;
+    const caRolado = _cr > 0 ? Math.min(4, _cr) : 0;
+    const adv = window.calcAvancadoBonus ? window.calcAvancadoBonus(char, 'shu') : { rodadas: 1 };
+    return {
+        sup: sup,
+        dadoDano: dadoDano,
+        caRolado: caRolado,
+        caPasso: passosCA,
+        caBonus: caRolado + passosCA,
+        cerco: e.cerco,
+        rodadas: (adv.rodadas || 1) + e.duracao,
+        metros: 1 + e.tamanho,
+        item: e.item,
+        custo: window.custoShu(char, e),
+    };
+};
+
 window.calcPNSpentInOtherHatsus = function(char, editingIdx) {
     if (!char || !char.hatsus) return 0;
     let spent = 0;

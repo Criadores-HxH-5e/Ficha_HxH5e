@@ -1469,6 +1469,7 @@ window._openPrimeiroHatsuModal = function() {
             if (char.principiosRodadas) delete char.principiosRodadas[key];
             // Zera os pacotes: a próxima ativação começa do custo base outra vez.
             if (char.principiosPacotes) delete char.principiosPacotes[key];
+            if (key === 'shu') { delete char.shuEscolhas; delete char.shuCaRolado; }
             if (key === 'gyo') delete char.gyoAlvo;
             saveCharacter(char);
             render(true);
@@ -1479,6 +1480,8 @@ window._openPrimeiroHatsuModal = function() {
             char.principiosAtivos = {};
             char.principiosPacotes = {};
             delete char.gyoAlvo;
+            delete char.shuEscolhas;
+            delete char.shuCaRolado;
             saveCharacter(char);
             render(true);
         };
@@ -1607,7 +1610,16 @@ window._openPrimeiroHatsuModal = function() {
             // cálculos (calcTenRDAtivo, multiplicadorKen, diametroEnAtivo).
             const _pac = Math.max(1, parseInt(pacotes) || 1);
             const _cp = window.custoPacotePrincipio ? window.custoPacotePrincipio(char, key) : null;
-            const custoAura = (custo > 0 ? custo : 0) * _pac;
+            // SHU não usa pacotes: o custo sai do menu de alternativas, que o balão já
+            // gravou em char.shuEscolhas antes de chamar esta função.
+            const _ehShu = (key === 'shu');
+            // O +1d4 da CA do SHU é rolado UMA vez, aqui, e vale pela duração toda.
+            // Guardado na ficha porque a CA é um número só: recalcular a cada render
+            // faria ela oscilar entre +1 e +4 sem ninguém ter rolado nada.
+            if (_ehShu) char.shuCaRolado = Math.floor(Math.random() * 4) + 1;
+            const custoAura = _ehShu
+                ? (window.custoShu ? window.custoShu(char) : (custo > 0 ? custo : 0))
+                : (custo > 0 ? custo : 0) * _pac;
             // Reações: o livro cobra 1 no TEN, 2 no EN e 4 no KEN, e o app nunca
             // descontava nenhuma. Agora desconta — por pacote.
             const _reaMax = window.calcReacoesMax ? window.calcReacoesMax(char) : 7;
@@ -1653,7 +1665,16 @@ window._openPrimeiroHatsuModal = function() {
     en:    ['🔵 EN ativado — detecta forma e movimento em ' + ((advB.diametro||3) + (key === 'en' ? (_pac - 1) * 3 : 0)) + 'm por 1 rodada. Ataque de reação vs quem entrar, sem gastar Ação Principal.'],
     inp:   ['🌑 IN ativado — objeto de aura oculto por ' + (advB.rodadas||1) + ' rodada(s).'],
     gyo:   ['👁️ GYO ativado — visão de aura e objetos ocultos (ou +' + (advB.attrBonus||3) + ' FOR/DES/CON por 1 rodada se corporal).'],
-    shu:   ['⚡ SHU ativado — objeto envolto: +1d4 Dano e CA por ' + (advB.rodadas||1) + ' rodada(s). Golpe mirado sem ônus.'],
+    shu:   [(function () {
+                const s = window.calcShuAtivo ? window.calcShuAtivo(char) : null;
+                if (!s) return '⚡ SHU ativado — objeto envolto: +1d4 Dano e CA por ' + (advB.rodadas||1) + ' rodada(s). Golpe mirado sem ônus.';
+                return '⚡ SHU ativado' + (s.item ? ' em ' + s.item : '') + ' — +' + s.dadoDano + ' no Dano e +'
+                    + s.caBonus + ' na CA (1d4 rolou ' + s.caRolado
+                    + (s.caPasso > 0 ? ' +' + s.caPasso : '') + ') por ' + s.rodadas + ' rodada(s)'
+                    + (s.cerco ? ', com Arma de Cerco' : '')
+                    + (s.metros > 1 ? ', até ' + s.metros + 'm' : '')
+                    + '. Golpe mirado sem ônus.';
+            })()],
     ken:   ['🏯 KEN ativado — CA ×' + (key === 'ken' ? (1 + _pac) : 2) + ' por 2 rodadas. Consome ' + ((advB.reacoes||4) * (key === 'ken' ? _pac : 1)) + ' Reações.'],
     ko:    ['🔥 KO ativado — próximo golpe: dano ×3. ATENÇÃO: CA reduzida em 80% até próximo turno' + (advB.caBonus>0?(' (+' + advB.caBonus + ' restante)'):'') + '!'],
     ryu:   ['🌊 RYU ativado — Exemplos 1-3' + (advB.sup?'-6':'') + ' de RYU disponíveis' + (advB.tabelaBonus>0?(' (+' + advB.tabelaBonus + ' em todos os valores)'):'') + '. Múltiplos contra-ataques permitidos.'],
@@ -1683,6 +1704,9 @@ window._openPrimeiroHatsuModal = function() {
                 if (!char.principiosRodadas) char.principiosRodadas = {};
                 let rod = (window.PRINCIPIO_RODADAS || {})[key];
                 if (key === 'shu' || key === 'inp') rod = (advB && advB.rodadas) || 1;
+                // SHU: "+1 rodada de duração" por 5% comprados no menu, em cima do que o
+                // aprimoramento já dá. calcShuAtivo soma os dois.
+                if (key === 'shu' && window.calcShuAtivo) rod = window.calcShuAtivo(char).rodadas;
                 char.principiosRodadas[key] = (rod == null) ? null : rod;
             }
 
