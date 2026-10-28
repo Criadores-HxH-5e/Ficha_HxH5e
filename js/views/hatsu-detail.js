@@ -1458,6 +1458,9 @@ function renderHatsuDetail(container) {
     </div>` : '';
 
     let _hatsuFinalDice = null;
+    // Dado base (degrau da escada) e termo de dados extras, separados: o REN precisa do
+    // primeiro para andar na DAMAGE_TABLE e do segundo para recolocar depois.
+    let _hatsuDiceBase = null, _hatsuDiceExtra = '';
     // Dado da linha de CURA (Dano/Cura Focal com tag cura). Null quando não há cura.
     let _hatsuCuraDice = null, _hatsuCuraEspera = 0;
     let calcDanoHtml = '';
@@ -1528,7 +1531,22 @@ function renderHatsuDetail(container) {
             const _idxSemFocal = DAMAGE_TABLE.indexOf('1d8');
             const _baseLabel = _temDanoFocal ? '2d6' : '1d8';
             let baseIdx = _temDanoFocal ? BASE_DAMAGE_IDX : _idxSemFocal;
+            // ── Dados extras: termo PRÓPRIO quando saem da escada ───────────────────
+            // A DAMAGE_TABLE é uma ESCADA, não um catálogo: vai 2d6 → 2d8 → 2d10 → 2d12 →
+            // 3d10, então 3d6, 4d6, 5d6 e 3d8 não existem nela. Antes, quando a soma do
+            // base com os dados extras caía num desses, o resultado virava uma string
+            // solta e três coisas quebravam:
+            //   1. DAMAGE_TABLE.indexOf(string) dava −1, então o popup de REN NUNCA abria
+            //      (independente do teto e de o REN estar ligado);
+            //   2. com grau aplicado, finalDice vinha da escada e o dado extra DESAPARECIA
+            //      (um 3d6 com +1 grau exibia 2d8, perdendo um dado);
+            //   3. baseIdx era jogado em BASE_DAMAGE_IDX (2d6) mesmo num Hatsu cujo base
+            //      era 1d8, inflando o dano de quem não tem Dano/Cura Focal.
+            // Agora o dado BASE continua na escada — é nele que o grau e o REN andam, por
+            // decisão de regra do Lucas ("manter o REN apenas no dado base") — e os extras
+            // saem como segundo termo, intactos.
             let afterDadoNote = '';
+            let _dadosExtraTermo = '';
             if (totalDados > 0) {
                 // Parse current base dice: "2d6" → n=2, d=6
                 const baseMatch = DAMAGE_TABLE[baseIdx].match(/^(\d+)d(\d+)$/);
@@ -1538,9 +1556,12 @@ function renderHatsuDetail(container) {
                     // Find this new dice in the table or construct string
                     const newDice = n + 'd' + d;
                     const foundIdx = DAMAGE_TABLE.indexOf(newDice);
-                    if (foundIdx >= 0) baseIdx = foundIdx;
-                    else { baseIdx = BASE_DAMAGE_IDX; afterDadoNote = newDice; } // use constructed string
-                    if (!afterDadoNote) afterDadoNote = '';
+                    if (foundIdx >= 0) {
+                        baseIdx = foundIdx;             // couberam na escada: nada muda
+                    } else {
+                        afterDadoNote = newDice;        // mantido para a linha de detalhe
+                        _dadosExtraTermo = totalDados + 'd' + d;
+                    }
                 }
             }
             // O Flagelo não soma mais no dano base: ele tem linha própria de sanidade.
@@ -1569,8 +1590,13 @@ function renderHatsuDetail(container) {
             // rev. Manual 2.0: ao ultrapassar o fim da tabela (20d20), cada grau excedente vira +5 de dano fixo
             const overflowSteps = Math.max(0, rawIdx - (DAMAGE_TABLE.length - 1));
             const overflowBonus = overflowSteps * DAMAGE_OVERFLOW_STEP;
-            let finalDice = afterDadoNote && _grausPodeBase === 0 ? afterDadoNote : DAMAGE_TABLE[finalIdx];
-            if (overflowBonus > 0) finalDice = finalDice + '+' + overflowBonus;
+            // Guardados separados: é do dado BASE que o REN sobe a escada, e ele é sempre
+            // um degrau real da tabela — nunca uma string construída.
+            _hatsuDiceBase = DAMAGE_TABLE[finalIdx];
+            _hatsuDiceExtra = _dadosExtraTermo;
+            let finalDice = DAMAGE_TABLE[finalIdx];
+            if (_dadosExtraTermo) finalDice = finalDice + ' + ' + _dadosExtraTermo;
+            if (overflowBonus > 0) finalDice = finalDice + ' + ' + overflowBonus;
             _hatsuFinalDice = finalDice;
 
             // ── Linha de CURA, quando há cópias do Focal marcadas como cura ─────────
@@ -1936,6 +1962,8 @@ function renderHatsuDetail(container) {
 
     window._hatsuRollState = {
         dice: _hatsuFinalDice,
+        diceBase: _hatsuDiceBase,
+        diceExtra: _hatsuDiceExtra,
         // Linha de CURA separada, quando o Dano/Cura Focal tem cópias marcadas como cura.
         curaDice: _hatsuCuraDice,
         curaEspera: _hatsuCuraEspera,
