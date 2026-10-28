@@ -1386,29 +1386,53 @@ function renderHatsuCreator(container) {
                     ri_e28: { icone: '🤝', titulo: 'Trabalho em Equipe ou Simbiose?',
                         nota: 'Trabalho em Equipe usa 10% da aura de aliados. Simbiose concede a um objeto ou criatura até 2 pontos de atributo, Reações ou 5% de aura.',
                         opcoes: ['Trabalho em Equipe', 'Simbiose'] },
+                    // ── Emissão ────────────────────────────────────────────────────────
+                    // Aura Viva: a 1ª compra é a base (2 massas, CA 10, 1d6 de dano e PV
+                    // cheio). Da 2ª em diante o livro dá escolha, e o app aplicava sempre
+                    // o mesmo +6 de PV. 'pulaPrimeira' faz o picker começar na 2ª cópia.
+                    em_e1: { icone: '🫧', titulo: 'O que esta compra acrescenta?',
+                        nota: 'Base: 2 massas, CA 10, dano 1d6 e PV 1d6 cheio. Cada compra a mais soma uma massa OU sobe um degrau no dado — que vale para o dano E para o PV.',
+                        pulaPrimeira: true,
+                        opcoes: [['massa', '+1 massa de aura'], ['grau', '+1 grau/passo no dado']] },
+                    em_e11: { icone: '🔗', titulo: 'O que esta compra acrescenta?',
+                        nota: 'Dobrar o PV compõe: duas compras de PV quadruplicam.',
+                        opcoes: [['pv', 'Dobrar o PV'], ['ca', '+1 na CA']] },
                 };
                 if (_ESCOLHAS_REFORCO[item.id]) {
                     const _cfg = _ESCOLHAS_REFORCO[item.id];
                     const _copR = [].concat(hb.eg || [], hb.ec || []).filter(function (x) { return x === item.id; }).length;
                     const _kR = function (i) { return i > 0 ? (item.id + '#' + i) : item.id; };
                     let _blocosR = '';
-                    for (let _i = 0; _i < Math.max(1, _copR); _i++) {
+                    // 'pulaPrimeira': a 1ª compra é a base do efeito e não tem escolha.
+                    const _iniR = _cfg.pulaPrimeira ? 1 : 0;
+                    if (_cfg.pulaPrimeira && _copR <= 1) _blocosR = '<div style="font-size:8px;color:#6b7280">A primeira compra é a base. A escolha aparece a partir da segunda.</div>';
+                    for (let _i = _iniR; _i < Math.max(_iniR + (_cfg.pulaPrimeira ? 0 : 1), _copR); _i++) {
                         const _ch = _kR(_i);
                         const _at = specialChoices[_ch] || '';
                         _blocosR += '<div style="' + (_i > 0 ? 'margin-top:8px;padding-top:8px;border-top:1px dashed ' + color + '33;' : '') + '">'
                             + (Math.max(1, _copR) > 1 ? '<div style="font-size:8px;font-weight:700;color:#9ca3af;margin-bottom:4px">Compra ' + (_i + 1) + '</div>' : '')
                             + '<div style="display:flex;gap:5px;flex-wrap:wrap">'
                             + _cfg.opcoes.map(function (o) {
-                                const active = _at === o;
+                                // Opção pode ser uma string (valor = rótulo) ou um par
+                                // [valorGravado, rótulo]. O par existe para os efeitos cujo
+                                // cálculo lê um id curto ('massa', 'grau', 'pv', 'ca') e cujo
+                                // botão precisa de um texto legível.
+                                const _val = Array.isArray(o) ? o[0] : o;
+                                const _lbl = Array.isArray(o) ? o[1] : o;
+                                const active = _at === _val;
                                 const st = 'flex:1;min-width:92px;padding:7px 6px;border-radius:8px;font-size:9px;font-weight:900;cursor:pointer;text-align:center;border:1.5px solid '
                                     + (active ? color : '#374151') + ';background:' + (active ? color + '22' : 'transparent')
                                     + ';color:' + (active ? color : '#9ca3af');
                                 return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\'' + _ch + '\',\''
-                                    + o.replace(/'/g, "\\'") + '\')" style="' + st + '">' + (active ? '✓ ' : '') + o + '</button>';
+                                    + _val.replace(/'/g, "\\'") + '\')" style="' + st + '">' + (active ? '✓ ' : '') + _lbl + '</button>';
                             }).join('')
                             + '</div>'
                             + (_at
-                                ? '<div style="font-size:8px;color:#4ade80;margin-top:4px">✓ ' + _at + '</div>'
+                                ? '<div style="font-size:8px;color:#4ade80;margin-top:4px">✓ '
+                                    + (function () {
+                                        const _o = _cfg.opcoes.filter(function (x) { return (Array.isArray(x) ? x[0] : x) === _at; })[0];
+                                        return _o ? (Array.isArray(_o) ? _o[1] : _o) : _at;
+                                    })() + '</div>'
                                 : '<div style="font-size:8px;color:#f87171;margin-top:4px">⚠ Escolha uma opção.</div>')
                             + '</div>';
                     }
