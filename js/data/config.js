@@ -1113,7 +1113,18 @@ window.calcReacoesMax = function (char) {
             incl += (window.INCLINACAO_REACOES || {})[n2] || 0;
         });
     }
-    return 7 + Math.floor((sab - 10) / 2) + analitica + incl;
+    // ri_e23 Vigor Contínuo: "Reduz 1 grau de Exaustão em combate e adiciona 2
+    // Reações". O +2 estava escrito no banco e nunca chegava aqui — calcReacoesMax
+    // não olhava os Hatsus. Vale enquanto o Hatsu estiver ATIVO, pela regra geral de
+    // que todo efeito dura pela duração do Hatsu. Cópias somam.
+    let hatsu = 0;
+    const _ativosR = (char.hatsusAtivos) || {};
+    Object.keys(_ativosR).forEach(function (k) {
+        const h = (char.hatsus || [])[parseInt(k)];
+        if (!h) return;
+        hatsu += (h.efeitos || []).filter(function (id) { return id === 'ri_e23'; }).length * 2;
+    });
+    return 7 + Math.floor((sab - 10) / 2) + analitica + incl + hatsu;
 };
 
 // ── Bônus de Nen em atributos e perícias ──────────────────────────────────────

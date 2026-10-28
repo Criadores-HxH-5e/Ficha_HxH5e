@@ -170,6 +170,14 @@ window.DANO_PROPRIO_MAP = {
     // Plano Avançado (que é uma marca, sem dano) ganhava 2d6 fantasma, e os efeitos
     // de verdade — em_e4 e em_e20 — não davam dano nenhum.
     'em_e20': { dado: '+ 2d6',    tipo: 'Potente',    desc: 'Disparo Potente' },
+    // ── Efeitos que prometiam NÚMERO e não tinham destino ──────────────────────
+    // Os quatro abaixo têm dano escrito no banco e nenhum deles aparecia em arquivo
+    // de cálculo nenhum: o jogador comprava, lia "+5 de dano" no card e rolava sem o
+    // +5. Levantado na auditoria de mecânicas decorativas de 28/10.
+    'ri_e27': { dado: '+5 dano',  tipo: 'Titânica',   desc: 'Força Titânica (ataques físicos)' },
+    'rm_e13': { dado: '+ 1d8',    tipo: 'Forja',      desc: 'Forja Avançada (Ação Bônus, 1x/rodada)' },
+    'rt_e8':  { dado: '2d4',      tipo: 'Sangramento',desc: 'Anticoagulante (sangramento leve)' },
+    'rt_e15': { dado: '2d8',      tipo: 'Sangramento',desc: 'Hemorragia Oculta (sangramento médio)' },
     'rt_e16': { dado: '+5 dano',  tipo: 'Ferida',     desc: 'Ferida Interna' },
     'ri_e12': { dado: '+5',       tipo: 'Perfurante', desc: 'Penetração Dolorosa' },
 };
@@ -196,6 +204,16 @@ window.DANO_PROPRIO_ESCALA = {
     'rc_e1':  { tipo: 'dado',  base: '1d6' },          // Invocar Criatura
     'rc_e9':  { tipo: 'dado',  base: '1d8' },          // Metamorfose Corporal
     'em_e20': { tipo: 'dado',  base: '2d6' },          // Disparo Potente (era 'em_e3')
+    // Força Titânica é valor BRUTO, como Penetração Dolorosa e Ferida Interna.
+    'ri_e27': { tipo: 'bruto', base: 5, passo: 1 },
+    // ── Ficam FORA desta tabela, de propósito ─────────────────────────────────
+    // rm_e13 Forja Avançada: a própria descrição diz "Não é aumento de grau: é
+    //   transformar a Ação Bônus em +1d8". Na escada, comprar de novo subiria o dado
+    //   em vez de ser outro uso.
+    // rt_e8 Anticoagulante e rt_e15 Hemorragia Oculta: sobem por CONDIÇÃO NÃO
+    //   RESOLVIDA, não por grau/passo. O sangramento leve que ninguém trata vira
+    //   médio — a escalada é do estado do alvo na mesa, não de REN nem de compra
+    //   repetida. O que muda entre os dois é só o dado em que começam.
     'eg10':   { tipo: 'dado',  base: '1d10' },         // Flagelo da Mente (dano em SANIDADE)
     // Valor BRUTO sobe de 1 em 1, qualquer que seja a base: +5 vira +6, não +10.
     // Só os efeitos com DADO usam a tabela de grau/passo.
@@ -1919,6 +1937,7 @@ function renderHatsuDetail(container) {
     let acertoBonus = 0;
     let acertoVantagem = false;
     const acertoBonusSources = [];
+    let _ma15Contado = false;   // Controle Superior soma com teto — ver abaixo
 
     // Instâncias e Inclinações: calcBonusAcerto (config.js) vale para o Hatsu e para
     // o ataque com arma, então mora fora deste arquivo. Até aqui o acerto só lia o
@@ -1937,6 +1956,16 @@ function renderHatsuDetail(container) {
         if (bonus) {
             acertoBonus += bonus;
             acertoBonusSources.push({ nome: item.nome, bonus });
+        }
+        // ma_e15 Controle Superior: "+1 em Testes ou Ataques (+5 no máximo)". Fica fora
+        // do ACERTO_BNF_MAP porque aquele mapa soma uma vez por cópia, sem teto — e este
+        // efeito tem teto. O acumulado é contado uma vez só, na primeira cópia.
+        if (item.id === 'ma_e15' && !_ma15Contado) {
+            _ma15Contado = true;
+            const _copias = efeitosSel.filter(function (e) { return e.id === 'ma_e15'; }).length;
+            const _b15 = Math.min(5, _copias);
+            acertoBonus += _b15;
+            acertoBonusSources.push({ nome: item.nome + (_copias > 5 ? ' (teto +5)' : ''), bonus: _b15 });
         }
         // Condicionais: rg_l1 (Cálculo Pensado 1) — +1 acerto ou dano
         if (item.id === 'rg_l1') {
