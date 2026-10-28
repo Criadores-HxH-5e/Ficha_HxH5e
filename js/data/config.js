@@ -3,7 +3,23 @@ const DISCORD_CONFIG = {
     clientId: '1271506937111904286', // Substitua pelo ID do seu App Discord
     guildId: '831867588656758804',   // ID do Servidor Discord
     roleId: '1335940980628521000',     // ID do Cargo necessário
-    redirectUri: window.location.origin + window.location.pathname // URL atual
+    // ── redirect_uri do Discord ──────────────────────────────────────────────
+    // Era `origin + pathname`: a URL EXATA em que o jogador estava quando clicou em
+    // entrar. O Discord só aceita URIs cadastradas no portal, e esta mesma tela tem
+    // mais de um endereço:
+    //   https://ficha-hx-h5e.vercel.app/            → o vercel.json reescreve para
+    //                                                 /HxH5e.html, mas a barra de
+    //                                                 endereço continua em "/"
+    //   https://ficha-hx-h5e.vercel.app/HxH5e.html  → quem abre o link direto
+    // Quem caía no caminho não cadastrado levava "redirect_uri de OAuth2 inválido".
+    // Como o caminho dependia de COMO a pessoa chegou no site, o erro parecia
+    // aleatório: o mesmo jogador entrava hoje e falhava amanhã.
+    //
+    // Agora o caminho é sempre "/", que é a entrada canônica (o vercel.json já a
+    // reescreve para HxH5e.html, e só o HxH5e.html carrega o auth.js, que é quem lê
+    // o token do hash na volta). A ORIGEM continua dinâmica, para o app seguir
+    // funcionando em localhost e nos previews da Vercel.
+    redirectUri: window.location.origin + '/'
 };
 
 // Lista de IDs de usuários que pagaram (Acesso liberado sem cargo)
