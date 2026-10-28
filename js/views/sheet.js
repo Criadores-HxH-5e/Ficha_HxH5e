@@ -207,7 +207,12 @@
                         { key:'ko', label:'KO', icon:'🔥', custo:30,
                           efeito: `Dano ×${window.KO_MULTIPLICADOR || 3}, CA −80%${koB.caBonus>0?` (+${koB.caBonus})`:''}`, desc: '30% Aura', show: !!d.ko },
                         { key:'ryu', label:'RYU', icon:'🌊', custo:30,
-                          efeito: `+3 CA/Ataque${ryB.tabelaBonus>0?` (+${ryB.tabelaBonus})`:''}`, desc: '30% Aura, 3 turnos', show: !!d.ryu },
+                          efeito: (() => {
+                              // Com o RYU ligado mostra a linha do turno; desligado, a inicial.
+                              const _r = window.calcRyuAtivo ? window.calcRyuAtivo(char) : null;
+                              return _r ? `+${_r.ca} CA/+${_r.ataqueDano} Atq` : `+3 CA/Atq${ryB.tabelaBonus>0?` (+${ryB.tabelaBonus})`:''}`;
+                          })(),
+                          desc: `30% Aura, ${window.RYU_TURNOS_MAX||6} turnos`, show: !!d.ryu },
                     ].filter(p => p.show);
 
                     const btns = PRINCIPIOS.map(p => {
@@ -221,13 +226,18 @@
                         // jogador decidir quanta aura e quantas Reações vai pagar. Os outros
                         // continuam ativando com um clique, no custo fechado.
                         const _esc = window.principioEscalavel && window.principioEscalavel(p.key);
+                        // O RYU entra na mesma categoria do SHU: tem uma escolha a fazer
+                        // antes de ligar (qual tabela seguir), então abre balão em vez de
+                        // ativar direto.
                         const acao = ativo
                             ? `window._desativarPrincipio('${p.key}')`
                             : (p.key === 'shu'
                                 ? `window._abrirMenuShu()`
-                                : (_esc
-                                    ? `window._abrirEscalaPrincipio('${p.key}',${p.custo})`
-                                    : `window._activatePrincipio('${p.key}',${p.custo})`));
+                                : (p.key === 'ryu'
+                                    ? `window._abrirTabelaRyu()`
+                                    : (_esc
+                                        ? `window._abrirEscalaPrincipio('${p.key}',${p.custo})`
+                                        : `window._activatePrincipio('${p.key}',${p.custo})`)));
                         return `<button onclick="${acao}"
                             style="display:flex;flex-direction:column;align-items:center;padding:8px 6px;border-radius:10px;border:1.5px solid ${col}44;background:${col}11;cursor:${canAct?'pointer':'not-allowed'};opacity:${canAct?1:0.5};min-width:56px;flex:1;transition:all .15s"
                             title="${ativo ? 'ATIVO — clique para desligar' : p.desc}">
@@ -265,6 +275,22 @@
                                     <button onclick="window._desativarTodosPrincipios()" style="flex-shrink:0;padding:4px 9px;border-radius:6px;background:transparent;border:1px solid #4ade8055;color:#4ade80;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer">Desligar tudo</button>
                                 </div>
                                 <button onclick="window._passarRodada()" style="width:100%;margin-top:7px;padding:8px;border-radius:8px;background:#4ade8022;border:1px solid #4ade8066;color:#4ade80;font-family:'Orbitron',sans-serif;font-weight:900;font-size:8px;text-transform:uppercase;letter-spacing:1px;cursor:pointer">⏭ Passar rodada${char.rodadaAtual ? ' (rodada ' + char.rodadaAtual + ')' : ''}</button>
+                                ${(function () {
+                                    // Faixa do RYU: ele é o único princípio que anda em TURNOS,
+                                    // então ganha o próprio botão ao lado do "Passar rodada".
+                                    // Mostra a linha vigente para o jogador conferir o que a ficha
+                                    // já está somando sozinha na CA, no acerto e no dano.
+                                    const _r = window.calcRyuAtivo ? window.calcRyuAtivo(char) : null;
+                                    if (!_r) return '';
+                                    const _max = window.RYU_TURNOS_MAX || 6;
+                                    return `<div style="margin-top:7px;background:#38bdf815;border:1px solid #38bdf844;border-radius:8px;padding:7px 9px;display:flex;align-items:center;gap:8px">
+                                        <div style="flex:1;line-height:1.5">
+                                            <div style="font-size:9px;color:#38bdf8;font-weight:700">🌊 RYU — ${_r.tabela} · turno ${_r.turno}/${_max}</div>
+                                            <div style="font-size:8px;color:#7dd3fc;font-weight:600">+${_r.ca} CA · +${_r.ataqueDano} Ataque e Dano${_r.temReacoes ? ' · +' + _r.reacoes + ' Reações' : ''}</div>
+                                        </div>
+                                        <button onclick="window._passarTurnoRyu()" style="flex-shrink:0;padding:6px 10px;border-radius:7px;background:#38bdf822;border:1px solid #38bdf866;color:#38bdf8;font-family:'Orbitron',sans-serif;font-weight:900;font-size:8px;text-transform:uppercase;letter-spacing:1px;cursor:pointer">⏭ ${_r.ultimoTurno ? 'Encerrar' : 'Passar turno'}</button>
+                                    </div>`;
+                                })()}
                             </div>`;
                         })()}
                         ${(() => {
@@ -835,7 +861,7 @@
                                     { effect: 'CA mínima após o uso passa a ser 10 (em vez da faixa 2–6).',
                                       aprimoramento: aprimoramentoBox('ko', Math.min(window.PN_APRIMORAMENTO_MAX, d.ko_pn||0), window.PN_APRIMORAMENTO_MAX, null, `Bônus na CA restante após KO: <b>+${koB.caBonus}</b> (+1 a cada 2 P.N extra)`) })}
                                 ${advancedCard('ryu','RYU — Fluir','🌊','GYO em tempo real em várias partes do corpo simultaneamente, para combate corpo-a-corpo e armas de arremesso. 30% Aura → acesso aos Exemplos 1–3 (Bônus em CA e Ataque+Dano).',
-                                    `Após os 3 turnos iniciais, escolha livremente entre as linhas restantes de qualquer tabela disponível, sem repetir uma linha da mesma tabela. Consome Reações para contra-ataques sem perder Ação Principal.`,
+                                    `Escolha UMA tabela ao ativar e siga a ordem dela até o 6º turno — as tabelas são ordens diferentes das mesmas linhas, então a escolha é em QUE turno o golpe forte cai. O botão "Passar turno", no painel de princípios ativos, anda na tabela. Consome Reações para contra-ataques sem perder Ação Principal.`,
                                     'TEN + REN + ZETSU Maestria', ten>=3 && ren>=3 && zetsu>=3,
                                     { effect: 'Desbloqueia os Exemplos 4, 5 e 6 de RYU, que concedem Reações Extras.',
                                       aprimoramento: aprimoramentoBox('ryu', Math.min(window.PN_APRIMORAMENTO_MAX, d.ryu_pn||0), window.PN_APRIMORAMENTO_MAX, null, `Bônus em todos os valores das tabelas de RYU: <b>+${ryB.tabelaBonus}</b> (+1 a cada 2 P.N extra)`),
@@ -1204,6 +1230,7 @@
                 ${renderRenPromptModalHtml()}
                 ${renderEscalaPrincipioModalHtml()}
                 ${renderMenuShuModalHtml()}
+                ${renderTabelaRyuModalHtml()}
                 ${renderRenAttackPromptModalHtml()}
                 ${renderZetsuPromptModalHtml()}
                 <div class="h-auto min-h-[4rem] bg-[#0e0e14] border-t border-gray-800 flex items-center justify-around px-2 relative z-50 pb-safe pt-2">
@@ -2132,6 +2159,16 @@
                 }
             });
 
+            // ── RYU: a linha da tabela soma no Dano ────────────────────────────────
+            // O acerto já recebe esse mesmo valor por calcBonusAcerto (config.js). Aqui
+            // entra como bônus plano, junto dos outros extras fixos, para o crítico não
+            // dobrá-lo e para aparecer na fórmula que vai ao Discord.
+            const _ryuH = window.calcRyuAtivo ? window.calcRyuAtivo(char) : null;
+            if (_ryuH && _ryuH.ataqueDano > 0) {
+                flatBonus += _ryuH.ataqueDano;
+                flatParts.push('RYU ' + _ryuH.ataqueDano);
+            }
+
             // ── Rolagem de ATAQUE, antecipada ──────────────────────────────────────
             // Ela acontecia DEPOIS do cálculo do dano, e por isso o crítico nunca pôde
             // dobrar nada: quando o d20 era rolado o total já estava fechado. Agora o
@@ -2626,6 +2663,80 @@
                 + (cabe ? 'pointer' : 'not-allowed') + ';opacity:' + (cabe ? '1' : '0.5') + '">Ativar SHU</button>'
                 + '</div></div></div>';
         }
+
+        // ── Balão da tabela do RYU ──────────────────────────────────────────────────
+        // O RYU não escala por pacotes nem por menu de alternativas: o custo é fechado
+        // em 30%, e a única decisão é QUAL TABELA seguir. Como as seis tabelas são
+        // ordens diferentes das mesmas três linhas finais, escolher a tabela é escolher
+        // em que turno cada linha vai cair — adiantar o golpe forte (CA+5 / Atq+5) para
+        // o 4º turno ou guardá-lo para o 6º. Essa é a decisão tática do princípio, e
+        // ela precisava de uma tela: antes o jogador ligava o RYU e recebia +3 de CA.
+        window._abrirTabelaRyu = function () {
+            const char = state.currentChar;
+            const disp = window.tabelasRyuDisponiveis ? window.tabelasRyuDisponiveis(char) : [];
+            if (!disp.length) { alert('Nenhuma tabela de RYU disponível.'); return; }
+            state.pendingRyu = { tabela: disp[0].i };
+            render(true);
+        };
+        window._setTabelaRyu = function (i) {
+            if (!state.pendingRyu) return;
+            state.pendingRyu.tabela = parseInt(i) || 0;
+            render(true);
+        };
+        window._fecharTabelaRyu = function () { state.pendingRyu = null; render(true); };
+        window._confirmarTabelaRyu = function () {
+            const pr = state.pendingRyu;
+            state.pendingRyu = null;
+            if (!pr) return;
+            const char = state.currentChar;
+            // Gravado ANTES de ativar: a mensagem de ativação e calcRyuAtivo leem daqui.
+            char.ryuTabela = pr.tabela;
+            char.ryuTurno = 1;
+            window._activatePrincipio('ryu', 30, 1);
+        };
+        function renderTabelaRyuModalHtml() {
+            if (!state.pendingRyu) return '';
+            const char = state.currentChar;
+            const sel = state.pendingRyu.tabela;
+            const disp = window.tabelasRyuDisponiveis ? window.tabelasRyuDisponiveis(char) : [];
+            const ryB = window.calcAvancadoBonus ? window.calcAvancadoBonus(char, 'ryu') : { tabelaBonus: 0 };
+            const extra = ryB.tabelaBonus || 0;
+            const max = window.RYU_TURNOS_MAX || 6;
+            const cabe = (char.vitals.aura || 0) >= 30;
+            const COR = '#38bdf8';
+            const cartoes = disp.map(function (o) {
+                const on = o.i === sel;
+                const linhas = (o.tabela.linhas || []).map(function (l, k) {
+                    const rot = k === 0 ? 'Turnos 1-3' : (l.turno + ' turno');
+                    return '<div style="display:flex;gap:6px;font-size:8px;color:' + (on ? '#e5e7eb' : '#6b7280') + ';padding:2px 0">'
+                        + '<span style="width:62px;flex-shrink:0;color:#9ca3af">' + rot + '</span>'
+                        + '<span style="flex:1">+' + (l.ca + extra) + ' CA</span>'
+                        + '<span style="flex:1">+' + (l.ataqueDano + extra) + ' Atq/Dano</span>'
+                        + '<span style="flex:1">' + (l.reacoes == null ? '—' : ('+' + (l.reacoes + extra) + ' Reaç.')) + '</span>'
+                        + '</div>';
+                }).join('');
+                return '<button onclick="window._setTabelaRyu(' + o.i + ')" style="display:block;width:100%;text-align:left;'
+                    + 'border-radius:10px;padding:8px 10px;margin-bottom:6px;cursor:pointer;border:1px solid '
+                    + (on ? COR : '#1f2937') + ';background:' + (on ? COR + '15' : '#0f1117') + '">'
+                    + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:9px;color:'
+                    + (on ? COR : '#9ca3af') + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">'
+                    + (on ? '✓ ' : '') + o.tabela.nome + (o.tabela.superior ? ' · Superior' : '') + '</div>'
+                    + linhas + '</button>';
+            }).join('');
+            return '<div style="position:fixed;inset:0;background:#000000cc;display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;font-family:Rajdhani,sans-serif;overflow:auto">'
+                + '<div style="background:#0d1117;border:2px solid ' + COR + ';border-radius:18px;padding:20px;width:100%;max-width:380px;box-shadow:0 0 40px ' + COR + '44;text-align:center;max-height:92vh;overflow:auto">'
+                + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:13px;color:' + COR + ';text-transform:uppercase;letter-spacing:2px">RYU — qual tabela?</div>'
+                + '<div style="font-size:9px;color:#6b7280;margin-top:5px;line-height:1.5">As tabelas são a mesma combinação de linhas em <b style="color:#9ca3af">ordens diferentes</b>. Escolha uma e siga até o ' + max + 'º turno — o botão <b style="color:#9ca3af">Passar turno</b> anda nela.</div>'
+                + (extra > 0 ? '<div style="font-size:8px;color:' + COR + ';margin-top:4px">Aprimoramento: +' + extra + ' já somado em todos os valores abaixo.</div>' : '')
+                + '<div style="margin-top:12px">' + cartoes + '</div>'
+                + '<div style="font-size:10px;color:' + (cabe ? COR : '#f87171') + ';font-weight:900;margin-top:4px">Custo: 30% de aura' + (cabe ? '' : ' — aura insuficiente') + '</div>'
+                + '<div style="display:flex;gap:8px;margin-top:14px">'
+                + '<button onclick="window._fecharTabelaRyu()" style="flex:1;padding:12px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Cancelar</button>'
+                + '<button ' + (cabe ? 'onclick="window._confirmarTabelaRyu()"' : 'disabled')
+                + ' style="flex:2;padding:12px;border-radius:10px;background:' + COR + ';border:none;color:#000;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:'
+                + (cabe ? 'pointer' : 'not-allowed') + ';opacity:' + (cabe ? '1' : '0.5') + '">Ativar RYU</button>'
+                + '</div></div></div>';
+        }
         function renderEscalaPrincipioModalHtml() {
             if (!state.pendingEscala) return '';
             const char = state.currentChar;
@@ -2857,7 +2968,12 @@
             const dmgResult = rollDiceExpr(renDiceExpr);
             // Crítico dobra os DADOS; o KO multiplica o dano inteiro depois disso.
             const _koMultW = window.multiplicadorDanoKo ? window.multiplicadorDanoKo(char) : 1;
-            const dmgTotal = ((isCrit ? dmgResult.total * 2 : dmgResult.total) + mod) * _koMultW;
+            // RYU: o mesmo número que calcBonusAcerto já somou no acerto entra também no
+            // dano, porque a coluna da tabela é "Ataque e Dano". É valor fixo, então fica
+            // FORA da dobra do crítico — o crítico dobra os dados.
+            const _ryuW = window.calcRyuAtivo ? window.calcRyuAtivo(char) : null;
+            const _ryuWDano = _ryuW ? _ryuW.ataqueDano : 0;
+            const dmgTotal = ((isCrit ? dmgResult.total * 2 : dmgResult.total) + mod + _ryuWDano) * _koMultW;
             const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
             const renLabel = useRen ? ' 💪REN' : '';
             char.history.push({ time, label: `⚔️ ${weaponName} (${attrKey})${renLabel}`, dice: attackRoll.dice.join(', '), mod: mod + pb, total: attackTotal, img: state.pendingRollImage || '' });
@@ -4109,7 +4225,9 @@
             return { armadura: melhorArmadura, escudo: bonusEscudo };
         }
         // ── Princípios ativos que mexem na CA ───────────────────────────────────────
-        // KEN dobra a CA, KO reduz 80%, RYU soma 3 e SHU soma 1d4 (usamos a média, 2).
+        // KEN multiplica a CA, KO reduz 80%, RYU soma a linha da tabela do turno e SHU
+        // soma o 1d4 rolado na ativação. (O comentário antigo descrevia duas médias que
+        // não existem mais: nem o RYU é fixo em 3, nem o SHU usa a média 2 do 1d4.)
         // O GYO concentrado em CON entra pela porta normal, no 10 + modificador.
         function calcCAPrincipios(char, caBase) {
             const at = (char && char.principiosAtivos) || {};
@@ -4127,9 +4245,13 @@
                 fontes.push('KO (−80%' + ((koB.caBonus || 0) > 0 ? ', +' + koB.caBonus : '') + ')');
             }
             if (at.ryu) {
-                const ryB = window.calcAvancadoBonus ? window.calcAvancadoBonus(char, 'ryu') : { tabelaBonus: 0 };
-                const v = 3 + (ryB.tabelaBonus || 0);
-                ca += v; fontes.push('RYU (+' + v + ')');
+                // Era +3 fixo, o valor dos 3 turnos iniciais, para sempre. Agora vem da
+                // linha vigente: nos turnos 4-6 ela vale 3, 4 ou 5 conforme a ordem da
+                // tabela que o jogador escolheu.
+                const _r = window.calcRyuAtivo ? window.calcRyuAtivo(char) : null;
+                const v = _r ? _r.ca : 3;
+                ca += v;
+                fontes.push('RYU (+' + v + (_r ? ', ' + _r.tabela + ' turno ' + _r.turno : '') + ')');
             }
             if (at.shu) {
                 // Antes era fixo em 2, a média do 1d4. O livro manda somar o RESULTADO do

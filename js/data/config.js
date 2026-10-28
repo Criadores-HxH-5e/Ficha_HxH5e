@@ -1043,6 +1043,14 @@ window.calcBonusAcerto = function (char) {
     const ci = char.combatInclinations || {};
     if ((parseInt(ci.decisiva) || 0) >= 1) add('Decisiva (Básico)', 2);
 
+    // RYU: a linha vigente da tabela soma no Ataque E no Dano. O acerto entra aqui,
+    // que é o cálculo compartilhado pela arma e pelo Hatsu; o dano entra nos dois
+    // pontos de rolagem (rollAttack e rollHatsuDamage), porque lá não há função
+    // equivalente. Vale enquanto o princípio estiver ligado — nenhuma condição
+    // extra — por isso entra no total e não na lista de condicionais.
+    const _ryuA = window.calcRyuAtivo ? window.calcRyuAtivo(char) : null;
+    if (_ryuA) add('RYU (' + _ryuA.tabela + ', turno ' + _ryuA.turno + ')', _ryuA.ataqueDano);
+
     return { total: total, fontes: fontes };
 };
 
@@ -1140,7 +1148,14 @@ window.calcReacoesMax = function (char) {
         if (!h) return;
         hatsu += (h.efeitos || []).filter(function (id) { return id === 'ri_e23'; }).length * 2;
     });
-    return 7 + Math.floor((sab - 10) / 2) + analitica + incl + hatsu;
+    // RYU nos Exemplos 4-6 (só com Superior): a linha da tabela concede Reações Extras,
+    // e elas estavam escritas no banco sem nunca chegarem ao total. Nos Exemplos 1-3 a
+    // coluna não existe e calcRyuAtivo devolve 0, então nada muda para quem não tem
+    // Superior.
+    const _ryuR = window.calcRyuAtivo ? window.calcRyuAtivo(char) : null;
+    const ryu = (_ryuR && _ryuR.temReacoes) ? _ryuR.reacoes : 0;
+
+    return 7 + Math.floor((sab - 10) / 2) + analitica + incl + hatsu + ryu;
 };
 
 // ── Bônus de Nen em atributos e perícias ──────────────────────────────────────
