@@ -194,7 +194,13 @@
                         { key:'gyo', label:'GYO', icon:'🔍', custo:10,
                           efeito: `Ver aura/oculto (+${gyB.attrBonus} corp.)`, desc: '10% olhos / 30% corpo', show: !!d.gyo },
                         { key:'shu', label:'SHU', icon:'⚡', custo:10,
-                          efeito: `+1d4 dano+CA ${shB.rodadas}rod`, desc: '10% em objeto 1m', show: !!d.shu },
+                          efeito: (() => {
+                              const _s = (window.calcShuAtivo && window.principioAtivo && window.principioAtivo(char,'shu'))
+                                  ? window.calcShuAtivo(char) : null;
+                              return _s ? `+${_s.dadoDano} dano/+${_s.caBonus} CA ${_s.rodadas}rod`
+                                        : `+1d4 dano+CA ${shB.rodadas}rod`;
+                          })(),
+                          desc: '10% em objeto 1m', show: !!d.shu },
                         { key:'ken', label:'KEN', icon:'🏰', custo: keB.auraCusto,
                           efeito: `CA ×${(window.multiplicadorKen && window.principioAtivo && window.principioAtivo(char,'ken')) ? window.multiplicadorKen(char) : 2} por 2rod`,
                           desc: `${keB.auraCusto}% + ${keB.reacoes} Reações`, show: !!d.ken },
@@ -217,9 +223,11 @@
                         const _esc = window.principioEscalavel && window.principioEscalavel(p.key);
                         const acao = ativo
                             ? `window._desativarPrincipio('${p.key}')`
-                            : (_esc
-                                ? `window._abrirEscalaPrincipio('${p.key}',${p.custo})`
-                                : `window._activatePrincipio('${p.key}',${p.custo})`);
+                            : (p.key === 'shu'
+                                ? `window._abrirMenuShu()`
+                                : (_esc
+                                    ? `window._abrirEscalaPrincipio('${p.key}',${p.custo})`
+                                    : `window._activatePrincipio('${p.key}',${p.custo})`));
                         return `<button onclick="${acao}"
                             style="display:flex;flex-direction:column;align-items:center;padding:8px 6px;border-radius:10px;border:1.5px solid ${col}44;background:${col}11;cursor:${canAct?'pointer':'not-allowed'};opacity:${canAct?1:0.5};min-width:56px;flex:1;transition:all .15s"
                             title="${ativo ? 'ATIVO — clique para desligar' : p.desc}">
@@ -406,8 +414,14 @@
                         <div style="font-size:7px;font-weight:900;color:${_mcCor};letter-spacing:.5px">CRÍT</div>
                         <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:11px;color:${_mc.valor < _mc.base ? '#fbbf24' : '#9ca3af'}">${_mc.valor}+</div>
                     </div>`;
+                    // SHU envolve UM item. Quando esse item é uma das armas da lista, o dado
+                    // extra aparece na linha dela — e só nela, senão o selo mentiria nas outras.
+                    const _shuAt = (window.calcShuAtivo && window.principioAtivo && window.principioAtivo(char, 'shu'))
+                        ? window.calcShuAtivo(char) : null;
                     const rows = attacksList.map(w => {
-                        const tagsHtml = (w.tags || []).slice(0, 2).map(t => `<span style="font-size:7px;background:#111827;color:#6b7280;padding:1px 5px;border-radius:3px;border:1px solid #1f2937">${t}</span>`).join('');
+                        const _temShu = !!(_shuAt && _shuAt.item && _shuAt.item === w.nome);
+                        const tagsHtml = ((w.tags || []).slice(0, 2).map(t => `<span style="font-size:7px;background:#111827;color:#6b7280;padding:1px 5px;border-radius:3px;border:1px solid #1f2937">${t}</span>`).join(''))
+                            + (_temShu ? `<span style="font-size:7px;background:#a78bfa22;color:#a78bfa;padding:1px 5px;border-radius:3px;border:1px solid #a78bfa55">⚡ SHU +${_shuAt.dadoDano}${_shuAt.cerco ? ' · Cerco' : ''}</span>` : '');
                         const safeNome = w.nome.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                         const safeDano = w.dano.replace(/'/g, "\\'");
                         const safeTipo = (w.tipoDano || '').replace(/'/g, "\\'");
@@ -1189,6 +1203,7 @@
                 ${renderRollModeModalHtml()}
                 ${renderRenPromptModalHtml()}
                 ${renderEscalaPrincipioModalHtml()}
+                ${renderMenuShuModalHtml()}
                 ${renderRenAttackPromptModalHtml()}
                 ${renderZetsuPromptModalHtml()}
                 <div class="h-auto min-h-[4rem] bg-[#0e0e14] border-t border-gray-800 flex items-center justify-around px-2 relative z-50 pb-safe pt-2">
@@ -2462,6 +2477,128 @@
             if (key === 'ken') return 'CA ×' + (1 + pac) + (pac > 1 ? ' (era ×2)' : '');
             return '';
         }
+        // ── Menu do SHU ─────────────────────────────────────────────────────────────
+        // O SHU não escala por pacotes como TEN/EN/KEN: são 4 alternativas a 5% cada,
+        // acumuláveis, sobre uma base de 10%. O item envolvido é escolhido aqui porque
+        // o dado de dano do SHU só vale para ele.
+        window._abrirMenuShu = function () {
+            const char = state.currentChar;
+            const e = window.escolhasShu ? window.escolhasShu(char) : {};
+            state.pendingShu = {
+                mais: e.mais || 0, alvoMais: e.alvoMais || 'dano', cerco: !!e.cerco,
+                duracao: e.duracao || 0, tamanho: e.tamanho || 0, item: e.item || '',
+            };
+            render(true);
+        };
+        window._setShuCampo = function (campo, valor) {
+            if (!state.pendingShu) return;
+            const max = window.SHU_MENU_MAX || 6;
+            if (campo === 'cerco') state.pendingShu.cerco = !state.pendingShu.cerco;
+            else if (campo === 'alvoMais') state.pendingShu.alvoMais = (valor === 'ca') ? 'ca' : 'dano';
+            else if (campo === 'item') state.pendingShu.item = String(valor || '');
+            else state.pendingShu[campo] = Math.max(0, Math.min(max, parseInt(valor) || 0));
+            render(true);
+        };
+        window._fecharMenuShu = function () { state.pendingShu = null; render(true); };
+        window._confirmarMenuShu = function () {
+            const ps = state.pendingShu;
+            state.pendingShu = null;
+            if (!ps) return;
+            const char = state.currentChar;
+            char.shuEscolhas = {
+                mais: ps.mais, alvoMais: ps.alvoMais, cerco: ps.cerco,
+                duracao: ps.duracao, tamanho: ps.tamanho, item: ps.item,
+            };
+            // O custo é lido de char.shuEscolhas dentro do _activatePrincipio, por isso
+            // a gravação acontece ANTES da chamada.
+            window._activatePrincipio('shu', 0, 1);
+        };
+        function renderMenuShuModalHtml() {
+            if (!state.pendingShu) return '';
+            const char = state.currentChar;
+            const ps = state.pendingShu;
+            const sup = !!((char.nenDominio || {}).shu_sup);
+            const max = window.SHU_MENU_MAX || 6;
+            const custo = window.custoShu ? window.custoShu(char, ps) : 10;
+            const cabe = (char.vitals.aura || 0) >= custo;
+            // O 1d4 da CA só é rolado na confirmação, então o balão mostra "1d4 + N".
+            const prev = window.calcShuAtivo
+                ? window.calcShuAtivo(Object.assign({}, char, { shuEscolhas: ps, shuCaRolado: 0 }))
+                : { dadoDano: '1d4', caPasso: 0, rodadas: 1, metros: 1, cerco: false };
+            const contador = function (campo, rotulo, nota) {
+                const v = ps[campo] || 0;
+                const btn = function (n, lbl) {
+                    const sel = v === n;
+                    return '<button onclick="window._setShuCampo(\'' + campo + '\',' + n + ')" style="width:26px;height:26px;border-radius:7px;'
+                        + 'font-family:Orbitron,sans-serif;font-weight:900;font-size:11px;cursor:pointer;border:1px solid '
+                        + (sel ? '#a78bfa' : '#374151') + ';background:' + (sel ? '#a78bfa33' : '#1f2937')
+                        + ';color:' + (sel ? '#a78bfa' : '#9ca3af') + '">' + lbl + '</button>';
+                };
+                let steps = btn(0, '–');
+                for (let i = 1; i <= max; i++) steps += btn(i, String(i));
+                return '<div style="background:#0f1117;border:1px solid #1f2937;border-radius:9px;padding:8px;margin-bottom:6px;text-align:left">'
+                    + '<div style="font-size:9px;font-weight:700;color:#d1d5db">' + rotulo + '</div>'
+                    + (nota ? '<div style="font-size:7px;color:#6b7280;margin-top:1px">' + nota + '</div>' : '')
+                    + '<div style="display:flex;gap:3px;margin-top:5px;flex-wrap:wrap">' + steps + '</div></div>';
+            };
+            // Armas do inventário, para dizer em QUE o SHU foi aplicado.
+            const _itens = (char.inventory || []).map(function (it) { return it && it.name; }).filter(Boolean);
+            const itemOpts = ['<option value="">— escolher item —</option>'].concat(_itens.map(function (nm) {
+                return '<option value="' + nm.replace(/"/g, '&quot;') + '"' + (ps.item === nm ? ' selected' : '') + '>' + nm + '</option>';
+            })).join('');
+            const alvoBtns = sup
+                ? '<div style="font-size:8px;color:#4ade80;margin-top:4px">SHU Superior: vale no Dano E na CA ao mesmo tempo.</div>'
+                : '<div style="display:flex;gap:4px;margin-top:5px">'
+                    + ['dano', 'ca'].map(function (a) {
+                        const sel = ps.alvoMais === a;
+                        return '<button onclick="window._setShuCampo(\'alvoMais\',\'' + a + '\')" style="flex:1;padding:5px;border-radius:7px;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer;border:1px solid '
+                            + (sel ? '#a78bfa' : '#374151') + ';background:' + (sel ? '#a78bfa33' : '#1f2937')
+                            + ';color:' + (sel ? '#a78bfa' : '#9ca3af') + '">' + (a === 'ca' ? 'na CA' : 'no Dano') + '</button>';
+                    }).join('') + '</div>';
+            return '<div style="position:fixed;inset:0;background:#000000cc;display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;font-family:Rajdhani,sans-serif;overflow:auto">'
+                + '<div style="background:#0d1117;border:2px solid #a78bfa;border-radius:18px;padding:20px;width:100%;max-width:360px;box-shadow:0 0 40px #a78bfa44;text-align:center;max-height:92vh;overflow:auto">'
+                + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:13px;color:#a78bfa;text-transform:uppercase;letter-spacing:2px">SHU — o que agregar?</div>'
+                + '<div style="font-size:9px;color:#6b7280;margin-top:5px;line-height:1.5">Base: <b style="color:#9ca3af">10% de aura</b> → +1d4 no Dano e na CA de um item de 1m, por 1 rodada. Cada alternativa custa <b style="color:#9ca3af">+5%</b>.</div>'
+                + '<div style="background:#0f1117;border:1px solid #1f2937;border-radius:9px;padding:8px;margin:10px 0 6px;text-align:left">'
+                + '<div style="font-size:9px;font-weight:700;color:#d1d5db;margin-bottom:4px">Item envolvido</div>'
+                + '<select onchange="window._setShuCampo(\'item\', this.value)" style="width:100%;background:#1f2937;border:1px solid #374151;color:#e5e7eb;border-radius:7px;padding:6px;font-size:9px">'
+                + itemOpts + '</select>'
+                + '<div style="font-size:7px;color:#6b7280;margin-top:3px">O dado de dano do SHU só entra na rolagem desta arma.</div></div>'
+                + '<div style="background:#0f1117;border:1px solid #1f2937;border-radius:9px;padding:8px;margin-bottom:6px;text-align:left">'
+                + '<div style="font-size:9px;font-weight:700;color:#d1d5db">Aumentar CA ou Dano (como REN)</div>'
+                + '<div style="font-size:7px;color:#6b7280;margin-top:1px">No Dano, cada compra sobe 1 degrau na escada (como REN). Na CA, cada compra vale +1.</div>'
+                + '<div style="display:flex;gap:3px;margin-top:5px;flex-wrap:wrap">'
+                + (function () { let s = ''; for (let i = 0; i <= max; i++) {
+                    const sel = (ps.mais || 0) === i;
+                    s += '<button onclick="window._setShuCampo(\'mais\',' + i + ')" style="width:26px;height:26px;border-radius:7px;font-family:Orbitron,sans-serif;font-weight:900;font-size:11px;cursor:pointer;border:1px solid '
+                      + (sel ? '#a78bfa' : '#374151') + ';background:' + (sel ? '#a78bfa33' : '#1f2937')
+                      + ';color:' + (sel ? '#a78bfa' : '#9ca3af') + '">' + (i === 0 ? '–' : i) + '</button>'; } return s; })()
+                + '</div>' + ((ps.mais || 0) > 0 ? alvoBtns : '') + '</div>'
+                + '<div style="background:#0f1117;border:1px solid #1f2937;border-radius:9px;padding:8px;margin-bottom:6px;text-align:left">'
+                + '<div style="display:flex;align-items:center;gap:8px">'
+                + '<div style="flex:1"><div style="font-size:9px;font-weight:700;color:#d1d5db">Propriedade Arma de Cerco</div>'
+                + '<div style="font-size:7px;color:#6b7280;margin-top:1px">+5%</div></div>'
+                + '<button onclick="window._setShuCampo(\'cerco\')" style="flex-shrink:0;padding:6px 12px;border-radius:7px;font-size:9px;font-weight:900;cursor:pointer;border:1px solid '
+                + (ps.cerco ? '#a78bfa' : '#374151') + ';background:' + (ps.cerco ? '#a78bfa33' : '#1f2937')
+                + ';color:' + (ps.cerco ? '#a78bfa' : '#9ca3af') + '">' + (ps.cerco ? '✓ Sim' : 'Não') + '</button></div></div>'
+                + contador('duracao', '+1 rodada de duração', '+5% por rodada')
+                + contador('tamanho', 'Englobar +1m de tamanho',
+                    sup ? 'SHU Superior: grátis, a aura é a mesma em qualquer tamanho.' : '+5% por metro')
+                + '<div style="background:#a78bfa10;border:1px solid #a78bfa33;border-radius:10px;padding:10px;margin-top:4px">'
+                + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:13px;color:#a78bfa">+'
+                + prev.dadoDano + ' Dano · +1d4' + ((prev.caPasso || 0) > 0 ? ' +' + prev.caPasso : '') + ' CA</div>'
+                + '<div style="font-size:7px;color:#6b7280">o 1d4 da CA é rolado na ativação</div>'
+                + '<div style="font-size:9px;color:#9ca3af;margin-top:3px">' + prev.rodadas + ' rodada(s) · até '
+                + String(prev.metros).replace('.', ',') + 'm' + (prev.cerco ? ' · Arma de Cerco' : '') + '</div>'
+                + '<div style="font-size:10px;color:' + (cabe ? '#a78bfa' : '#f87171') + ';font-weight:900;margin-top:5px">Custo: '
+                + custo + '% de aura' + (cabe ? '' : ' — aura insuficiente') + '</div></div>'
+                + '<div style="display:flex;gap:8px;margin-top:14px">'
+                + '<button onclick="window._fecharMenuShu()" style="flex:1;padding:12px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Cancelar</button>'
+                + '<button ' + (cabe ? 'onclick="window._confirmarMenuShu()"' : 'disabled')
+                + ' style="flex:2;padding:12px;border-radius:10px;background:#a78bfa;border:none;color:#000;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:'
+                + (cabe ? 'pointer' : 'not-allowed') + ';opacity:' + (cabe ? '1' : '0.5') + '">Ativar SHU</button>'
+                + '</div></div></div>';
+        }
         function renderEscalaPrincipioModalHtml() {
             if (!state.pendingEscala) return '';
             const char = state.currentChar;
@@ -2679,6 +2816,13 @@
                 char.vitals.aura = Math.max(0, (char.vitals.aura || 0) - renCost);
             }
 
+            // SHU: o dado vai no item envolvido, então só entra quando a arma rolada é ela.
+            // Só é possível somar como SEGUNDO TERMO porque o rollDiceExpr passou a aceitar
+            // expressão de vários termos.
+            const _shuR = (window.calcShuAtivo && window.principioAtivo && window.principioAtivo(char, 'shu'))
+                ? window.calcShuAtivo(char) : null;
+            const _shuNaArma = !!(_shuR && _shuR.item && _shuR.item === weaponName);
+            if (_shuNaArma) renDiceExpr = renDiceExpr + ' + ' + _shuR.dadoDano;
             const dmgResult = rollDiceExpr(renDiceExpr);
             const dmgTotal = dmgResult.total + mod;
             const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -3952,7 +4096,16 @@
                 const v = 3 + (ryB.tabelaBonus || 0);
                 ca += v; fontes.push('RYU (+' + v + ')');
             }
-            if (at.shu) { ca += 2; fontes.push('SHU (+1d4, média 2)'); }
+            if (at.shu) {
+                // Antes era fixo em 2, a média do 1d4. O livro manda somar o RESULTADO do
+                // 1d4, que agora é rolado na ativação (char.shuCaRolado), mais +1 por cada
+                // 5% do item 1 do menu. No SHU Superior esse +1 vem junto com o degrau
+                // de escada do Dano, sem precisar escolher entre os dois.
+                const _s = window.calcShuAtivo ? window.calcShuAtivo(char) : { caBonus: 0, caRolado: 0, caPasso: 0 };
+                ca += _s.caBonus;
+                fontes.push('SHU (1d4 rolou ' + _s.caRolado
+                    + (_s.caPasso > 0 ? ' +' + _s.caPasso : '') + ')');
+            }
             return { ca: Math.max(0, ca), fontes: fontes };
         }
 
