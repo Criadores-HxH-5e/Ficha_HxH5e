@@ -1255,13 +1255,35 @@ function renderHatsuDetail(container) {
     const catTemDano  = ['INTENSIFICAÇÃO','REFORÇO','TRANSMUTAÇÃO','EMISSÃO'];
     // h.classe é a categoria cross-category do hatsu (ex: EMISSÃO comprada por manipulador)
     const hatsuClasse = h.classe || char.class;
-    const catDmg      = catTemDano.some(c => c === hatsuClasse);
+    // ── A CATEGORIA não cria dano sozinha ───────────────────────────────────────
+    // Antes bastava a categoria ser uma das quatro para o Hatsu ganhar dano base, e
+    // isso valia mesmo num Hatsu 100% de suporte: um Hatsu só de cura, de um
+    // Intensificador, exibia "1d8 + FOR", um botão de distribuir graus e o botão de
+    // rolar dano no Discord — tudo em cima de um dano que a construção não tem.
+    // Quem decide é o TIPO escolhido (hostil/versátil/instantâneo) ou um efeito que
+    // conceda dano. A categoria segue valendo APENAS como rede de segurança para
+    // Hatsu salvo sem tipo nenhum, que é dado antigo e perderia o dano em silêncio.
+    const temTipoDefinido = tiposParts.some(function (p) { return !!p; });
+    const catDmg      = catTemDano.some(c => c === hatsuClasse) && !temTipoDefinido;
 
     // Verifica se algum efeito selecionado concede dano próprio
     const efeitosComDanoProprio = efeitosSel.filter(e => DANO_PROPRIO_MAP[e.id] && e.id !== 'eg10');
     const flageloCopias = (h.efeitos||[]).filter(id => id === 'eg10').length; // can have multiple copies
     const temFlagelo = flageloCopias > 0;
     const hasEfeitoDano = efeitosComDanoProprio.length > 0 || temFlagelo;
+
+    // Dano/Cura Focal com cópia marcada como DANO (ou Forjar Arma escolhido como Arma)
+    // também dá dano base — inclusive num Hatsu de suporte, porque aí foi o jogador que
+    // marcou a cópia como dano. Calculado aqui em cima, e não lá dentro do bloco de
+    // dano, porque agora é ele que ajuda a decidir SE existe bloco de dano.
+    const _temForjarArmaBase = efeitosSel.some(function (e) { return e.id === 'rm_e1'; })
+        && (h.specialChoices || {})['rm_e1_tipo'] === 'Arma';
+    const _tagsFocalBase = window.contarTagsFocal
+        ? window.contarTagsFocal(h, efeitosSel) : { dano: 0, cura: 0 };
+    const _temDanoFocalBase = _tagsFocalBase.dano > 0 || _temForjarArmaBase;
+    // Uma variável só para "este Hatsu tem a linha de dano BASE", usada em todos os
+    // pontos que antes repetiam (isHostil || catDmg).
+    const temDanoBase = isHostil || catDmg || _temDanoFocalBase;
 
     // Detects sanity damage from restrictions/effects (beyond eg10)
     // Map of items that deal sanity damage with their values
@@ -1285,8 +1307,9 @@ function renderHatsuDetail(container) {
         sanidadeExtras.push({ ...item, _san: SANIDADE_MAP[item.id] });
     });
 
-    // Hatsu tem dano base se: tipo hostil/versátil/instantâneo, OU categoria ofensiva, OU tem efeito com dano
-    const hasBaseDmg = isHostil || catDmg || hasEfeitoDano;
+    // Hatsu tem dano se: tipo que causa dano, OU Focal marcado como dano, OU efeito que
+    // concede dano próprio. (A categoria entra só quando não há tipo salvo — ver acima.)
+    const hasBaseDmg = temDanoBase || hasEfeitoDano;
 
     // Calcula graus totais de dano (só aplica se há dano base)
     let totalGraus = 0;
@@ -1468,14 +1491,14 @@ function renderHatsuDetail(container) {
         // ── Linhas de dano/cura e a distribuição dos graus ──────────────────────
         // Calculado ANTES do bloco de dano base, porque as linhas extras e a de cura
         // também precisam saber quanto lhes coube do pool.
-        const _temForjarArma = efeitosSel.some(function (e) { return e.id === 'rm_e1'; })
-            && (h.specialChoices || {})['rm_e1_tipo'] === 'Arma';
-        const _tags = window.contarTagsFocal(h, efeitosSel);
-        const _temDanoFocal = _tags.dano > 0 || _temForjarArma;
+        // Reaproveita o que foi calculado lá em cima: recalcular aqui abriria espaço
+        // para as duas contas divergirem no futuro.
+        const _tags = _tagsFocalBase;
+        const _temDanoFocal = _temDanoFocalBase;
         const _temCuraFocal = _tags.cura > 0;
         const _copiasRecup = efeitosSel.filter(function (e) { return e.id === 'ri_e3'; }).length;
         const _linhasDano = window.linhasDeDanoDoHatsu(h, efeitosSel, {
-            temBase: (isHostil || catDmg),
+            temBase: temDanoBase,
             baseDado: _temDanoFocal ? '2d6' : '1d8',
             temCura: _temCuraFocal || _copiasRecup > 0,
             curaDado: _temCuraFocal ? '2d6' : '1d8',
@@ -1508,7 +1531,7 @@ function renderHatsuDetail(container) {
         const danoColor = totalGraus > 0 ? '#f87171' : '#d1d5db';
         const grauDelta = totalGraus > 0 ? `+${totalGraus}` : totalGraus < 0 ? `${totalGraus}` : '';
 
-        // Bloco de dano base (2d6 escalado) — aparece quando hostil/catDmg (sem efeito próprio de dano)
+        // Bloco de dano base (2d6 escalado) — aparece quando o Hatsu tem dano base
         // ── Flagelo da Mente: linha própria de SANIDADE ─────────────────────────
         // O efeito tinha dois modos: "Puro" (substituía o dano base por 1d10) e
         // "Complementar" (linha extra de 1d8). Pelo manual, Dano/Cura Focal e Flagelo
@@ -1516,7 +1539,7 @@ function renderHatsuDetail(container) {
         // o Flagelo é SEMPRE a sua própria linha, partindo de 1d10, e um Hatsu pode
         // ter as duas ao mesmo tempo. Não há modo a escolher.
         let baseDmgSection = '';
-        if (isHostil || catDmg) {
+        if (temDanoBase) {
             // Step 1: apply +dado (ex: 2d6 → 3d6)
             // ── Dano base: 2d6 só com Dano/Cura Focal ────────────────────────────────
             // Antes, ser Hostil (ou de categoria ofensiva) já garantia 2d6. Pela regra do
@@ -1727,7 +1750,7 @@ function renderHatsuDetail(container) {
             }
             // HB (p.11): Hatsu Hostil inicia em 2d6 "independente de arma ou efeito de dano escolhido (se for menor)".
             // Efeitos cujo dado próprio é ≤ 2d6 são absorvidos pelo dano base e não aparecem separados.
-            if ((isHostil || catDmg) && !d.dado.startsWith('+')) {
+            if (temDanoBase && !d.dado.startsWith('+')) {
                 const specialTypes = ['Psíquico', 'Contínuo', 'Ferida', 'Sanidade'];
                 if (!specialTypes.includes(d.tipo)) {
                     const eIdx = DAMAGE_TABLE.indexOf(d.dado);
@@ -1737,13 +1760,13 @@ function renderHatsuDetail(container) {
             const typeColors = { 'Projétil':'#38bdf8','Potente':'#38bdf8','Linha':'#38bdf8','Área':'#f87171','Objeto':'#a3e635','Corporal':'#a3e635','Criatura':'#fb923c','Extra':'#fb923c','Bloquear':'#fb923c','Contínuo':'#f43f5e','Ferida':'#f43f5e' };
             const ec = typeColors[d.tipo] || '#9ca3af';
             // Efeitos SEM escada cadastrada: a regra antiga só os escalava quando o Hatsu
-            // não tinha dano base nenhum (!isHostil && !catDmg). Quem TEM escada passa pelo
+            // não tinha dano base nenhum (!temDanoBase). Quem TEM escada passa pelo
             // bloco abaixo, que agora também soma os graus gerais — antes a condição aqui
             // era restrita demais e a de baixo ignorava os graus, então um Materializador
             // com +5 graus via o dado base e o rótulo "(+5 grau)" ao lado.
             let displayDado = d.dado;
             const _grausDesta = _porLinha[e.id] || 0;
-            if (!isHostil && !catDmg && _grausDesta > 0 && !(window.DANO_PROPRIO_ESCALA || {})[e.id]) {
+            if (!temDanoBase && _grausDesta > 0 && !(window.DANO_PROPRIO_ESCALA || {})[e.id]) {
                 // Find base index from dado string (e.g. "1d8" → idx 2)
                 const baseIdx = DAMAGE_TABLE.indexOf(d.dado);
                 if (baseIdx >= 0) {
