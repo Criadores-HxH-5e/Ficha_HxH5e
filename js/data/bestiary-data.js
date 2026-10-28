@@ -976,3 +976,22 @@ window.validarPVBestiario = function () {
     else console.warn('✗ PV fora da fórmula:', ruins);
     return ruins;
 };
+
+// ── Alias "car" → "pre", para a mesa online ──────────────────────────────────
+// A mesa (mesa/mesa.html) lê o sexto atributo das criaturas pela chave "car":
+//
+//     const BEST_ATR = [['for','FOR'], …, ['sab','SAB'], ['car','CAR']];
+//
+// mas o campo aqui sempre se chamou "pre" (Presença). Nenhuma das criaturas tem
+// "car", então a célula CAR do painel do narrador aparecia vazia e o botão "Teste
+// de CAR" rolava +0 para TODAS elas — bestMod(undefined) devolve 0.
+//
+// A mesa já sabe que CAR é PRE (ela pinta o botão com ATR_COR['PRE']); só a chave
+// de leitura ficou para trás. O conserto definitivo é lá, mas a mesa é mantida
+// à parte, então o espelho vai aqui: é aditivo, não mexe em "pre" e some sozinho
+// no dia em que a mesa passar a ler a chave certa.
+(function () {
+    (window.BESTIARY_DATA || []).forEach(function (m) {
+        if (m && m.car === undefined && m.pre !== undefined) m.car = m.pre;
+    });
+})();
