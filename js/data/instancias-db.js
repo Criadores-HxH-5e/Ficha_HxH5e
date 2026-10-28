@@ -33,8 +33,8 @@ window.INST_GRUPO_OFENSIVA  = ['ofensiva_agil', 'ofensiva_bruta', 'ofensiva_prec
         {
             id: 'agil',
             nome: 'Ágil',
-            reqTexto: 'Perceptiva Maestria ou Visão 360º Básico.',
-            requisitos: OU(inc('perceptiva', 3), inc('visao_360', 1)),
+            reqTexto: 'Perceptiva Maestria, Caçadora de Feras Intermediária ou Visão 360º Básico.',
+            requisitos: OU(inc('perceptiva', 3), inc('cacadora_de_feras', 2), inc('visao_360', 1)),
             niveis: [
                 '+2 na Esquiva e na Esquiva Acrobática.',
                 'Quem te ataca tem −3 no acerto.',
@@ -98,18 +98,30 @@ window.INST_GRUPO_OFENSIVA  = ['ofensiva_agil', 'ofensiva_bruta', 'ofensiva_prec
             ],
         },
         {
+            id: 'domadora',
+            nome: 'Domadora',
+            // Instância nova do capítulo. Fecha o ramo da Caçadora de Feras e dá destino a
+            // Combate Montado e Imobilizador, que até aqui não eram exigidas por Instância
+            // nenhuma. Não leva etiqueta: nenhum dos dois níveis mexe em princípio (só a
+            // Combatente Tanque leva, porque altera a RD do TEN).
+            reqTexto: 'Caçadora de Feras Intermediária e (Combate Montado, Imobilizador ou Inabalável Básico).',
+            requisitos: E(
+                inc('cacadora_de_feras', 2),
+                umDe(['combate_montado', 'imobilizador', 'inabalavel'], 1)
+            ),
+            niveis: [
+                '+2 nos testes para escalar, montar e se manter sobre criaturas e veículos; e a criatura tem desvantagem no teste da Ação Principal para te derrubar.',
+                'Enquanto você estiver sobre a criatura, seus ataques corpo a corpo contra ela somam +1 grau/passo de dano, e ela tem desvantagem nas Reações contra você.',
+            ],
+        },
+        {
             id: 'estrategista',
             nome: 'Estrategista',
-            // Requisito do livro: "Tática Intermediária E (Analítica, Experiente ou
-            // Perceptiva Básica)". A inclinação Tática está pendente de escrita no
-            // capítulo, e por decisão do Lucas (27/10) o requisito do livro entra como
-            // está — com a consequência aceita: enquanto `tatica` não existir em
-            // COMBAT_INCLINATIONS_DB, NINGUÉM consegue treinar Estrategista, porque o
-            // primeiro item do E nunca é satisfeito.
-            // Quem JÁ tem a Instância em char.instancias não perde nada: o requisito
-            // governa a compra, não o uso. E quando a Tática entrar no banco com os seus
-            // 3 níveis, isto passa a funcionar sem nenhuma alteração aqui.
-            reqTexto: 'Tática Intermediária e (Analítica, Experiente ou Perceptiva Básica). ⚠ A inclinação Tática ainda não existe no capítulo: até ela ser escrita, esta Instância fica indisponível.',
+            // A inclinação Tática entrou no capítulo e em COMBAT_INCLINATIONS_DB, então o
+            // requisito do livro passou a ser satisfazível e o aviso de indisponibilidade
+            // saiu do reqTexto. Nenhuma mudança na árvore foi necessária: ela já era a
+            // do livro desde 27/10.
+            reqTexto: 'Tática Intermediária e (Analítica, Experiente ou Perceptiva Básica).',
             requisitos: E(
                 inc('tatica', 2),
                 umDe(['analitica', 'experiente', 'perceptiva'], 1)

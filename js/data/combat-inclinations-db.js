@@ -57,6 +57,25 @@ window.COMBAT_INCLINATIONS_DB = [
     ]
   },
   {
+    id: 'cacadora_de_feras',
+    // Básico pede ZETSU e Intermediário pede GYO: princípios diferentes por nível, que é
+    // justamente o caso que auraEtq existe para representar.
+    auraEtq: [['ZETSU'], ['GYO'], null],
+    nome: 'Caçadora de Feras',
+    etiquetas: ['ZETSU', 'GYO'],
+    tiers: [
+      'Você pode escalar uma criatura pelo menos dois tamanhos maior que você. Entre no espaço dela com seu movimento e faça Atletismo ou Acrobacia contra o Atletismo dela como parte do seu movimento. Se vencer, você fica sobre ela e se move junto: seus ataques contra ela têm vantagem e os dela contra você têm desvantagem. Ela pode tentar te derrubar com a Ação Principal, repetindo o teste.',
+      'Uma vez por rodada, ao acertar uma criatura pelo menos dois tamanhos maior que você, ela faz Atletismo ou Acrobacia contra o resultado do seu ataque. Se falhar, fica Caída se não for imune à Condição.',
+      '+1 em FOR, DES ou SAB.'
+    ],
+    aura: [
+      'ZETSU: em Zetsu, você tem vantagem no teste para escalar a criatura.',
+      'GYO: se o ataque tiver GYO, ela tem desvantagem nesse teste.',
+      null
+    ],
+    attrBonus: { escolha: [{ attr: 'FOR', valor: 1 }, { attr: 'DES', valor: 1 }, { attr: 'SAB', valor: 1 }] }
+  },
+  {
     id: 'cirurgica',
     auraEtq: [['KO'], ['KO'], null],
     nome: 'Cirúrgica',
@@ -465,6 +484,23 @@ window.COMBAT_INCLINATIONS_DB = [
       null
     ],
     attrBonus: { escolha: [{ attr: 'DES', valor: 1 }, { attr: 'SAB', valor: 1 }] }
+  },
+  {
+    id: 'tatica',
+    auraEtq: [['EN'], ['EN'], null],
+    nome: 'Tática',
+    etiquetas: ['EN'],
+    tiers: [
+      'Quando você participar de um Ataque Combinado, o grupo rola o dado de sincronia (par ou ímpar) duas vezes e escolhe o resultado.',
+      'Use Ajudar com a Ação Bônus, em vez da Ação Principal, em um aliado a até 9 m que possa te ver ou ouvir.',
+      '+1 em INT ou SAB.'
+    ],
+    aura: [
+      'EN: aliados dentro do seu EN podem participar do Ataque Combinado com você mesmo sem iniciativa adjacente.',
+      'EN: você pode impedir que aliados dentro do seu EN fiquem Desprevenidos contra atacantes dentro ou fora da área. Ao consumir uma Reação, você consegue avisá-los de um ataque, permitindo a eles reações.',
+      null
+    ],
+    attrBonus: { escolha: [{ attr: 'INT', valor: 1 }, { attr: 'SAB', valor: 1 }] }
   },
   {
     id: 'trapaceira',
