@@ -1467,6 +1467,8 @@ window._openPrimeiroHatsuModal = function() {
             if (!char.principiosAtivos) char.principiosAtivos = {};
             delete char.principiosAtivos[key];
             if (char.principiosRodadas) delete char.principiosRodadas[key];
+            // Zera os pacotes: a próxima ativação começa do custo base outra vez.
+            if (char.principiosPacotes) delete char.principiosPacotes[key];
             if (key === 'gyo') delete char.gyoAlvo;
             saveCharacter(char);
             render(true);
@@ -1475,6 +1477,7 @@ window._openPrimeiroHatsuModal = function() {
         window._desativarTodosPrincipios = function () {
             const char = state.currentChar;
             char.principiosAtivos = {};
+            char.principiosPacotes = {};
             delete char.gyoAlvo;
             saveCharacter(char);
             render(true);
@@ -1594,23 +1597,46 @@ window._openPrimeiroHatsuModal = function() {
             else { saveCharacter(char); render(true); }
         };
 
-        window._activatePrincipio = function(key, custo) {
+        window._activatePrincipio = function(key, custo, pacotes) {
             const char = state.currentChar;
             const d = char.nenDominio || {};
             const aura = char.vitals.aura || 0;
-            if (custo > 0 && aura < custo) {
-                alert('Aura insuficiente! Necessário: ' + custo + '% — disponível: ' + aura + '%');
+            // ── Pacotes de custo (TEN, EN, KEN) ─────────────────────────────────────
+            // 1 pacote = exatamente o comportamento de antes. Acima disso, aura e
+            // Reações são multiplicadas e o multiplicador fica guardado para os
+            // cálculos (calcTenRDAtivo, multiplicadorKen, diametroEnAtivo).
+            const _pac = Math.max(1, parseInt(pacotes) || 1);
+            const _cp = window.custoPacotePrincipio ? window.custoPacotePrincipio(char, key) : null;
+            const custoAura = (custo > 0 ? custo : 0) * _pac;
+            // Reações: o livro cobra 1 no TEN, 2 no EN e 4 no KEN, e o app nunca
+            // descontava nenhuma. Agora desconta — por pacote.
+            const _reaMax = window.calcReacoesMax ? window.calcReacoesMax(char) : 7;
+            const _reaAtual = (char.vitals.rea !== undefined) ? char.vitals.rea : _reaMax;
+            const custoRea = (_cp && _cp.reacoes > 0) ? _cp.reacoes * _pac : 0;
+            if (custoAura > 0 && aura < custoAura) {
+                alert('Aura insuficiente! Necessário: ' + custoAura + '% — disponível: ' + aura + '%');
+                return;
+            }
+            if (custoRea > 0 && _reaAtual < custoRea) {
+                alert('Reações insuficientes! Necessário: ' + custoRea + ' — disponível: ' + _reaAtual);
                 return;
             }
 
             // Deduct aura
-            if (custo > 0) {
-                char.vitals.aura = Math.max(0, aura - custo);
+            if (custoAura > 0) {
+                char.vitals.aura = Math.max(0, aura - custoAura);
+            }
+            if (custoRea > 0) {
+                char.vitals.rea = Math.max(0, _reaAtual - custoRea);
+            }
+            if (window.principioEscalavel && window.principioEscalavel(key)) {
+                if (!char.principiosPacotes) char.principiosPacotes = {};
+                char.principiosPacotes[key] = _pac;
             }
 
             // Effect messages per principle — já refletem o Aprimoramento (P.N extra investido)
             const nivel = d[key] || 1;
-            const tenRD = window.calcTenRD ? window.calcTenRD(char) : 0;
+            const tenRD = (window.calcTenRD ? window.calcTenRD(char) : 0) * (key === 'ten' ? _pac : 1);
             const rBon = window.calcRenBonus ? window.calcRenBonus(char) : { grau:1, teste:0, teste1x:0 };
             const zBon = window.calcZetsuBonus ? window.calcZetsuBonus(char) : { auraPct:0, furtividade:0, rodadas:3 };
             const advB = window.calcAvancadoBonus ? window.calcAvancadoBonus(char, key) : {};
@@ -1624,11 +1650,11 @@ window._openPrimeiroHatsuModal = function() {
     zetsu: ['👁️ ZETSU ativado — aguarde 3 rodadas: +' + zBon.auraPct + '% Aura, +1 Reação, +' + zBon.furtividade + ' Furtividade.',
             '👁️ ZETSU ativado — aguarde 2 rodadas: +' + zBon.auraPct + '% Aura, +1 Reação, +' + zBon.furtividade + ' Furtividade.',
             '👁️ ZETSU ativado — aguarde 1 rodada: +' + zBon.auraPct + '% Aura, +2 Reações, +' + zBon.furtividade + ' Furtividade.'],
-    en:    ['🔵 EN ativado — detecta forma e movimento em ' + (advB.diametro||3) + 'm por 1 rodada. Ataque de reação vs quem entrar, sem gastar Ação Principal.'],
+    en:    ['🔵 EN ativado — detecta forma e movimento em ' + ((advB.diametro||3) + (key === 'en' ? (_pac - 1) * 3 : 0)) + 'm por 1 rodada. Ataque de reação vs quem entrar, sem gastar Ação Principal.'],
     inp:   ['🌑 IN ativado — objeto de aura oculto por ' + (advB.rodadas||1) + ' rodada(s).'],
     gyo:   ['👁️ GYO ativado — visão de aura e objetos ocultos (ou +' + (advB.attrBonus||3) + ' FOR/DES/CON por 1 rodada se corporal).'],
     shu:   ['⚡ SHU ativado — objeto envolto: +1d4 Dano e CA por ' + (advB.rodadas||1) + ' rodada(s). Golpe mirado sem ônus.'],
-    ken:   ['🏯 KEN ativado — CA dobrada por 2 rodadas. Consome ' + (advB.reacoes||4) + ' Reações.'],
+    ken:   ['🏯 KEN ativado — CA ×' + (key === 'ken' ? (1 + _pac) : 2) + ' por 2 rodadas. Consome ' + ((advB.reacoes||4) * (key === 'ken' ? _pac : 1)) + ' Reações.'],
     ko:    ['🔥 KO ativado — próximo golpe: dano ×3. ATENÇÃO: CA reduzida em 80% até próximo turno' + (advB.caBonus>0?(' (+' + advB.caBonus + ' restante)'):'') + '!'],
     ryu:   ['🌊 RYU ativado — Exemplos 1-3' + (advB.sup?'-6':'') + ' de RYU disponíveis' + (advB.tabelaBonus>0?(' (+' + advB.tabelaBonus + ' em todos os valores)'):'') + '. Múltiplos contra-ataques permitidos.'],
 };
@@ -1667,7 +1693,14 @@ window._openPrimeiroHatsuModal = function() {
             const toast = document.createElement('div');
             toast.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#0d1117;border:2px solid #a78bfa;border-radius:14px;padding:14px 20px;z-index:9999;font-family:Rajdhani,sans-serif;max-width:320px;text-align:center;box-shadow:0 0 30px #a78bfa44;animation:fadeIn .2s';
             toast.innerHTML = '<div style="font-size:12px;color:#e5e7eb;font-weight:700;line-height:1.5">' + msg + '</div>'
-                + (custo > 0 ? '<div style="font-size:9px;color:#6b7280;margin-top:4px">−' + custo + '% Aura</div>' : '');
+                + (custoAura > 0 || custoRea > 0
+                    ? '<div style="font-size:9px;color:#6b7280;margin-top:4px">'
+                      + (custoAura > 0 ? '−' + custoAura + '% Aura' : '')
+                      + (custoAura > 0 && custoRea > 0 ? ' · ' : '')
+                      + (custoRea > 0 ? '−' + custoRea + ' Reaç' + (custoRea > 1 ? 'ões' : 'ão') : '')
+                      + (_pac > 1 ? ' (' + _pac + ' pacotes)' : '')
+                      + '</div>'
+                    : '');
             document.body.appendChild(toast);
             setTimeout(() => { toast.style.opacity='0'; toast.style.transition='opacity .4s'; setTimeout(()=>toast.remove(),400); }, 3000);
         };

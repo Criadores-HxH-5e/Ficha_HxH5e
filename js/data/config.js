@@ -768,9 +768,13 @@ window.calcFontesRD = function (char) {
     // proteção vale — mas só contra Corte, Impacto e Explosão, por isso a condição
     // aparece escrita e o jogador pode desligar quando o dano for de outro tipo.
     if (((char.principiosAtivos) || {}).ten && window.calcTenRD) {
-        const v = window.calcTenRD(char) || 0;
+        // Pacotes extras pagos na ativação multiplicam a RD — ver custoPacotePrincipio
+        // em nen-affinity.js. Com 1 pacote o valor é exatamente o de antes.
+        const _pacTen = window.pacotesPrincipio ? window.pacotesPrincipio(char, 'ten') : 1;
+        const v = (window.calcTenRDAtivo ? window.calcTenRDAtivo(char) : window.calcTenRD(char)) || 0;
         if (v > 0) lista.unshift({
-            id: 'principio_ten', nome: 'TEN (ativo)', passiva: true, valor: v,
+            id: 'principio_ten', nome: 'TEN (ativo)' + (_pacTen > 1 ? ' ×' + _pacTen : ''),
+            passiva: true, valor: v,
             condicao: 'Só contra Corte, Impacto e Explosão',
         });
     }
