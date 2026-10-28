@@ -1043,6 +1043,49 @@ window.calcBonusCAInstancia = function (char) {
     return { total: total, fontes: fontes };
 };
 
+// ── CA vinda das Inclinações de Combate ──────────────────────────────────────
+// Antes NENHUMA Inclinação chegava à CA: calcCAAtual somava armadura, escudo,
+// Instância (Combatente Rápido) e princípios, e parava ali. Duas inclinações
+// cobram CA como PREÇO do próprio nível Básico ("+1 grau ... e você fica com −1
+// na CA") — esse desconto é permanente e entra no total, inclusive negativo.
+//
+// O resto é condicional e segue o padrão que o app já usa nas Reações e na margem
+// de crítico: aparece na lista para o jogador aplicar na mão, mas fica FORA do
+// total, porque a ficha não sabe quem é o alvo marcado nem se o REN está no ataque.
+//
+// As duas MAESTRIAS DE ARMADURA não entram aqui: elas mexem na CA DA ARMADURA e
+// dependem de qual peça está vestida, então vivem em calcCAArmadura (sheet.js).
+window.calcBonusCAInclinacao = function (char) {
+    const fontes = [], condicionais = [];
+    let total = 0;
+    if (!char) return { total: 0, fontes: fontes, condicionais: condicionais };
+    const ci = char.combatInclinations || {};
+    const nv = function (id) { return parseInt(ci[id]) || 0; };
+
+    if (nv('ofensiva_bruta') >= 1) {
+        total -= 1;
+        fontes.push({ nome: 'Ofensiva Bruta', valor: -1 });
+    }
+    if (nv('ofensiva_precisa') >= 1) {
+        total -= 1;
+        fontes.push({ nome: 'Ofensiva Precisa', valor: -1 });
+    }
+
+    if (nv('defensiva_precisa') >= 1) {
+        condicionais.push({ nome: 'Defensiva Precisa', valor: 1, condicao: 'só contra o alvo marcado' });
+    }
+    if (nv('ofensiva_bruta') >= 1) {
+        condicionais.push({ nome: 'Ofensiva Bruta (REN)', valor: -2, condicao: 'substitui o −1 nos turnos com REN (lá são +2 graus)' });
+    }
+    if (nv('ofensiva_precisa') >= 1) {
+        condicionais.push({ nome: 'Ofensiva Precisa (SHU)', valor: -2, condicao: 'substitui o −1 nos turnos com SHU (lá são +2 graus)' });
+    }
+    if (nv('fluida') >= 1) {
+        condicionais.push({ nome: 'Fluida', valor: 2, condicao: 'troque até 2 pontos entre acerto e CA no início do seu turno' });
+    }
+    return { total: total, fontes: fontes, condicionais: condicionais };
+};
+
 // Resumo para a ficha: todas as reações que têm algum bônus agora.
 // [{ k, nome, formula, total, fontes }]
 window.resumoBonusReacoes = function (char) {
