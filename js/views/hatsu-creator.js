@@ -1807,11 +1807,11 @@ function renderHatsuCreator(container) {
                     const allEgList6 = [...eg6Gerais, ...eg6CatEfs];
                     Object.values((window.HATSU_DB && window.HATSU_DB.categorias) || {}).forEach(function (c) {
                         (c.efeitos || []).forEach(function (e) {
-                            if (!allEgList6.some(function (x) { return x.nome === e.nome; })) allEgList6.push(e);
+                            if (!allEgList6.some(function (x) { return x.id === e.id; })) allEgList6.push(e);
                         });
                     });
                     function eg6BtnHtml(e) {
-                        var active = chosen === e.nome;
+                        var active = chosen === e.id;
                         var rq = checkReq(e.req);
                         var isBlocked = !rq.ok;
                         var btnStyle = 'padding:4px 8px;border-radius:7px;font-size:8px;white-space:nowrap;transition:all .15s;font-weight:' + (active?'900':'600') + ';border:1.5px solid ';
@@ -1827,7 +1827,7 @@ function renderHatsuCreator(container) {
                             var alertMsg = '❌ Requisito não atendido\\n\\n' + rq.reason + '\\n\\nReq: ' + e.req;
                             onclick = 'event.stopPropagation();alert(\'' + alertMsg.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n') + '\')';
                         } else {
-                            onclick = 'event.stopPropagation();window._hSetSpecialChoice(\'eg6\',\'' + e.nome.replace(/'/g,"\\'") + '\')';
+                            onclick = 'event.stopPropagation();window._hSetSpecialChoice(\'eg6\',\'' + e.id + '\')';
                         }
                         return '<button onclick="' + onclick + '" style="' + btnStyle + '">'
                             + (active ? '✓ ' : '') + e.nome + (isBlocked ? ' 🔒' : '') + '</button>';
@@ -1945,11 +1945,11 @@ function renderHatsuCreator(container) {
                         return nv <= _nvEf;
                     }
                     function btn8(e) {
-                        const active = chosen8 === e.nome;
+                        const active = chosen8 === e.id;
                         let st = 'padding:4px 8px;border-radius:7px;font-size:8px;white-space:nowrap;font-weight:' + (active ? '900' : '600') + ';border:1px solid ';
                         st += active ? (color + ';background:' + color + '22;color:' + color) : '#1f2937;background:transparent;color:#9ca3af';
                         st += ';cursor:pointer';
-                        const onclick = 'event.stopPropagation();window._hSetSpecialChoice(\'rm_e8\',\'' + e.nome.replace(/'/g, "\\'") + '\')';
+                        const onclick = 'event.stopPropagation();window._hSetSpecialChoice(\'rm_e8\',\'' + e.id + '\')';
                         return '<button onclick="' + onclick + '" style="' + st + '">' + (active ? '✓ ' : '') + e.nome + '</button>';
                     }
 

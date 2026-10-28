@@ -73,6 +73,7 @@
             if (migrarRestricoesConjuracao(char)) saveCharacter(char);
             // eg4 (Efeito Alternativo): as 4 chaves passaram de nome para id.
             if (migrarEg4ParaIds(char)) saveCharacter(char);
+            if (migrarEg6RmE8ParaIds(char)) saveCharacter(char);
             // Aviso único da nova mecânica das Inclinações (só para quem já tinha pontos).
             setTimeout(function () { avisarRealocacaoInclinacoes(state.currentChar); }, 400);
             const clsData = SYSTEM_DB.classes.find(c => c.id === char.class);
@@ -324,6 +325,26 @@
                                 </div>`;
                             }).join('');
                             return `<div style="font-size:7px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">🌀 Hatsus${nAtivos ? ' — ' + nAtivos + ' ativo(s)' : ''}</div>${html}<div style="height:8px"></div>`;
+                        })()}
+                        ${(() => {
+                            // ── CA vinda das Inclinações de Combate ────────────────
+                            // O que é permanente já está somado no número da CA lá em cima, mas o
+                            // jogador precisa ver DE ONDE vem — um −1 que aparece sozinho parece bug.
+                            // O condicional nunca entra no total: a ficha não sabe quem é o alvo
+                            // marcado nem se o REN/SHU está neste ataque.
+                            if (!window.calcBonusCAInclinacao) return '';
+                            const _cb = window.calcBonusCAInclinacao(char);
+                            if (!_cb.fontes.length && !_cb.condicionais.length) return '';
+                            const _sin = v => (v >= 0 ? '+' + v : String(v));
+                            return `<div style="font-size:7px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">🛡 CA — Inclinações</div>
+                            <div style="background:#60a5fa10;border:1px solid #60a5fa33;border-radius:8px;padding:6px 9px;margin-bottom:8px">
+                                ${_cb.fontes.length ? `<div style="display:flex;align-items:center;gap:8px">
+                                    <div style="flex:1;min-width:0;font-size:9px;color:#60a5fa;font-weight:700">Já somado na CA</div>
+                                    <span style="flex-shrink:0;font-family:Orbitron,sans-serif;font-weight:900;font-size:11px;color:#60a5fa">${_sin(_cb.total)}</span>
+                                </div>
+                                <div style="font-size:8px;color:#4b5563;margin-top:1px">${_cb.fontes.map(f => f.nome + ' ' + _sin(f.valor)).join(' · ')}</div>` : ''}
+                                ${_cb.condicionais.map(c => `<div style="font-size:8px;color:#fbbf24;margin-top:2px">+ ${c.nome} ${_sin(c.valor)} — ${c.condicao} (aplicar na mão)</div>`).join('')}
+                            </div>`;
                         })()}
                         ${(() => {
                             // ── Bônus nos resultados das reações ───────────────────────────────
@@ -1466,6 +1487,48 @@
         // Os 165 efeitos do banco têm nome único, então os dois campos de efeito são
         // conversão direta; só as restrições precisam desempatar.
         // Sufixo '#N' é o modo (eg4_restr_off#1 = Modo C).
+        // ── eg6 e rm_e8: nome do efeito → id ────────────────────────────────────────
+        // O eg4 virou id no PR #62 porque dois nomes de restrição iguais (rt_l2 e em_l2,
+        // "Sem Movimento no Turno") faziam o lookup por nome pegar a errada. Estes dois
+        // wrappers ficaram para trás guardando o NOME do efeito escolhido. Hoje o risco é
+        // teórico — a colisão conhecida é entre restrições, e eles escolhem efeitos — mas
+        // o padrão fica inconsistente e quebra no dia em que dois efeitos dividirem nome.
+        //
+        // Flag própria: migracaoEg4Ids já está marcada em quem passou pela migração
+        // anterior, então reaproveitá-la deixaria estes dois sem migrar para sempre.
+        function migrarEg6RmE8ParaIds(char) {
+            if (!char || char.migracaoEg6RmE8Ids) return false;
+            const D = window.HATSU_DB;
+            if (!D) return false;
+            const idPorNome = {}, existeId = {};
+            const anotar = function (e) {
+                if (!e || !e.id) return;
+                existeId[e.id] = true;
+                if (!idPorNome[e.nome]) idPorNome[e.nome] = e.id;   // nomes de efeito são únicos
+            };
+            (D.efeitos_gerais || []).forEach(anotar);
+            const vistos = [];
+            Object.keys(D.categorias || {}).forEach(function (k) {
+                const cat = D.categorias[k];
+                if (!cat || vistos.indexOf(cat) >= 0) return;   // CONJURAÇÃO é alias de MATERIALIZAÇÃO
+                vistos.push(cat);
+                (cat.efeitos || []).forEach(anotar);
+            });
+            (char.hatsus || []).forEach(function (h) {
+                const sc = h && h.specialChoices;
+                if (!sc || typeof sc !== 'object') return;
+                ['eg6', 'rm_e8'].forEach(function (k) {
+                    const v = sc[k];
+                    if (typeof v !== 'string' || !v) return;
+                    if (existeId[v]) return;                 // já é id
+                    if (idPorNome[v]) sc[k] = idPorNome[v];  // nome conhecido → id
+                    // Nome desconhecido: PRESERVA, igual ao migrarEg4ParaIds. Destruir o
+                    // dado é pior que deixar um valor que o jogador pode reescolher.
+                });
+            });
+            char.migracaoEg6RmE8Ids = true;
+            return true;   // sempre true, para a flag ser salva junto
+        }
         function migrarEg4ParaIds(char) {
             if (!char || char.migracaoEg4Ids) return false;
             const D = window.HATSU_DB;
@@ -3671,14 +3734,31 @@
         // Melhor armadura vestida (uma só) + soma de TODOS os escudos do inventário.
         function calcCAArmadura(char) {
             const modDes = getMod(((char.attributes || {}).DES || {}).value || 10);
+            // Maestrias de armadura, que até aqui não chegavam à CA. As duas mexem na CA
+            // DA PEÇA, então entram ANTES da escolha da "melhor armadura": aplicadas depois,
+            // uma média com o teto de DES ampliado poderia perder a comparação para uma
+            // pesada sem o +2 e o jogador veria a CA errada.
+            // O tipo da peça vem do findItemData, que devolve sub = 'leves'|'medias'|'pesadas'.
+            // Peça com CA digitada à mão e fora do ITEM_DB não tem sub: as maestrias não
+            // se aplicam, porque não há como saber o tipo.
+            const _ci = (char && char.combatInclinations) || {};
+            const _mMedia  = (parseInt(_ci.maestria_armadura_media) || 0) >= 2;   // tier 2
+            const _mPesada = (parseInt(_ci.maestria_armadura_pesada) || 0) >= 1;  // tier 1
             let melhorArmadura = 0, bonusEscudo = 0;
             (char.inventory || []).forEach(function (item) {
                 const data = (typeof findItemData === 'function') ? findItemData(item && item.name) : null;
                 const info = _parseCAItem((item && item.ca) || (data && data.ca));
                 if (!info) return;
                 if (info.tipo === 'escudo') { bonusEscudo += info.bonus; return; }
+                const sub = (data && data.sub) || '';
                 let total = info.base;
-                if (info.usaDes) total += (info.teto != null) ? Math.min(modDes, info.teto) : modDes;
+                let teto = info.teto;
+                // "Some até 4 de DES na CA, em vez do máximo 3." O livro assume que média
+                // tem teto 3; o ITEM_DB também tem médias de teto 2. Subimos 1, com 4 de
+                // limite: dá exatamente o 4 do livro no caso dele e nunca mais de +1.
+                if (_mMedia && sub === 'medias' && teto != null) teto = Math.min(4, teto + 1);
+                if (info.usaDes) total += (teto != null) ? Math.min(modDes, teto) : modDes;
+                if (_mPesada && sub === 'pesadas') total += 2;   // "+2 na CA da armadura"
                 if (total > melhorArmadura) melhorArmadura = total;
             });
             return { armadura: melhorArmadura, escudo: bonusEscudo };
@@ -3714,7 +3794,9 @@
             // Primeiro bônus de CA vindo de Instância/Inclinação a entrar no cálculo —
             // antes nada disso chegava aqui (ver a lacuna de CA no backlog).
             const _bci = window.calcBonusCAInstancia ? window.calcBonusCAInstancia(char).total : 0;
-            return calcCAPrincipios(char, base + _bci).ca;
+            // Inclinações: só o que é permanente. O condicional fica no painel da Ficha.
+            const _bcl = window.calcBonusCAInclinacao ? window.calcBonusCAInclinacao(char).total : 0;
+            return calcCAPrincipios(char, base + _bci + _bcl).ca;
         }
         window.calcCAAtual = calcCAAtual;
 

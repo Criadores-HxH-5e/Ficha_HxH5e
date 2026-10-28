@@ -1231,9 +1231,12 @@ function renderHatsuDetail(container) {
             }
             return;
         }
-        const pickedName = (h.specialChoices||{})[wid];
-        if (!pickedName) return;
-        const picked = allEDB.find(function(e){ return e.nome === pickedName; });
+        // Guardado como ID desde a migração migrarEg6RmE8ParaIds. O fallback por nome
+        // fica para Hatsu que ainda não passou por ela (ficha aberta antes de salvar).
+        const pickedVal = (h.specialChoices||{})[wid];
+        if (!pickedVal) return;
+        const picked = allEDB.find(function(e){ return e.id === pickedVal; })
+                    || allEDB.find(function(e){ return e.nome === pickedVal; });
         if (picked && !efeitosSel.find(function(e){ return e.id === picked.id; })) {
             efeitosSel.push(Object.assign({}, picked, { _wrapper: wid, _wrapperLabel: _WRAPPER_META[wid].label }));
         }
