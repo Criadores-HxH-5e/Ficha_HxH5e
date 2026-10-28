@@ -1953,12 +1953,32 @@
             return wh.url;
         }
         // ─────────────────────────────────────────────────────────────────────
+        // Aceita expressão de VÁRIOS termos: "2d10 + 1d6 + 5". A regex antiga exigia um
+        // único "NdM" e devolvia total 1 para qualquer outra coisa — então "20d20+5", o
+        // overflow do fim da escada, rolava como **1**. O termo de dados extras que o REN
+        // agora deixa fora do dado base cairia no mesmo buraco.
+        function _termosExpr(expr) {
+            return String(expr || '').split('+').map(function (s) { return s.trim(); }).filter(Boolean);
+        }
         function rollDiceExpr(expr) {
-            const match = (expr || '').match(/^(\d+)d(\d+)$/);
-            if (!match) return { rolls: [1], total: 1 };
-            const n = parseInt(match[1]), d = parseInt(match[2]);
-            const rolls = Array.from({ length: n }, () => Math.floor(Math.random() * d) + 1);
-            return { rolls, total: rolls.reduce((a, b) => a + b, 0) };
+            const termos = _termosExpr(expr);
+            let rolls = [], total = 0, achou = false;
+            termos.forEach(function (termo) {
+                const m = termo.match(/^(\d+)d(\d+)$/);
+                if (m) {
+                    achou = true;
+                    const n = parseInt(m[1]), d = parseInt(m[2]);
+                    for (let i = 0; i < n; i++) {
+                        const v = Math.floor(Math.random() * d) + 1;
+                        rolls.push(v); total += v;
+                    }
+                    return;
+                }
+                const fixo = parseInt(termo);
+                if (!isNaN(fixo)) { achou = true; total += fixo; }
+            });
+            if (!achou) return { rolls: [1], total: 1 };
+            return { rolls: rolls, total: total };
         }
         function rollHatsuDamage(mode, grausRen) {
             const rs = window._hatsuRollState;
@@ -1994,10 +2014,18 @@
             }
 
             const _grausExtra = renGraus + acGraus;
+            // O grau sobe no DADO BASE e o termo de dados extras é recolocado intacto:
+            // 2d6 + 1d6 com +2 graus vira "2d10 + 1d6", não "3d10". Regra do Lucas —
+            // escalar o pacote inteiro deixaria o REN bem mais forte do que deveria.
+            const _dBase = (rs.diceBase || rs.dice);
+            const _dExtra = rs.diceExtra || '';
             let renDice = rs.dice;
             if (_grausExtra > 0 && window.DAMAGE_TABLE) {
-                const _idxD = window.DAMAGE_TABLE.indexOf(rs.dice);
-                if (_idxD >= 0) renDice = window.DAMAGE_TABLE[Math.min(_idxD + _grausExtra, window.DAMAGE_TABLE.length - 1)];
+                const _idxD = window.DAMAGE_TABLE.indexOf(_dBase);
+                if (_idxD >= 0) {
+                    const _novoBase = window.DAMAGE_TABLE[Math.min(_idxD + _grausExtra, window.DAMAGE_TABLE.length - 1)];
+                    renDice = _dExtra ? (_novoBase + ' + ' + _dExtra) : _novoBase;
+                }
             }
             if (acPerdidos > 0) {
                 setTimeout(function () {
@@ -2011,6 +2039,20 @@
             const _auraCost = h ? window.calcHatsuAuraCostFinal(h, state.hatsuDetailIdx).pct : 0;
             let renCost = 0;
             let renUsedFree = false;
+            // Escolher grau no popup é um CAMINHO DE ATIVAÇÃO do REN (decisão do Lucas):
+            // antes era preciso ligar o princípio na aba Ficha primeiro, e quem não ligava
+            // nem via o popup. A taxa de 10% da ativação pela Ficha NÃO é cobrada aqui —
+            // só os 5% por grau — então este caminho sai mais barato de propósito.
+            // Registra também a duração, senão o contador de rodadas da Ficha não acende.
+            let _renLigadoAgora = false;
+            if (useRen && !((char.principiosAtivos || {}).ren)) {
+                if (!char.principiosAtivos) char.principiosAtivos = {};
+                char.principiosAtivos.ren = true;
+                if (!char.principiosRodadas) char.principiosRodadas = {};
+                const _rodRen = (window.PRINCIPIO_RODADAS || {}).ren;
+                char.principiosRodadas.ren = (_rodRen == null) ? null : _rodRen;
+                _renLigadoAgora = true;
+            }
             if (useRen) {
                 renUsedFree = window.isRenFreeUsoDisponivel ? window.isRenFreeUsoDisponivel(char) : false;
                 const grausGratisAprim = window.calcRenGrausGratisAprimoramento ? window.calcRenGrausGratisAprimoramento(char) : 0;
@@ -2130,7 +2172,7 @@
             }
             // ── Fim rolagem de ataque ─────────────────────────────────────────
 
-            const renNote = useRen ? `\n💪 **REN ativado** — +${renGraus} Grau${renGraus>1?'s':''} de dano${renUsedFree ? ' (1º grátis no dia)' : ''}` : '';
+            const renNote = useRen ? `\n💪 **REN ativado** — +${renGraus} Grau${renGraus>1?'s':''} de dano${renUsedFree ? ' (1º grátis no dia)' : ''}${_renLigadoAgora ? ' (princípio ligado agora)' : ''}` : '';
             const origemNote = rs.origem ? `\n🧩 **Este dano é causado por ${rs.origem}**, não pelo usuário diretamente` : '';
             const content = `⚡ **${char.name}** usou **${rs.nome}**${modeLabel}${attackLine}\nDano: [${dmgResult.rolls.join('+')}]${allModStr} = **${total}** (${formula})${_curaLinha}${extrasText}${renNote}${origemNote}`;
             sendRollToDiscord(content, state.pendingRollImage);
@@ -2322,15 +2364,34 @@
             const rs = window._hatsuRollState;
             const char = state.currentChar;
             const h = (char.hatsus||[])[state.hatsuDetailIdx];
-            const grausDisp = (rs && rs.hasBaseDmg && h && window.calcRenGrauDisponivel) ? window.calcRenGrauDisponivel(h, char) : 0;
-            // Limita também pelo espaço restante na tabela de dano (não há sentido oferecer mais graus que ela tem)
-            const idxAtual = (rs && window.DAMAGE_TABLE) ? window.DAMAGE_TABLE.indexOf(rs.dice) : -1;
+            // grauDanoDisponivel em vez de calcRenGrauDisponivel: o segundo exige o REN já
+            // ATIVO na ficha, e por decisão do Lucas escolher um grau AQUI é um caminho de
+            // ativação do REN. A conta do teto de grau é idêntica nos dois.
+            const grausDisp = (rs && rs.hasBaseDmg && h && window.grauDanoDisponivel)
+                ? window.grauDanoDisponivel(h, char) : 0;
+            // O grau anda na ESCADA, então a posição sai do DADO BASE. Usar rs.dice aqui era
+            // o bug: com dados extras ele é uma string fora da tabela ("3d6"), o indexOf
+            // devolvia −1, grausTabela virava 0 e o popup era pulado em silêncio.
+            const _base = (rs && (rs.diceBase || rs.dice)) || '';
+            const idxAtual = window.DAMAGE_TABLE ? window.DAMAGE_TABLE.indexOf(_base) : -1;
             const grausTabela = idxAtual >= 0 ? (window.DAMAGE_TABLE.length - 1 - idxAtual) : 0;
-            const grausMax = Math.min(grausDisp, grausTabela);
+            const grausMax = Math.min(grausDisp === Infinity ? grausTabela : grausDisp, grausTabela);
             if (grausMax > 0) {
                 state.pendingRenRoll = { mode, grausMax, grausEscolhidos: 1 };
                 render(true);
             } else {
+                // Antes o skip era MUDO: o jogador não tinha como distinguir teto cheio de
+                // bug. Agora o motivo aparece, no mesmo formato do aviso da Aura Condensada.
+                if (rs && rs.hasBaseDmg) {
+                    const _motivo = !((char.nenDominio || {}).ren > 0)
+                        ? 'Você ainda não treinou o princípio REN.'
+                        : (grausTabela <= 0
+                            ? 'O dado de dano deste Hatsu já está no topo da escada de grau/passo.'
+                            : 'O teto de Grau de Potência do seu nível já está todo usado neste Hatsu.');
+                    setTimeout(function () {
+                        alert('REN indisponível neste golpe\n\n' + _motivo);
+                    }, 60);
+                }
                 rollHatsuDamage(mode, 0);
             }
         }
@@ -2556,12 +2617,24 @@
         function rollDice(attrName, mod, mode) { const roll = getRollResult(mode || state.rollMode); const total = roll.total + mod; const entry = { time: new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}), label: `${attrName} (${roll.label})`, dice: roll.dice.join(', '), mod: mod, total: total }; state.currentChar.history.push(entry); if (state.currentChar.history.length > 50) state.currentChar.history.shift(); saveCharacter(state.currentChar); state.rollResult = { name: attrName, total: total, diceVal: roll.total, mod: mod, label: roll.label }; if (state.activeTab !== 'DADOS') state.unreadRolls = true; sendToDiscord(`${attrName} (${roll.label})`, roll.dice, mod, total, state.currentChar.name || 'Personagem'); render(true); }
         // Entrega o valor MÁXIMO de cada dado em vez de rolar. Usado pela Condição
         // Hostil, cuja regra diz "os dados de dano são maximizados (não rolados)".
+        // Mesma tolerância a vários termos do rollDiceExpr: a Condição Hostil maximiza os
+        // dados, e um "2d10 + 1d6" tem de maximizar os dois termos, não devolver zero.
         function maximizarExpr(expr) {
-            const m = String(expr || '').match(/^(\d+)d(\d+)$/);
-            if (!m) return { total: 0, rolls: [] };
-            const n = parseInt(m[1]), faces = parseInt(m[2]);
-            const rolls = Array.from({ length: n }, () => faces);
-            return { total: n * faces, rolls: rolls };
+            let rolls = [], total = 0, achou = false;
+            _termosExpr(expr).forEach(function (termo) {
+                const m = termo.match(/^(\d+)d(\d+)$/);
+                if (m) {
+                    achou = true;
+                    const n = parseInt(m[1]), faces = parseInt(m[2]);
+                    for (let i = 0; i < n; i++) rolls.push(faces);
+                    total += n * faces;
+                    return;
+                }
+                const fixo = parseInt(termo);
+                if (!isNaN(fixo)) { achou = true; total += fixo; }
+            });
+            if (!achou) return { total: 0, rolls: [] };
+            return { total: total, rolls: rolls };
         }
 
         function rollSkill(skillName, attrKey, mode, zetsuBonus) { const char = state.currentChar; const _efS = window.calcAtributoEfetivo ? window.calcAtributoEfetivo(char, attrKey) : null; const mod = _efS ? _efS.mod : getMod(char.attributes[attrKey].value); const isTrained = char.skills.includes(skillName); const isExpert = (char.expertise || []).includes(skillName); const pb = getProficiencyBonus(char.level); let totalMod = mod; if (isExpert) { totalMod += (pb * 2); } else if (isTrained) { totalMod += pb; } const zb = zetsuBonus || 0; totalMod += zb; const zetsuTag = zb > 0 ? ' 👁️Zetsu' : ''; const _ini = (skillName === 'Iniciativa' && window.calcIniciativaBonus) ? window.calcIniciativaBonus(char) : { total: 0, fontes: [] }; totalMod += _ini.total; const _nb = window.calcBonusPericiaNen ? window.calcBonusPericiaNen(char, skillName) : { total: 0 }; totalMod += _nb.total; const _ib = window.calcBonusPericiaInclinacao ? window.calcBonusPericiaInclinacao(char, skillName) : { total: 0 }; totalMod += _ib.total; const roll = getRollResult(mode || state.rollMode); const total = roll.total + totalMod; const entry = { time: new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}), label: `${skillName} ${isExpert ? "(Exp)" : ""}${zetsuTag} (${roll.label})`, dice: roll.dice.join(', '), mod: totalMod, total: total }; state.currentChar.history.push(entry); if (state.currentChar.history.length > 50) state.currentChar.history.shift(); saveCharacter(state.currentChar); state.rollResult = { name: skillName, total: total, diceVal: roll.total, mod: totalMod, label: roll.label }; if (state.activeTab !== 'DADOS') state.unreadRolls = true; sendToDiscord(`${skillName}${isExpert ? ' (Exp)' : ''}${zetsuTag} (${roll.label})`, roll.dice, totalMod, total, char.name || 'Personagem'); render(true); }
