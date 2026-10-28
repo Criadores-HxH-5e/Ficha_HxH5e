@@ -1367,7 +1367,7 @@ window._openPrimeiroHatsuModal = function() {
             ren: 1,      // próximo ataque do turno
             ken: 2,      // CA dobrada por 2 rodadas
             ko: 1,       // próximo golpe, CA reduzida até o próximo turno
-            ryu: 6,      // 6 rodadas: exemplos 1-3 são padrão, 4-6 exigem Superior
+            ryu: null,   // conta em TURNOS, pelo botão próprio (_passarTurnoRyu), não em rodadas
             shu: null,   // rodadas conforme aprimoramento — resolvido na ativação
             gyo: 1,
             en: 1,
@@ -1446,9 +1446,46 @@ window._openPrimeiroHatsuModal = function() {
             char.principiosAtivos = {};
             char.principiosRodadas = {};
             delete char.gyoAlvo;
+            delete char.ryuTabela;
+            delete char.ryuTurno;
             saveCharacter(char);
             render(true);
         };
+        // ── Turnos do RYU ────────────────────────────────────────────────
+        // O RYU é o único princípio contado em TURNOS do próprio usuário, e não em rodadas
+        // da mesa: a cada turno ele anda uma linha da tabela escolhida, e é a linha que
+        // diz quanto soma de CA, de Ataque+Dano e de Reações. Por isso ele saiu de
+        // PRINCIPIO_RODADAS (virou null) e quem conta é este botão — "Passar rodada" e
+        // "Passar turno" são independentes, e o jogador aperta cada um na hora dele.
+        //
+        // Ao sair do 6º turno o princípio se desliga sozinho: a tabela acabou, não há
+        // linha seguinte para aplicar, e deixar ligado sem linha daria bônus de graça.
+        window._passarTurnoRyu = function () {
+            const char = state.currentChar;
+            if (!((char.principiosAtivos || {}).ryu)) return;
+            const max = window.RYU_TURNOS_MAX || 6;
+            const t = (parseInt(char.ryuTurno) || 1) + 1;
+            if (t > max) {
+                delete char.principiosAtivos.ryu;
+                if (char.principiosRodadas) delete char.principiosRodadas.ryu;
+                delete char.ryuTabela;
+                delete char.ryuTurno;
+                saveCharacter(char);
+                render(true);
+                if (window._showXpToast) window._showXpToast('⏳ RYU terminou — ' + max + ' turnos completos.');
+                return;
+            }
+            char.ryuTurno = t;
+            saveCharacter(char);
+            render(true);
+            const r = window.calcRyuAtivo ? window.calcRyuAtivo(char) : null;
+            if (r && window._showXpToast) {
+                window._showXpToast('🌊 RYU turno ' + r.turno + '/' + max + ' (' + r.turnoRotulo + ') — +'
+                    + r.ca + ' CA, +' + r.ataqueDano + ' Ataque e Dano'
+                    + (r.temReacoes ? ', +' + r.reacoes + ' Reações' : ''));
+            }
+        };
+
 
         // ── Princípios de Nen ATIVOS ────────────────────────────────────────────────
         // Até aqui o botão do princípio só descontava aura e mostrava um texto: nenhum
@@ -1470,6 +1507,8 @@ window._openPrimeiroHatsuModal = function() {
             // Zera os pacotes: a próxima ativação começa do custo base outra vez.
             if (char.principiosPacotes) delete char.principiosPacotes[key];
             if (key === 'shu') { delete char.shuEscolhas; delete char.shuCaRolado; }
+            // A próxima ativação escolhe a tabela de novo e recomeça no turno 1.
+            if (key === 'ryu') { delete char.ryuTabela; delete char.ryuTurno; }
             if (key === 'gyo') delete char.gyoAlvo;
             saveCharacter(char);
             render(true);
@@ -1482,6 +1521,8 @@ window._openPrimeiroHatsuModal = function() {
             delete char.gyoAlvo;
             delete char.shuEscolhas;
             delete char.shuCaRolado;
+            delete char.ryuTabela;
+            delete char.ryuTurno;
             saveCharacter(char);
             render(true);
         };
@@ -1677,7 +1718,19 @@ window._openPrimeiroHatsuModal = function() {
             })()],
     ken:   ['🏯 KEN ativado — CA ×' + (key === 'ken' ? (1 + _pac) : 2) + ' por 2 rodadas. Consome ' + ((advB.reacoes||4) * (key === 'ken' ? _pac : 1)) + ' Reações.'],
     ko:    ['🔥 KO ativado — próximo golpe: dano ×3. ATENÇÃO: CA reduzida em 80% até próximo turno' + (advB.caBonus>0?(' (+' + advB.caBonus + ' restante)'):'') + '!'],
-    ryu:   ['🌊 RYU ativado — Exemplos 1-3' + (advB.sup?'-6':'') + ' de RYU disponíveis' + (advB.tabelaBonus>0?(' (+' + advB.tabelaBonus + ' em todos os valores)'):'') + '. Múltiplos contra-ataques permitidos.'],
+    ryu:   [(function () {
+                // A mensagem é montada antes de principiosAtivos.ryu existir, então
+                // calcRyuAtivo ainda devolveria null aqui: lemos a linha 1 direto da
+                // tabela que o balão acabou de gravar em char.ryuTabela.
+                const _t = (window.NEN_RYU_TABLES || [])[parseInt(char.ryuTabela) || 0];
+                const _l = _t && _t.linhas && _t.linhas[0];
+                const _e = advB.tabelaBonus || 0;
+                if (!_l) return '🌊 RYU ativado.';
+                return '🌊 RYU ativado — ' + _t.nome + ', turno 1 de ' + (window.RYU_TURNOS_MAX || 6)
+                    + ': +' + (_l.ca + _e) + ' na CA e +' + (_l.ataqueDano + _e) + ' no Ataque e no Dano'
+                    + (_l.reacoes != null ? ', +' + (_l.reacoes + _e) + ' Reações' : '')
+                    + '. Use "Passar turno" para andar na tabela.';
+            })()],
 };
             const msgs = EFEITOS[key];
             const msg = msgs ? (msgs[nivel-1] || msgs[msgs.length-1]) : 'Princípio ativado.';

@@ -463,9 +463,17 @@ window.calcZetsuBonus = function(char) {
 };
 
 // Tabelas de fluidez do RYU. Exemplos 1-3 disponíveis a partir da Maestria em TEN+REN+ZETSU;
-// Exemplos 4-6 (com Reações Extras) exigem RYU Superior. Os 3 turnos iniciais são iguais em
-// todas as tabelas; a partir do 4º turno o usuário escolhe livremente entre as linhas restantes
-// de qualquer tabela disponível, sem repetir uma linha da mesma tabela.
+// Exemplos 4-6 (com Reações Extras) exigem RYU Superior.
+//
+// O comentário anterior dizia que, do 4º turno em diante, o jogador escolheria livremente
+// entre as linhas de qualquer tabela. NÃO é isso: o jogador escolhe UMA tabela na ativação
+// e segue a ordem dela até o fim (regra confirmada pelo Lucas). As seis tabelas são
+// ORDENS diferentes das mesmas três linhas finais — por isso escolher a tabela é escolher
+// em que turno cada linha vai cair, que é a decisão tática do princípio.
+//
+// A leitura é por TURNO do usuário, e não por rodada da mesa:
+//   turnos 1, 2 e 3 → linha "3 iniciais"      turno 4 → linha 4º
+//   turno 5 → linha 5º                       turno 6 → linha 6º (último)
 window.NEN_RYU_TABLES = [
     { nome: 'Exemplo 1', superior: false, linhas: [
         { turno: '3 iniciais', ca: 3, reacoes: null, ataqueDano: 3 },
@@ -504,6 +512,70 @@ window.NEN_RYU_TABLES = [
         { turno: '6º', ca: 4, reacoes: 2, ataqueDano: 2 },
     ]},
 ];
+
+// ── Estado vivo do RYU ─────────────────────────────────────────────
+// Antes destas funções o RYU era meio decorativo: ligar somava +3 fixos na CA e mais
+// nada. O "Ataque+Dano" das tabelas nunca chegava a uma rolagem, as Reações Extras dos
+// Exemplos 4-6 nunca chegavam ao total de Reações, e as quatro linhas de cada tabela
+// ficavam só como texto num cartão — o jogador tinha que fazer a conta na mão.
+//
+// Agora o princípio guarda DUAS coisas na ficha: qual tabela foi escolhida
+// (char.ryuTabela) e em que turno ele está (char.ryuTurno). Dessas duas sai a linha
+// vigente, e da linha saem os três números que a ficha passa a aplicar sozinha.
+window.RYU_TURNOS_MAX = 6;
+
+// Quais tabelas o personagem pode escolher. As de Superior só aparecem com ryu_sup.
+window.tabelasRyuDisponiveis = function (char) {
+    const d = (char && char.nenDominio) || {};
+    return (window.NEN_RYU_TABLES || [])
+        .map(function (t, i) { return { i: i, tabela: t }; })
+        .filter(function (o) { return !o.tabela.superior || !!d.ryu_sup; });
+};
+
+// Qual linha vale no turno N. Os três primeiros turnos compartilham a linha 0.
+window.linhaRyuDoTurno = function (tabela, turno) {
+    if (!tabela || !tabela.linhas) return null;
+    const max = window.RYU_TURNOS_MAX || 6;
+    const t = Math.max(1, Math.min(max, parseInt(turno) || 1));
+    return tabela.linhas[t <= 3 ? 0 : (t - 3)] || null;
+};
+
+// O que o RYU está somando AGORA. Devolve null quando o princípio não está ligado,
+// que é o jeito de todos os pontos de aplicação (CA, acerto, dano, reações) pularem
+// o cálculo com um único if.
+//
+// O Aprimoramento do RYU dá "+1 a cada 2 P.N extra em TODOS os valores das tabelas",
+// então o mesmo `extra` entra na CA, no Ataque+Dano e nas Reações.
+window.calcRyuAtivo = function (char) {
+    if (!char) return null;
+    if (!(((char.principiosAtivos) || {}).ryu)) return null;
+    const idx = parseInt(char.ryuTabela);
+    const tabela = (window.NEN_RYU_TABLES || [])[isNaN(idx) ? 0 : idx];
+    if (!tabela) return null;
+    const max = window.RYU_TURNOS_MAX || 6;
+    const turno = Math.max(1, Math.min(max, parseInt(char.ryuTurno) || 1));
+    const linha = window.linhaRyuDoTurno(tabela, turno);
+    if (!linha) return null;
+    const b = window.calcAvancadoBonus ? window.calcAvancadoBonus(char, 'ryu') : { tabelaBonus: 0 };
+    const extra = b.tabelaBonus || 0;
+    // Nas tabelas sem Superior o campo reacoes é null (não existe a linha de Reações).
+    // Já um 0 nas tabelas de Superior é um zero de verdade — é o turno do golpe forte,
+    // que troca todas as Reações por +5 de Ataque e Dano. Por isso os dois casos não
+    // podem ser confundidos, e quem distingue é o temReacoes.
+    return {
+        tabelaIdx: isNaN(idx) ? 0 : idx,
+        tabela: tabela.nome,
+        superior: !!tabela.superior,
+        turno: turno,
+        turnoRotulo: linha.turno,
+        ultimoTurno: turno >= max,
+        ca: linha.ca + extra,
+        ataqueDano: linha.ataqueDano + extra,
+        temReacoes: linha.reacoes != null,
+        reacoes: linha.reacoes == null ? 0 : (linha.reacoes + extra),
+        extra: extra
+    };
+};
 
 // Quantas graduações extras de dano do REN saem "de graça" (sem custo de aura) por conta da
 // Aprimoramento Opção 1 (+1 Grau/Passo por P.N investido além da Maestria). Usado junto com o
