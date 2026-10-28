@@ -205,7 +205,7 @@
                           efeito: `CA ×${(window.multiplicadorKen && window.principioAtivo && window.principioAtivo(char,'ken')) ? window.multiplicadorKen(char) : 2} por 2rod`,
                           desc: `${keB.auraCusto}% + ${keB.reacoes} Reações`, show: !!d.ken },
                         { key:'ko', label:'KO', icon:'🔥', custo:30,
-                          efeito: `Dano ×3, CA −80%${koB.caBonus>0?` (+${koB.caBonus})`:''}`, desc: '30% Aura', show: !!d.ko },
+                          efeito: `Dano ×${window.KO_MULTIPLICADOR || 3}, CA −80%${koB.caBonus>0?` (+${koB.caBonus})`:''}`, desc: '30% Aura', show: !!d.ko },
                         { key:'ryu', label:'RYU', icon:'🌊', custo:30,
                           efeito: `+3 CA/Ataque${ryB.tabelaBonus>0?` (+${ryB.tabelaBonus})`:''}`, desc: '30% Aura, 3 turnos', show: !!d.ryu },
                     ].filter(p => p.show);
@@ -2132,11 +2132,43 @@
                 }
             });
 
-            // ── Vida ou Morte: o dano conta como CRÍTICO ───────────────────────────
-            // Dobra o resultado dos DADOS (não dos bônus fixos nem do atributo).
+            // ── Rolagem de ATAQUE, antecipada ──────────────────────────────────────
+            // Ela acontecia DEPOIS do cálculo do dano, e por isso o crítico nunca pôde
+            // dobrar nada: quando o d20 era rolado o total já estava fechado. Agora o
+            // d20 vem primeiro e o dano sabe se o golpe foi crítico.
+            const _atk = (function () {
+                if (!rs.hasAttack) return null;
+                const nivel = rs.nivel || parseInt(char.level) || 1;
+                const pb = getProficiencyBonus(nivel);
+                // Atributo do Ataque pode ser diferente do atributo de Dano (rs.attr)
+                const atkMod = getMod((char.attributes[rs.atkAttr || rs.attr] || {}).value || 10);
+                // Segredo Mortal: força vantagem se modo for Normal
+                const attackMode = (rs.acertoVantagem && effectiveMode === 'NORMAL') ? 'VANTAGEM' : effectiveMode;
+                const attackRoll = getRollResult(attackMode);
+                const acertoBonus = rs.acertoBonus || 0;
+                // Margem de crítico da ficha (Aura Afiada, Assassino Veterano, Executor),
+                // com piso 18. Comparada contra o d20 USADO — antes era
+                // dice.includes(20), que declarava crítico mesmo quando o 20 era o dado
+                // DESCARTADO numa rolagem com desvantagem.
+                const mc = window.calcMargemCritico ? window.calcMargemCritico(char) : { valor: 20 };
+                return {
+                    pb: pb, atkMod: atkMod, attackMode: attackMode, attackRoll: attackRoll,
+                    acertoBonus: acertoBonus, margem: mc.valor,
+                    isCrit: attackRoll.total >= mc.valor,
+                    isFumble: attackRoll.dice.length === 1 && attackRoll.dice[0] === 1,
+                    attackTotal: attackRoll.total + atkMod + pb + acertoBonus,
+                };
+            })();
+
+            // ── Vida ou Morte e crítico: dobram os DADOS ───────────────────────────
+            // (não os bônus fixos nem o atributo). Um não soma com o outro: dobrar é
+            // dobrar, e dois dobros viram quádruplo sem base em regra nenhuma.
             const _hCrit = window.hatsuDanoCritico && window.hatsuDanoCritico(_hAtualRoll || {});
+            const _critDobra = _hCrit || !!(_atk && _atk.isCrit);
+            // KO multiplica o dano INTEIRO, depois de tudo — ver multiplicadorDanoKo.
+            const _koMult = window.multiplicadorDanoKo ? window.multiplicadorDanoKo(char) : 1;
             const _dadosTotal = dmgResult.total + extraDiceTotal;
-            const total = (_hCrit ? _dadosTotal * 2 : _dadosTotal) + mod + flatBonus;
+            const total = ((_critDobra ? _dadosTotal * 2 : _dadosTotal) + mod + flatBonus) * _koMult;
             const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
             const modeLabel = effectiveMode === 'NORMAL' ? '' : ` (${effectiveMode.charAt(0) + effectiveMode.slice(1).toLowerCase()})`;
             const renLabel = useRen ? ' 💪REN' : '';
@@ -2168,29 +2200,24 @@
                 const curaTotal = (_hCrit ? cr.total * 2 : cr.total) + mod;
                 _curaLinha = `\n💚 Cura: [${cr.rolls.join('+')}] ${mod >= 0 ? '+' : ''}${mod} = **${curaTotal}** de vida`;
             }
-            const _selo = _hMax ? '  **[DANO MAXIMIZADO POR RESTRIÇÃO]**' : (_hCrit ? '  **[CRÍTICO — VIDA OU MORTE]**' : '');
+            const _selo = (_hMax ? '  **[DANO MAXIMIZADO POR RESTRIÇÃO]**'
+                    : (_hCrit ? '  **[CRÍTICO — VIDA OU MORTE]**'
+                    : ((_atk && _atk.isCrit) ? '  **[CRÍTICO — DADOS DOBRADOS]**' : '')))
+                + (_koMult > 1 ? '  **[KO — DANO ×' + _koMult + ']**' : '');
             const formula = `${_partes.join(' + ')}${_partes.length ? ' + ' : ''}${rs.attr}${flatStr}${_selo}`;
             const extrasText = extraLines.length > 0 ? '\n' + extraLines.join('\n') : '';
 
             // ── Rolagem de Ataque ─────────────────────────────────────────────
             let attackLine = '';
-            if (rs.hasAttack) {
-                const nivel = rs.nivel || parseInt(char.level) || 1;
-                const pb = getProficiencyBonus(nivel);
-                // Atributo do Ataque pode ser diferente do atributo de Dano (rs.attr)
-                const atkMod = getMod((char.attributes[rs.atkAttr || rs.attr] || {}).value || 10);
-                // Segredo Mortal: força vantagem se modo for Normal
-                const attackMode = (rs.acertoVantagem && effectiveMode === 'NORMAL') ? 'VANTAGEM' : effectiveMode;
-                const attackRoll = getRollResult(attackMode);
-                const acertoBonus = rs.acertoBonus || 0;
-                const attackTotal = attackRoll.total + atkMod + pb + acertoBonus;
-                const isCrit = attackRoll.dice.includes(20);
-                const isFumble = attackRoll.dice.length === 1 && attackRoll.dice[0] === 1;
-                const critSuffix = isCrit ? ' 🎯 **CRÍTICO!**' : isFumble ? ' 💀 **FALHA CRÍTICA!**' : '';
-                let attackModStr = `+${atkMod + pb + acertoBonus}`;
-                if ((atkMod + pb + acertoBonus) < 0) attackModStr = `${atkMod + pb + acertoBonus}`;
-                const attackModeLabel = attackMode !== 'NORMAL' ? ` (${attackMode.charAt(0) + attackMode.slice(1).toLowerCase()})` : '';
-                attackLine = `\nAtaque${attackModeLabel}: [${attackRoll.dice.join(', ')}] ${attackModStr} = **${attackTotal}**${critSuffix}`;
+            if (_atk) {
+                const _somaAtk = _atk.atkMod + _atk.pb + _atk.acertoBonus;
+                const critSuffix = _atk.isCrit
+                    ? ` 🎯 **CRÍTICO!**${_atk.margem < 20 ? ` (margem ${_atk.margem}+)` : ''}`
+                    : (_atk.isFumble ? ' 💀 **FALHA CRÍTICA!**' : '');
+                const attackModStr = _somaAtk < 0 ? `${_somaAtk}` : `+${_somaAtk}`;
+                const attackModeLabel = _atk.attackMode !== 'NORMAL'
+                    ? ` (${_atk.attackMode.charAt(0) + _atk.attackMode.slice(1).toLowerCase()})` : '';
+                attackLine = `\nAtaque${attackModeLabel}: [${_atk.attackRoll.dice.join(', ')}] ${attackModStr} = **${_atk.attackTotal}**${critSuffix}`;
             } else if (rs.cd) {
                 attackLine = `\n🎯 CD do TR: **${rs.cd}**`;
             }
@@ -2798,6 +2825,10 @@
             const _baW = window.calcBonusAcerto ? window.calcBonusAcerto(char) : { total: 0, fontes: [] };
             const attackRoll = getRollResult(mode || state.rollMode);
             const attackTotal = attackRoll.total + mod + pb + _baW.total;
+            // Margem de crítico da ficha, piso 18, comparada contra o d20 USADO.
+            const _mcW = window.calcMargemCritico ? window.calcMargemCritico(char) : { valor: 20 };
+            const isCrit = attackRoll.total >= _mcW.valor;
+            const isFumble = attackRoll.dice.length === 1 && attackRoll.dice[0] === 1;
 
             // ── REN: escalona +N Grau(s) de dano deste golpe (Manual: cada 5% Aura = +1 grau/passo) ──
             const renGraus = Math.max(0, parseInt(grausRen) || 0);
@@ -2824,17 +2855,21 @@
             const _shuNaArma = !!(_shuR && _shuR.item && _shuR.item === weaponName);
             if (_shuNaArma) renDiceExpr = renDiceExpr + ' + ' + _shuR.dadoDano;
             const dmgResult = rollDiceExpr(renDiceExpr);
-            const dmgTotal = dmgResult.total + mod;
+            // Crítico dobra os DADOS; o KO multiplica o dano inteiro depois disso.
+            const _koMultW = window.multiplicadorDanoKo ? window.multiplicadorDanoKo(char) : 1;
+            const dmgTotal = ((isCrit ? dmgResult.total * 2 : dmgResult.total) + mod) * _koMultW;
             const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
             const renLabel = useRen ? ' 💪REN' : '';
             char.history.push({ time, label: `⚔️ ${weaponName} (${attrKey})${renLabel}`, dice: attackRoll.dice.join(', '), mod: mod + pb, total: attackTotal, img: state.pendingRollImage || '' });
             if (char.history.length > 50) char.history.shift();
             saveCharacter(char);
-            const isCrit = attackRoll.dice.includes(20);
-            const isFumble = attackRoll.dice.length === 1 && attackRoll.dice[0] === 1;
-            const suffix = isCrit ? ' 🎯 **CRÍTICO!**' : isFumble ? ' 💀 **FALHA CRÍTICA!**' : '';
+            const suffix = isCrit
+                ? ` 🎯 **CRÍTICO!**${_mcW.valor < 20 ? ` (margem ${_mcW.valor}+)` : ''}`
+                : (isFumble ? ' 💀 **FALHA CRÍTICA!**' : '');
             const renNote = useRen ? `\n💪 **REN ativado** — +${renGraus} Grau${renGraus>1?'s':''} de dano${renUsedFree ? ' (1º grátis no dia)' : ''}` : '';
-            const content = `⚔️ **${char.name}** atacou com **${weaponName}**\nAtaque: [${attackRoll.dice.join(', ')}] +${mod + pb} = **${attackTotal}**${suffix}\nDano: [${dmgResult.rolls.join('+')}] +${mod} = **${dmgTotal}** (${renDiceExpr} + ${attrKey})${renNote}`;
+            const _critNote = isCrit ? '\n🎯 **Crítico** — dados de dano dobrados' : '';
+            const _koNote = _koMultW > 1 ? `\n🔥 **KO ativado** — dano total ×${_koMultW} (CA reduzida em 80%)` : '';
+            const content = `⚔️ **${char.name}** atacou com **${weaponName}**\nAtaque: [${attackRoll.dice.join(', ')}] +${mod + pb} = **${attackTotal}**${suffix}\nDano: [${dmgResult.rolls.join('+')}] +${mod} = **${dmgTotal}** (${renDiceExpr} + ${attrKey})${renNote}${_critNote}${_koNote}`;
             sendRollToDiscord(content, state.pendingRollImage);
             state.pendingRollImage = '';
             state.attackModal = null;
@@ -4112,8 +4147,17 @@
         function calcCAAtual(char) {
             if (!char) return 10;
             const arm = calcCAArmadura(char);
-            // A maior entre "sem armadura" e a armadura vestida, e o escudo soma dos dois jeitos.
-            const base = Math.max(calcCASemArmadura(char), arm.armadura) + arm.escudo;
+            // ── Armadura quebrada não protege mais ──────────────────────────────────
+            // A durabilidade é o número de golpes que a armadura aguenta, e esse número
+            // É a CA que ela concede: uma armadura de CA 13 aguenta 13 golpes. Zerada,
+            // o personagem cai para a CA natural. Antes a durabilidade era só um
+            // contador na tela — dava para zerar e a CA não mudava um ponto.
+            // Sem recursão: getDurabilidade chama calcCAArmadura, nunca calcCAAtual.
+            const _dur = getDurabilidade(char);
+            const _caArmadura = _dur.quebrada ? 0 : arm.armadura;
+            // A maior entre "sem armadura" e a armadura vestida, e o escudo soma dos dois
+            // jeitos — escudo é item à parte e não tem durabilidade.
+            const base = Math.max(calcCASemArmadura(char), _caArmadura) + arm.escudo;
             // Instância Combatente Rápido nível 2, quando o jogador escolheu CA.
             // Primeiro bônus de CA vindo de Instância/Inclinação a entrar no cálculo —
             // antes nada disso chegava aqui (ver a lacuna de CA no backlog).
