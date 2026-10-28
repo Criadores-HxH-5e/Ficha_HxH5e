@@ -629,6 +629,23 @@ window.diametroEnAtivo = function (char) {
     return (adv.diametro || 3) + (window.pacotesPrincipio(char, 'en') - 1) * 3;
 };
 
+// ── KO: o multiplicador de dano ──────────────────────────────────────────────
+// Cap. 6: "Gasta-se 30% de aura e TRIPLICA O DANO, porém reduz a CA em 80% até o
+// início do próximo turno."
+//
+// Até aqui só a PENALIDADE existia: calcCAPrincipios aplicava o −80% de CA e o ×3
+// ficava escrito no botão e no balão, sem entrar em rolagem nenhuma. O jogador
+// pagava 30% de aura, ficava com a CA em 20% e não recebia nada em troca.
+//
+// Multiplica o DANO INTEIRO — dados, atributo e bônus fixos. Essa é a exceção à
+// convenção do app (crítico e Vida ou Morte dobram só os dados): é justamente o
+// tamanho desse ganho que paga a CA reduzida a 20% e o consumo de Reações, e é o
+// que impede o KO de virar uso rotineiro.
+window.KO_MULTIPLICADOR = 3;
+window.multiplicadorDanoKo = function (char) {
+    return (((char || {}).principiosAtivos) || {}).ko ? window.KO_MULTIPLICADOR : 1;
+};
+
 // ── SHU: menu de alternativas a 5% cada ──────────────────────────────────────
 // Cap. 6: "Gasta-se 10% de aura para aplicar +1d4 no Dano e CA ao item de 1m (...)
 // por uma rodada." E depois: "É possível gastar 5% a mais de aura para:
