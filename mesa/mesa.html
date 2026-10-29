@@ -1333,7 +1333,7 @@
       // Centro do token: com largura e altura diferentes, os dois eixos têm meio
       // diferente — era isso que o `/2` de um número só escondia.
       const cx = tamX(t) / 2, cy = tamY(t) / 2;
-      drag = { kind: 'tok', id: t.id, el: tokEl, ox: w.x - t.x * CELL, oy: w.y - t.y * CELL, sx: e.clientX, sy: e.clientY, x0: t.x, y0: t.y, moved: false, can: podeMover(t), path: [{ x: t.x + cx, y: t.y + cy }], cur: { x: t.x + tam, y: t.y + tam } };
+      drag = { kind: 'tok', id: t.id, el: tokEl, ox: w.x - t.x * CELL, oy: w.y - t.y * CELL, sx: e.clientX, sy: e.clientY, x0: t.x, y0: t.y, moved: false, can: podeMover(t), path: [{ x: t.x + cx, y: t.y + cy }], cur: { x: t.x + cx, y: t.y + cy } };
       return;
     }
     e.preventDefault(); const sel = getSelection(); if (sel && !sel.isCollapsed) sel.removeAllRanges();
