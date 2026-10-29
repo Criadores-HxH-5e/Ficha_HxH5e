@@ -2511,7 +2511,17 @@
             const acerto = getRollResult(modo);
             const acertoMod = attrMod + pb + acertoExtra;
             const acertoTotal = acerto.total + acertoMod;
-            const roll = rollDiceExpr(dado);
+            // Crítico do constructo: mesma margem do personagem (calcMargemCritico), e
+            // aí o Destruidor sobe o dano um degrau por cópia da Característica.
+            const _mc = window.calcMargemCritico ? window.calcMargemCritico(char) : { valor: 20 };
+            const critico = acerto.total >= (_mc.valor || 20);
+            let dadoFinal = dado;
+            const _destr = (info && info.destruidor) || 0;
+            if (critico && _destr && window.DAMAGE_TABLE) {
+                const _i = window.DAMAGE_TABLE.indexOf(dadoFinal);
+                if (_i >= 0) dadoFinal = window.DAMAGE_TABLE[Math.min(_i + _destr, window.DAMAGE_TABLE.length - 1)];
+            }
+            const roll = rollDiceExpr(dadoFinal);
             const total = roll.total + attrMod;
             const nome = cst.nome || `${h.nome} (Constructo)`;
             const sinal = n => (n >= 0 ? '+' : '') + n;
@@ -2525,7 +2535,8 @@
             saveCharacter(char);
             const content = `🐣 **${nome}** ataca!${fdTxt}\n`
                 + `Acerto: [${acerto.dice.join(', ')}] ${sinal(acertoMod)} = **${acertoTotal}** (1d20 ${sinal(attrMod)} ${attrKey} ${sinal(pb)} prof.${acertoExtra ? ' ' + sinal(acertoExtra) + ' Fusão/Divisão' : ''})\n`
-                + `Dano: [${roll.rolls.join('+')}] ${sinal(attrMod)} = **${total}** (${dado} + ${attrKey})`;
+                + `Dano: [${roll.rolls.join('+')}] ${sinal(attrMod)} = **${total}** (${dadoFinal} + ${attrKey})`
+                + (critico ? `\n💥 **CRÍTICO**${_destr ? ` · Destruidor +${_destr} grau/passo (${dado} → ${dadoFinal})` : ''}` : '');
             sendRollToDiscord(content, cst.imagemUrl);
             if (state.activeTab !== 'DADOS') state.unreadRolls = true;
             if (window._showXpToast) window._showXpToast(`🎲 ${nome}: acerto ${acertoTotal} · ${total} de dano`);
@@ -3837,6 +3848,18 @@
             return (intMod * 2) + lvl;
         }
 
+        // ma_e11 Marionete: 5 de Sanidade do MANIPULADOR a cada uso de aura com o
+        // corpo possuído. Passa pelo updateVital, então cruzar faixa dispara o surto
+        // de loucura como qualquer outra perda — que é o ponto do efeito.
+        window._fadigaMarionete = function (idx) {
+            const char = state.currentChar;
+            const h = (char.hatsus || [])[idx];
+            if (!h) return;
+            const fm = window.fadigaMarionete ? window.fadigaMarionete(h) : null;
+            if (!fm || fm.isento || !fm.custo) return;
+            updateVital('san', -fm.custo);
+            if (window._showXpToast) window._showXpToast(`🎭 Fadiga da Marionete: −${fm.custo} de Sanidade`);
+        };
         function updateVital(type, delta) {
             const v = state.currentChar.vitals;
             const char = state.currentChar;

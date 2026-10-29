@@ -1002,6 +1002,24 @@ window._hCst = _hCst;
 // `comDanoDoHatsu` só pode ser verdadeiro quando ESTE Hatsu é o que está aberto:
 // window._hatsuRollState é montado por render, e usá-lo de outro Hatsu entregaria o
 // dado errado em silêncio.
+// Todas as Características que valem para uma cópia do constructo: as que vieram
+// com os efeitos (Golem de Aura, rm_e3), as escolhidas na ficha, e as duas da
+// Marionete Tática. Estava montada só dentro do render; a rolagem precisa dela para
+// o Destruidor, então virou função.
+window.caracteristicasDoConstructo = function (h, c) {
+    if (!h) return [];
+    const i = parseInt(c) || 0;
+    const sc = h.specialChoices || {};
+    const cst = _hCst(h, i);
+    const rm2 = sc[i > 0 ? 'rm_e2_carac#' + i : 'rm_e2_carac'];
+    return [].concat(
+        rm2 ? [rm2] : [],
+        sc['rm_e3'] ? [sc['rm_e3']] : [],
+        cst.caracteristicas || [],
+        window.caracteristicasMarioneteTatica ? window.caracteristicasMarioneteTatica(h) : []
+    ).filter(Boolean);
+};
+
 window.ataqueDoConstructo = function (char, h, c, comDanoDoHatsu) {
     const cst = _hCst(h, c);
     const atributos = Object.assign({ FOR: 0, DES: 0, CON: 0, INT: 0, SAB: 0, PRE: 0 }, cst.atributos || {});
@@ -1026,9 +1044,16 @@ window.ataqueDoConstructo = function (char, h, c, comDanoDoHatsu) {
             if (i >= 0) { dado = tab[Math.max(0, Math.min(tab.length - 1, i + fd.graus))]; graus = fd.graus; }
         }
     }
+    // Destruidor: "Todo ataque crítico da conjuração causa +1 grau/passo de dano".
+    // Só passou a ter onde cair quando o constructo ganhou rolagem de acerto — sem
+    // d20 não havia crítico para detectar.
+    const caracs = window.caracteristicasDoConstructo(h, c);
+    const destruidor = caracs.filter(function (n) { return n === 'Destruidor'; }).length;
     return {
         attr: attr,
         atributo: atributos[attr] || 0,
+        caracteristicas: caracs,
+        destruidor: destruidor,
         proficiencia: getProficiencyBonus(parseInt((char || {}).level) || 1),
         dado: dado,
         doHatsu: doHatsu,
@@ -1394,7 +1419,12 @@ function renderHatsuDetail(container) {
     // Map of items that deal sanity damage with their values
     const SANIDADE_MAP = {
         'rma_m2': { dado: '+2/rod', desc: 'Zetsu Interrompe' },
-        'ma_e7':  { dado: '+3',     desc: 'Mente Frágil' },
+        // ma_e7 Mente Frágil saiu daqui em 29/10. O livro diz "Fragilizado,
+        // Desorientado ou Sanidade -x (teto)", e o -3 era invenção do app. Confirmado
+        // com o Lucas: o x é o dano de sanidade que o próprio Hatsu já compra (Flagelo
+        // da Mente, eg10, e afins), respeitando o teto do nível. Ou seja, Mente Frágil
+        // ENTREGA o dano que o Hatsu já tem; não cria um número novo. Ver o aviso na
+        // ficha, abaixo, para quando o Hatsu não comprou nenhum.
         'rg_p3':  { dado: '+1d10',  desc: 'Dano Permanente (ativação)' },
         'rg_e4':  { dado: '+5',     desc: 'Dano Permanente Constante (ativação)' },
         'rg_v5':  { dado: '+1d10',  desc: 'Dano Momentâneo Variável (ativação)' },
@@ -2397,6 +2427,36 @@ function renderHatsuDetail(container) {
     }
     // ── Fim toggle de Ataque ───────────────────────────────────────────────────
 
+    // ── Manipulação: a fadiga da Marionete e o aviso da Mente Frágil ──────────
+    // Dois efeitos que prometiam número e não tinham onde cair. Ficam juntos porque
+    // são os dois do manipulador sobre si mesmo, não sobre o alvo.
+    let manipulacaoHtml = '';
+    (function () {
+        const _fm = window.fadigaMarionete ? window.fadigaMarionete(h) : null;
+        const _temMenteFragil = (h.efeitos || []).indexOf('ma_e7') >= 0;
+        if (!_fm && !_temMenteFragil) return;
+        const _ativo = !!((char.hatsusAtivos || {})[idx]);
+        let _corpo = '';
+        if (_fm) {
+            _corpo += _fm.isento
+                ? `<div style="font-size:9px;color:#4ade80">🎭 <b>Toy Story</b> — o turno do alvo é seu e <b>não</b> há desgaste mental: usar aura com o corpo não custa Sanidade.</div>`
+                : `<div style="font-size:9px;color:#d1d5db;margin-bottom:6px">🎭 <b>Marionete</b> — cada uso de aura com o corpo possuído (princípio, técnica ou Hatsu) custa <b style="color:#f87171">${_fm.custo} de Sanidade</b> sua, pela fadiga mental.</div>
+                   <button onclick="event.stopPropagation();window._fadigaMarionete(${idx})" ${_ativo ? '' : 'disabled'} style="width:100%;padding:8px;border-radius:9px;background:${_ativo ? '#f8717122' : '#1f2937'};border:1px solid ${_ativo ? '#f8717166' : '#374151'};color:${_ativo ? '#f87171' : '#4b5563'};font-family:'Orbitron',sans-serif;font-weight:900;font-size:9px;cursor:${_ativo ? 'pointer' : 'not-allowed'};text-transform:uppercase;letter-spacing:1px">⚡ Usei aura com a marionete (−${_fm.custo} Sanidade)</button>
+                   ${_ativo ? '' : '<div style="font-size:8px;color:#4b5563;text-align:center;margin-top:3px">Ative o Hatsu para registrar a fadiga.</div>'}`;
+        }
+        if (_temMenteFragil) {
+            _corpo += `<div style="font-size:9px;color:#d1d5db;margin-top:${_fm ? '10px' : '0'}">🧠 <b>Mente Frágil</b> — a opção "perde Sanidade" entrega o dano de sanidade que <b>este Hatsu já causa</b>; ela não cria um número próprio.</div>`;
+            _corpo += temFlagelo
+                ? `<div style="font-size:8px;color:#4ade80;margin-top:3px">✓ Este Hatsu causa dano de Sanidade (Flagelo da Mente) — é esse valor que o alvo perde.</div>`
+                : `<div style="font-size:8px;color:#fbbf24;margin-top:3px">⚠ Este Hatsu não compra dano de Sanidade nenhum, então a opção "perde Sanidade" não tira nada. Compre <b>Flagelo da Mente</b> (eg10), ou use Fragilizado/Desorientado.</div>`;
+        }
+        manipulacaoHtml = `<div style="background:#0d1117;border:1px solid ${tc}33;border-radius:12px;padding:14px;margin-bottom:20px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+                <span style="font-size:14px">🪢</span>
+                <span style="font-size:10px;font-weight:900;color:#e5e7eb;text-transform:uppercase;letter-spacing:2px">Manipulação</span>
+            </div>${_corpo}</div>`;
+    })();
+
     // ── Ficha do Constructo (efeitos de Materialização/Emissão que criam constructos) ──
     // Ver HB-ManualdeHatsusHxH5eRPG2.0.txt, "Criando a ficha da Materialização".
     const CDB = window.CONSTRUCTO_DB || {};
@@ -2454,7 +2514,11 @@ function renderHatsuDetail(container) {
             : [];
         const caracJaEscolhidas = [..._rm2CaracsAll, (h.specialChoices || {})['rm_e3']].filter(Boolean);
         const caracExtras = cst.caracteristicas || [];
-        const todasCaracteristicas = [...caracJaEscolhidas, ...caracExtras];
+        // ma_e16 Marionete Tática: as duas escolhidas valem como Característica de
+        // verdade — Robustez escolhida ali soma PV, Grande muda o tamanho, e assim por
+        // diante. Sem isto a escolha ficaria só no criador, sem chegar na ficha.
+        const _mtCaracs = window.caracteristicasMarioneteTatica ? window.caracteristicasMarioneteTatica(h) : [];
+        const todasCaracteristicas = [...caracJaEscolhidas, ...caracExtras, ..._mtCaracs];
         const slotsCaracteristicas = constructEffectIds.reduce((sum, id) => sum + (CDB.EFEITO_CARACTERISTICAS[id] || 0), 0);
         const slotsLivres = Math.max(0, slotsCaracteristicas - caracJaEscolhidas.length);
 
@@ -2718,7 +2782,29 @@ function renderHatsuDetail(container) {
             </div>
 
             <div style="margin-bottom:12px">
-                <div style="font-size:7px;color:#374151;text-transform:uppercase;font-weight:700;margin-bottom:4px">Características de Invocação (${todasCaracteristicas.length}/${slotsCaracteristicas})</div>
+                <div style="font-size:7px;color:#374151;text-transform:uppercase;font-weight:700;margin-bottom:4px">Características de Invocação (${todasCaracteristicas.length}/${slotsCaracteristicas}${_mtCaracs.length ? ` · ${_mtCaracs.length} da Marionete Tática` : ''})</div>
+                ${(() => {
+                    // Onde cada Característica escolhida realmente cai. Antes a ficha
+                    // listava todas igual, e só Robustez e Grande/Pequeno chegavam a
+                    // um número — o jogador não tinha como saber qual delas era texto.
+                    const D = CDB.CARACTERISTICA_DESTINO || {};
+                    const vistos = [...new Set(todasCaracteristicas)];
+                    if (!vistos.length) return '';
+                    const rot = { pv: ['✓ entra no PV', '#4ade80'], tamanho: ['✓ muda o tamanho', '#4ade80'],
+                                  dano: ['✓ entra no dano do crítico', '#4ade80'], cura: ['✓ entra na cura', '#4ade80'],
+                                  alvo: ['◦ o número é em outra criatura — mesa resolve', '#9ca3af'],
+                                  tag: ['◦ descritiva', '#9ca3af'] };
+                    return `<div style="background:#0a0f1a;border:1px solid #1f2937;border-radius:8px;padding:7px;margin-bottom:6px">`
+                        + vistos.map(n => {
+                            const d = D[n] || 'tag';
+                            const falta = d.indexOf('falta:') === 0;
+                            const [txt, cor] = falta
+                                ? ['⚠ precisa de ' + d.slice(6) + ' na ficha do constructo', '#fbbf24']
+                                : (rot[d] || rot.tag);
+                            return `<div style="font-size:8px;color:#d1d5db;margin-bottom:2px"><b>${n}</b> <span style="color:${cor}">${txt}</span></div>`;
+                        }).join('')
+                        + `</div>`;
+                })()}
                 ${caracJaEscolhidas.length > 0 ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">${caracJaEscolhidas.map(n => `<span style="font-size:8px;font-weight:700;padding:3px 8px;border-radius:6px;background:${tc}18;color:${tc}">${n}</span>`).join('')}</div>` : ''}
                 ${caracExtras.map((n, i) => `
                     <div style="display:flex;gap:4px;margin-bottom:4px;align-items:center">
@@ -3812,7 +3898,7 @@ function renderHatsuDetail(container) {
                 ${calcRangeDurHtml}
             </div>
 
-            ${constructoCardHtml}
+            ${manipulacaoHtml}${constructoCardHtml}
             ${copiaPerfeitaHtml}
 
             ${primeiroHatsuSection}
