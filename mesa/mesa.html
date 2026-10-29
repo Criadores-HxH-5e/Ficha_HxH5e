@@ -60,7 +60,15 @@
   .live { display: inline-flex; align-items: center; gap: 6px; font: 800 11px/1 var(--f-body); letter-spacing: .08em; text-transform: uppercase; color: var(--red-6); white-space: nowrap; }
   .live::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--red-6); animation: pulse 1.6s infinite; }
   @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .3 } }
-  .mbar .right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  /* O grupo da direita (CONVITE, largura e o botão "Painel") NÃO encolhe. Sem isto,
+     numa tela estreita o .title encolhe até o limite, .role e .live são nowrap e não
+     cedem, e quem sobrava espremido era o .right — o botão "Painel" saía da tela.
+     Mesmo flex:none que .mbar .sair já usa. */
+  .mbar .right { margin-left: auto; display: flex; align-items: center; gap: 8px; flex: none; }
+  /* Com a direita fixa, quem cede espaço é o selo "Ao vivo": ele corta no fim em vez
+     de empurrar o botão para fora. O título já encolhia por conta própria. */
+  .mbar #liveTag { min-width: 0; overflow: hidden; }
+  .mbar #liveTag .live { max-width: 100%; }
   .faces { display: flex; }
   .faces .av { width: 30px; height: 30px; border: 2px solid var(--surface); margin-left: -8px; }
   .faces .av:first-child { margin-left: 0; }
@@ -91,6 +99,20 @@
   .msg-h time { font-size: 11px; font-weight: 600; color: var(--text-3); }
   .msg-h .gm { font: 800 9px/1 var(--f-body); letter-spacing: .08em; text-transform: uppercase; padding: 3px 6px; border-radius: 6px; background: var(--orange-1); color: var(--orange-7); border: 1px solid var(--orange-2); }
   .msg-t { white-space: pre-wrap; word-break: break-word; font-size: 15px; line-height: 1.35; color: var(--text); }
+  /* Menção: @nome vira um selo. O de quem foi mencionado puxa a cor de destaque,
+     e a mensagem inteira ganha uma barra à esquerda para ser achada na rolagem. */
+  .mencao { font-weight: 700; color: var(--blue-6); background: var(--blue-1); border-radius: 6px; padding: 0 4px; }
+  .mencao.eu { color: var(--orange-7); background: var(--orange-1); }
+  .msg.me-marcou { background: var(--orange-1); box-shadow: inset 3px 0 0 var(--orange-7); }
+  /* Lista de nomes que abre ao digitar "@". Sem ela o jogador teria que acertar
+     o nome de cor, acento e tudo. */
+  .mencao-lista { position: absolute; left: 12px; right: 12px; bottom: 100%; margin-bottom: 6px; z-index: 20;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--sh-3); overflow: hidden; }
+  .mencao-lista[hidden] { display: none; }
+  .mencao-lista button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: 0; background: transparent;
+    color: var(--text); font: 600 14px/1.2 var(--f-body); text-align: left; cursor: pointer; }
+  .mencao-lista button:hover, .mencao-lista button.on { background: var(--blue-1); color: var(--blue-6); }
+  .chat-form { position: relative; }
   .chat-list .roll { margin: 4px 0; }
   .chat-form { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--border); background: var(--surface); flex: none; }
   .chat-form .input { height: 42px; }
@@ -181,7 +203,11 @@
   }
   .prevnote { margin-top: 12px; padding: 10px 12px; border-radius: var(--r-md); background: var(--orange-1); border: 1px solid var(--orange-2); font-size: 13px; font-weight: 700; color: var(--orange-8); }
   .sel2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .side-toggle { display: none; }
+  /* Vale nos dois formatos. No celular ele abre e fecha a gaveta (side-open); no
+     desktop recolhe a coluna da direita (side-off) — que o CSS já sabia fazer, mas
+     que nenhum botão acionava: o painel do desktop trava em 300px no aplicarLargura,
+     então não havia como ver o mapa inteiro. */
+  .side-toggle { display: inline-flex; }
   @media (max-width: 860px) {
     .app { grid-template-columns: 1fr; grid-template-rows: 56px minmax(0, 1fr); }
     .side-grip, #sideWide { display: none; }
@@ -206,27 +232,44 @@
 
   /* battlemap */
   .vp { position: absolute; inset: 0; overflow: hidden; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none;
-    --g: 64px; --gx: 0px; --gy: 0px;
+    --g: 64px; --gx: 0px; --gy: 0px; --gw: 1px; --ga: .05;
     background-color: #171925;
-    background-image: linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+    /* A espessura e a opacidade viraram variáveis: o traço era fixo em 1px e .05,
+       e num mapa claro ele sumia, enquanto num mapa escuro atrapalhava. */
+    background-image: linear-gradient(rgba(255,255,255,var(--ga)) var(--gw), transparent var(--gw)), linear-gradient(90deg, rgba(255,255,255,var(--ga)) var(--gw), transparent var(--gw));
     background-size: var(--g) var(--g); background-position: var(--gx) var(--gy); }
+  .vp.sem-grid { background-image: none; }
   .vp.panning, .vp.grab.panning { cursor: grabbing; }
   .vp.grab, .vp.grab .tok { cursor: grab; }
   .world { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
   .area { position: absolute; left: 0; top: 0; border-radius: 6px; box-shadow: 0 0 0 2px rgba(255,255,255,.12), 0 40px 120px -30px rgba(0,0,0,.8);
     background: #3b4a3a center / 100% 100% no-repeat; }
   .area.blank { background-color: #2d3548; background-image: radial-gradient(120% 90% at 30% 20%, rgba(255,255,255,.06), transparent 60%); }
-  .area.blank .gl { background-image: linear-gradient(rgba(255,255,255,.09) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.09) 1px, transparent 1px); }
+  /* ── A camada de grid que fica SOBRE o mapa ────────────────────────────────
+     Esta é a que o jogador vê em cima da imagem. Ela existia, mas com tudo fixo:
+     64px, traço de 1px e preto a 28% — que num mapa escuro some. Os controles do
+     painel mexiam só no fundo do .vp, que fica ATRÁS da imagem, então ligar,
+     desligar ou engrossar não mudava nada sobre o mapa.
+     Agora ela lê as mesmas variáveis, e a cor virou escolha: preto para mapas
+     claros, branco para mapas escuros.
+     Aqui NÃO entra o zoom: a .gl vive dentro do #world, que já está escalado. */
   .area .gl { position: absolute; inset: 0; pointer-events: none;
-    background-image: linear-gradient(rgba(0,0,0,.28) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,.28) 1px, transparent 1px);
-    background-size: 64px 64px; }
+    --gl-c: rgba(0,0,0,.28); --gl-w: 1px; --gl-s: 64px; --gl-x: 0px; --gl-y: 0px;
+    background-image: linear-gradient(var(--gl-c) var(--gl-w), transparent var(--gl-w)), linear-gradient(90deg, var(--gl-c) var(--gl-w), transparent var(--gl-w));
+    background-size: var(--gl-s) var(--gl-s); background-position: var(--gl-x) var(--gl-y); }
+  .area.sem-grid .gl { background-image: none; }
+  .area.blank .gl { --gl-c: rgba(255,255,255,.09); }
   .area.gen { box-shadow: 0 0 0 1px rgba(31,45,82,.25), 0 40px 120px -30px rgba(0,0,0,.8); }
-  .area.gen .gl { background-image: linear-gradient(rgba(31,45,82,.11) 1px, transparent 1px), linear-gradient(90deg, rgba(31,45,82,.11) 1px, transparent 1px); }
+  .area.gen .gl { --gl-c: rgba(31,45,82,.11); }
   .mlegend { position: absolute; top: 60px; left: 50%; transform: translateX(-50%); z-index: 5; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; max-width: min(760px, calc(100% - 140px)); padding: 7px 14px; border-radius: var(--r-pill); background: rgba(247,245,240,.92); backdrop-filter: blur(8px); color: #3b3f52; box-shadow: 0 6px 20px -8px rgba(0,0,0,.5); font: 700 11px/1.2 var(--f-body); pointer-events: none; }
   .mlegend span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
   .mlegend i { width: 12px; height: 12px; border-radius: 4px; border: 2px solid var(--c); background: color-mix(in srgb, var(--c) 18%, transparent); }
   @media (max-width: 860px) { .mlegend { top: 56px; max-width: calc(100% - 24px); border-radius: 14px; } }
   .tok { position: absolute; touch-action: none; user-select: none; }
+  /* Token esticado (6×2, 1×3…) vira retângulo arredondado: uma elipse muito
+     comprida fica estranha e não sugere o que a peça é — um muro, um veículo,
+     uma serpente. O quadrado continua redondo, como sempre foi. */
+  .tok.retang .disc { border-radius: 18px; }
   .tok .disc { position: absolute; inset: 6%; border-radius: 50%; overflow: hidden; background: var(--c); box-shadow: 0 0 0 3px var(--c), 0 0 0 5px rgba(0,0,0,.45), 0 8px 18px rgba(0,0,0,.5); display: grid; place-items: center; color: #fff; font: 700 22px/1 var(--f-display); transition: box-shadow var(--t-fast); }
   .tok .disc img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
   .tok.mine { cursor: grab; }
@@ -414,6 +457,26 @@
   .tr-ctl .btn { flex: 1; padding: 0 8px; }
   .tr-ctl .btn.on { border-color: var(--blue-6); color: var(--blue-6); background: var(--blue-1); }
   @media (max-width: 860px) { .som { flex: none; } .som-t, .som-vol { display: none; } }
+
+  /* ── A barra do topo no celular ─────────────────────────────────────────────
+     Ela é um flex de uma linha só, e quase todo filho é nowrap ou flex:none — o
+     título, o selo "Ao vivo", o papel, o widget de som. Numa tela de 360px a soma
+     passa da largura e quem era empurrado para fora era o .right, justamente onde
+     mora o botão "Painel": no celular ele é o ÚNICO jeito de fechar a gaveta de
+     abas e ver o mapa inteiro.
+     Tentar encolher cada widget vira uma caça sem fim (hoje é o som, amanhã é outro).
+     Então a barra ROLA na horizontal e o grupo da direita fica preso na borda: o
+     botão está sempre visível, nada é escondido, e o resto da barra desliza por
+     baixo dele. Mesmo scrollbar-width:none que .tabs já usa. */
+  @media (max-width: 860px) {
+    .mbar { overflow-x: auto; overflow-y: hidden; scrollbar-width: none; gap: 8px; }
+    .mbar::-webkit-scrollbar { display: none; }
+    .mbar .right {
+      position: sticky; right: 0; flex: none;
+      padding-left: 10px; margin-left: auto;
+      background: linear-gradient(90deg, transparent, var(--surface) 10px);
+    }
+  }
   /* ordem de iniciativa (canto do palco) */
   .ordem { position: absolute; top: 12px; right: 12px; z-index: 7; width: 260px; max-width: calc(100% - 24px); padding: 10px; border-radius: var(--r-lg); background: rgba(17,24,39,.94); backdrop-filter: blur(8px); border: 1px solid var(--border); box-shadow: var(--sh-3); }
   .ordem-h { display: flex; align-items: center; gap: 8px; }
@@ -598,6 +661,92 @@
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const CELL = 64;
   const root = $('#root');
+  /* ---------- Avisos sonoros ----------
+     Sintetizados na hora com WebAudio: nenhum arquivo, nenhuma requisição e nada
+     para subir junto — combina com o resto da mesa, que é um arquivo só.
+     Também não usa a API de Notificação do navegador: nada de pedir permissão,
+     como foi pedido. O aviso é o som mais o toast que a mesa já mostra. */
+  const Avisos = {
+    ctx: null,
+    get ligado() { return localStorage.getItem('nv_mesa_som') !== '0'; },
+    set ligado(v) { localStorage.setItem('nv_mesa_som', v ? '1' : '0'); },
+    // O contexto só nasce depois do primeiro clique: navegador nenhum deixa tocar
+    // som antes de o usuário interagir com a página.
+    ac() {
+      if (!this.ligado) return null;
+      const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null;
+      if (!this.ctx) this.ctx = new AC();
+      if (this.ctx.state === 'suspended') this.ctx.resume();
+      return this.ctx;
+    },
+    // Um bipe curto. tipo 'triangle' soa mais macio que 'sine' em caixinha de celular.
+    nota(f, t0, dur, vol, tipo) {
+      const c = this.ac(); if (!c) return;
+      const o = c.createOscillator(), g = c.createGain();
+      o.type = tipo || 'triangle'; o.frequency.setValueAtTime(f, c.currentTime + t0);
+      g.gain.setValueAtTime(0.0001, c.currentTime + t0);
+      g.gain.exponentialRampToValueAtTime(vol, c.currentTime + t0 + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + t0 + dur);
+      o.connect(g).connect(c.destination); o.start(c.currentTime + t0); o.stop(c.currentTime + t0 + dur + 0.02);
+    },
+    // Dado: estalos secos e agudos em sequência, como o d20 batendo na mesa.
+    dado() {
+      const c = this.ac(); if (!c) return;
+      [0, 0.055, 0.1, 0.14, 0.21].forEach((t0, i) => {
+        const o = c.createOscillator(), g = c.createGain(), f = 1400 - i * 150 + Math.random() * 260;
+        o.type = 'square'; o.frequency.setValueAtTime(f, c.currentTime + t0);
+        g.gain.setValueAtTime(0.06 - i * 0.008, c.currentTime + t0);
+        g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + t0 + 0.05);
+        o.connect(g).connect(c.destination); o.start(c.currentTime + t0); o.stop(c.currentTime + t0 + 0.06);
+      });
+    },
+    // Mensagem: duas notas subindo, discreto.
+    msg() { this.nota(660, 0, 0.1, 0.05); this.nota(880, 0.08, 0.14, 0.05); },
+    // Menção: três notas, mais alto — é para ser notado.
+    mencao() { this.nota(784, 0, 0.1, 0.09); this.nota(988, 0.09, 0.1, 0.09); this.nota(1319, 0.18, 0.2, 0.09); },
+  };
+  function montarBotaoSom() {
+    const b = $('#somAviso'); if (!b) return;
+    const pinta = () => { b.innerHTML = `<i class="ph-bold ph-speaker-${Avisos.ligado ? 'high' : 'slash'}"></i>`;
+      b.title = Avisos.ligado ? 'Sons de aviso ligados' : 'Sons de aviso desligados'; };
+    pinta();
+    b.onclick = () => { Avisos.ligado = !Avisos.ligado; pinta(); if (Avisos.ligado) Avisos.msg(); };
+  }
+
+  /* ---------- Menções ----------
+     Sem acento e sem maiúscula dos dois lados: "@joao" acha "João". */
+  const semAcento = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  // Quem está na mesa, com o primeiro nome e o nome inteiro — os dois servem de alvo.
+  function alvosMencao() {
+    const ids = [S.mesa.owner, ...S.membros.map(x => x.user_id)];
+    const vistos = {}, out = [];
+    ids.forEach(u => {
+      if (!u || vistos[u]) return; vistos[u] = 1;
+      const p = S.perfis[u] || {}; const nome = (p.nome || '').trim(); if (!nome) return;
+      out.push({ id: u, nome, primeiro: nome.split(/\s+/)[0] });
+    });
+    return out;
+  }
+  // A mensagem me marcou? Compara com o meu primeiro nome e com o inteiro.
+  function mencionaUsuario(texto, userId) {
+    const p = S.perfis[userId] || {}; const nome = (p.nome || '').trim(); if (!nome) return false;
+    const alvos = [semAcento(nome), semAcento(nome.split(/\s+/)[0])];
+    const achados = String(texto || '').match(/@([\p{L}\p{N}_]+)/gu) || [];
+    return achados.some(a => alvos.indexOf(semAcento(a.slice(1))) >= 0);
+  }
+  // Pinta os @nome. O meu fica em laranja; os outros, em azul.
+  function pintarMencoes(textoEscapado) {
+    const meu = S.perfis[NV.user.id] || {};
+    const meus = [semAcento(meu.nome), semAcento(String(meu.nome || '').split(/\s+/)[0])];
+    const nomes = alvosMencao();
+    return textoEscapado.replace(/@([\p{L}\p{N}_]+)/gu, (todo, n) => {
+      const sa = semAcento(n);
+      const existe = nomes.some(a => semAcento(a.nome) === sa || semAcento(a.primeiro) === sa);
+      if (!existe) return todo;
+      return `<span class="mencao${meus.indexOf(sa) >= 0 ? ' eu' : ''}">@${n}</span>`;
+    });
+  }
+
   function toast(msg, e = 'spiral') {
     const t = document.createElement('div'); t.className = 'toast'; t.innerHTML = `${/^[a-z-]+$/.test(e) ? `<i class="ph-fill ph-${e}" style="font-size:18px"></i>` : `<span>${e}</span>`}${msg}`;
     $('#toasts').appendChild(t); setTimeout(() => t.remove(), 2800);
@@ -720,6 +869,7 @@
         <div class="right">
           <div class="faces" id="faces"></div>
           <span class="code hide-sm" id="codeBtn" title="Copiar link do convite">CONVITE · ${S.mesa.codigo}</span>
+          <button class="btn btn-sm btn-icon btn-ghost" id="somAviso" title="Sons de aviso"></button>
           <button class="btn btn-sm btn-icon btn-ghost" id="sideWide"></button>
           <button class="btn btn-sm side-toggle" id="sideBtn">Painel</button>
         </div>
@@ -728,7 +878,12 @@
       <aside class="side" id="side"><div class="side-grip" id="sideGrip" title="Arraste para mudar a largura · duplo clique volta ao padrão"></div><nav class="tabs" id="tabs"></nav><div class="pane" id="pane"></div></aside>
     </div>`;
     $('#codeBtn').onclick = () => { navigator.clipboard.writeText(location.origin + location.pathname.replace(/[^/]*$/, '') + 'mesa.html?entrar=' + S.mesa.codigo).then(() => toast('Link do convite copiado', 'link')); };
-    $('#sideBtn').onclick = () => $('#app').classList.toggle('side-open');
+    // Celular: gaveta de baixo (side-open). Desktop: coluna da direita (side-off).
+    // O 860px é o mesmo breakpoint do CSS logo acima.
+    $('#sideBtn').onclick = () => {
+      const app = $('#app');
+      app.classList.toggle(matchMedia('(max-width: 860px)').matches ? 'side-open' : 'side-off');
+    };
     montarLargura();
     renderBar(); renderStage(); renderSide();
     aplicarTrilha();
@@ -759,6 +914,7 @@
   function montarLargura() {
     aplicarLargura(sideW);
     $('#sideWide').onclick = () => aplicarLargura(sideW > SIDE_PADRAO + 40 ? SIDE_PADRAO : sideLarga(), true);
+    montarBotaoSom();
     const g = $('#sideGrip');
     g.ondblclick = () => aplicarLargura(SIDE_PADRAO, true);
     g.onpointerdown = e => {
@@ -827,8 +983,19 @@
     if (!world) return;
     world.style.transform = `translate(${cam.x}px, ${cam.y}px) scale(${cam.z})`;
     world.style.setProperty('--z', cam.z);
-    vp.style.setProperty('--g', CELL * cam.z + 'px');
-    vp.style.setProperty('--gx', cam.x + 'px'); vp.style.setProperty('--gy', cam.y + 'px');
+    // O grid é desenhado no .vp, que vive em coordenadas de TELA — por isso tudo
+    // aqui é multiplicado pelo zoom. `escala` e o deslocamento existem para casar
+    // o grid do app com o grid já desenhado numa imagem enviada: o mestre empurra
+    // e estica até as linhas coincidirem, em vez de ter que recortar a imagem.
+    const G = gridCfg();
+    const cel = CELL * cam.z * (G.escala || 1);
+    vp.style.setProperty('--g', cel + 'px');
+    vp.style.setProperty('--gx', (cam.x + (G.dx || 0) * cam.z) + 'px');
+    vp.style.setProperty('--gy', (cam.y + (G.dy || 0) * cam.z) + 'px');
+    vp.style.setProperty('--gw', (G.forca || 1) + 'px');
+    vp.style.setProperty('--ga', String(Math.min(0.6, 0.05 * (G.forca || 1))));
+    vp.classList.toggle('sem-grid', G.on === false);
+    aplicarGridArea(G);
     clearTimeout(aplicarCam.t);
     aplicarCam.t = setTimeout(() => { try { localStorage.setItem('hxh-mesa-cam-' + S.mesa.id, JSON.stringify(cam)); } catch (e) {} }, 400);
   }
@@ -837,6 +1004,38 @@
     const k = z / cam.z;
     cam.x = px - (px - cam.x) * k; cam.y = py - (py - cam.y) * k; cam.z = z; aplicarCam(); desenharOverlay();
   }
+  /* Configuração do grid, guardada em mapas.config.grid — coluna JSONB que já
+     existia e já carregava o config.gen do gerador de mapas. Nenhuma mudança de
+     banco foi necessária para isto.
+     { on: true, forca: 1, dx: 0, dy: 0, escala: 1 } */
+  // `cor`: 'auto' deixa como sempre foi (preto sobre imagem, branco em mapa
+  // branco), 'claro' força branco e 'escuro' força preto. Existe porque o traço
+  // preto padrão desaparece num battlemap escuro — era parte do motivo de o grid
+  // parecer que não estava respondendo.
+  const GRID_PADRAO = { on: true, forca: 1, dx: 0, dy: 0, escala: 1, cor: 'auto' };
+  const GRID_CORES = { claro: 'rgba(255,255,255,.55)', escuro: 'rgba(0,0,0,.45)' };
+  function gridCfg() {
+    const m = (S.gm && S.mapaPreview) || S.mapa;
+    return Object.assign({}, GRID_PADRAO, (m && m.config && m.config.grid) || {});
+  }
+
+  /* O grid DE CIMA do mapa (.gl, dentro da .area). Fica em coordenadas de MUNDO,
+     então o zoom não entra na conta — o #world já está escalado. É por isso que
+     o mesmo dx/dy serve aos dois: no .vp ele é multiplicado pelo zoom, aqui não. */
+  function aplicarGridArea(G) {
+    const gl = document.querySelector('#area .gl'), area = $('#area');
+    if (!gl || !area) return;
+    const g = G || gridCfg();
+    area.classList.toggle('sem-grid', g.on === false);
+    gl.style.setProperty('--gl-s', (CELL * (g.escala || 1)) + 'px');
+    gl.style.setProperty('--gl-x', (g.dx || 0) + 'px');
+    gl.style.setProperty('--gl-y', (g.dy || 0) + 'px');
+    gl.style.setProperty('--gl-w', (g.forca || 1) + 'px');
+    // 'auto' não mexe na cor: deixa o CSS decidir pelo tipo de mapa, como antes.
+    if (g.cor && GRID_CORES[g.cor]) gl.style.setProperty('--gl-c', GRID_CORES[g.cor]);
+    else gl.style.removeProperty('--gl-c');
+  }
+
   function mapaVisivel() { return (S.gm && S.mapaPreview && vistaAtual() === 'mapa') ? S.mapaPreview : (S.mapa || { cols: 30, rows: 30, fundo_url: null, config: {} }); }
   function centralizar() {
     const m = mapaVisivel();
@@ -918,14 +1117,23 @@
   }
   function podeMover(t) { return S.gm || t.owner === NV.user.id; }
   function barrasVisiveis(t) { return t.barras_publicas || S.gm || t.owner === NV.user.id; }
+  /* Largura e altura do token, em quadrados.
+     `tamanho` sempre foi um número só — o token era obrigatoriamente quadrado, e o
+     seletor ia só até 4. Agora `tamanho` é a LARGURA e `tam_y` é a altura; quando
+     `tam_y` não existe (todo token criado até hoje) ele vale o mesmo que a largura,
+     e nada muda para quem já tinha token no mapa. */
+  const tamX = t => Math.max(1, parseInt((t || {}).tamanho) || 1);
+  const tamY = t => Math.max(1, parseInt((t || {}).tam_y) || tamX(t));
+  const TOK_TAM_MAX = 12;
+
   function tokenHTML(t) {
-    const sz = (t.tamanho || 1) * CELL;
+    const lg = tamX(t) * CELL, al = tamY(t) * CELL;
     const vis = barrasVisiveis(t);
     const pct = (a, b) => Math.max(0, Math.min(100, b ? a / b * 100 : 0));
     const ini = (t.nome || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
     if (vis && t.tipo === 'pj' && t.personagem_id && FICHAS[t.personagem_id] === undefined) carregaFicha(t.personagem_id);   // para o selo de Reações
     const nenAt = (t.principios || {}).ativos || {};
-    return `<div class="tok ${t.tipo} ${nenAt.zetsu ? 'zetsu' : ''} ${podeMover(t) ? 'mine' : ''} ${S.sel === t.id ? 'sel' : ''} ${turno().vez === t.id ? 'vez' : ''}" data-id="${t.id}" style="left:${t.x * CELL}px;top:${t.y * CELL}px;width:${sz}px;height:${sz}px;--c:${esc(t.cor || '#1f5ae0')};--ac:${esc(corAura(t))}">
+    return `<div class="tok ${t.tipo} ${tamX(t) !== tamY(t) ? 'retang' : ''} ${nenAt.zetsu ? 'zetsu' : ''} ${podeMover(t) ? 'mine' : ''} ${S.sel === t.id ? 'sel' : ''} ${turno().vez === t.id ? 'vez' : ''}" data-id="${t.id}" style="left:${t.x * CELL}px;top:${t.y * CELL}px;width:${lg}px;height:${al}px;--c:${esc(t.cor || '#1f5ae0')};--ac:${esc(corAura(t))}">
       ${vis ? `<div class="bars ${t.barras_publicas ? '' : 'priv'}"><i class="hp"><b style="width:${pct(t.hp, t.hp_max)}%"></b></i>${t.aura_max > 0 ? `<i class="au"><b style="width:${pct(t.aura, t.aura_max)}%"></b></i>` : ''}</div>` : ''}
       ${auraHTML(t)}
       <div class="disc">${t.img_url ? `<img src="${esc(t.img_url)}" alt="" draggable="false">` : esc(ini)}</div>
@@ -1122,8 +1330,10 @@
     if (tokEl) {
       const t = S.tokens[tokEl.dataset.id];
       const w = toWorld(e.clientX, e.clientY);
-      const tam = (t.tamanho || 1) / 2;
-      drag = { kind: 'tok', id: t.id, el: tokEl, ox: w.x - t.x * CELL, oy: w.y - t.y * CELL, sx: e.clientX, sy: e.clientY, x0: t.x, y0: t.y, moved: false, can: podeMover(t), path: [{ x: t.x + tam, y: t.y + tam }], cur: { x: t.x + tam, y: t.y + tam } };
+      // Centro do token: com largura e altura diferentes, os dois eixos têm meio
+      // diferente — era isso que o `/2` de um número só escondia.
+      const cx = tamX(t) / 2, cy = tamY(t) / 2;
+      drag = { kind: 'tok', id: t.id, el: tokEl, ox: w.x - t.x * CELL, oy: w.y - t.y * CELL, sx: e.clientX, sy: e.clientY, x0: t.x, y0: t.y, moved: false, can: podeMover(t), path: [{ x: t.x + cx, y: t.y + cy }], cur: { x: t.x + cx, y: t.y + cy } };
       return;
     }
     e.preventDefault(); const sel = getSelection(); if (sel && !sel.isCollapsed) sel.removeAllRanges();
@@ -1155,8 +1365,8 @@
     const px = w.x - drag.ox, py = w.y - drag.oy;
     drag.el.classList.add('drag');
     drag.el.style.left = px + 'px'; drag.el.style.top = py + 'px';
-    const tam = (S.tokens[drag.id].tamanho || 1) / 2;
-    drag.cur = { x: Math.round(px / CELL) + tam, y: Math.round(py / CELL) + tam };
+    const _t = S.tokens[drag.id];
+    drag.cur = { x: Math.round(px / CELL) + tamX(_t) / 2, y: Math.round(py / CELL) + tamY(_t) / 2 };
     desenharOverlay(); rotuloMedida(e.clientX, e.clientY, drag.path.concat([drag.cur]));
     const now = performance.now();
     if (channel && now - lastBroadcast > 70) { lastBroadcast = now; channel.send({ type: 'broadcast', event: 'move', payload: { id: drag.id, x: px / CELL, y: py / CELL } }); }
@@ -1624,7 +1834,11 @@
       nen: () => nenHTML(t, pode),
       cfg: () => `<label class="chk"><input type="checkbox" id="tpPub" ${t.barras_publicas ? 'checked' : ''}> Barras visíveis para todos</label>
         <div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap">
-        ${S.gm ? `<select class="input" id="tpSz" style="height:34px;width:auto;font-size:13px;padding:0 30px 0 10px">${[1, 2, 3, 4].map(n => `<option value="${n}" ${t.tamanho === n ? 'selected' : ''}>${n}×${n}</option>`).join('')}</select>` : ''}
+        ${S.gm ? `<span style="display:inline-flex;align-items:center;gap:4px">
+          <select class="input" id="tpSz" title="Largura em quadrados" style="height:34px;width:auto;font-size:13px;padding:0 26px 0 10px">${Array.from({ length: TOK_TAM_MAX }, (_, i) => i + 1).map(n => `<option value="${n}" ${tamX(t) === n ? 'selected' : ''}>${n}</option>`).join('')}</select>
+          <span class="tiny" style="opacity:.7">×</span>
+          <select class="input" id="tpSzY" title="Altura em quadrados" style="height:34px;width:auto;font-size:13px;padding:0 26px 0 10px">${Array.from({ length: TOK_TAM_MAX }, (_, i) => i + 1).map(n => `<option value="${n}" ${tamY(t) === n ? 'selected' : ''}>${n}</option>`).join('')}</select>
+        </span>` : ''}
         <button class="btn btn-sm" id="tpAv"><i class="ph ph-image"></i> Avatar</button>
         ${t.owner === NV.user.id && (NV.perfil() || {}).avatar ? '<button class="btn btn-sm btn-ghost" id="tpG" title="Usar a foto da sua conta (Discord ou Google)">Usar minha foto</button>' : ''}</div>
         <div class="sep"></div><button class="btn btn-sm btn-ghost" id="tpDel" style="color:var(--red-6)"><i class="ph ph-trash"></i> Remover do mapa</button>`,
@@ -1709,11 +1923,28 @@
       const k = b.dataset.reac, max = reacMax(t), atual = reacAtual(t);
       salvarReac(t, k === 'cheio' ? max : Math.max(0, Math.min(max, atual + +k)));
     });
-    const salvar = async patch => { Object.assign(t, patch); atualizarToken(t); renderTokPanel(); if (channel) channel.send({ type: 'broadcast', event: 'tok', payload: Object.assign({ id: t.id }, patch) }); const { error } = await sb.from('tokens').update(patch).eq('id', t.id); if (error) toast(errMsg(error), 'warning'); };
+    const salvar = async patch => {
+      // `_avisoColuna` não é campo do banco: serve para trocar a mensagem de erro por
+      // uma que diga o que fazer, em vez do texto cru do Supabase.
+      const avisa = patch._avisoColuna; delete patch._avisoColuna;
+      Object.assign(t, patch); atualizarToken(t); renderTokPanel();
+      if (channel) channel.send({ type: 'broadcast', event: 'tok', payload: Object.assign({ id: t.id }, patch) });
+      const { error } = await sb.from('tokens').update(patch).eq('id', t.id);
+      if (error) {
+        const semColuna = avisa && /tam_y/.test(errMsg(error));
+        toast(semColuna
+          ? 'A altura vale nesta sessão, mas não fica salva: falta a coluna <b>tam_y</b> na tabela de tokens.'
+          : errMsg(error), 'warning');
+      }
+    };
     $$('#tokPanel .ctl button').forEach(b => b.onclick = () => { const k = b.dataset.k; salvar({ [k]: Math.max(0, Math.min(t[k + '_max'], t[k] + +b.dataset.d)) }); });
     $$('#tokPanel .ctl input').forEach(i => i.onchange = () => { const k = i.dataset.k; const v = parseInt(i.value, 10); if (!isNaN(v)) salvar({ [k]: Math.max(0, Math.min(t[k + '_max'], v)) }); });
     const pub = $('#tpPub'); if (pub) pub.onchange = () => salvar({ barras_publicas: pub.checked });
+    // Largura e altura separadas. Gravar `tam_y` exige a coluna no banco (ver o
+    // comentário em tamX/tamY); sem ela o update devolve erro e o toast avisa —
+    // o desenho na tela continua certo, só não persiste.
     const sz = $('#tpSz'); if (sz) sz.onchange = () => salvar({ tamanho: +sz.value });
+    const szY = $('#tpSzY'); if (szY) szY.onchange = () => salvar({ tam_y: +szY.value, _avisoColuna: true });
     // Só o token muda: a foto da ficha no HxH5e continua a mesma.
     const trocaAvatar = async url => {
       await salvar({ img_url: url });
@@ -1793,6 +2024,7 @@
     const gen = m && m.config && m.config.gen;
     const tipo = gen && MapGen.TIPOS.find(t => t.id === MapGen.normaliza(gen).tipo);
     const ops = [10, 15, 20, 25, 30, 35, 40, 50, 60, 80, 100];
+    const G = gridCfg();
     P().innerHTML = `<h4>Battlemap</h4>
       <p class="hint" style="margin:0 0 12px">Cada quadrado tem 1,5 m. Um mapa por vez: salvar um novo substitui o atual (os tokens continuam).</p>
       <div class="item" style="display:flex;align-items:center;gap:10px">
@@ -1808,6 +2040,31 @@
         <p class="hint">A imagem estica para cobrir o grid inteiro. Ajuste colunas e linhas para bater com o desenho.</p>
       </div>
       <div class="sep"></div>
+      ${m ? `
+      <h4>Proporção do mapa atual</h4>
+      <p class="hint" style="margin:0 0 8px">Mudar colunas e linhas depois do mapa pronto — antes só dava para escolher na hora de enviar a imagem, e corrigir exigia enviar tudo de novo. Os tokens ficam onde estão.</p>
+      <div class="sel2"><div class="field"><label class="tiny">Colunas</label><select class="input" id="mpC2">${ops.map(n => `<option ${m.cols === n ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
+      <div class="field"><label class="tiny">Linhas</label><select class="input" id="mpR2">${ops.map(n => `<option ${m.rows === n ? 'selected' : ''}>${n}</option>`).join('')}</select></div></div>
+      <button class="btn btn-sm" id="mpProp" style="width:100%;margin-top:8px"><i class="ph ph-frame-corners"></i> Aplicar proporção</button>
+
+      <div class="sep"></div>
+      <h4>Grid</h4>
+      <div class="row" style="gap:6px;flex-wrap:wrap">
+        <button class="btn btn-sm ${G.on === false ? '' : 'btn-primary'}" id="gdOn"><i class="ph ph-grid-nine"></i> ${G.on === false ? 'Ligar' : 'Ligado'}</button>
+        ${[['Fino', 1], ['Médio', 2], ['Grosso', 3]].map(([lbl, v]) => `<button class="btn btn-sm ${(G.forca || 1) === v ? 'btn-primary' : ''}" data-gw="${v}">${lbl}</button>`).join('')}
+      </div>
+      <div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap">
+        ${[['Automático', 'auto'], ['Claro', 'claro'], ['Escuro', 'escuro']].map(([lbl, v]) => `<button class="btn btn-sm ${(G.cor || 'auto') === v ? 'btn-primary' : ''}" data-gc="${v}">${lbl}</button>`).join('')}
+      </div>
+      <p class="hint" style="margin:6px 0 0">Num battlemap escuro o traço preto some — aí use <b>Claro</b>.</p>
+      <p class="hint" style="margin:10px 0 6px">Alinhar com a imagem: empurre e estique até as linhas caírem em cima do grid desenhado no mapa.</p>
+      <div class="sel2"><div class="field"><label class="tiny">Deslocar ↔</label><input class="input" id="gdX" type="number" step="1" value="${G.dx || 0}"></div>
+      <div class="field"><label class="tiny">Deslocar ↕</label><input class="input" id="gdY" type="number" step="1" value="${G.dy || 0}"></div></div>
+      <div class="field" style="margin-top:8px"><label class="tiny">Tamanho do quadrado — ${Math.round((G.escala || 1) * 100)}%</label>
+        <input id="gdE" type="range" min="50" max="200" step="1" value="${Math.round((G.escala || 1) * 100)}" style="width:100%"></div>
+      <button class="btn btn-ghost btn-sm" id="gdZero" style="width:100%;margin-top:6px">Voltar o grid ao padrão</button>
+      ` : ''}
+      <div class="sep"></div>
       <button class="btn btn-orange" id="mpLive" style="width:100%" ${m ? '' : 'disabled'}><i class="ph ph-broadcast"></i> Exibir battlemap para os jogadores</button>
       ${S.mesa.exibindo !== 'nada' ? `<button class="btn btn-sm" id="stopLive" style="margin-top:10px;width:100%"><i class="ph ph-pause"></i> Parar de exibir</button>` : ''}`;
     $('#mpCriar').onclick = () => abrirCriador(gen ? Object.assign({ cols: m.cols, rows: m.rows }, gen) : null);
@@ -1817,6 +2074,47 @@
       e.preventDefault(); const f = await pickFile(); if (!f) return; $('#mpLbl').textContent = 'Enviando…';
       try { const url = await NV.enviarImagem(f, 4096); await salvarMapa({ cols: +$('#mpC').value, rows: +$('#mpR').value, fundo_url: url, config: {} }); IMG.aberto = false; toast('Mapa salvo', 'map-trifold'); paneMapa(); } catch (err) { toast(errMsg(err), 'warning'); $('#mpLbl').textContent = 'Escolher imagem do mapa'; }
     };
+    // ── Proporção do mapa que já está na mesa ──────────────────────────────
+    // salvarMapa faz UPSERT: a linha inteira é reescrita, então fundo_url e config
+    // precisam ir junto — senão mudar a proporção apagaria a imagem do mapa.
+    const prop = $('#mpProp');
+    if (prop) prop.onclick = async () => {
+      const c = +$('#mpC2').value, r = +$('#mpR2').value;
+      if (c === m.cols && r === m.rows) return toast('A proporção já é essa.', 'info');
+      const ok = await salvarMapa({ cols: c, rows: r, fundo_url: m.fundo_url || null, config: m.config || {} });
+      if (ok) { toast(`Mapa agora é ${c} × ${r}`, 'frame-corners'); paneMapa(); }
+    };
+
+    // ── Grid ───────────────────────────────────────────────────────────────
+    // Grava só o pedaço `grid` do config, preservando o `gen` do gerador de mapas.
+    const salvarGrid = async patch => {
+      const cfg = Object.assign({}, m.config || {});
+      cfg.grid = Object.assign({}, GRID_PADRAO, cfg.grid || {}, patch);
+      // A tela responde na hora; o banco vem atrás.
+      if (S.mapa) S.mapa.config = cfg;
+      if (S.mapaPreview) S.mapaPreview.config = cfg;
+      aplicarCam(); paneMapa();
+      await salvarMapa({ cols: m.cols, rows: m.rows, fundo_url: m.fundo_url || null, config: cfg });
+    };
+    const gOn = $('#gdOn'); if (gOn) gOn.onclick = () => salvarGrid({ on: G.on === false });
+    $$('#pane [data-gw]').forEach(b => b.onclick = () => salvarGrid({ forca: +b.dataset.gw }));
+    $$('#pane [data-gc]').forEach(b => b.onclick = () => salvarGrid({ cor: b.dataset.gc }));
+    const gx = $('#gdX'); if (gx) gx.onchange = () => salvarGrid({ dx: parseInt(gx.value, 10) || 0 });
+    const gy = $('#gdY'); if (gy) gy.onchange = () => salvarGrid({ dy: parseInt(gy.value, 10) || 0 });
+    const ge = $('#gdE');
+    if (ge) {
+      // Enquanto arrasta, só o desenho muda — gravar a cada pixel encheria o banco.
+      ge.oninput = () => {
+        const cfg = Object.assign({}, m.config || {});
+        cfg.grid = Object.assign({}, GRID_PADRAO, cfg.grid || {}, { escala: (+ge.value || 100) / 100 });
+        if (S.mapa) S.mapa.config = cfg;
+        if (S.mapaPreview) S.mapaPreview.config = cfg;
+        aplicarCam();   // redesenha os dois grids: o do fundo e o de cima do mapa
+      };
+      ge.onchange = () => salvarGrid({ escala: (+ge.value || 100) / 100 });
+    }
+    const gz = $('#gdZero'); if (gz) gz.onclick = () => salvarGrid(Object.assign({}, GRID_PADRAO));
+
     $('#mpLive').onclick = () => exibir('mapa');
     const st = $('#stopLive'); if (st) st.onclick = () => exibir('nada');
   }
@@ -1926,7 +2224,7 @@
   function centroLivre(tam = 1) {
     const m = S.mapa || { cols: 30, rows: 30 };
     const ocup = new Set();
-    Object.values(S.tokens).forEach(t => { const n = t.tamanho || 1, x0 = Math.round(t.x), y0 = Math.round(t.y); for (let a = 0; a < n; a++) for (let b = 0; b < n; b++) ocup.add(`${x0 + a},${y0 + b}`); });
+    Object.values(S.tokens).forEach(t => { const nx = tamX(t), ny = tamY(t), x0 = Math.round(t.x), y0 = Math.round(t.y); for (let a = 0; a < nx; a++) for (let b = 0; b < ny; b++) ocup.add(`${x0 + a},${y0 + b}`); });
     const cabe = (x, y) => { for (let a = 0; a < tam; a++) for (let b = 0; b < tam; b++) if (ocup.has(`${x + a},${y + b}`)) return false; return true; };
     const cx = Math.floor(m.cols / 2), cy = Math.floor(m.rows / 2);
     for (let r = 0; r < 16; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) if (cabe(cx + dx, cy + dy)) return { x: cx + dx, y: cy + dy };
@@ -2409,6 +2707,9 @@
   let diceTimer = null, ultimaRolagem = null, filaTimer = null;
   const filaDados = [], DADO_MIN = 2800;
   function mostrarRolagem(r) {
+    // Som só para rolagem dos outros: a sua você acabou de mandar rolar, e ouvir
+    // o próprio dado a cada clique cansa.
+    if (r && r.user_id !== NV.user.id) Avisos.dado();
     filaDados.push(r); if (filaDados.length > 6) filaDados.shift();
     if (!filaTimer) proximoDado();
   }
@@ -2511,9 +2812,10 @@
     }
     P().innerHTML = `<div class="chat-head"><h4>Chat da mesa</h4>${S.gm && S.chat.length ? '<button class="btn btn-sm btn-ghost" id="chatClr" style="color:var(--red-6)">Limpar</button>' : ''}</div>
       <div class="chat-list" id="chatList"></div>
-      <form class="chat-form" id="chatForm" autocomplete="off"><input class="input" id="chatIn" maxlength="500" placeholder="Mensagem… (/r 1d20+3 rola dado)" aria-label="Mensagem"><button class="btn btn-primary" aria-label="Enviar"><i class="ph-bold ph-paper-plane-right"></i></button></form>`;
+      <form class="chat-form" id="chatForm" autocomplete="off"><div class="mencao-lista" id="mencaoLista" hidden></div><input class="input" id="chatIn" maxlength="500" placeholder="Mensagem… (@nome marca alguém · /r 1d20+3 rola dado)" aria-label="Mensagem"><button class="btn btn-primary" aria-label="Enviar"><i class="ph-bold ph-paper-plane-right"></i></button></form>`;
     renderChatList(true);
-    $('#chatForm').onsubmit = e => { e.preventDefault(); enviarMsg(); };
+    $('#chatForm').onsubmit = e => { e.preventDefault(); if (!mencaoEnter()) enviarMsg(); };
+    ligarMencao();
     // Só foca no desktop: no celular abriria o teclado sozinho.
     if (matchMedia('(pointer: fine)').matches) $('#chatIn').focus();
     const clr = $('#chatClr'); if (clr) clr.onclick = async () => {
@@ -2525,10 +2827,12 @@
   }
   function msgHTML(m, cont) {
     const quem = S.perfis[m.user_id] || {}, gm = m.user_id === S.mesa.owner, meu = m.user_id === NV.user.id;
-    return `<div class="msg ${meu ? 'mine' : ''} ${cont ? 'cont' : ''}">
+    // Fui marcado nesta mensagem? Só vale se foi outra pessoa que escreveu.
+    const marcou = !meu && mencionaUsuario(m.texto, NV.user.id);
+    return `<div class="msg ${meu ? 'mine' : ''} ${cont ? 'cont' : ''} ${marcou ? 'me-marcou' : ''}">
       ${cont ? '<span></span>' : avatar(quem)}
       <div style="min-width:0">${cont ? '' : `<div class="msg-h"><b title="${esc(quem.nome || '')}">${esc(m.nome || quem.nome || 'Hunter')}</b>${gm ? '<span class="gm">Narrador</span>' : ''}<time>${hora(m.created_at)}</time></div>`}
-      <div class="msg-t">${esc(m.texto)}</div></div></div>`;
+      <div class="msg-t">${pintarMencoes(esc(m.texto))}</div></div></div>`;
   }
   function renderChatList(forcar) {
     const el = $('#chatList'); if (!el) return;
@@ -2550,6 +2854,63 @@
     S.chat.push(n); if (S.chat.length > 300) S.chat = S.chat.slice(-300);
     return true;
   }
+  /* ---------- Autocompletar da menção ----------
+     Abre ao digitar "@" e filtra conforme a pessoa escreve. Existe porque sem ele
+     a menção viraria adivinhação: o jogador teria que acertar o nome de cor, com
+     acento e tudo, e um erro de digitação não marcaria ninguém — em silêncio. */
+  let mencaoSel = 0;
+  function mencaoTermo(inp) {
+    // Só o trecho DEPOIS do último "@" e até o cursor; e só se não houver espaço
+    // no meio, senão "@joao falou com" continuaria com a lista aberta.
+    const antes = inp.value.slice(0, inp.selectionStart);
+    const m = antes.match(/@([\p{L}\p{N}_]*)$/u);
+    return m ? m[1] : null;
+  }
+  function fecharMencao() { const l = $('#mencaoLista'); if (l) { l.hidden = true; l.innerHTML = ''; } mencaoSel = 0; }
+  function abrirMencao() {
+    const inp = $('#chatIn'), l = $('#mencaoLista'); if (!inp || !l) return;
+    const termo = mencaoTermo(inp);
+    if (termo === null) return fecharMencao();
+    const sa = semAcento(termo);
+    const nomes = alvosMencao()
+      .filter(a => a.id !== NV.user.id)                 // marcar a si mesmo não serve
+      .filter(a => !sa || semAcento(a.nome).indexOf(sa) === 0 || semAcento(a.primeiro).indexOf(sa) === 0)
+      .slice(0, 6);
+    if (!nomes.length) return fecharMencao();
+    if (mencaoSel >= nomes.length) mencaoSel = 0;
+    l.innerHTML = nomes.map((a, i) => `<button type="button" class="${i === mencaoSel ? 'on' : ''}" data-nome="${esc(a.primeiro)}">${avatar(S.perfis[a.id])}<span>${esc(a.nome)}</span></button>`).join('');
+    l.hidden = false;
+    Array.from(l.querySelectorAll('button')).forEach(b => { b.onclick = () => inserirMencao(b.dataset.nome); });
+  }
+  function inserirMencao(nome) {
+    const inp = $('#chatIn'); if (!inp) return;
+    const antes = inp.value.slice(0, inp.selectionStart), depois = inp.value.slice(inp.selectionStart);
+    const novo = antes.replace(/@([\p{L}\p{N}_]*)$/u, '@' + nome + ' ');
+    inp.value = novo + depois;
+    inp.selectionStart = inp.selectionEnd = novo.length;
+    fecharMencao(); inp.focus();
+  }
+  // Enter com a lista aberta escolhe o nome em vez de enviar a mensagem.
+  function mencaoEnter() {
+    const l = $('#mencaoLista'); if (!l || l.hidden) return false;
+    const b = l.querySelector('button.on') || l.querySelector('button');
+    if (!b) return false;
+    inserirMencao(b.dataset.nome); return true;
+  }
+  function ligarMencao() {
+    const inp = $('#chatIn'); if (!inp) return;
+    inp.oninput = abrirMencao;
+    inp.onblur = () => setTimeout(fecharMencao, 150);   // deixa o clique no nome acontecer
+    inp.onkeydown = e => {
+      const l = $('#mencaoLista'); if (!l || l.hidden) return;
+      const n = l.querySelectorAll('button').length; if (!n) return;
+      if (e.key === 'ArrowDown') { e.preventDefault(); mencaoSel = (mencaoSel + 1) % n; abrirMencao(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); mencaoSel = (mencaoSel - 1 + n) % n; abrirMencao(); }
+      else if (e.key === 'Escape') { e.preventDefault(); fecharMencao(); }
+      else if (e.key === 'Tab') { e.preventDefault(); mencaoEnter(); }
+    };
+  }
+
   async function enviarMsg() {
     const inp = $('#chatIn'), txt = inp.value.trim();
     if (!txt) return;
@@ -2568,9 +2929,19 @@
     chatCh = sb.channel('mesa-chat-' + id)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'mensagens', filter: `mesa_id=eq.${id}` }, ({ eventType, new: n, old: o }) => {
         if (eventType === 'DELETE') S.chat = S.chat.filter(x => x.id !== o.id);
-        else if (addMsg(n) && n.user_id !== NV.user.id && S.tab !== 'chat') {
-          S.naoLidas++; renderTabs();
-          toast(`<b>${esc(n.nome || 'Hunter')}:</b>&nbsp;${esc(n.texto.length > 60 ? n.texto.slice(0, 60) + '…' : n.texto)}`, 'chat-circle-dots');
+        else if (addMsg(n) && n.user_id !== NV.user.id) {
+          // A menção avisa SEMPRE, inclusive com a aba do chat aberta: é o ponto
+          // dela. A mensagem comum só avisa quando o jogador está noutra aba, que
+          // é como já era.
+          const paraMim = mencionaUsuario(n.texto, NV.user.id);
+          if (S.tab !== 'chat') { S.naoLidas++; renderTabs(); }
+          if (paraMim) {
+            Avisos.mencao();
+            toast(`<b>${esc(n.nome || 'Hunter')}</b> marcou você:&nbsp;${esc(n.texto.length > 60 ? n.texto.slice(0, 60) + '…' : n.texto)}`, 'at');
+          } else if (S.tab !== 'chat') {
+            Avisos.msg();
+            toast(`<b>${esc(n.nome || 'Hunter')}:</b>&nbsp;${esc(n.texto.length > 60 ? n.texto.slice(0, 60) + '…' : n.texto)}`, 'chat-circle-dots');
+          }
         }
         if (S.tab === 'chat') renderChatList();
       })
@@ -2608,7 +2979,11 @@
         if (eventType === 'DELETE') { delete S.tokens[o.id]; if (S.sel === o.id) S.sel = null; if ($('#tokLayer')) renderTokens(); }
         else {
           // Sem a coluna no banco, a linha chega sem reacoes/principios: mantém o valor ao vivo.
-          const velho = S.tokens[n.id]; if (velho) ['reacoes', 'principios'].forEach(k => { if (!(k in n) && k in velho) n[k] = velho[k]; });
+          // `tam_y` (altura do token) entrou na mesma lista pelo mesmo motivo: enquanto a
+          // coluna não existir, a linha volta do banco sem ela e o token perderia a altura
+          // no instante em que o Supabase avisasse a mudança — virando quadrado sozinho,
+          // logo depois de aparecer certo na tela.
+          const velho = S.tokens[n.id]; if (velho) ['reacoes', 'principios', 'tam_y'].forEach(k => { if (!(k in n) && k in velho) n[k] = velho[k]; });
           S.tokens[n.id] = n; if ($('#tokLayer')) atualizarToken(n); if (S.sel === n.id) renderTokPanel();
         }
         if (!$('#tokLayer')) renderOrdem();   // na cena não há mapa, mas a ordem continua no palco

@@ -66,6 +66,16 @@
             const char = state.currentChar;
             // Retroativo: personagem antigo com Aura Gigantesca recebe o bônus na 1ª abertura.
             if (aplicarAuraGigantesca(char)) saveCharacter(char);
+            // Migração dos bônus de Maestria (roda antes do aviso, para o jogador já abrir
+            // o modal com os atributos corretos).
+            if (migrarBonusMaestria(char)) saveCharacter(char);
+            // Dedup CONJURAÇÃO → MATERIALIZAÇÃO: converte restrições rc_* já salvas.
+            if (migrarRestricoesConjuracao(char)) saveCharacter(char);
+            // eg4 (Efeito Alternativo): as 4 chaves passaram de nome para id.
+            if (migrarEg4ParaIds(char)) saveCharacter(char);
+            if (migrarEg6RmE8ParaIds(char)) saveCharacter(char);
+            // Aviso único da nova mecânica das Inclinações (só para quem já tinha pontos).
+            setTimeout(function () { avisarRealocacaoInclinacoes(state.currentChar); }, 400);
             const clsData = SYSTEM_DB.classes.find(c => c.id === char.class);
             // Sem categoria de Nen o app fica em preto e branco, não em verde neon.
             const themeColor = clsData ? clsData.color : (window.TEMA_SEM_NEN || '#eaecf0');
@@ -98,7 +108,7 @@
             if (state.activeTab === 'FICHA') {
                 const ATTR_FULL_NAMES = { 'FOR': 'FORÇA', 'DES': 'DESTREZA', 'CON': 'CONSTITUIÇÃO', 'INT': 'INTELIGÊNCIA', 'SAB': 'SABEDORIA', 'PRE': 'PRESENÇA', 'CAR': 'PRESENÇA' };
                 const ATTR_ICONS_MAP = { 'FOR': ['dumbbell', 'swords'], 'DES': ['wind', 'target'], 'CON': ['heart', 'activity'], 'INT': ['brain-circuit', 'book-open'], 'SAB': ['eye', 'sparkles'], 'PRE': ['crown', 'message-circle'], 'CAR': ['crown', 'message-circle'] };
-                const infoGridHtml = `<div class="grid grid-cols-4 divide-x divide-gray-800 bg-[#0b0c10] border-t border-b border-gray-800 mb-2"><div class="p-2 flex flex-col items-center justify-center"><span class="text-[9px] font-bold text-neon-blue uppercase tracking-widest mb-0.5">Tendência</span><select onchange="updateCharProperty('alignment', this.value)" class="bg-transparent text-white font-display font-bold text-xs uppercase outline-none cursor-pointer text-center appearance-none w-full"><option value="Heróico" ${char.alignment === 'Heróico' ? 'selected' : ''} class="bg-gray-900">Heróico</option><option value="Caótico" ${char.alignment === 'Caótico' ? 'selected' : ''} class="bg-gray-900">Caótico</option><option value="Neutro" ${!char.alignment || char.alignment === 'Neutro' ? 'selected' : ''} class="bg-gray-900">Neutro</option><option value="Maligno" ${char.alignment === 'Maligno' ? 'selected' : ''} class="bg-gray-900">Maligno</option></select></div><div class="p-2 flex flex-col items-center justify-center"><span class="text-[9px] font-bold text-neon-yellow uppercase tracking-widest mb-0.5">Proficiência</span><span class="font-display font-bold text-lg text-white tracking-wider">+${getProficiencyBonus(char.level)}</span></div><div class="p-2 flex flex-col items-center justify-center"><span class="text-[9px] font-bold text-white uppercase tracking-widest mb-0.5">Desl.</span><span class="font-display font-bold text-lg text-white tracking-wider">${char.vitals.desl || 9}m</span>${char.deslocamentoTipo ? `<span class="text-[8px] font-bold text-neon-theme mt-0.5">${char.deslocamentoTipo === 'voo' ? '🕊️' : char.deslocamentoTipo === 'aquatico' ? '🌊' : '🧗'} +${char.deslocamentoValor}m</span>` : ''}</div><div class="p-2 flex flex-col items-center justify-center"><span class="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-0.5">Jogador</span><input type="text" value="${char.playerName || ''}" placeholder="Nome..." onchange="updateCharProperty('playerName', this.value)" class="bg-transparent text-white font-display font-bold text-xs outline-none w-full text-center placeholder-gray-700"></div></div>`;
+                const infoGridHtml = `<div class="grid grid-cols-4 divide-x divide-gray-800 bg-[#0b0c10] border-t border-b border-gray-800 mb-2"><div class="p-2 flex flex-col items-center justify-center"><span class="text-[9px] font-bold text-neon-blue uppercase tracking-widest mb-0.5">Tendência</span><select onchange="updateCharProperty('alignment', this.value)" class="bg-transparent text-white font-display font-bold text-xs uppercase outline-none cursor-pointer text-center appearance-none w-full"><option value="Heróico" ${char.alignment === 'Heróico' ? 'selected' : ''} class="bg-gray-900">Heróico</option><option value="Caótico" ${char.alignment === 'Caótico' ? 'selected' : ''} class="bg-gray-900">Caótico</option><option value="Neutro" ${!char.alignment || char.alignment === 'Neutro' ? 'selected' : ''} class="bg-gray-900">Neutro</option><option value="Maligno" ${char.alignment === 'Maligno' ? 'selected' : ''} class="bg-gray-900">Maligno</option></select></div><div class="p-2 flex flex-col items-center justify-center"><span class="text-[9px] font-bold text-neon-yellow uppercase tracking-widest mb-0.5">Proficiência</span><span class="font-display font-bold text-lg text-white tracking-wider">+${getProficiencyBonus(char.level)}</span></div><div class="p-2 flex flex-col items-center justify-center"><span class="text-[9px] font-bold text-white uppercase tracking-widest mb-0.5">Desl.</span><span class="font-display font-bold text-lg text-white tracking-wider">${(() => { const _d = window.calcDeslocamentoEfetivo ? window.calcDeslocamentoEfetivo(char) : { total: (char.vitals.desl || 9), bonus: 0 }; return String(_d.total).replace('.', ',') + 'm'; })()}</span>${(() => { const _d = window.calcDeslocamentoEfetivo ? window.calcDeslocamentoEfetivo(char) : { bonus: 0 }; return _d.bonus > 0 ? `<span class="text-[8px] font-bold text-neon-theme mt-0.5">💪 +${String(_d.bonus).replace('.', ',')}m</span>` : ''; })()}${char.deslocamentoTipo ? `<span class="text-[8px] font-bold text-neon-theme mt-0.5">${char.deslocamentoTipo === 'voo' ? '🕊️' : char.deslocamentoTipo === 'aquatico' ? '🌊' : '🧗'} +${char.deslocamentoValor}m</span>` : ''}</div><div class="p-2 flex flex-col items-center justify-center"><span class="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-0.5">Jogador</span><input type="text" value="${char.playerName || ''}" placeholder="Nome..." onchange="updateCharProperty('playerName', this.value)" class="bg-transparent text-white font-display font-bold text-xs outline-none w-full text-center placeholder-gray-700"></div></div>`;
                 // Migrate old characters: fix sanMax and add rdm
                 if (!char.vitals.sanMax || char.vitals.sanMax < 100) { char.vitals.sanMax = 100; if (char.vitals.san < 10) char.vitals.san = 100; }
                 const rdmVal = calcRDM(char);
@@ -141,6 +151,40 @@
                 const _showAttrBtns = state.isAdmin || (_attrPts !== null && _attrPts > 0);
                 const attributesHtml = `${_attrBanner}<div class="grid grid-cols-2 gap-3 p-4 pt-0">${Object.entries(char.attributes).map(([key, attr]) => { const _ef = window.calcAtributoEfetivo ? window.calcAtributoEfetivo(char, key) : { valor: attr.value, mod: getMod(attr.value), bonusValor: 0, bonusMod: 0, fontes: [] }; const mod = _ef.mod; const fullName = ATTR_FULL_NAMES[key]; const icons = ATTR_ICONS_MAP[key] || ["star","star"]; const saveSkillName = `TR de ${key}`; const isTrained = char.skills.includes(saveSkillName); const isExpert = (char.expertise || []).includes(saveSkillName); const pb = getProficiencyBonus(char.level); let saveBonus = mod; if(isExpert) saveBonus += pb * 2; else if(isTrained) saveBonus += pb; const saveBonusStr = saveBonus >= 0 ? `+${saveBonus}` : `${saveBonus}`; return `<div class="bg-gray-900 border border-gray-800 rounded-3xl p-3 relative overflow-hidden transition-all duration-300 hover:border-[${themeColor}] hover:shadow-[0_0_20px_rgba(var(--theme-rgb),0.1)] h-full flex flex-col justify-between group" onclick="handleAttributeClick('${key}')"><div class="relative w-full flex justify-center items-center mb-1 min-h-[30px]"><div class="flex items-center gap-2 text-[${themeColor}] bg-black/40 px-3 py-1 rounded-full border border-white/5 backdrop-blur-sm z-10 shadow-[0_0_15px_${themeColor}40]"><i data-lucide="${icons[0]}" size="10" class="drop-shadow-[0_0_8px_${themeColor}]"></i><span class="text-[9px] font-black text-white uppercase tracking-[0.15em] drop-shadow-[0_0_5px_rgba(0,0,0,0.8)]">${fullName}</span><i data-lucide="${icons[1]}" size="10" class="drop-shadow-[0_0_8px_${themeColor}]"></i></div></div><div class="flex items-center justify-center my-0 relative flex-1">${_showAttrBtns ? `<button onclick="event.stopPropagation(); updateSheetAttr('${key}', -1)" class="absolute left-0 text-gray-600 hover:text-white p-1"><i data-lucide="minus" size="14"></i></button>` : ''}<span class="text-4xl font-display font-bold text-white tracking-tighter drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">${attr.value}</span>${_showAttrBtns ? `<button onclick="event.stopPropagation(); updateSheetAttr('${key}', 1)" class="absolute right-0 text-gray-600 hover:text-white p-1"><i data-lucide="plus" size="14"></i></button>` : ''}</div><div class="flex justify-center mt-1 mb-1"><div class="px-4 py-0.5 rounded-full border border-[${themeColor}]/30 bg-[${themeColor}]/5 text-[${themeColor}] text-xs font-bold shadow-[0_0_10px_rgba(var(--theme-rgb),0.2)]">${mod >= 0 ? '+'+mod : mod}</div></div><div onclick="event.stopPropagation(); handleShieldClick('${key}')" class="absolute right-2 bottom-2 cursor-pointer z-20 hover:scale-110 transition-transform flex items-center justify-center" title="TR de ${fullName}: ${saveBonusStr}"><i data-lucide="shield" size="18" class="${isTrained ? (isExpert ? 'text-neon-yellow fill-neon-yellow/10 drop-shadow-[0_0_5px_rgba(255,230,0,0.8)]' : `text-[${themeColor}] fill-[${themeColor}]/10 drop-shadow-[0_0_5px_${themeColor}]`) : 'text-gray-800 fill-gray-900'} transition-colors"></i><span class="absolute text-[7px] font-bold ${isTrained ? 'text-white' : 'text-gray-500'}" style="padding-top: 1px;">${saveBonusStr}</span></div></div>`; }).join('')}${state.openAttrPopup ? (() => { const key = state.openAttrPopup; const attr = char.attributes[key]; const mod = getMod(attr.value); const skillsList = SKILL_MAP[key] || []; return `<div class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" onclick="toggleAttrPopup(null)"><div class="bg-gray-900 border-2 border-[${themeColor}] rounded-2xl p-6 w-[85%] max-w-[320px] shadow-[0_0_50px_rgba(0,0,0,0.8)] relative transform scale-100 animate-in zoom-in-95 duration-200" onclick="event.stopPropagation()"><button onclick="toggleAttrPopup(null)" class="absolute top-4 right-4 text-gray-500 hover:text-white"><i data-lucide="x" size="20"></i></button><div class="text-center mb-6"><h2 class="text-2xl font-display font-black text-white uppercase tracking-widest drop-shadow-[0_0_10px_${themeColor}]">${ATTR_FULL_NAMES[key]}</h2><div class="flex justify-center items-center gap-4 mt-2"><div class="text-4xl font-display font-bold text-[${themeColor}]">${attr.value}</div><div class="bg-gray-800 px-4 py-1 rounded-full text-sm font-bold text-white border border-gray-700">Mod ${mod >= 0 ? '+'+mod : mod}</div></div></div><div class="space-y-3 mb-6"><h4 class="text-[10px] font-bold text-gray-500 uppercase border-b border-gray-800 pb-2 text-center">Perícias Associadas</h4><div class="flex flex-col gap-2 max-h-[200px] overflow-y-auto custom-scrollbar">${skillsList.length > 0 ? skillsList.map(s => { const isTrained = char.skills.includes(s); const isExpert = (char.expertise || []).includes(s); const pb = getProficiencyBonus(char.level); let totalBonus = mod; if (isExpert) totalBonus += (pb * 2); else if (isTrained) totalBonus += pb; const _nbS = window.calcBonusPericiaNen ? window.calcBonusPericiaNen(char, s) : { total: 0 }; totalBonus += _nbS.total; const _ibS = window.calcBonusPericiaInclinacao ? window.calcBonusPericiaInclinacao(char, s) : { total: 0 }; totalBonus += _ibS.total; /* Iniciativa: soma os bônus de inclinação no número mostrado no botão. */ const _iniB = (s === 'Iniciativa' && window.calcIniciativaBonus) ? window.calcIniciativaBonus(char) : { total: 0, fontes: [] }; totalBonus += _iniB.total; let iconName = 'circle'; let iconColorClass = 'text-gray-600'; if (isExpert) { iconName = 'badge-check'; iconColorClass = 'text-neon-yellow fill-neon-yellow/20'; } else if (isTrained) { iconName = 'check-circle-2'; iconColorClass = `text-[${themeColor}]`; } return `<div class="flex items-center justify-between p-3 rounded-xl border transition-all group ${isTrained ? `bg-[${themeColor}]/10 border-[${themeColor}]/30` : 'bg-gray-950 border-gray-800 hover:border-gray-600'}"><div class="flex items-center gap-3 cursor-pointer" onclick="handleSkillStatus('${s}')"><i data-lucide="${iconName}" size="20" class="${iconColorClass} hover:scale-110 transition-transform"></i><span class="text-xs font-bold uppercase tracking-wide ${isTrained ? 'text-white' : 'text-gray-400'}">${s}</span></div><button class="flex items-center gap-2 px-2 py-1 rounded-lg border ${isExpert ? 'border-neon-yellow/40 bg-neon-yellow/10' : (isTrained ? `border-[${themeColor}]/40 bg-[${themeColor}]/10` : 'border-gray-700 bg-gray-900')} hover:brightness-125 transition-all cursor-pointer" onclick="toggleAttrPopup(null); openRollModeModal('skill', '${s}', '${key}')"><span class="text-xs font-mono font-bold ${isExpert ? 'text-neon-yellow' : (isTrained ? `text-[${themeColor}]` : 'text-gray-400')}">${totalBonus >= 0 ? '+'+totalBonus : totalBonus}</span><i data-lucide="dices" size="14" class="${isExpert ? 'text-neon-yellow' : (isTrained ? `text-[${themeColor}]` : 'text-gray-400')} transition-colors"></i></button></div>` }).join('') : '<span class="text-xs text-gray-600 italic block text-center py-2">Nenhuma perícia associada.</span>'}</div></div><button onclick="toggleAttrPopup(null); openRollModeModal('dice', '${key}', ${mod})" class="w-full py-3 bg-[${themeColor}] text-black font-black font-display tracking-widest rounded-xl hover:brightness-110 transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_${themeColor}40]"><i data-lucide="dices" size="18"></i> ROLAR ATRIBUTO PURO</button></div></div>${state.skillSelectionModal ? `<div class="fixed inset-0 z-[110] flex items-center justify-center bg-black/90 animate-in fade-in duration-200" onclick="closeSkillModal()"><div class="bg-gray-900 border border-gray-700 rounded-xl p-6 w-[85%] max-w-[300px] shadow-2xl relative" onclick="event.stopPropagation()"><h3 class="text-lg font-display font-bold text-white mb-1">${state.skillSelectionModal}</h3><p class="text-xs text-gray-400 mb-4 uppercase tracking-widest">Selecione o nível de treinamento</p><div class="space-y-2"><button onclick="setSkillLevel('${state.skillSelectionModal}', 'remove')" class="w-full p-3 rounded-lg border border-red-900/50 bg-red-500/10 text-red-500 font-bold text-xs uppercase hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="x" size="16"></i> Remover Proficiência</button><button onclick="setSkillLevel('${state.skillSelectionModal}', 'trained')" class="w-full p-3 rounded-lg border border-gray-700 bg-gray-800 text-gray-300 font-bold text-xs uppercase hover:bg-gray-700 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="check-circle-2" size="16"></i> Normal (1x Bônus)</button><button onclick="setSkillLevel('${state.skillSelectionModal}', 'expert')" class="w-full p-3 rounded-lg border border-neon-yellow/30 bg-neon-yellow/10 text-neon-yellow font-bold text-xs uppercase hover:bg-neon-yellow hover:text-black transition-colors flex items-center gap-2"><i data-lucide="badge-check" size="16"></i> Especialização (2x Bônus)</button></div><button onclick="closeSkillModal()" class="mt-4 w-full py-2 text-xs text-gray-500 hover:text-white uppercase font-bold tracking-widest">Cancelar</button></div></div>` : ''}`; })() : ''}</div>`;
                 tabContent = `${infoGridHtml}${vitalsGridHtml}${(() => {
+                    // ── Cartão da Ênfase e da Ação Protagonista ─────────────────────────
+                    // O gasto da Ação Protagonista acontece DEPOIS de ver o d20 — só se
+                    // troca um resultado que já se conhece — por isso o botão fica solto
+                    // na Ficha, e não dentro do balão de rolagem. Vale para qualquer
+                    // rolagem de d20, que foi o pedido.
+                    const _temAP = window.temAcaoProtagonista && window.temAcaoProtagonista(char);
+                    const _usados = parseInt(char.enfaseUsos) || 0;
+                    if (!_temAP && _usados === 0 && !char.enfaseFalha) return '';
+                    const _rest = window.enfaseUsosRestantes ? window.enfaseUsosRestantes(char) : 3;
+                    const _max = window.ENFASE_USOS_POR_SESSAO || 3;
+                    return `<div style="margin:0 12px 10px;padding:9px 12px;border-radius:11px;background:linear-gradient(90deg,#fbbf2418,#fbbf2405);border:1px solid #fbbf2455">
+                        <div style="display:flex;align-items:center;gap:10px">
+                            <span style="font-size:17px">${_temAP ? '⭐' : '🎯'}</span>
+                            <div style="flex:1;line-height:1.4">
+                                <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:9px;color:#fbbf24;text-transform:uppercase;letter-spacing:1px">${_temAP ? 'Ação Protagonista' : 'Ênfase'}</div>
+                                <div style="font-size:8px;color:#9ca3af">${_temAP ? 'Reroll com Vantagem, ou 3d6 num resultado' : 'Guardada: nenhuma'}</div>
+                            </div>
+                            ${_temAP ? `<button onclick="window._abrirAcaoProtagonista()" style="flex-shrink:0;padding:7px 12px;border-radius:8px;background:#fbbf24;border:none;color:#000;font-family:'Orbitron',sans-serif;font-weight:900;font-size:9px;text-transform:uppercase;letter-spacing:1px;cursor:pointer">Usar</button>` : ''}
+                        </div>
+                        ${(() => {
+                            // A consequência ativa precisa ficar à vista: ela muda TODAS as
+                            // rolagens enquanto durar, e nada mais na tela diria isso.
+                            const _fe = char.enfaseFalha;
+                            if (!_fe || !(_fe.rodadas > 0)) return '';
+                            return `<div style="margin-top:7px;padding:6px 9px;border-radius:8px;background:#f8717115;border:1px solid #f8717144;font-size:9px;color:#f87171;line-height:1.5">
+                                💥 <b>${_fe.rotulo}</b> — ${_fe.rodadas} rodada${_fe.rodadas !== 1 ? 's' : ''} restante${_fe.rodadas !== 1 ? 's' : ''}${_fe.penalidade ? ` · <b>${_fe.penalidade}</b> em todas as rolagens` : ''}
+                            </div>`;
+                        })()}
+                        <div style="display:flex;align-items:center;gap:8px;margin-top:7px;padding-top:7px;border-top:1px dashed #fbbf2433">
+                            <span style="flex:1;font-size:8px;color:#9ca3af">🎯 Ênfase: <b style="color:${_rest > 0 ? '#fbbf24' : '#f87171'}">${_rest}</b> de ${_max} usos nesta sessão</span>
+                            <button onclick="window._novaSessaoEnfase()" style="flex-shrink:0;font-size:8px;color:#fbbf24;background:transparent;border:none;cursor:pointer;text-decoration:underline">nova sessão</button>
+                        </div>
+                    </div>`;
+                })()}${(() => {
                     // Active Nen principles quick-use buttons
                     const d = char.nenDominio || {};
                     const aura = char.vitals.aura || 0;
@@ -168,7 +212,7 @@
                               if (isR) return nv === 2 ? 5 : 10;
                               return 20;
                           })(),
-                        efeito: `+${tenRD} RD`,
+                          efeito: `+${(window.calcTenRDAtivo && window.principioAtivo && window.principioAtivo(char,'ten')) ? window.calcTenRDAtivo(char) : tenRD} RD`,
                            desc: 'Reação ou Ação Bônus — RD contra Corte/Impacto/Explosão', show: (d.ten||0)>0 },
                         { key:'ren', label:'REN', icon:'💪', custo:10,
                           efeito: rBon.opcao===2 && rBon.extra>0 ? `+${rBon.teste} Intim./Arc.` : `+${rBon.grau} Grau dano`,
@@ -177,19 +221,32 @@
                           efeito: `+${zBon.auraPct}% Aura/${zBon.rodadas}rod`,
                           desc: 'Ação Bônus — recupera aura', show: (d.zetsu||0)>0 },
                         { key:'en', label:'EN', icon:'🔵', custo:10,
-                          efeito: `Detecta ${enB.diametro}m`, desc: `10% + ${enB.reacoes} Reações`, show: !!d.en },
+                          efeito: `Detecta ${(window.diametroEnAtivo && window.principioAtivo && window.principioAtivo(char,'en')) ? window.diametroEnAtivo(char) : enB.diametro}m`,
+                          desc: `10% + ${enB.reacoes} Reações`, show: !!d.en },
                         { key:'inp', label:'IN', icon:'🌑', custo:5,
                           efeito: `Oculta ${inB.rodadas}rod`, desc: '5% por rodada', show: !!d.inp },
                         { key:'gyo', label:'GYO', icon:'🔍', custo:10,
                           efeito: `Ver aura/oculto (+${gyB.attrBonus} corp.)`, desc: '10% olhos / 30% corpo', show: !!d.gyo },
                         { key:'shu', label:'SHU', icon:'⚡', custo:10,
-                          efeito: `+1d4 dano+CA ${shB.rodadas}rod`, desc: '10% em objeto 1m', show: !!d.shu },
+                          efeito: (() => {
+                              const _s = (window.calcShuAtivo && window.principioAtivo && window.principioAtivo(char,'shu'))
+                                  ? window.calcShuAtivo(char) : null;
+                              return _s ? `+${_s.dadoDano} dano/+${_s.caBonus} CA ${_s.rodadas}rod`
+                                        : `+1d4 dano+CA ${shB.rodadas}rod`;
+                          })(),
+                          desc: '10% em objeto 1m', show: !!d.shu },
                         { key:'ken', label:'KEN', icon:'🏰', custo: keB.auraCusto,
-                          efeito: 'CA ×2 por 2rod', desc: `${keB.auraCusto}% + ${keB.reacoes} Reações`, show: !!d.ken },
+                          efeito: `CA ×${(window.multiplicadorKen && window.principioAtivo && window.principioAtivo(char,'ken')) ? window.multiplicadorKen(char) : 2} por 2rod`,
+                          desc: `${keB.auraCusto}% + ${keB.reacoes} Reações`, show: !!d.ken },
                         { key:'ko', label:'KO', icon:'🔥', custo:30,
-                          efeito: `Dano ×3, CA −80%${koB.caBonus>0?` (+${koB.caBonus})`:''}`, desc: '30% Aura', show: !!d.ko },
+                          efeito: `Dano ×${window.KO_MULTIPLICADOR || 3}, CA −80%${koB.caBonus>0?` (+${koB.caBonus})`:''}`, desc: '30% Aura', show: !!d.ko },
                         { key:'ryu', label:'RYU', icon:'🌊', custo:30,
-                          efeito: `+3 CA/Ataque${ryB.tabelaBonus>0?` (+${ryB.tabelaBonus})`:''}`, desc: '30% Aura, 3 turnos', show: !!d.ryu },
+                          efeito: (() => {
+                              // Com o RYU ligado mostra a linha do turno; desligado, a inicial.
+                              const _r = window.calcRyuAtivo ? window.calcRyuAtivo(char) : null;
+                              return _r ? `+${_r.ca} CA/+${_r.ataqueDano} Atq` : `+3 CA/Atq${ryB.tabelaBonus>0?` (+${ryB.tabelaBonus})`:''}`;
+                          })(),
+                          desc: `30% Aura, ${window.RYU_TURNOS_MAX||6} turnos`, show: !!d.ryu },
                     ].filter(p => p.show);
 
                     const btns = PRINCIPIOS.map(p => {
@@ -199,9 +256,22 @@
                         // ZETSU custa 0 e serve de carga: sempre pode ser iniciado.
                         const canAct = ativo || p.key === 'zetsu' || aura >= p.custo;
                         const col = ativo ? '#4ade80' : (canAct ? tc2 : '#374151');
+                        // Princípio escalável (TEN, EN, KEN) abre o balão de pacotes, para o
+                        // jogador decidir quanta aura e quantas Reações vai pagar. Os outros
+                        // continuam ativando com um clique, no custo fechado.
+                        const _esc = window.principioEscalavel && window.principioEscalavel(p.key);
+                        // O RYU entra na mesma categoria do SHU: tem uma escolha a fazer
+                        // antes de ligar (qual tabela seguir), então abre balão em vez de
+                        // ativar direto.
                         const acao = ativo
                             ? `window._desativarPrincipio('${p.key}')`
-                            : `window._activatePrincipio('${p.key}',${p.custo})`;
+                            : (p.key === 'shu'
+                                ? `window._abrirMenuShu()`
+                                : (p.key === 'ryu'
+                                    ? `window._abrirTabelaRyu()`
+                                    : (_esc
+                                        ? `window._abrirEscalaPrincipio('${p.key}',${p.custo})`
+                                        : `window._activatePrincipio('${p.key}',${p.custo})`)));
                         return `<button onclick="${acao}"
                             style="display:flex;flex-direction:column;align-items:center;padding:8px 6px;border-radius:10px;border:1.5px solid ${col}44;background:${col}11;cursor:${canAct?'pointer':'not-allowed'};opacity:${canAct?1:0.5};min-width:56px;flex:1;transition:all .15s"
                             title="${ativo ? 'ATIVO — clique para desligar' : p.desc}">
@@ -239,6 +309,22 @@
                                     <button onclick="window._desativarTodosPrincipios()" style="flex-shrink:0;padding:4px 9px;border-radius:6px;background:transparent;border:1px solid #4ade8055;color:#4ade80;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer">Desligar tudo</button>
                                 </div>
                                 <button onclick="window._passarRodada()" style="width:100%;margin-top:7px;padding:8px;border-radius:8px;background:#4ade8022;border:1px solid #4ade8066;color:#4ade80;font-family:'Orbitron',sans-serif;font-weight:900;font-size:8px;text-transform:uppercase;letter-spacing:1px;cursor:pointer">⏭ Passar rodada${char.rodadaAtual ? ' (rodada ' + char.rodadaAtual + ')' : ''}</button>
+                                ${(function () {
+                                    // Faixa do RYU: ele é o único princípio que anda em TURNOS,
+                                    // então ganha o próprio botão ao lado do "Passar rodada".
+                                    // Mostra a linha vigente para o jogador conferir o que a ficha
+                                    // já está somando sozinha na CA, no acerto e no dano.
+                                    const _r = window.calcRyuAtivo ? window.calcRyuAtivo(char) : null;
+                                    if (!_r) return '';
+                                    const _max = window.RYU_TURNOS_MAX || 6;
+                                    return `<div style="margin-top:7px;background:#38bdf815;border:1px solid #38bdf844;border-radius:8px;padding:7px 9px;display:flex;align-items:center;gap:8px">
+                                        <div style="flex:1;line-height:1.5">
+                                            <div style="font-size:9px;color:#38bdf8;font-weight:700">🌊 RYU — ${_r.tabela} · turno ${_r.turno}/${_max}</div>
+                                            <div style="font-size:8px;color:#7dd3fc;font-weight:600">+${_r.ca} CA · +${_r.ataqueDano} Ataque e Dano${_r.temReacoes ? ' · +' + _r.reacoes + ' Reações' : ''}</div>
+                                        </div>
+                                        <button onclick="window._passarTurnoRyu()" style="flex-shrink:0;padding:6px 10px;border-radius:7px;background:#38bdf822;border:1px solid #38bdf866;color:#38bdf8;font-family:'Orbitron',sans-serif;font-weight:900;font-size:8px;text-transform:uppercase;letter-spacing:1px;cursor:pointer">⏭ ${_r.ultimoTurno ? 'Encerrar' : 'Passar turno'}</button>
+                                    </div>`;
+                                })()}
                             </div>`;
                         })()}
                         ${(() => {
@@ -253,9 +339,60 @@
                                 const a = ha[i];
                                 if (a) {
                                     const txt = a.constante ? 'constante' : ('restam ' + (a.rodadas || 0) + '/' + a.max + ' rod.');
-                                    return `<div style="display:flex;align-items:center;gap:8px;background:#4ade8012;border:1px solid #4ade8033;border-radius:8px;padding:6px 9px;margin-bottom:5px">
-                                        <div style="flex:1;min-width:0;font-size:9px;color:#4ade80;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">⚡ ${h.nome || ('Hatsu ' + (i+1))} <span style="color:#6b7280;font-weight:400">(${txt})</span></div>
-                                        <button onclick="window._desativarHatsu(${i})" style="flex-shrink:0;padding:3px 8px;border-radius:6px;background:transparent;border:1px solid #4ade8055;color:#4ade80;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer">Desligar</button>
+                                    // ── rm_e12 Aura Condensada ──────────────────────────────────────
+                                    // Fica aqui, e não na tela do Hatsu, porque a reserva é decidida
+                                    // DURANTE o combate: é no mesmo lugar onde o jogador já desliga o
+                                    // Hatsu e passa a rodada. Mostra os dois destinos lado a lado,
+                                    // com o número que cada um entrega, para a escolha ser informada.
+                                    const _e12Html = (function () {
+                                        if (!window.tetoAuraCondensada) return '';
+                                        const teto = window.tetoAuraCondensada(h);
+                                        if (!teto) return '';
+                                        const res = window.reservaAuraCondensada(a);
+                                        const passos = window.passosAuraCondensada(res.pct);
+                                        const espaco = window.grauDanoDisponivel ? window.grauDanoDisponivel(h, char) : 0;
+                                        const grausReais = (espaco === Infinity) ? passos : Math.min(passos, espaco);
+                                        const auraOk = (char.vitals.aura || 0) >= window.AURA_CONDENSADA_PASSO;
+                                        const cheio = res.pct >= teto;
+
+                                        let corpo = '';
+                                        if (res.destino === 'rd') {
+                                            corpo = '<div style="font-size:9px;font-weight:900;color:#60a5fa">🛡 ' + passos
+                                                + ' de RD ativos <span style="font-weight:600;color:#6b7280">(' + res.pct + '% guardados)</span></div>'
+                                                + '<div style="font-size:8px;color:#4b5563">Aparece no cálculo de Dano Recebido enquanto o Hatsu durar.</div>';
+                                        } else if (res.destino === 'dano') {
+                                            corpo = '<div style="font-size:9px;font-weight:900;color:#f87171">⚔ +' + grausReais
+                                                + ' Grau(s) na próxima rolagem de dano'
+                                                + (grausReais < passos ? ' <span style="font-weight:600;color:#fbbf24">(teto do nível cortou ' + (passos - grausReais) + ')</span>' : '')
+                                                + '</div>'
+                                                + '<button onclick="window._hDesarmarAuraCondensada(' + i + ')" style="margin-top:4px;padding:3px 8px;border-radius:6px;background:transparent;border:1px solid #37415188;color:#9ca3af;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer">↩ Trocar destino</button>';
+                                        } else if (res.pct > 0) {
+                                            corpo = '<div style="font-size:9px;font-weight:900;color:#fbbf24">🔋 ' + res.pct + '% guardados'
+                                                + '<span style="font-weight:600;color:#6b7280"> de ' + teto + '%</span></div>'
+                                                + '<div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap">'
+                                                + (cheio || !auraOk ? '' : '<button onclick="window._hReservarAuraCondensada(' + i + ')" style="padding:4px 8px;border-radius:6px;background:#fbbf2418;border:1px solid #fbbf2455;color:#fbbf24;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer">+5%</button>')
+                                                + '<button onclick="window._hUsarAuraCondensada(' + i + ',\'dano\')" style="padding:4px 8px;border-radius:6px;background:#f8717118;border:1px solid #f8717155;color:#f87171;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer">⚔ +'
+                                                + grausReais + ' Grau</button>'
+                                                + '<button onclick="window._hUsarAuraCondensada(' + i + ',\'rd\')" style="padding:4px 8px;border-radius:6px;background:#60a5fa18;border:1px solid #60a5fa55;color:#60a5fa;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer">🛡 '
+                                                + passos + ' RD</button>'
+                                                + '</div>'
+                                                + (grausReais < passos ? '<div style="font-size:8px;color:#fbbf24;margin-top:3px">⚠ O teto de Grau do nível só aceita +' + grausReais + '. Como RD valem ' + passos + '.</div>' : '');
+                                        } else {
+                                            corpo = '<div style="display:flex;align-items:center;gap:6px">'
+                                                + '<div style="flex:1;min-width:0;font-size:8px;color:#6b7280">🔋 Aura Condensada — até ' + teto + '%, 5% por clique</div>'
+                                                + (auraOk
+                                                    ? '<button onclick="window._hReservarAuraCondensada(' + i + ')" style="flex-shrink:0;padding:4px 8px;border-radius:6px;background:#fbbf2418;border:1px solid #fbbf2455;color:#fbbf24;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer">Reservar +5%</button>'
+                                                    : '<span style="flex-shrink:0;font-size:8px;color:#f87171">aura insuficiente</span>')
+                                                + '</div>';
+                                        }
+                                        return '<div style="margin-top:5px;padding-top:5px;border-top:1px dashed #4ade8033">' + corpo + '</div>';
+                                    })();
+                                    return `<div style="background:#4ade8012;border:1px solid #4ade8033;border-radius:8px;padding:6px 9px;margin-bottom:5px">
+                                        <div style="display:flex;align-items:center;gap:8px">
+                                            <div style="flex:1;min-width:0;font-size:9px;color:#4ade80;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">⚡ ${h.nome || ('Hatsu ' + (i+1))} <span style="color:#6b7280;font-weight:400">(${txt})</span></div>
+                                            <button onclick="window._desativarHatsu(${i})" style="flex-shrink:0;padding:3px 8px;border-radius:6px;background:transparent;border:1px solid #4ade8055;color:#4ade80;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer">Desligar</button>
+                                        </div>
+                                        ${_e12Html}
                                     </div>`;
                                 }
                                 return `<div class="aviso-tag-piscando" style="display:flex;align-items:center;gap:8px;background:${tc2}12;border:1px solid ${tc2}33;border-radius:8px;padding:6px 9px;margin-bottom:5px">
@@ -263,7 +400,123 @@
                                     <button onclick="window._ativarHatsuDaFicha(${i})" style="flex-shrink:0;padding:3px 9px;border-radius:6px;background:${tc2};border:none;color:#000;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer">⚡ Ativar</button>
                                 </div>`;
                             }).join('');
-                            return `<div style="font-size:7px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">🌀 Hatsus${nAtivos ? ' — ' + nAtivos + ' ativo(s)' : ''}</div>${html}<div style="height:8px"></div>`;
+                            // Resumo das marcas de Emissão: quanta aura está empatada no
+                            // tabuleiro. Sem isso o jogador olha a barra de aura baixa e não
+                            // entende por quê — as marcas são colocadas fora do combate e
+                            // ficam esquecidas.
+                            const _rm = window.resumoMarcasEmissao ? window.resumoMarcasEmissao(char) : { marcas: 0 };
+                            const _rmHtml = _rm.marcas > 0
+                                ? `<div style="font-size:8px;color:#34d399;font-weight:700;margin-bottom:6px">📍 ${_rm.marcas} marca(s)/carga(s) no tabuleiro · ${_rm.aura}% de aura empatados</div>`
+                                : '';
+                            return `<div style="font-size:7px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">🌀 Hatsus${nAtivos ? ' — ' + nAtivos + ' ativo(s)' : ''}</div>${_rmHtml}${html}<div style="height:8px"></div>`;
+                        })()}
+                        ${(() => {
+                            // ── Efeitos armáveis ───────────────────────────────────
+                            // O jogador arma; a rolagem seguinte consome. Fica aqui, junto
+                            // dos princípios, porque é onde ele já decide o turno.
+                            const _arm = (window.EFEITOS_ARMAVEIS || []).filter(e => window.temEfeito && window.temEfeito(char, e.id));
+                            const _rec = (window.RECUPERACOES_PV || []).filter(e => window.temEfeito && window.temEfeito(char, e.id));
+                            if (!_arm.length && !_rec.length) return '';
+                            return `<div style="font-size:7px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">⚡ Efeitos de Hatsu</div>
+                                <div style="background:#0a0f1a;border:1px solid #1f2937;border-radius:10px;padding:8px;margin-bottom:8px">
+                                    ${_arm.map(e => {
+                                        const armado = window.efeitoArmado(char, e.id);
+                                        const usado = window.efeitoUsado(char, e.id);
+                                        const semAura = e.custoAura > 0 && (char.vitals.aura || 0) < e.custoAura;
+                                        const pode = !armado && !usado && !semAura;
+                                        const cor = armado ? '#4ade80' : (pode ? '#fbbf24' : '#374151');
+                                        return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+                                            <span style="font-size:13px">${e.icone}</span>
+                                            <div style="flex:1;line-height:1.35">
+                                                <div style="font-size:9px;font-weight:700;color:${armado ? '#4ade80' : '#d1d5db'}">${e.nome}${armado ? ' — armado' : ''}</div>
+                                                <div style="font-size:8px;color:#6b7280">${e.rotulo}${usado && !armado ? ' · já usado neste combate' : (semAura ? ' · aura insuficiente' : ` · ${e.nota}`)}</div>
+                                            </div>
+                                            <button onclick="window._armarEfeito('${e.id}')" ${pode ? '' : 'disabled'} style="flex-shrink:0;padding:5px 10px;border-radius:7px;border:1px solid ${cor}66;background:${armado ? '#4ade8018' : 'transparent'};color:${cor};font-family:'Orbitron',sans-serif;font-weight:900;font-size:8px;text-transform:uppercase;cursor:${pode ? 'pointer' : 'not-allowed'}">${armado ? '✓ Armado' : 'Armar'}</button>
+                                        </div>`;
+                                    }).join('')}
+                                    ${_rec.map(e => {
+                                        const usado = window.efeitoUsado(char, e.id);
+                                        return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;opacity:${usado ? .45 : 1}">
+                                            <span style="font-size:13px">${e.icone}</span>
+                                            <div style="flex:1;line-height:1.35">
+                                                <div style="font-size:9px;font-weight:700;color:#d1d5db">${e.nome}</div>
+                                                <div style="font-size:8px;color:#6b7280">${e.formula} ${e.gatilho}${usado ? ' · já usado' : ''}</div>
+                                            </div>
+                                            <span style="flex-shrink:0;font-size:8px;color:#4b5563;font-weight:700">automático</span>
+                                        </div>`;
+                                    }).join('')}
+                                    <button onclick="window._zerarRodadas()" style="width:100%;margin-top:7px;padding:7px;border-radius:7px;background:transparent;border:1px solid #374151;color:#6b7280;font-family:'Orbitron',sans-serif;font-weight:900;font-size:8px;text-transform:uppercase;letter-spacing:1px;cursor:pointer">↺ Novo combate</button>
+                                </div>`;
+                        })()}
+                        ${(() => {
+                            // ── Bônus que dependem de uma situação ─────────────────
+                            // Seis promessas numéricas de Instância e Inclinação que não
+                            // eram lidas por cálculo nenhum. Nenhuma pode entrar num
+                            // total — todas dependem de algo que a ficha não enxerga —
+                            // mas ficar como texto no cartão fazia o jogador somar de
+                            // cabeça. Aqui elas aparecem com o número E com a condição.
+                            const _sit = window.calcBonusSituacionais ? window.calcBonusSituacionais(char) : [];
+                            if (!_sit.length) return '';
+                            return `<div style="font-size:7px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">⚡ Bônus situacionais</div>
+                                <div style="background:#0a0f1a;border:1px solid #1f2937;border-radius:10px;padding:8px;margin-bottom:8px">
+                                    ${_sit.map(s => `<div style="display:flex;gap:7px;align-items:baseline;padding:3px 0;border-bottom:1px dashed #11182744">
+                                        <span style="flex-shrink:0;font-family:'Orbitron',sans-serif;font-weight:900;font-size:11px;color:#fbbf24;min-width:52px">${s.valor}</span>
+                                        <div style="flex:1;line-height:1.4">
+                                            <div style="font-size:9px;color:#d1d5db;font-weight:700">${s.nome} <span style="color:#6b7280;font-weight:600">em ${s.onde}</span></div>
+                                            <div style="font-size:8px;color:#6b7280">${s.condicao}</div>
+                                        </div>
+                                    </div>`).join('')}
+                                    <div style="font-size:7px;color:#4b5563;margin-top:5px">A ficha não soma estes: cada um depende de uma situação que só a mesa sabe.</div>
+                                </div>`;
+                        })()}
+                        ${(() => {
+                            // ── Decisiva armada ────────────────────────────────────
+                            if (!(window.decisivaArmada && window.decisivaArmada(char))) return '';
+                            return `<div style="margin-bottom:8px;padding:7px 10px;border-radius:9px;background:#f8717115;border:1px solid #f8717144;font-size:9px;color:#f87171;line-height:1.5">
+                                ⚔ <b>Decisiva armada</b> — o próximo ataque soma <b>+${window.DECISIVA_ACERTO || 2}</b> no acerto e <b>+${window.DECISIVA_GRAUS || 1}</b> grau de dano, e some depois dele.
+                            </div>`;
+                        })()}
+                        ${(() => {
+                            // ── CA vinda das Inclinações de Combate ────────────────
+                            // O que é permanente já está somado no número da CA lá em cima, mas o
+                            // jogador precisa ver DE ONDE vem — um −1 que aparece sozinho parece bug.
+                            // O condicional nunca entra no total: a ficha não sabe quem é o alvo
+                            // marcado nem se o REN/SHU está neste ataque.
+                            if (!window.calcBonusCAInclinacao) return '';
+                            const _cb = window.calcBonusCAInclinacao(char);
+                            if (!_cb.fontes.length && !_cb.condicionais.length) return '';
+                            const _sin = v => (v >= 0 ? '+' + v : String(v));
+                            return `<div style="font-size:7px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">🛡 CA — Inclinações</div>
+                            <div style="background:#60a5fa10;border:1px solid #60a5fa33;border-radius:8px;padding:6px 9px;margin-bottom:8px">
+                                ${_cb.fontes.length ? `<div style="display:flex;align-items:center;gap:8px">
+                                    <div style="flex:1;min-width:0;font-size:9px;color:#60a5fa;font-weight:700">Já somado na CA</div>
+                                    <span style="flex-shrink:0;font-family:Orbitron,sans-serif;font-weight:900;font-size:11px;color:#60a5fa">${_sin(_cb.total)}</span>
+                                </div>
+                                <div style="font-size:8px;color:#4b5563;margin-top:1px">${_cb.fontes.map(f => f.nome + ' ' + _sin(f.valor)).join(' · ')}</div>` : ''}
+                                ${_cb.condicionais.map(c => `<div style="font-size:8px;color:#fbbf24;margin-top:2px">+ ${c.nome} ${_sin(c.valor)} — ${c.condicao} (aplicar na mão)</div>`).join('')}
+                            </div>`;
+                        })()}
+                        ${(() => {
+                            // ── Bônus nos resultados das reações ───────────────────────────────
+                            // A rolagem de reação (Esquiva, Bloqueio, Assumir Lugar) acontece na
+                            // MESA, não aqui. Mas os bônus vêm da ficha — Potencial Liberado,
+                            // Instâncias e Inclinações — e o jogador precisa vê-los para aplicar
+                            // quando joga sem a mesa aberta, e para conferir quando joga com ela.
+                            // calcBonusReacao/resumoBonusReacoes estão em js/data/config.js, que a
+                            // mesa também carrega: um cálculo só para os dois lados.
+                            if (!window.resumoBonusReacoes) return '';
+                            const _rb = window.resumoBonusReacoes(char);
+                            if (!_rb.length) return '';
+                            return `<div style="font-size:7px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">🛡 Bônus nas Reações</div>
+                            ${_rb.map(r => `<div style="background:#60a5fa10;border:1px solid #60a5fa33;border-radius:8px;padding:6px 9px;margin-bottom:5px">
+                                <div style="display:flex;align-items:center;gap:8px">
+                                    <div style="flex:1;min-width:0;font-size:9px;color:#60a5fa;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.nome}</div>
+                                    <span style="flex-shrink:0;font-family:Orbitron,sans-serif;font-weight:900;font-size:11px;color:#60a5fa">+${r.total}</span>
+                                </div>
+                                <div style="font-size:8px;color:#4b5563;margin-top:1px">${r.formula} +${r.total} · ${r.fontes.filter(f => !f.condicional).map(f => f.nome + ' +' + f.valor).join(' · ')}</div>
+                                ${r.fontes.filter(f => f.condicional).map(f => `<div style="font-size:8px;color:#fbbf24;margin-top:2px">+ ${f.nome} +${f.valor} — ${f.condicao} (aplicar na mão)</div>`).join('')}
+                            </div>`).join('')}
+                            <div style="font-size:8px;color:#4b5563;margin-bottom:8px">A rolagem da reação acontece na mesa online; estes bônus somam ao resultado dela.</div>`;
                         })()}
                         <div style="font-size:7px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">🔮 Princípios de NEN</div>
                         <div style="display:flex;gap:4px;flex-wrap:wrap">${btns}</div>
@@ -287,8 +540,22 @@
                     const _desarmadoMarcial = _FEATS_1D6.indexOf(String(_featNome).trim()) >= 0;
                     const _danoDesarmado = _desarmadoMarcial ? '1d6' : '1d4';
                     const attacksList = [{ nome: 'Ataque Desarmado' + (_desarmadoMarcial ? ' (Marcial)' : ''), dano: _danoDesarmado, tipoDano: 'Impacto', tags: [] }, ...weapons];
+                    // Margem de crítico: quadradinho em cada linha de ataque. Fica amarelo
+                    // quando algo reduziu a margem, cinza no 20 natural.
+                    const _mc = window.calcMargemCritico ? window.calcMargemCritico(char) : { valor: 20, base: 20, piso: 18, fontes: [], condicionais: [], perdidoNoPiso: 0 };
+                    const _mcCor = _mc.valor < _mc.base ? '#fbbf24' : '#4b5563';
+                    const _mcHtml = `<div style="flex-shrink:0;width:34px;text-align:center;background:#0d1117;border:1px solid ${_mcCor}44;border-radius:7px;padding:3px 0" title="Margem de acerto crítico (piso ${_mc.piso})">
+                        <div style="font-size:7px;font-weight:900;color:${_mcCor};letter-spacing:.5px">CRÍT</div>
+                        <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:11px;color:${_mc.valor < _mc.base ? '#fbbf24' : '#9ca3af'}">${_mc.valor}+</div>
+                    </div>`;
+                    // SHU envolve UM item. Quando esse item é uma das armas da lista, o dado
+                    // extra aparece na linha dela — e só nela, senão o selo mentiria nas outras.
+                    const _shuAt = (window.calcShuAtivo && window.principioAtivo && window.principioAtivo(char, 'shu'))
+                        ? window.calcShuAtivo(char) : null;
                     const rows = attacksList.map(w => {
-                        const tagsHtml = (w.tags || []).slice(0, 2).map(t => `<span style="font-size:7px;background:#111827;color:#6b7280;padding:1px 5px;border-radius:3px;border:1px solid #1f2937">${t}</span>`).join('');
+                        const _temShu = !!(_shuAt && _shuAt.item && _shuAt.item === w.nome);
+                        const tagsHtml = ((w.tags || []).slice(0, 2).map(t => `<span style="font-size:7px;background:#111827;color:#6b7280;padding:1px 5px;border-radius:3px;border:1px solid #1f2937">${t}</span>`).join(''))
+                            + (_temShu ? `<span style="font-size:7px;background:#a78bfa22;color:#a78bfa;padding:1px 5px;border-radius:3px;border:1px solid #a78bfa55">⚡ SHU +${_shuAt.dadoDano}${_shuAt.cerco ? ' · Cerco' : ''}</span>` : '');
                         const safeNome = w.nome.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                         const safeDano = w.dano.replace(/'/g, "\\'");
                         const safeTipo = (w.tipoDano || '').replace(/'/g, "\\'");
@@ -298,10 +565,21 @@
                                 <div style="display:flex;gap:3px;margin-top:2px;flex-wrap:wrap">${tagsHtml}</div>
                             </div>
                             <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:12px;color:#f87171;flex-shrink:0;margin:0 4px">${w.dano}</div>
+                            ${_mcHtml}
                             <button onclick="openAttackModal('${safeNome}','${safeDano}','${safeTipo}')" style="flex-shrink:0;background:#ef444422;border:1px solid #ef444455;color:#f87171;border-radius:8px;padding:6px 10px;font-size:10px;font-weight:900;cursor:pointer;letter-spacing:.5px">⚔️</button>
                         </div>`;
                     }).join('');
-                    const weaponsSection = `<div style="margin:0 16px 20px"><div style="font-size:8px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;border-top:1px solid #1f2937;padding-top:12px">⚔️ Ataques</div>${rows}</div>`;
+                    // ── Margem de crítico: coluna ao lado do dano ──────────────────────
+                    // Vale para todos os ataques (Aura Afiada e Assassino Veterano não
+                    // distinguem arma), então o número é o mesmo em todas as linhas. A do
+                    // Executor é condicional (só no golpe decisivo) e sai como nota abaixo.
+                    const _mcNota = (_mc.condicionais || []).length
+                        ? `<div style="font-size:8px;color:#fbbf24;margin-top:2px">🎯 ${_mc.condicionais.map(x => x.nome + ' −' + x.valor + ' (' + x.condicao + ')').join(' · ')}${_mc.valor <= _mc.piso ? ' — já no piso ' + _mc.piso : ''}</div>`
+                        : '';
+                    const _mcFontes = (_mc.fontes || []).length
+                        ? `<div style="font-size:8px;color:#4b5563;margin-top:2px">🎯 Margem ${_mc.valor}: ${_mc.fontes.map(f => f.nome + ' −' + f.valor).join(' · ')}${_mc.perdidoNoPiso > 0 ? ` · piso ${_mc.piso} cortou −${_mc.perdidoNoPiso}` : ''}</div>`
+                        : '';
+                    const weaponsSection = `<div style="margin:0 16px 20px"><div style="font-size:8px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;border-top:1px solid #1f2937;padding-top:12px">⚔️ Ataques</div>${rows}${_mcFontes}${_mcNota}</div>`;
                     if (!state.attackModal) return weaponsSection;
                     // ── Modal de escolha FOR/DES ──────────────────────────────
                     const wm = state.attackModal;
@@ -621,13 +899,13 @@
 
                             const rBon = window.calcRenBonus(char);
                             const zBon = window.calcZetsuBonus(char);
-                            const tenAprimoramento = aprimoramentoBox('ten', Math.min(7, d.ten_pn||0), 7, null,
+                            const tenAprimoramento = aprimoramentoBox('ten', Math.min(window.PN_APRIMORAMENTO_MAX, d.ten_pn||0), window.PN_APRIMORAMENTO_MAX, null,
                                 `RD total: <b>+${window.calcTenRD(char)}</b> (Maestria +6, +1 por P.N extra)`);
-                            const renAprimoramento = aprimoramentoBox('ren', Math.min(7, d.ren_pn||0), 7,
+                            const renAprimoramento = aprimoramentoBox('ren', Math.min(window.PN_APRIMORAMENTO_MAX, d.ren_pn||0), window.PN_APRIMORAMENTO_MAX,
                                 { value: d.ren_opcao||1, labels: ['① Grau de Dano', '② Testes com REN'] },
                                 rBon.opcao===1 ? `Opção 1: Grau/Passo de dano corpo-a-corpo: <b>+${rBon.grau}</b>`
                                     : `Opção 2: Testes com REN: <b>+${rBon.teste}</b> (padrão) / <b>+${rBon.teste1x}</b> (1×dia sem gastar aura)`);
-                            const zetsuAprimoramento = aprimoramentoBox('zetsu', Math.min(7, d.zetsu_pn||0), 7,
+                            const zetsuAprimoramento = aprimoramentoBox('zetsu', Math.min(window.PN_APRIMORAMENTO_MAX, d.zetsu_pn||0), window.PN_APRIMORAMENTO_MAX,
                                 { value: d.zetsu_opcao||1, labels: ['① Recuperação', '② Furtividade'] },
                                 zBon.opcao===1 ? `Opção 1: Recuperação de Aura: <b>+${zBon.auraPct}%</b> por conclusão`
                                     : `Opção 2: Furtividade: <b>+${zBon.furtividade}</b>`);
@@ -660,41 +938,41 @@
                                     `Detecta forma/movimento em ${enB.diametro}m de diâmetro. Ataque de reação sem gastar Ação Principal contra quem entrar. +10% Aura e +2 Reações a cada +3m adicional. Funciona contra ilusões. Emissores mantêm por +1 turno sem custo extra.`,
                                     'REN 2 + TEN 1', ren>=2 && ten>=1,
                                     { effect: 'Dobra o alcance base e permite mudar o formato entre Círculo, Cone (+3m), Linha (+4,5m) ou Cilindro (+3m).',
-                                      aprimoramento: aprimoramentoBox('en', Math.min(8, d.en_pn||0), 8, { value: d.en_opcao||1, labels: ['① Menos Reações', '② Mais Alcance'] },
+                                      aprimoramento: aprimoramentoBox('en', Math.min(window.PN_APRIMORAMENTO_MAX, d.en_pn||0), window.PN_APRIMORAMENTO_MAX, { value: d.en_opcao||1, labels: ['① Menos Reações', '② Mais Alcance'] },
                                           enB.opcao===1 ? `Opção 1: Custo de Reações: <b>${enB.reacoes}</b> (mínimo 1)` : `Opção 2: Diâmetro do EN: <b>${enB.diametro.toFixed(1)}m</b>`) })}
                                 ${advancedCard('inp','IN — Ocultar','🌑','Princípio Avançado do Zetsu — esconde objeto/material feito de NEN. Só é revelado com GYO. 5% Aura por rodada (1 item em sua posse/domínio/controle).',
                                     `Oculta por ${inB.rodadas} rodada(s). Custa 10% (5% acima do padrão) para Reforçadores, Manipuladores e Especialistas.`,
                                     'ZETSU 2', zetsu>=2,
                                     { effect: 'Duração aumentada para 2 Rodadas.',
-                                      aprimoramento: aprimoramentoBox('inp', Math.min(8, d.inp_pn||0), 8, null, `Duração do IN: <b>${inB.rodadas}</b> rodada(s) (+1 a cada 2 P.N extra)`) })}
+                                      aprimoramento: aprimoramentoBox('inp', Math.min(window.PN_APRIMORAMENTO_MAX, d.inp_pn||0), window.PN_APRIMORAMENTO_MAX, null, `Duração do IN: <b>${inB.rodadas}</b> rodada(s) (+1 a cada 2 P.N extra)`) })}
                                 ${advancedCard('gyo','GYO — Focar','🧠','Aplicação avançada de REN+ZETSU concentrada em uma parte do corpo. 10% Aura nos olhos/ouvidos (vê aura e oculto por IN, +5 Investigação/Percepção) ou 30% Aura em outra parte do corpo.',
                                     `Aplicado no corpo: +${gyB.attrBonus} temporário em FOR, DES ou CON por 1 rodada (propriedade de Arma de Cerco). Ataques com GYO forçam TR de FOR ou CON (CD = valor do ataque) para não ser empurrado 6m — bloqueado por GYO, KEN ou RYU no defensor.`,
                                     'ZETSU 2 + REN Maestria', ren>=3 && zetsu>=2,
                                     { effect: '1) Cancela condição de golpe mirado ao usar GYO em bloqueio reativo, mesmo com o ataque acertando. 2) Multiplica distância/altura de salto em 1,5m × valor de FOR ou Atletismo.',
-                                      aprimoramento: aprimoramentoBox('gyo', Math.min(8, d.gyo_pn||0), 8, null, `Bônus de atributo com GYO: <b>+${gyB.attrBonus}</b> (+1 a cada 2 P.N extra)`) })}
+                                      aprimoramento: aprimoramentoBox('gyo', Math.min(window.PN_APRIMORAMENTO_MAX, d.gyo_pn||0), window.PN_APRIMORAMENTO_MAX, null, `Bônus de atributo com GYO: <b>+${gyB.attrBonus}</b> (+1 a cada 2 P.N extra)`) })}
                                 ${advancedCard('shu','SHU — Agregar/Proteger','⚡','Envolve um item/objeto (até 1m) em aura completa. 10% Aura → +1d4 Dano e CA por 1 rodada, protegido de efeitos físicos. +5% para equipamentos maiores; +5% adicional para aumentar CA/Dano, aplicar Arma de Cerco, +1 rodada de duração ou +1m de tamanho.',
                                     `Duração: ${shB.rodadas} rodada(s). Só pode ser destruído por Hatsu, SHU, KO ou RYU. Golpe com item em SHU é considerado mirado/preciso sem o ônus da mecânica. Emissores, Manipuladores e Reforçadores (adjacentes à Emissão) mantêm por +1 rodada por uso.`,
                                     'TEN Maestria', ten>=3,
                                     { effect: 'Gasta a mesma aura independente do tamanho do objeto e aumenta Dano e CA ao mesmo tempo.',
-                                      aprimoramento: aprimoramentoBox('shu', Math.min(8, d.shu_pn||0), 8, null, `Duração do SHU: <b>${shB.rodadas}</b> rodada(s) (+1 por P.N extra)`) })}
+                                      aprimoramento: aprimoramentoBox('shu', Math.min(window.PN_APRIMORAMENTO_MAX, d.shu_pn||0), window.PN_APRIMORAMENTO_MAX, null, `Duração do SHU: <b>${shB.rodadas}</b> rodada(s) (+1 por P.N extra)`) })}
 
                                 <div style="font-size:8px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px">🌟 TÉCNICAS AVANÇADAS</div>
                                 ${advancedCard('ken','KEN — Fortificar','🏰','Mantém REN fora do corpo todo com proteção de TEN, defendendo contra ataques de qualquer direção sem precisar de GYO.',
                                     `${keB.auraCusto}% Aura + ${keB.reacoes} Reações → dobra a CA por 2 rodadas (o dobro de aura/reações para triplicar). Também aplica RD de TEN contra dano de queda: CA iguala a altura = 50% menos dano; CA supera a altura = nenhum dano.`,
                                     'TEN Maestria + REN Maestria', ten>=3 && ren>=3,
                                     { effect: 'Gaste 1 P.N para escolher, por uso: (1) Triplicar o RD de TEN na Maestria (3×6=18) OU (2) +5 CA até o início do próximo turno.',
-                                      aprimoramento: aprimoramentoBox('ken', Math.min(8, d.ken_pn||0), 8, { value: d.ken_opcao||1, labels: ['① −5% Aura', '② −1 Reação'] },
+                                      aprimoramento: aprimoramentoBox('ken', Math.min(window.PN_APRIMORAMENTO_MAX, d.ken_pn||0), window.PN_APRIMORAMENTO_MAX, { value: d.ken_opcao||1, labels: ['① −5% Aura', '② −1 Reação'] },
                                           keB.opcao===1 ? `Opção 1: Custo de Aura: <b>${keB.auraCusto}%</b>` : `Opção 2: Custo de Reações: <b>${keB.reacoes}</b> (mínimo 1)`) })}
                                 ${advancedCard('ko','KO — Endurecer','🔥','Toda a aura concentrada em uma parte do corpo, com Zetsu no resto. 30% Aura → triplica o dano, mas reduz a CA em 80% até o início do próximo turno (não pode ser interrompido intencionalmente).',
                                     `CA cai para a faixa 2–6 conforme CA inicial${koB.caBonus>0?` <b>+${koB.caBonus}</b>`:''} (tabela de impacto).`,
                                     'REN Maestria + ZETSU Maestria + TEN 1', ren>=3 && zetsu>=3 && ten>=1,
                                     { effect: 'CA mínima após o uso passa a ser 10 (em vez da faixa 2–6).',
-                                      aprimoramento: aprimoramentoBox('ko', Math.min(8, d.ko_pn||0), 8, null, `Bônus na CA restante após KO: <b>+${koB.caBonus}</b> (+1 a cada 2 P.N extra)`) })}
+                                      aprimoramento: aprimoramentoBox('ko', Math.min(window.PN_APRIMORAMENTO_MAX, d.ko_pn||0), window.PN_APRIMORAMENTO_MAX, null, `Bônus na CA restante após KO: <b>+${koB.caBonus}</b> (+1 a cada 2 P.N extra)`) })}
                                 ${advancedCard('ryu','RYU — Fluir','🌊','GYO em tempo real em várias partes do corpo simultaneamente, para combate corpo-a-corpo e armas de arremesso. 30% Aura → acesso aos Exemplos 1–3 (Bônus em CA e Ataque+Dano).',
-                                    `Após os 3 turnos iniciais, escolha livremente entre as linhas restantes de qualquer tabela disponível, sem repetir uma linha da mesma tabela. Consome Reações para contra-ataques sem perder Ação Principal.`,
+                                    `Escolha UMA tabela ao ativar e siga a ordem dela até o 6º turno — as tabelas são ordens diferentes das mesmas linhas, então a escolha é em QUE turno o golpe forte cai. O botão "Passar turno", no painel de princípios ativos, anda na tabela. Consome Reações para contra-ataques sem perder Ação Principal.`,
                                     'TEN + REN + ZETSU Maestria', ten>=3 && ren>=3 && zetsu>=3,
                                     { effect: 'Desbloqueia os Exemplos 4, 5 e 6 de RYU, que concedem Reações Extras.',
-                                      aprimoramento: aprimoramentoBox('ryu', Math.min(8, d.ryu_pn||0), 8, null, `Bônus em todos os valores das tabelas de RYU: <b>+${ryB.tabelaBonus}</b> (+1 a cada 2 P.N extra)`),
+                                      aprimoramento: aprimoramentoBox('ryu', Math.min(window.PN_APRIMORAMENTO_MAX, d.ryu_pn||0), window.PN_APRIMORAMENTO_MAX, null, `Bônus em todos os valores das tabelas de RYU: <b>+${ryB.tabelaBonus}</b> (+1 a cada 2 P.N extra)`),
                                       extraHtml: ryuTablesHtml })}
                             </div>`;
                         })()}
@@ -772,11 +1050,67 @@
                         : ciEntries.map(([id, pts]) => {
                             const inc = window.COMBAT_INCLINATIONS_DB.find(i => i.id === id);
                             if (!inc) return '';
-                            return inc.tiers.slice(0, pts).map((desc, ti) => `<div class="bg-gray-900 border border-gray-800 rounded-xl p-3" style="border-left:3px solid #f97316"><div class="flex items-center gap-2 mb-1"><span class="text-xs font-bold text-orange-400">${inc.nome}</span><span class="text-[9px] bg-orange-500/10 text-orange-400 border border-orange-500/20 px-1.5 rounded">Tier ${ti + 1}</span></div><p class="text-[10px] text-gray-400 leading-relaxed">${desc}</p></div>`).join('');
+                            // Na ficha o jogador precisa do acréscimo "Com aura" à mão durante
+                            // a mesa, não só no modal de compra — é lá que ele decide se paga.
+                            return inc.tiers.slice(0, pts).map((desc, ti) => {
+                                const nvl = window.CI_NIVEL_NOME ? window.CI_NIVEL_NOME[ti] : ('Tier ' + (ti + 1));
+                                const au = (inc.aura || [])[ti];
+                                const auHtml = au ? `<div class="mt-1.5 flex gap-1.5 items-start rounded-md px-2 py-1.5" style="background:#1e3a8a22;border:1px solid #3b82f633"><span style="font-size:9px;line-height:1.3">💠</span><p class="text-[9px] leading-relaxed" style="color:#93c5fd">${au}</p></div>` : '';
+                                return `<div class="bg-gray-900 border border-gray-800 rounded-xl p-3" style="border-left:3px solid #f97316"><div class="flex items-center gap-2 mb-1 flex-wrap"><span class="text-xs font-bold text-orange-400">${inc.nome}</span><span class="text-[9px] bg-orange-500/10 text-orange-400 border border-orange-500/20 px-1.5 rounded">${nvl}</span>${(inc.etiquetas || []).map(e => `<span class="text-[8px] font-bold px-1.5 rounded" style="background:#1e3a8a33;color:#93c5fd;border:1px solid #3b82f644">${e}</span>`).join('')}</div><p class="text-[10px] text-gray-400 leading-relaxed">${desc}</p>${auHtml}</div>`;
+                            }).join('');
                           }).join('');
-                    combatIncHtml = `<div class="mt-2 border-t border-gray-800 pt-4"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-3"><div class="bg-gray-800 p-2 rounded text-orange-400"><i data-lucide="swords" size="20"></i></div><div><h3 class="font-bold text-white uppercase tracking-wider text-sm">Inclinações de Combate</h3><p class="text-[10px] text-gray-500 uppercase tracking-widest">${ciSpent}/${ciTotalPts} pontos usados</p></div></div><button onclick="window._openCombatIncModal()" class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/30 text-orange-400 text-[10px] font-bold uppercase tracking-widest hover:bg-orange-500/20 transition-colors"><i data-lucide="edit-3" size="12"></i> Editar</button></div>${ciAvail > 0 ? `<div class="flex items-center gap-2 text-[10px] text-orange-400 font-bold mb-2 bg-orange-500/10 border border-orange-500/20 rounded-lg px-3 py-2 animate-pulse"><i data-lucide="alert-circle" size="12"></i> ${ciAvail} ponto(s) disponível(is) para investir!</div>` : ''}<div class="space-y-2">${ciListHtml}</div></div>`;
+                    // Porta de entrada: sem Nen, ou sem nenhum princípio/técnica, a seção fica
+                    // visível (o jogador precisa ver o que falta e o que já investiu) mas o botão
+                    // Editar é trocado por um aviso com o motivo.
+                    const _ciPorta = window.podeComprarInclinacoes
+                        ? window.podeComprarInclinacoes(char) : { ok: true, motivo: '' };
+                    const _ciBotao = _ciPorta.ok
+                        ? `<button onclick="window._openCombatIncModal()" class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/30 text-orange-400 text-[10px] font-bold uppercase tracking-widest hover:bg-orange-500/20 transition-colors"><i data-lucide="edit-3" size="12"></i> Editar</button>`
+                        : `<span class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-800/60 border border-gray-700 text-gray-500 text-[10px] font-bold uppercase tracking-widest"><i data-lucide="lock" size="12"></i> Bloqueado</span>`;
+                    const _ciMotivo = _ciPorta.ok ? '' :
+                        `<div class="flex items-start gap-2 text-[10px] text-gray-400 font-semibold mb-2 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2"><i data-lucide="info" size="12" class="shrink-0 mt-0.5 text-gray-500"></i><span>${_ciPorta.motivo}</span></div>`;
+                    combatIncHtml = `<div class="mt-2 border-t border-gray-800 pt-4"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-3"><div class="bg-gray-800 p-2 rounded text-orange-400"><i data-lucide="swords" size="20"></i></div><div><h3 class="font-bold text-white uppercase tracking-wider text-sm">Inclinações de Combate</h3><p class="text-[10px] text-gray-500 uppercase tracking-widest">${ciSpent}/${ciTotalPts} pontos usados</p></div></div>${_ciBotao}</div>${_ciMotivo}${(_ciPorta.ok && ciAvail > 0) ? `<div class="flex items-center gap-2 text-[10px] text-orange-400 font-bold mb-2 bg-orange-500/10 border border-orange-500/20 rounded-lg px-3 py-2 animate-pulse"><i data-lucide="alert-circle" size="12"></i> ${ciAvail} ponto(s) disponível(is) para investir!</div>` : ''}<div class="space-y-2">${ciListHtml}</div></div>`;
                 }
-                tabContent = `<div class="p-4 space-y-2">${traitsHtml}${bgHtml}${generalIncHtml}${otherSkillsHtml}${combatIncHtml}</div>`;
+                // ── Instâncias Shingen-Ryu ───────────────────────────────────────────
+                // Pagas com P.N (2 no Nível 1, 3 no Nível 2), não com Pontos de Inclinação.
+                // Por isso o contador mostra P.N, e não o bolo das inclinações.
+                let instHtml = '';
+                if (window.INSTANCIAS_DB && char.level >= 2) {
+                    const _iPorta = window.podeComprarInstancias
+                        ? window.podeComprarInstancias(char) : { ok: true, motivo: '' };
+                    const _iInvest = char.instancias || {};
+                    const _iGasto = window.calcPNSpentInInstancias ? window.calcPNSpentInInstancias(char) : 0;
+                    const _iLivre = window._pnLivreDoPersonagem ? window._pnLivreDoPersonagem(char) : 0;
+                    const _iEntries = Object.keys(_iInvest).filter(function (k) { return (_iInvest[k] || 0) > 0; });
+                    const _iLista = _iEntries.length === 0
+                        ? `<p class="text-[10px] text-gray-600 italic text-center py-2">Nenhuma Instância treinada.</p>`
+                        : _iEntries.map(function (id) {
+                            const ins = window.INSTANCIAS_DB.filter(function (x) { return x.id === id; })[0];
+                            if (!ins) return '';
+                            const n = _iInvest[id];
+                            return ins.niveis.slice(0, n).map(function (d, ni) {
+                                // Combatente Rápido nível 2 é a única Instância com "ou" na
+                                // descrição ("+2 na CA ou Ações de Esquivas"): precisa de escolha,
+                                // porque os dois destinos são calculados em lugares diferentes
+                                // (calcBonusCAInstancia e calcBonusReacao).
+                                let _esc = '';
+                                if (id === 'combatente_rapido' && ni === 1) {
+                                    const _at = (char.instanciaEscolhas || {}).combatente_rapido_2 || '';
+                                    const _bt = function (v, rot) {
+                                        const on = _at === v;
+                                        return `<button onclick="window._setInstanciaEscolha('combatente_rapido_2','${v}')" class="flex-1 px-2 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-colors" style="border:1.5px solid ${on ? '#a855f7' : '#374151'};background:${on ? '#a855f722' : 'transparent'};color:${on ? '#c084fc' : '#9ca3af'}">${on ? '✓ ' : ''}${rot}</button>`;
+                                    };
+                                    _esc = `<div class="mt-2 pt-2" style="border-top:1px dashed #a855f733"><div class="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Escolha o destino</div><div class="flex gap-2">${_bt('ca', '+2 na CA')}${_bt('esquiva', '+2 nas Esquivas')}</div>${_at ? '' : '<div class="text-[9px] text-red-400 mt-1.5">⚠ Sem escolha, o bônus não é aplicado.</div>'}</div>`;
+                                }
+                                return `<div class="bg-gray-900 border border-gray-800 rounded-xl p-3" style="border-left:3px solid #a855f7"><div class="flex items-center gap-2 mb-1 flex-wrap"><span class="text-xs font-bold" style="color:#c084fc">${ins.nome}</span><span class="text-[9px] px-1.5 rounded" style="background:#a855f71a;color:#c084fc;border:1px solid #a855f733">Nível ${ni + 1}</span>${(ins.etiquetas || []).map(function (e) { return `<span class="text-[8px] font-bold px-1.5 rounded" style="background:#1e3a8a33;color:#93c5fd;border:1px solid #3b82f644">${e}</span>`; }).join('')}</div><p class="text-[10px] text-gray-400 leading-relaxed">${d}</p>${_esc}</div>`;
+                            }).join('');
+                          }).join('');
+                    const _iBotao = _iPorta.ok
+                        ? `<button onclick="window._openInstanciasModal()" class="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-colors" style="background:#a855f71a;border:1px solid #a855f74d;color:#c084fc"><i data-lucide="edit-3" size="12"></i> Editar</button>`
+                        : `<span class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-800/60 border border-gray-700 text-gray-500 text-[10px] font-bold uppercase tracking-widest"><i data-lucide="lock" size="12"></i> Bloqueado</span>`;
+                    instHtml = `<div class="mt-2 border-t border-gray-800 pt-4"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-3"><div class="bg-gray-800 p-2 rounded" style="color:#c084fc"><i data-lucide="git-branch" size="20"></i></div><div><h3 class="font-bold text-white uppercase tracking-wider text-sm">Instâncias Shingen-Ryu</h3><p class="text-[10px] text-gray-500 uppercase tracking-widest">${_iGasto} P.N investidos &#183; ${Math.max(0, _iLivre)} P.N livres</p></div></div>${_iBotao}</div>${_iPorta.ok ? '' : `<div class="flex items-start gap-2 text-[10px] text-gray-400 font-semibold mb-2 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2"><i data-lucide="info" size="12" class="shrink-0 mt-0.5 text-gray-500"></i><span>${_iPorta.motivo}</span></div>`}<div class="space-y-2">${_iLista}</div></div>`;
+                }
+                tabContent = `<div class="p-4 space-y-2">${traitsHtml}${bgHtml}${generalIncHtml}${otherSkillsHtml}${combatIncHtml}${instHtml}</div>`;
             } else if (state.activeTab === 'INV') {
                 const isShop = state.invMode === 'SHOP';
                 const headerHtml = `<div class="flex items-center justify-between px-4 pt-4 pb-2 sticky top-0 bg-gray-950 z-20 border-b border-gray-800/50"><div class="flex bg-gray-900 rounded-lg p-1 border border-gray-800"><button onclick="toggleInvMode('BAG')" class="px-4 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${!isShop ? `bg-[${themeColor}] text-black shadow-[0_0_10px_${themeColor}]` : 'text-gray-500 hover:text-white'}">Mochila</button><button onclick="toggleInvMode('SHOP')" class="px-4 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${isShop ? `bg-[${themeColor}] text-black shadow-[0_0_10px_${themeColor}]` : 'text-gray-500 hover:text-white'}">Loja</button></div><div class="flex items-center gap-2 bg-gray-900 border border-gray-800 rounded-lg px-3 py-1.5"><span class="text-[${themeColor}] font-bold text-xs">$</span><input type="number" value="${char.money}" onchange="updateMoney(this.value)" class="w-16 bg-transparent text-white font-mono text-sm text-right outline-none"></div></div>`;
@@ -873,7 +1207,13 @@
                 const sanBarColor = sanPct >= 90 ? '#4ade80' : sanPct >= 75 ? '#fbbf24' : sanPct >= 50 ? '#f97316' : '#a78bfa';
                 const activeConditions = conditions.filter(c => !c.resolved);
                 const resolvedConditions = conditions.filter(c => c.resolved);
-                const catColors = { 'CURTA DURAÇÃO':'#fbbf24', 'LONGA DURAÇÃO':'#f87171', 'PERMANENTE LEVE':'#a78bfa', 'PERMANENTE PESADO':'#ff4df7' };
+                // Os dois nomes "PERMANENTE" continuam aqui por causa das fichas salvas
+                // antes da troca para "INDETERMINADO" — sem eles, uma condição antiga
+                // ficaria sem cor no cartão.
+                const catColors = { 'CURTA DURAÇÃO':'#fbbf24', 'LONGA DURAÇÃO':'#f87171',
+                    'INDETERMINADO LEVE':'#a78bfa', 'INDETERMINADO PESADO':'#ff4df7',
+                    'PERMANENTE LEVE':'#a78bfa', 'PERMANENTE PESADO':'#ff4df7',
+                    'FALHA DE ÊNFASE':'#f87171' };
 
                 const activeHtml = activeConditions.length === 0
                     ? '<div class="text-center text-gray-600 italic py-6 border-2 border-dashed border-gray-800 rounded-xl text-xs">Nenhuma condição ativa.<br><span class="text-gray-700">Reduza a Sanidade para registrar surtos.</span></div>'
@@ -927,6 +1267,38 @@
                         </div>
                         ${rdmVal > 0 ? '<div class="mt-2 text-center text-[10px] font-bold text-blue-400">🛡️ RDM '+rdmVal+' — reduz dano mental recebido</div>' : ''}
                     </div>
+                    ${(() => {
+                        // ── Recuperando Sanidade ────────────────────────────────────
+                        // As seis rotas do livro, todas com +INT. Nenhuma existia no app:
+                        // a única recuperação era a do level-up (RDM). Três delas
+                        // dependiam da Ação Protagonista, que até agora não existia.
+                        //
+                        // As duas automáticas (receber a Ação Protagonista e tirar 20
+                        // natural) não aparecem como botão — o app já as aplicou sozinho,
+                        // e um botão delas convidaria a cobrar duas vezes. Ficam listadas
+                        // apagadas, para o jogador saber que existem e são automáticas.
+                        const _rotas = window.SANIDADE_RECUPERACAO || [];
+                        if (!_rotas.length) return '';
+                        const _cheia = (char.vitals.san || 100) >= (char.vitals.sanMax || 100);
+                        return `<div class="bg-gray-900 border border-gray-800 rounded-xl p-3 mb-4">
+                            <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">🔮 Recuperar Sanidade</div>
+                            ${_cheia ? '<div class="text-[9px] text-gray-600 italic mb-2">Sanidade cheia — nada a recuperar.</div>' : ''}
+                            <div style="display:flex;flex-direction:column;gap:5px">
+                                ${_rotas.map(r => r.auto
+                                    ? `<div style="display:flex;align-items:center;gap:7px;padding:6px 9px;border-radius:8px;border:1px dashed #1f2937;opacity:.55">
+                                        <span style="font-size:12px">${r.icone}</span>
+                                        <span style="flex:1;font-size:9px;color:#6b7280">${r.rotulo}</span>
+                                        <span style="font-size:8px;color:#4b5563;font-weight:700">automático · ${r.dado}+INT</span>
+                                    </div>`
+                                    : `<button onclick="window._recuperarSanidade('${r.id}')" ${_cheia ? 'disabled' : ''}
+                                        style="display:flex;align-items:center;gap:7px;padding:6px 9px;border-radius:8px;border:1px solid #c084fc33;background:#c084fc0d;cursor:${_cheia ? 'not-allowed' : 'pointer'};opacity:${_cheia ? .4 : 1};text-align:left">
+                                        <span style="font-size:12px">${r.icone}</span>
+                                        <span style="flex:1;font-size:9px;color:#d1d5db;font-weight:600">${r.rotulo}</span>
+                                        <span style="font-size:8px;color:#c084fc;font-weight:900">${r.dado}+INT</span>
+                                    </button>`).join('')}
+                            </div>
+                        </div>`;
+                    })()}
                     <div class="flex-1 overflow-y-auto custom-scrollbar pb-4">
                         ${activeHtml}
                         ${resolvedHtml}
@@ -1002,6 +1374,12 @@
                 }
                 ${renderRollModeModalHtml()}
                 ${renderRenPromptModalHtml()}
+                ${renderAcaoProtagonistaModalHtml()}
+                ${renderFalhaEnfaseModalHtml()}
+                ${renderRyuEntregaModalHtml()}
+                ${renderEscalaPrincipioModalHtml()}
+                ${renderMenuShuModalHtml()}
+                ${renderTabelaRyuModalHtml()}
                 ${renderRenAttackPromptModalHtml()}
                 ${renderZetsuPromptModalHtml()}
                 <div class="h-auto min-h-[4rem] bg-[#0e0e14] border-t border-gray-800 flex items-center justify-around px-2 relative z-50 pb-safe pt-2">
@@ -1182,6 +1560,287 @@
 
         // ── Aura Gigantesca: +30% de Aura Máxima ───────────────────────────────────
         // A inclinação existia só como texto no config.js; nunca foi aplicada em lugar nenhum.
+        // ── Migração única: os bônus de Maestria mudaram de valor ───────────────────
+        // O capítulo atualizado dá +1 em atributo nas Maestrias (este arquivo aplicava +2
+        // em várias) e usa "ou" (escolha) onde havia "e" (fixo). Trocar só o banco não
+        // resolve: o ledger char.combatInclinationAttrApplied registra QUE o bônus foi
+        // aplicado, não QUANTO. Sem desfazer o valor antigo acontecia um de dois erros:
+        //   • valor diferente → o save não refaz nada e o +2 antigo ficava para sempre;
+        //   • fixo → escolha  → o ledger guarda `true`, escolha.find(o => o.attr === true)
+        //     não acha nada, nada é subtraído e o novo bônus soma em cima (valor dobrado).
+        // Aqui o bônus antigo é devolvido usando COMBAT_INC_ATTR_LEGADO. Quando o bônus
+        // novo é FIXO, ele já é aplicado na hora (não há o que escolher). Quando é ESCOLHA,
+        // a entrada do ledger é limpa e o modal passa a exigir o atributo antes de salvar —
+        // é a "realocação" que o aviso pede.
+        function migrarBonusMaestria(char) {
+            if (!char || char.migracaoIncV2) return false;
+            if (!window.COMBAT_INCLINATIONS_DB || !window.COMBAT_INC_ATTR_LEGADO) return false;
+            const ledger = char.combatInclinationAttrApplied || {};
+            const mesmo = function (a, b) { return JSON.stringify(a || null) === JSON.stringify(b || null); };
+
+            window.COMBAT_INCLINATIONS_DB.forEach(function (inc) {
+                const legado = window.COMBAT_INC_ATTR_LEGADO[inc.id];
+                if (!legado) return;                       // inclinação nova: nada aplicado antes
+                if (mesmo(legado, inc.attrBonus)) return;  // definição não mudou
+                const aplicado = ledger[inc.id];
+                if (aplicado === undefined) return;        // nunca chegou a aplicar
+
+                // Devolve o bônus ANTIGO. O tipo do valor no ledger diz qual forma antiga
+                // foi usada: `true` = fixo, string = escolha. Se não casar, não arrisca um
+                // número errado: deixa como está para o jogador conferir na mão.
+                let devolveu = false;
+                if (legado.fixo && aplicado === true) {
+                    legado.fixo.forEach(function (b) {
+                        if (char.attributes[b.attr]) char.attributes[b.attr].value -= b.valor;
+                    });
+                    devolveu = true;
+                } else if (legado.escolha && typeof aplicado === 'string') {
+                    const opt = legado.escolha.filter(function (o) { return o.attr === aplicado; })[0];
+                    if (opt && char.attributes[opt.attr]) {
+                        char.attributes[opt.attr].value -= opt.valor;
+                        devolveu = true;
+                    }
+                }
+                if (!devolveu) return;
+
+                if (inc.attrBonus && inc.attrBonus.fixo) {
+                    inc.attrBonus.fixo.forEach(function (b) {
+                        if (char.attributes[b.attr]) char.attributes[b.attr].value += b.valor;
+                    });
+                    ledger[inc.id] = true;
+                } else {
+                    // escolha (ou bônus removido): o jogador decide no modal.
+                    delete ledger[inc.id];
+                }
+            });
+
+            char.combatInclinationAttrApplied = ledger;
+            char.migracaoIncV2 = true;
+            // Retorna SEMPRE true: a flag precisa ser gravada mesmo quando nada mudou.
+            // Sem isso, um personagem sem nada a migrar não salvaria a marca e a migração
+            // rodaria de novo no próximo render — e aí, num personagem que TINHA algo a
+            // migrar, o bônus antigo seria subtraído duas vezes.
+            return true;
+        }
+
+        // ── Dedup CONJURAÇÃO → MATERIALIZAÇÃO (restrições de categoria) ─────────────
+        // As 9 restrições rc_l*/rc_m*/rc_p* saíram do banco por serem duplicatas exatas
+        // das rm_*. O Hatsu salvo guarda o ID CRU em h.restricoes, então sem esta
+        // conversão `catDB.restricoes.find(r => r.id === id)` devolveria undefined, o
+        // .filter(Boolean) dropava a restrição e o jogador perderia o benefício, o
+        // desconto de aura e os graus de potência que pagou — sem nenhuma mensagem.
+        // Converte também as chaves paralelas (beneficioChoices, pureRestrictions,
+        // specialChoices), porque rc_p2 tinha benefício de escolha.
+        function migrarRestricoesConjuracao(char) {
+            if (!char || char.migracaoDedupConjuracao) return false;
+            const MAPA = window.ID_DEDUP_CONJURACAO;
+            if (!MAPA) return false;
+
+            (char.hatsus || []).forEach(function (h) {
+                if (!h) return;
+
+                // h.restricoes: troca pelo equivalente e remove duplicata, para quem
+                // tinha as DUAS marcadas não ficar com o mesmo id repetido no array.
+                if (Array.isArray(h.restricoes)) {
+                    const vistos = {};
+                    h.restricoes = h.restricoes.map(function (id) {
+                        return MAPA[id] || id;
+                    }).filter(function (id) {
+                        if (vistos[id]) return false;
+                        vistos[id] = true;
+                        return true;
+                    });
+                }
+
+                // Chaves por id. A chave do rm_* equivalente tem prioridade: se o
+                // jogador preencheu as duas, a que ele escolheu no Hatsu "oficial" vence.
+                ['beneficioChoices', 'pureRestrictions', 'specialChoices'].forEach(function (campo) {
+                    const obj = h[campo];
+                    if (!obj || typeof obj !== 'object') return;
+                    Object.keys(obj).forEach(function (k) {
+                        // cobre 'rc_p2' e sufixos como 'rc_p2_carac'
+                        const base = k.slice(0, 5);
+                        const novo = MAPA[base];
+                        if (!novo) return;
+                        const kNovo = novo + k.slice(5);
+                        if (obj[kNovo] === undefined) obj[kNovo] = obj[k];
+                        delete obj[k];
+                    });
+                });
+            });
+
+            char.migracaoDedupConjuracao = true;
+            // Retorna SEMPRE true, pelo mesmo motivo do migrarBonusMaestria: a flag
+            // precisa ser gravada mesmo quando este personagem não tinha nenhum rc_*.
+            return true;
+        }
+
+        // ── eg4 (Efeito Alternativo): chaves de nome → id ──────────────────────────
+        // As 4 chaves do eg4 em specialChoices guardavam o NOME do efeito/restrição:
+        //   eg4            → efeito adicionado no modo
+        //   eg4_remove     → efeito removido no modo
+        //   eg4_restr_off  → restrições da raiz desligadas no modo
+        //   eg4_restr_add  → restrições exclusivas do modo
+        // Nome não é chave confiável: "Sem Movimento no Turno" existe como rt_l2
+        // (TRANSMUTAÇÃO, +2 Grau/Passo de Alcance) e em_l2 (EMISSÃO, ignora cobertura
+        // total), com benefícios diferentes, e o find() devolvia sempre o primeiro.
+        // Os 165 efeitos do banco têm nome único, então os dois campos de efeito são
+        // conversão direta; só as restrições precisam desempatar.
+        // Sufixo '#N' é o modo (eg4_restr_off#1 = Modo C).
+        // ── eg6 e rm_e8: nome do efeito → id ────────────────────────────────────────
+        // O eg4 virou id no PR #62 porque dois nomes de restrição iguais (rt_l2 e em_l2,
+        // "Sem Movimento no Turno") faziam o lookup por nome pegar a errada. Estes dois
+        // wrappers ficaram para trás guardando o NOME do efeito escolhido. Hoje o risco é
+        // teórico — a colisão conhecida é entre restrições, e eles escolhem efeitos — mas
+        // o padrão fica inconsistente e quebra no dia em que dois efeitos dividirem nome.
+        //
+        // Flag própria: migracaoEg4Ids já está marcada em quem passou pela migração
+        // anterior, então reaproveitá-la deixaria estes dois sem migrar para sempre.
+        function migrarEg6RmE8ParaIds(char) {
+            if (!char || char.migracaoEg6RmE8Ids) return false;
+            const D = window.HATSU_DB;
+            if (!D) return false;
+            const idPorNome = {}, existeId = {};
+            const anotar = function (e) {
+                if (!e || !e.id) return;
+                existeId[e.id] = true;
+                if (!idPorNome[e.nome]) idPorNome[e.nome] = e.id;   // nomes de efeito são únicos
+            };
+            (D.efeitos_gerais || []).forEach(anotar);
+            const vistos = [];
+            Object.keys(D.categorias || {}).forEach(function (k) {
+                const cat = D.categorias[k];
+                if (!cat || vistos.indexOf(cat) >= 0) return;   // CONJURAÇÃO é alias de MATERIALIZAÇÃO
+                vistos.push(cat);
+                (cat.efeitos || []).forEach(anotar);
+            });
+            (char.hatsus || []).forEach(function (h) {
+                const sc = h && h.specialChoices;
+                if (!sc || typeof sc !== 'object') return;
+                ['eg6', 'rm_e8'].forEach(function (k) {
+                    const v = sc[k];
+                    if (typeof v !== 'string' || !v) return;
+                    if (existeId[v]) return;                 // já é id
+                    if (idPorNome[v]) sc[k] = idPorNome[v];  // nome conhecido → id
+                    // Nome desconhecido: PRESERVA, igual ao migrarEg4ParaIds. Destruir o
+                    // dado é pior que deixar um valor que o jogador pode reescolher.
+                });
+            });
+            char.migracaoEg6RmE8Ids = true;
+            return true;   // sempre true, para a flag ser salva junto
+        }
+        function migrarEg4ParaIds(char) {
+            if (!char || char.migracaoEg4Ids) return false;
+            const D = window.HATSU_DB;
+            if (!D) return false;
+
+            const efeitos = [].concat(D.efeitos_gerais || []);
+            const restr = [];
+            const catDeRestr = {};   // id da restrição → categoria onde vive ('' = geral)
+            const vistos = [];
+            Object.keys(D.categorias || {}).forEach(function (k) {
+                const cat = D.categorias[k];
+                if (!cat || vistos.indexOf(cat) >= 0) return;   // CONJURAÇÃO é alias
+                vistos.push(cat);
+                (cat.efeitos || []).forEach(function (e) { efeitos.push(e); });
+                (cat.restricoes || []).forEach(function (r) { restr.push(r); catDeRestr[r.id] = k; });
+            });
+            Object.keys(D.restricoes_gerais || {}).forEach(function (k) {
+                const g = D.restricoes_gerais[k];
+                if (Array.isArray(g)) g.forEach(function (r) { restr.push(r); catDeRestr[r.id] = ''; });
+            });
+
+            const idEfeito = {};     // nome → id (nomes de efeito são únicos)
+            efeitos.forEach(function (e) { if (!idEfeito[e.nome]) idEfeito[e.nome] = e.id; });
+            const idsRestr = {};     // nome → [ids] (pode ter mais de um)
+            restr.forEach(function (r) { (idsRestr[r.nome] = idsRestr[r.nome] || []).push(r.id); });
+            const existeRestr = {};
+            restr.forEach(function (r) { existeRestr[r.id] = true; });
+
+            // Resolve um valor salvo. Devolve o id, o próprio valor se já era id, ou
+            // null quando não há como desempatar — aí o botão aparece desmarcado e o
+            // jogador reescolhe, que é melhor que aplicar a restrição errada em silêncio.
+            const resolver = function (valor, h, ehOff) {
+                if (typeof valor !== 'string' || !valor) return null;
+                if (existeRestr[valor]) return valor;          // já migrado
+                const cands = idsRestr[valor] || [];
+                if (cands.length === 0) return valor;           // nome desconhecido: preserva
+                if (cands.length === 1) return cands[0];
+                if (ehOff) {
+                    // A restrição desligada está na raiz do Hatsu: isso desempata sempre.
+                    const naRaiz = cands.filter(function (id) {
+                        return (h.restricoes || []).indexOf(id) >= 0;
+                    });
+                    if (naRaiz.length === 1) return naRaiz[0];
+                }
+                // Restrição exclusiva do modo: desempata pela categoria do Hatsu.
+                const cats = [h.classe, h.tipoA, h.tipoB].filter(Boolean);
+                const daCat = cands.filter(function (id) { return cats.indexOf(catDeRestr[id]) >= 0; });
+                if (daCat.length === 1) return daCat[0];
+                return null;
+            };
+
+            (char.hatsus || []).forEach(function (h) {
+                const sc = h && h.specialChoices;
+                if (!sc || typeof sc !== 'object') return;
+                Object.keys(sc).forEach(function (k) {
+                    if (/^eg4(_remove)?(#\d+)?$/.test(k)) {
+                        const v = sc[k];
+                        if (typeof v === 'string' && v && idEfeito[v]) sc[k] = idEfeito[v];
+                        return;
+                    }
+                    if (/^eg4_restr_(off|add)(#\d+)?$/.test(k) && Array.isArray(sc[k])) {
+                        const ehOff = k.indexOf('_off') >= 0;
+                        sc[k] = sc[k].map(function (v) { return resolver(v, h, ehOff); })
+                                     .filter(function (v) { return v !== null; });
+                    }
+                });
+            });
+
+            char.migracaoEg4Ids = true;
+            // Retorna SEMPRE true, pelo mesmo motivo das outras migrações.
+            return true;
+        }
+
+        // ── Aviso único: a mecânica das Inclinações de Combate mudou ────────────────
+        // As Inclinações passaram a exigir Nen e Princípios/Técnicas, e as Instâncias
+        // Shingen-Ryu saíram dos Pontos de Inclinação para o P.N. Quem já tinha pontos
+        // distribuídos precisa conferir (e provavelmente realocar) o que comprou, então
+        // o aviso aparece UMA vez por personagem, marcado em char.avisoInclinacoesV2.
+        function avisarRealocacaoInclinacoes(char) {
+            if (!char || char.avisoInclinacoesV2) return;
+            const ci = char.combatInclinations || {};
+            const temAlgo = Object.keys(ci).some(function (k) { return (ci[k] || 0) > 0; });
+            if (!temAlgo) return;   // nada comprado: não há o que realocar
+            const porta = window.podeComprarInclinacoes
+                ? window.podeComprarInclinacoes(char) : { ok: true, motivo: '' };
+            const tc = '#f97316';
+            const ov = document.createElement('div');
+            ov.id = 'inc-v2-overlay';
+            ov.style.cssText = 'position:fixed;inset:0;background:#000000ee;display:flex;align-items:center;justify-content:center;z-index:10000;padding:16px;font-family:Rajdhani,sans-serif';
+            ov.innerHTML = '<div style="background:#0d1117;border:2px solid ' + tc + ';border-radius:20px;padding:20px;width:100%;max-width:400px;box-shadow:0 0 60px ' + tc + '44">'
+                + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:12px;color:' + tc + ';text-transform:uppercase;letter-spacing:2px;margin-bottom:10px">\u2694 As Inclinações mudaram</div>'
+                + '<div style="font-size:11px;color:#d1d5db;line-height:1.65;margin-bottom:12px">'
+                + '<b>Realoque as inclinações que você comprou de acordo com a nova mecânica.</b><br><br>'
+                + 'O que mudou:<br>'
+                + '\u2022 Inclinações de Combate agora exigem Nen e ao menos 1 Princípio ou Técnica desbloqueado.<br>'
+                + '\u2022 As <b>Instâncias Shingen-Ryu</b> saíram dos Pontos de Inclinação: agora custam <b>P.N</b> (2 no Nível 1, 3 no Nível 2).'
+                + '</div>'
+                + (porta.ok ? '' : '<div style="background:#1f2937;border:1px solid #374151;border-radius:9px;padding:9px 11px;font-size:10px;color:#9ca3af;margin-bottom:12px">\u26a0 Este personagem está bloqueado agora: ' + porta.motivo + ' O que já estava investido continua na ficha.</div>')
+                + '<div style="display:flex;gap:8px">'
+                + '<button onclick="window._incV2Fechar()" style="flex:1;padding:11px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Depois</button>'
+                + (porta.ok ? '<button onclick="window._incV2Abrir()" style="flex:2;padding:11px;border-radius:10px;background:' + tc + ';border:none;color:#000;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Realocar agora</button>' : '')
+                + '</div></div>';
+            document.body.appendChild(ov);
+            char.avisoInclinacoesV2 = true;
+            saveCharacter(char);
+        }
+        window._incV2Fechar = function () { document.getElementById('inc-v2-overlay')?.remove(); };
+        window._incV2Abrir = function () {
+            document.getElementById('inc-v2-overlay')?.remove();
+            window._openCombatIncModal && window._openCombatIncModal();
+        };
+
         // A aura base é 100 e os ganhos de nível (auraP) já entram como pontos percentuais
         // somados a essa base (nível 1 = +5 -> 105). Aura Gigantesca segue a mesma régua.
         // Ex.: 100 (base) + 30 (Aura Gigantesca) + 5 (nível 1) = 135.
@@ -1494,12 +2153,32 @@
             return wh.url;
         }
         // ─────────────────────────────────────────────────────────────────────
+        // Aceita expressão de VÁRIOS termos: "2d10 + 1d6 + 5". A regex antiga exigia um
+        // único "NdM" e devolvia total 1 para qualquer outra coisa — então "20d20+5", o
+        // overflow do fim da escada, rolava como **1**. O termo de dados extras que o REN
+        // agora deixa fora do dado base cairia no mesmo buraco.
+        function _termosExpr(expr) {
+            return String(expr || '').split('+').map(function (s) { return s.trim(); }).filter(Boolean);
+        }
         function rollDiceExpr(expr) {
-            const match = (expr || '').match(/^(\d+)d(\d+)$/);
-            if (!match) return { rolls: [1], total: 1 };
-            const n = parseInt(match[1]), d = parseInt(match[2]);
-            const rolls = Array.from({ length: n }, () => Math.floor(Math.random() * d) + 1);
-            return { rolls, total: rolls.reduce((a, b) => a + b, 0) };
+            const termos = _termosExpr(expr);
+            let rolls = [], total = 0, achou = false;
+            termos.forEach(function (termo) {
+                const m = termo.match(/^(\d+)d(\d+)$/);
+                if (m) {
+                    achou = true;
+                    const n = parseInt(m[1]), d = parseInt(m[2]);
+                    for (let i = 0; i < n; i++) {
+                        const v = Math.floor(Math.random() * d) + 1;
+                        rolls.push(v); total += v;
+                    }
+                    return;
+                }
+                const fixo = parseInt(termo);
+                if (!isNaN(fixo)) { achou = true; total += fixo; }
+            });
+            if (!achou) return { rolls: [1], total: 1 };
+            return { rolls: rolls, total: total };
         }
         function rollHatsuDamage(mode, grausRen) {
             const rs = window._hatsuRollState;
@@ -1512,16 +2191,83 @@
             // ── REN: escalona +N Grau(s) de dano neste ataque (já validado o teto de grau antes de perguntar) ──
             const renGraus = Math.max(0, parseInt(grausRen) || 0);
             const useRen = renGraus > 0;
+
+            // ── rm_e12 Aura Condensada armada para DANO ─────────────────────────────
+            // Cada 5% guardados vale +1 Grau/Passo. É grau como qualquer outro, então
+            // obedece ao teto do nível — e divide esse teto com o REN: o REN é escolhido
+            // na pergunta da rolagem, então entra primeiro e a Aura Condensada usa o que
+            // sobrou. A reserva é de uso único: zera nesta rolagem, tenha ela caber ou não.
+            const _acAtivo = ((char.hatsusAtivos || {})[state.hatsuDetailIdx]) || null;
+            const _acRes = (window.reservaAuraCondensada && _acAtivo)
+                ? window.reservaAuraCondensada(_acAtivo) : { pct: 0, destino: null };
+            let acGraus = 0;
+            let acPerdidos = 0;
+            if (_acRes.destino === 'dano' && _acRes.pct > 0 && h) {
+                const _acPassos = window.passosAuraCondensada(_acRes.pct);
+                const _espaco = window.grauDanoDisponivel ? window.grauDanoDisponivel(h, char) : 0;
+                const _sobra = (_espaco === Infinity) ? _acPassos : Math.max(0, _espaco - renGraus);
+                acGraus = Math.min(_acPassos, _sobra);
+                acPerdidos = _acPassos - acGraus;
+                // Gasta a reserva agora. Fica null em vez de ser apagada para o painel
+                // mostrar que o Hatsu já usou a sua carga nesta ativação.
+                _acAtivo.reservaCondensada = { pct: 0, destino: null };
+            }
+
+            const _grausExtra = renGraus + acGraus;
+            // O grau sobe no DADO BASE e o termo de dados extras é recolocado intacto:
+            // 2d6 + 1d6 com +2 graus vira "2d10 + 1d6", não "3d10". Regra do Lucas —
+            // escalar o pacote inteiro deixaria o REN bem mais forte do que deveria.
+            // Decisiva armada pela Ação Protagonista: consumida aqui, antes do dado
+            // ser montado, porque o +1 grau dela anda na mesma escada do REN.
+            const _decH = window.consumirDecisiva ? window.consumirDecisiva(char) : false;
+            const _cargaH = window.consumirEfeito ? window.consumirEfeito(char, 'ri_e24') : false;
+            const _forcaH = (rs.attr === 'FOR' && window.consumirEfeito) ? window.consumirEfeito(char, 'ri_e31') : false;
+            const _dBase = (rs.diceBase || rs.dice);
+            const _dExtra = rs.diceExtra || '';
             let renDice = rs.dice;
-            if (useRen && window.DAMAGE_TABLE) {
-                const _idxD = window.DAMAGE_TABLE.indexOf(rs.dice);
-                if (_idxD >= 0) renDice = window.DAMAGE_TABLE[Math.min(_idxD + renGraus, window.DAMAGE_TABLE.length - 1)];
+            if (_grausExtra > 0 && window.DAMAGE_TABLE) {
+                const _idxD = window.DAMAGE_TABLE.indexOf(_dBase);
+                if (_idxD >= 0) {
+                    const _novoBase = window.DAMAGE_TABLE[Math.min(_idxD + _grausExtra, window.DAMAGE_TABLE.length - 1)];
+                    renDice = _dExtra ? (_novoBase + ' + ' + _dExtra) : _novoBase;
+                }
+            }
+            if (_decH && window.DAMAGE_TABLE) {
+                // Um degrau a mais, em cima do que o REN já subiu. Fica FORA do teto de
+                // Grau de Potência do nível: não é grau comprado, é bônus de Inclinação.
+                const _bAtual = (renDice.split(' + ')[0] || renDice);
+                const _iDec = window.DAMAGE_TABLE.indexOf(_bAtual);
+                if (_iDec >= 0) {
+                    const _novo = window.DAMAGE_TABLE[Math.min(_iDec + (window.DECISIVA_GRAUS || 1), window.DAMAGE_TABLE.length - 1)];
+                    renDice = renDice.indexOf(' + ') >= 0 ? renDice.replace(_bAtual, _novo) : _novo;
+                }
+            }
+            if (acPerdidos > 0) {
+                setTimeout(function () {
+                    alert('Aura Condensada\n\nO teto de Grau de Potência do seu nível aceitou +' + acGraus
+                        + ' de ' + (acGraus + acPerdidos) + '.\n\n' + acPerdidos
+                        + ' grau(s) foram perdidos. Da próxima vez, com o teto cheio, liberar como RD aproveita tudo.');
+                }, 60);
             }
 
             // ── Custo de Aura: ativação do Hatsu + REN (1º grau grátis 1x/dia no REN nível 3; demais 5% cada) ──
             const _auraCost = h ? window.calcHatsuAuraCostFinal(h, state.hatsuDetailIdx).pct : 0;
             let renCost = 0;
             let renUsedFree = false;
+            // Escolher grau no popup é um CAMINHO DE ATIVAÇÃO do REN (decisão do Lucas):
+            // antes era preciso ligar o princípio na aba Ficha primeiro, e quem não ligava
+            // nem via o popup. A taxa de 10% da ativação pela Ficha NÃO é cobrada aqui —
+            // só os 5% por grau — então este caminho sai mais barato de propósito.
+            // Registra também a duração, senão o contador de rodadas da Ficha não acende.
+            let _renLigadoAgora = false;
+            if (useRen && !((char.principiosAtivos || {}).ren)) {
+                if (!char.principiosAtivos) char.principiosAtivos = {};
+                char.principiosAtivos.ren = true;
+                if (!char.principiosRodadas) char.principiosRodadas = {};
+                const _rodRen = (window.PRINCIPIO_RODADAS || {}).ren;
+                char.principiosRodadas.ren = (_rodRen == null) ? null : _rodRen;
+                _renLigadoAgora = true;
+            }
             if (useRen) {
                 renUsedFree = window.isRenFreeUsoDisponivel ? window.isRenFreeUsoDisponivel(char) : false;
                 const grausGratisAprim = window.calcRenGrausGratisAprimoramento ? window.calcRenGrausGratisAprimoramento(char) : 0;
@@ -1577,15 +2323,76 @@
                 }
             });
 
-            // ── Vida ou Morte: o dano conta como CRÍTICO ───────────────────────────
-            // Dobra o resultado dos DADOS (não dos bônus fixos nem do atributo).
+            // ── RYU: só em Hatsu de corpo-a-corpo ──────────────────────────────────
+            // rs.corpoACorpo é gravado pela tela de detalhe (hatsu-detail.js) e vale
+            // quando o Hatsu não comprou alcance nem área e não é Projétil de Aura.
+            // O bônus é plano, então entra junto dos outros extras fixos: o crítico
+            // não o dobra, e ele aparece na fórmula que vai ao Discord.
+            // A arma guardada é reconferida contra o inventário a cada rolagem: se ela
+            // foi vendida ou renomeada, o bônus para de valer sozinho.
+            const _ryuOkH = window.ryuAlcancaHatsu
+                ? window.ryuAlcancaHatsu(rs, h, function (nome) {
+                    return !!(window.ryuAlcancaArma && window.ryuAlcancaArma(findItemData(nome), nome));
+                })
+                : false;
+            const _ryuH = window.calcBonusAcertoRyu
+                ? window.calcBonusAcertoRyu(char, _ryuOkH)
+                : { total: 0 };
+            if (_ryuH.total > 0) {
+                flatBonus += _ryuH.total;
+                flatParts.push('RYU ' + _ryuH.total);
+            }
+
+            // ── Rolagem de ATAQUE, antecipada ──────────────────────────────────────
+            // Ela acontecia DEPOIS do cálculo do dano, e por isso o crítico nunca pôde
+            // dobrar nada: quando o d20 era rolado o total já estava fechado. Agora o
+            // d20 vem primeiro e o dano sabe se o golpe foi crítico.
+            const _atk = (function () {
+                if (!rs.hasAttack) return null;
+                const nivel = rs.nivel || parseInt(char.level) || 1;
+                const pb = getProficiencyBonus(nivel);
+                // Atributo do Ataque pode ser diferente do atributo de Dano (rs.attr)
+                const atkMod = getMod((char.attributes[rs.atkAttr || rs.attr] || {}).value || 10);
+                // Segredo Mortal: força vantagem se modo for Normal
+                const attackMode = (rs.acertoVantagem && effectiveMode === 'NORMAL') ? 'VANTAGEM' : effectiveMode;
+                const attackRoll = getRollResult(attackMode);
+                // RYU entra aqui, e não no rs.acertoBonus montado em hatsu-detail.js:
+                // lá o Hatsu ainda não sabe se é corpo-a-corpo, porque os metros de
+                // alcance e de área são calculados depois do estado da rolagem.
+                const acertoBonus = (rs.acertoBonus || 0) + _ryuH.total + (_decH ? (window.DECISIVA_ACERTO || 2) : 0);
+                // Margem de crítico da ficha (Aura Afiada, Assassino Veterano, Executor),
+                // com piso 18. Comparada contra o d20 USADO — antes era
+                // dice.includes(20), que declarava crítico mesmo quando o 20 era o dado
+                // DESCARTADO numa rolagem com desvantagem.
+                const mc = window.calcMargemCritico ? window.calcMargemCritico(char) : { valor: 20 };
+                return {
+                    pb: pb, atkMod: atkMod, attackMode: attackMode, attackRoll: attackRoll,
+                    acertoBonus: acertoBonus, margem: mc.valor,
+                    isCrit: attackRoll.total >= mc.valor,
+                    isFumble: attackRoll.dice.length === 1 && attackRoll.dice[0] === 1,
+                    attackTotal: window.totalComEnfase(attackRoll, atkMod + pb + acertoBonus,
+                        window.calcPenalidadeEnfase ? window.calcPenalidadeEnfase(char) : 0),
+                };
+            })();
+
+            // ── Vida ou Morte e crítico: dobram os DADOS ───────────────────────────
+            // (não os bônus fixos nem o atributo). Um não soma com o outro: dobrar é
+            // dobrar, e dois dobros viram quádruplo sem base em regra nenhuma.
             const _hCrit = window.hatsuDanoCritico && window.hatsuDanoCritico(_hAtualRoll || {});
+            const _critDobra = _hCrit || !!(_atk && _atk.isCrit);
+            // KO multiplica o dano INTEIRO, depois de tudo — ver multiplicadorDanoKo.
+            const _koMult = window.multiplicadorDanoKo ? window.multiplicadorDanoKo(char) : 1;
             const _dadosTotal = dmgResult.total + extraDiceTotal;
-            const total = (_hCrit ? _dadosTotal * 2 : _dadosTotal) + mod + flatBonus;
+            const _modH = mod + (_forcaH ? Math.max(0, mod) : 0);
+            const total = ((_critDobra ? _dadosTotal * 2 : _dadosTotal) + _modH + flatBonus) * _koMult * (_cargaH ? 2 : 1);
             const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
             const modeLabel = effectiveMode === 'NORMAL' ? '' : ` (${effectiveMode.charAt(0) + effectiveMode.slice(1).toLowerCase()})`;
             const renLabel = useRen ? ' 💪REN' : '';
-            char.history.push({ time, label: `⚡ ${rs.nome} (${rs.attr})${modeLabel}${renLabel}`, dice: dmgResult.rolls.join(', ') + (extraDiceTotal > 0 ? ` (+${extraDiceTotal} extra)` : ''), mod: mod + flatBonus, total, img: state.pendingRollImage || '' });
+            // Marca no histórico quando a Aura Condensada entrou nesta rolagem.
+            const acLabel = acGraus > 0 ? (' 🔋+' + acGraus + 'G') : '';
+            // Dano causado POR MEIO de constructo/arma/criatura: o rótulo diz quem bate.
+            const origemLabel = rs.origem ? ` · por meio de ${rs.origem}` : '';
+            char.history.push({ time, label: `⚡ ${rs.nome} (${rs.attr})${modeLabel}${renLabel}${acLabel}${origemLabel}`, dice: dmgResult.rolls.join(', ') + (extraDiceTotal > 0 ? ` (+${extraDiceTotal} extra)` : ''), mod: mod + flatBonus, total, img: state.pendingRollImage || '' });
             if (char.history.length > 50) char.history.shift();
             saveCharacter(char);
 
@@ -1609,36 +2416,32 @@
                 const curaTotal = (_hCrit ? cr.total * 2 : cr.total) + mod;
                 _curaLinha = `\n💚 Cura: [${cr.rolls.join('+')}] ${mod >= 0 ? '+' : ''}${mod} = **${curaTotal}** de vida`;
             }
-            const _selo = _hMax ? '  **[DANO MAXIMIZADO POR RESTRIÇÃO]**' : (_hCrit ? '  **[CRÍTICO — VIDA OU MORTE]**' : '');
+            const _selo = (_hMax ? '  **[DANO MAXIMIZADO POR RESTRIÇÃO]**'
+                    : (_hCrit ? '  **[CRÍTICO — VIDA OU MORTE]**'
+                    : ((_atk && _atk.isCrit) ? '  **[CRÍTICO — DADOS DOBRADOS]**' : '')))
+                + (_koMult > 1 ? '  **[KO — DANO ×' + _koMult + ']**' : '');
             const formula = `${_partes.join(' + ')}${_partes.length ? ' + ' : ''}${rs.attr}${flatStr}${_selo}`;
             const extrasText = extraLines.length > 0 ? '\n' + extraLines.join('\n') : '';
 
             // ── Rolagem de Ataque ─────────────────────────────────────────────
             let attackLine = '';
-            if (rs.hasAttack) {
-                const nivel = rs.nivel || parseInt(char.level) || 1;
-                const pb = getProficiencyBonus(nivel);
-                // Atributo do Ataque pode ser diferente do atributo de Dano (rs.attr)
-                const atkMod = getMod((char.attributes[rs.atkAttr || rs.attr] || {}).value || 10);
-                // Segredo Mortal: força vantagem se modo for Normal
-                const attackMode = (rs.acertoVantagem && effectiveMode === 'NORMAL') ? 'VANTAGEM' : effectiveMode;
-                const attackRoll = getRollResult(attackMode);
-                const acertoBonus = rs.acertoBonus || 0;
-                const attackTotal = attackRoll.total + atkMod + pb + acertoBonus;
-                const isCrit = attackRoll.dice.includes(20);
-                const isFumble = attackRoll.dice.length === 1 && attackRoll.dice[0] === 1;
-                const critSuffix = isCrit ? ' 🎯 **CRÍTICO!**' : isFumble ? ' 💀 **FALHA CRÍTICA!**' : '';
-                let attackModStr = `+${atkMod + pb + acertoBonus}`;
-                if ((atkMod + pb + acertoBonus) < 0) attackModStr = `${atkMod + pb + acertoBonus}`;
-                const attackModeLabel = attackMode !== 'NORMAL' ? ` (${attackMode.charAt(0) + attackMode.slice(1).toLowerCase()})` : '';
-                attackLine = `\nAtaque${attackModeLabel}: [${attackRoll.dice.join(', ')}] ${attackModStr} = **${attackTotal}**${critSuffix}`;
+            if (_atk) {
+                const _somaAtk = _atk.atkMod + _atk.pb + _atk.acertoBonus;
+                const critSuffix = _atk.isCrit
+                    ? ` 🎯 **CRÍTICO!**${_atk.margem < 20 ? ` (margem ${_atk.margem}+)` : ''}`
+                    : (_atk.isFumble ? ' 💀 **FALHA CRÍTICA!**' : '');
+                const attackModStr = _somaAtk < 0 ? `${_somaAtk}` : `+${_somaAtk}`;
+                const attackModeLabel = _atk.attackMode !== 'NORMAL'
+                    ? ` (${_atk.attackMode.charAt(0) + _atk.attackMode.slice(1).toLowerCase()})` : '';
+                attackLine = `\nAtaque${attackModeLabel}: [${_atk.attackRoll.dice.join(', ')}] ${attackModStr} = **${_atk.attackTotal}**${critSuffix}`;
             } else if (rs.cd) {
                 attackLine = `\n🎯 CD do TR: **${rs.cd}**`;
             }
             // ── Fim rolagem de ataque ─────────────────────────────────────────
 
-            const renNote = useRen ? `\n💪 **REN ativado** — +${renGraus} Grau${renGraus>1?'s':''} de dano${renUsedFree ? ' (1º grátis no dia)' : ''}` : '';
-            const content = `⚡ **${char.name}** usou **${rs.nome}**${modeLabel}${attackLine}\nDano: [${dmgResult.rolls.join('+')}]${allModStr} = **${total}** (${formula})${_curaLinha}${extrasText}${renNote}`;
+            const renNote = useRen ? `\n💪 **REN ativado** — +${renGraus} Grau${renGraus>1?'s':''} de dano${renUsedFree ? ' (1º grátis no dia)' : ''}${_renLigadoAgora ? ' (princípio ligado agora)' : ''}` : '';
+            const origemNote = rs.origem ? `\n🧩 **Este dano é causado por ${rs.origem}**, não pelo usuário diretamente` : '';
+            const content = `⚡ **${char.name}** usou **${rs.nome}**${modeLabel}${attackLine}\nDano: [${dmgResult.rolls.join('+')}]${allModStr} = **${total}** (${formula})${_curaLinha}${extrasText}${renNote}${origemNote}`;
             sendRollToDiscord(content, state.pendingRollImage);
             state.pendingRollImage = '';
             if (state.activeTab !== 'DADOS') state.unreadRolls = true;
@@ -1679,32 +2482,53 @@
                 fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => {});
             }
         }
-        // Ataque básico do Constructo (Ficha do Constructo): sem efeito de dano próprio,
-        // o manual usa 1d6 + atributo (normalmente FOR/DES), mas o jogador pode escolher
-        // qual atributo do constructo entra na rolagem (guardado em h.constructo.atributoAtaque).
+        // Ataque do Constructo (Ficha do Constructo): ACERTO e DANO, como qualquer
+        // outro ataque da ficha. Antes isto rolava só 1d6 e mandava como dano — o d20
+        // ficava na mão do jogador. A composição (atributo do constructo + proficiência
+        // do Materializador) e o dado de dano vêm de ataqueDoConstructo; ver o comentário
+        // lá, com as duas passagens do livro que mandam nisso.
         window.rollConstructoAtaque = function(idx, cIdx) {
             const char = state.currentChar;
             const h = (char.hatsus || [])[idx];
             if (!h) return;
             // cIdx = qual cópia do constructo está atacando (0 = a primeira).
-            const cst = window._hCst ? window._hCst(h, parseInt(cIdx) || 0) : h.constructo;
+            const c = parseInt(cIdx) || 0;
+            const cst = window._hCst ? window._hCst(h, c) : h.constructo;
             if (!cst) return;
-            const atributos = Object.assign({ FOR: 0, DES: 0, CON: 0, INT: 0, SAB: 0, PRE: 0 }, cst.atributos || {});
-            const attrKey = (cst.atributoAtaque && atributos.hasOwnProperty(cst.atributoAtaque))
-                ? cst.atributoAtaque
-                : (atributos.FOR >= atributos.DES ? 'FOR' : 'DES');
-            const attrMod = atributos[attrKey] || 0;
-            const roll = rollDiceExpr('1d6');
+            // O dano comprado do Hatsu só está montado para o Hatsu ABERTO.
+            const info = window.ataqueDoConstructo
+                ? window.ataqueDoConstructo(char, h, c, state.hatsuDetailIdx === idx)
+                : null;
+            const attrKey = info ? info.attr : 'FOR';
+            const attrMod = info ? info.atributo : 0;
+            const pb = info ? info.proficiencia : 0;
+            const acertoExtra = info ? info.acertoExtra : 0;
+            const dado = info ? info.dado : '1d6';
+            // A ÊNFASE é recurso DO JOGADOR: são 3 por sessão e a falha dela concede
+            // Ação Protagonista a ele. O constructo nunca gasta uma. Vantagem e
+            // desvantagem continuam valendo normalmente.
+            const modo = state.rollMode === 'ÊNFASE' ? 'NORMAL' : state.rollMode;
+            const acerto = getRollResult(modo);
+            const acertoMod = attrMod + pb + acertoExtra;
+            const acertoTotal = acerto.total + acertoMod;
+            const roll = rollDiceExpr(dado);
             const total = roll.total + attrMod;
             const nome = cst.nome || `${h.nome} (Constructo)`;
+            const sinal = n => (n >= 0 ? '+' : '') + n;
+            const fdTxt = info && info.fusaoDiv
+                ? (info.fusaoDiv.modo === 'fundir' ? ' · 🔗 Fundido' : ' · ✂️ Dividido')
+                : '';
             const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-            char.history.push({ time, label: `🐣 ${nome} — Ataque`, dice: roll.rolls.join(', '), mod: attrMod, total, img: cst.imagemUrl || '' });
-            if (char.history.length > 50) char.history.shift();
+            char.history.push({ time, label: `🐣 ${nome} — Acerto (${acerto.label})`, dice: acerto.dice.join(', '), mod: acertoMod, total: acertoTotal, img: cst.imagemUrl || '' });
+            char.history.push({ time, label: `🐣 ${nome} — Dano`, dice: roll.rolls.join(', '), mod: attrMod, total, img: cst.imagemUrl || '' });
+            while (char.history.length > 50) char.history.shift();
             saveCharacter(char);
-            const content = `🐣 **${nome}** ataca!\nDano: [${roll.rolls.join('+')}] ${attrMod >= 0 ? '+' : ''}${attrMod} = **${total}** (1d6 + ${attrKey})`;
+            const content = `🐣 **${nome}** ataca!${fdTxt}\n`
+                + `Acerto: [${acerto.dice.join(', ')}] ${sinal(acertoMod)} = **${acertoTotal}** (1d20 ${sinal(attrMod)} ${attrKey} ${sinal(pb)} prof.${acertoExtra ? ' ' + sinal(acertoExtra) + ' Fusão/Divisão' : ''})\n`
+                + `Dano: [${roll.rolls.join('+')}] ${sinal(attrMod)} = **${total}** (${dado} + ${attrKey})`;
             sendRollToDiscord(content, cst.imagemUrl);
             if (state.activeTab !== 'DADOS') state.unreadRolls = true;
-            if (window._showXpToast) window._showXpToast(`🎲 ${nome}: ${total} de dano enviado ao Discord!`);
+            if (window._showXpToast) window._showXpToast(`🎲 ${nome}: acerto ${acertoTotal} · ${total} de dano`);
             render(true);
         };
         function openAttackModal(weaponName, diceExpr, tipoDano) {
@@ -1770,6 +2594,70 @@
             };
             reader.readAsDataURL(input.files[0]);
         };
+        // ── Marcas e cargas da Emissão ──────────────────────────────────────────────
+        // Aplicar cobra 5% de aura; retirar devolve os mesmos 5%. Sem teto de
+        // quantidade: só a aura limita, por decisão de regra do Lucas.
+        //
+        // IMPORTANTE: a marca "com REN" do Plano Avançado é só o modo de aplicar.
+        // Ela NÃO liga o princípio REN — se ligasse, começaria a contagem de rodadas
+        // do REN, que não tem nada a ver com este efeito.
+        window._aplicarMarcaEmissao = function (idx, id) {
+            const char = state.currentChar;
+            const custo = window.MARCA_EMISSAO_CUSTO || 5;
+            const aura = char.vitals.aura || 0;
+            const cfg = window.marcaEmissao(id);
+            if (!cfg) return;
+            if (aura < custo) {
+                alert('Aura insuficiente\n\nAplicar uma ' + cfg.unidade + ' custa ' + custo + '% e você tem ' + aura + '%.');
+                return;
+            }
+            if (!char.marcasEmissao) char.marcasEmissao = {};
+            if (!char.marcasEmissao[idx]) char.marcasEmissao[idx] = {};
+            char.vitals.aura = Math.max(0, aura - custo);
+            char.marcasEmissao[idx][id] = window.contagemMarcas(char, idx, id) + 1;
+            saveCharacter(char);
+            render(true);
+        };
+        window._retirarMarcaEmissao = function (idx, id) {
+            const char = state.currentChar;
+            const atual = window.contagemMarcas(char, idx, id);
+            if (atual <= 0) return;
+            const custo = window.MARCA_EMISSAO_CUSTO || 5;
+            char.marcasEmissao[idx][id] = atual - 1;
+            // Devolve a aura, sem passar do máximo.
+            char.vitals.aura = Math.min(char.vitals.auraMax || 100, (char.vitals.aura || 0) + custo);
+            saveCharacter(char);
+            render(true);
+        };
+        window._setModoMarcaEmissao = function (idx, id, modo) {
+            const char = state.currentChar;
+            if (!char.marcasEmissao) char.marcasEmissao = {};
+            if (!char.marcasEmissao[idx]) char.marcasEmissao[idx] = {};
+            char.marcasEmissao[idx][id + '_modo'] = String(modo);
+            saveCharacter(char);
+            render(true);
+        };
+
+        window._armarEfeito = function (id) {
+            const char = state.currentChar;
+            const r = window.armarEfeito ? window.armarEfeito(char, id) : null;
+            if (r === 'semAura') { const e = window.efeitoArmavel(id); return alert('Aura insuficiente\n\n' + e.nome + ' custa ' + e.custoAura + '% e você tem ' + (char.vitals.aura || 0) + '%.'); }
+            if (r !== 'ok') return;
+            saveCharacter(char); render(true);
+            const e = window.efeitoArmavel(id);
+            window._showXpToast && window._showXpToast(e.icone + ' ' + e.nome + ' armado — ' + e.rotulo.toLowerCase() + '.');
+        };
+
+        // Marca este Hatsu como de Ilusão, para o cartão de Sanidade do alvo somar
+        // a linha certa. Fica na ficha do Hatsu porque não existe etiqueta de
+        // "Ilusão" no banco de efeitos — quem sabe é a mesa.
+        window._hSetIlusaoHatsu = function (idx, val) {
+            const h = (state.currentChar.hatsus || [])[idx];
+            if (!h) return;
+            if (val) h.ilusaoSanidade = String(val); else delete h.ilusaoSanidade;
+            saveCharacter(state.currentChar);
+            render(true);
+        };
         window._hClearHatsuAttachImage = function(idx) {
             const h = (state.currentChar.hatsus || [])[idx];
             if (!h) return;
@@ -1828,15 +2716,43 @@
             const rs = window._hatsuRollState;
             const char = state.currentChar;
             const h = (char.hatsus||[])[state.hatsuDetailIdx];
-            const grausDisp = (rs && rs.hasBaseDmg && h && window.calcRenGrauDisponivel) ? window.calcRenGrauDisponivel(h, char) : 0;
-            // Limita também pelo espaço restante na tabela de dano (não há sentido oferecer mais graus que ela tem)
-            const idxAtual = (rs && window.DAMAGE_TABLE) ? window.DAMAGE_TABLE.indexOf(rs.dice) : -1;
+            // ── RYU: perguntar como o Hatsu é entregue, uma vez por Hatsu ──────────
+            // Vem antes do balão do REN para a ordem ficar: o que é o golpe → quanto
+            // de aura gastar nele → rolar. Depois de responder, _gravarRyuEntrega
+            // chama esta mesma função de novo e o fluxo continua normalmente.
+            if (window.ryuPrecisaPerguntar && window.ryuPrecisaPerguntar(char, h, rs)) {
+                state.pendingRyuEntrega = { idx: state.hatsuDetailIdx, mode: mode || state.rollMode || 'NORMAL' };
+                render(true);
+                return;
+            }
+            // grauDanoDisponivel em vez de calcRenGrauDisponivel: o segundo exige o REN já
+            // ATIVO na ficha, e por decisão do Lucas escolher um grau AQUI é um caminho de
+            // ativação do REN. A conta do teto de grau é idêntica nos dois.
+            const grausDisp = (rs && rs.hasBaseDmg && h && window.grauDanoDisponivel)
+                ? window.grauDanoDisponivel(h, char) : 0;
+            // O grau anda na ESCADA, então a posição sai do DADO BASE. Usar rs.dice aqui era
+            // o bug: com dados extras ele é uma string fora da tabela ("3d6"), o indexOf
+            // devolvia −1, grausTabela virava 0 e o popup era pulado em silêncio.
+            const _base = (rs && (rs.diceBase || rs.dice)) || '';
+            const idxAtual = window.DAMAGE_TABLE ? window.DAMAGE_TABLE.indexOf(_base) : -1;
             const grausTabela = idxAtual >= 0 ? (window.DAMAGE_TABLE.length - 1 - idxAtual) : 0;
-            const grausMax = Math.min(grausDisp, grausTabela);
+            const grausMax = Math.min(grausDisp === Infinity ? grausTabela : grausDisp, grausTabela);
             if (grausMax > 0) {
                 state.pendingRenRoll = { mode, grausMax, grausEscolhidos: 1 };
                 render(true);
             } else {
+                // Antes o skip era MUDO: o jogador não tinha como distinguir teto cheio de
+                // bug. Agora o motivo aparece, no mesmo formato do aviso da Aura Condensada.
+                if (rs && rs.hasBaseDmg) {
+                    const _motivo = !((char.nenDominio || {}).ren > 0)
+                        ? 'Você ainda não treinou o princípio REN.'
+                        : (grausTabela <= 0
+                            ? 'O dado de dano deste Hatsu já está no topo da escada de grau/passo.'
+                            : 'O teto de Grau de Potência do seu nível já está todo usado neste Hatsu.');
+                    setTimeout(function () {
+                        alert('REN indisponível neste golpe\n\n' + _motivo);
+                    }, 60);
+                }
                 rollHatsuDamage(mode, 0);
             }
         }
@@ -1852,6 +2768,580 @@
             if (!pr) return;
             rollHatsuDamage(pr.mode, useRen ? (pr.grausEscolhidos || 1) : 0);
         };
+        // ── Balão de PACOTES dos princípios escaláveis (TEN, EN, KEN) ───────────────
+        // Mesmo desenho do balão de ativação do Hatsu e do popup de REN: contador, custo
+        // somado e o resultado antes de confirmar. O botão de confirmar fica apagado
+        // quando a aura ou as Reações não cobrem a escolha — foi o que o Lucas pediu.
+        window._abrirEscalaPrincipio = function (key, custo) {
+            const char = state.currentChar;
+            const maxPac = window.pacotesPossiveisPrincipio ? window.pacotesPossiveisPrincipio(char, key) : 1;
+            if (maxPac <= 0) {
+                const c = window.custoPacotePrincipio ? window.custoPacotePrincipio(char, key) : { aura: custo, reacoes: 0 };
+                alert('Recurso insuficiente para ativar.\n\nUm pacote custa ' + c.aura + '% de aura'
+                    + (c.reacoes > 0 ? ' e ' + c.reacoes + ' Reaç' + (c.reacoes > 1 ? 'ões' : 'ão') : '') + '.');
+                return;
+            }
+            // Com um pacote só disponível não há escolha a fazer: ativa direto.
+            if (maxPac === 1) { window._activatePrincipio(key, custo, 1); return; }
+            state.pendingEscala = { key: key, custo: custo, pacotes: 1, maxPac: maxPac };
+            render(true);
+        };
+        window._setEscalaPacotes = function (n) {
+            if (!state.pendingEscala) return;
+            const max = state.pendingEscala.maxPac || 1;
+            state.pendingEscala.pacotes = Math.max(1, Math.min(max, parseInt(n) || 1));
+            render(true);
+        };
+        window._fecharEscalaPrincipio = function () { state.pendingEscala = null; render(true); };
+        window._confirmarEscalaPrincipio = function () {
+            const pe = state.pendingEscala;
+            state.pendingEscala = null;
+            if (!pe) return;
+            window._activatePrincipio(pe.key, pe.custo, pe.pacotes);
+        };
+        // Resultado de cada princípio para N pacotes, só para mostrar no balão.
+        function _resultadoEscala(char, key, pac) {
+            if (key === 'ten') {
+                const base = window.calcTenRD ? window.calcTenRD(char) : 0;
+                return '+' + (base * pac) + ' RD' + (pac > 1 ? ' (era +' + base + ')' : '');
+            }
+            if (key === 'en') {
+                const adv = window.calcAvancadoBonus ? window.calcAvancadoBonus(char, 'en') : { diametro: 3 };
+                const d0 = adv.diametro || 3;
+                const dv = d0 + (pac - 1) * 3;
+                return String(dv).replace('.', ',') + 'm de diâmetro' + (pac > 1 ? ' (era ' + String(d0).replace('.', ',') + 'm)' : '');
+            }
+            if (key === 'ken') return 'CA ×' + (1 + pac) + (pac > 1 ? ' (era ×2)' : '');
+            return '';
+        }
+        // ── Menu do SHU ─────────────────────────────────────────────────────────────
+        // O SHU não escala por pacotes como TEN/EN/KEN: são 4 alternativas a 5% cada,
+        // acumuláveis, sobre uma base de 10%. O item envolvido é escolhido aqui porque
+        // o dado de dano do SHU só vale para ele.
+        window._abrirMenuShu = function () {
+            const char = state.currentChar;
+            const e = window.escolhasShu ? window.escolhasShu(char) : {};
+            state.pendingShu = {
+                mais: e.mais || 0, alvoMais: e.alvoMais || 'dano', cerco: !!e.cerco,
+                duracao: e.duracao || 0, tamanho: e.tamanho || 0, item: e.item || '',
+            };
+            render(true);
+        };
+        window._setShuCampo = function (campo, valor) {
+            if (!state.pendingShu) return;
+            const max = window.SHU_MENU_MAX || 6;
+            if (campo === 'cerco') state.pendingShu.cerco = !state.pendingShu.cerco;
+            else if (campo === 'alvoMais') state.pendingShu.alvoMais = (valor === 'ca') ? 'ca' : 'dano';
+            else if (campo === 'item') state.pendingShu.item = String(valor || '');
+            else state.pendingShu[campo] = Math.max(0, Math.min(max, parseInt(valor) || 0));
+            render(true);
+        };
+        window._fecharMenuShu = function () { state.pendingShu = null; render(true); };
+        window._confirmarMenuShu = function () {
+            const ps = state.pendingShu;
+            state.pendingShu = null;
+            if (!ps) return;
+            const char = state.currentChar;
+            char.shuEscolhas = {
+                mais: ps.mais, alvoMais: ps.alvoMais, cerco: ps.cerco,
+                duracao: ps.duracao, tamanho: ps.tamanho, item: ps.item,
+            };
+            // O custo é lido de char.shuEscolhas dentro do _activatePrincipio, por isso
+            // a gravação acontece ANTES da chamada.
+            window._activatePrincipio('shu', 0, 1);
+        };
+        function renderMenuShuModalHtml() {
+            if (!state.pendingShu) return '';
+            const char = state.currentChar;
+            const ps = state.pendingShu;
+            const sup = !!((char.nenDominio || {}).shu_sup);
+            const max = window.SHU_MENU_MAX || 6;
+            // SHU_MENU estava declarado e nunca lido, enquanto este balão reescrevia os
+            // quatro rótulos e o "+5%" na mão — dívida minha, do patch do menu do SHU.
+            // Agora o texto sai do banco: mudar a alternativa lá muda a tela.
+            const _sm = id => (window.SHU_MENU || []).filter(m => m.id === id)[0] || {};
+            const _rot = id => _sm(id).rotulo || '';
+            const _pct = id => '+' + (_sm(id).custo != null ? _sm(id).custo : 5) + '%';
+            const custo = window.custoShu ? window.custoShu(char, ps) : 10;
+            const cabe = (char.vitals.aura || 0) >= custo;
+            // O 1d4 da CA só é rolado na confirmação, então o balão mostra "1d4 + N".
+            const prev = window.calcShuAtivo
+                ? window.calcShuAtivo(Object.assign({}, char, { shuEscolhas: ps, shuCaRolado: 0 }))
+                : { dadoDano: '1d4', caPasso: 0, rodadas: 1, metros: 1, cerco: false };
+            const contador = function (campo, rotulo, nota) {
+                const v = ps[campo] || 0;
+                const btn = function (n, lbl) {
+                    const sel = v === n;
+                    return '<button onclick="window._setShuCampo(\'' + campo + '\',' + n + ')" style="width:26px;height:26px;border-radius:7px;'
+                        + 'font-family:Orbitron,sans-serif;font-weight:900;font-size:11px;cursor:pointer;border:1px solid '
+                        + (sel ? '#a78bfa' : '#374151') + ';background:' + (sel ? '#a78bfa33' : '#1f2937')
+                        + ';color:' + (sel ? '#a78bfa' : '#9ca3af') + '">' + lbl + '</button>';
+                };
+                let steps = btn(0, '–');
+                for (let i = 1; i <= max; i++) steps += btn(i, String(i));
+                return '<div style="background:#0f1117;border:1px solid #1f2937;border-radius:9px;padding:8px;margin-bottom:6px;text-align:left">'
+                    + '<div style="font-size:9px;font-weight:700;color:#d1d5db">' + rotulo + '</div>'
+                    + (nota ? '<div style="font-size:7px;color:#6b7280;margin-top:1px">' + nota + '</div>' : '')
+                    + '<div style="display:flex;gap:3px;margin-top:5px;flex-wrap:wrap">' + steps + '</div></div>';
+            };
+            // Armas do inventário, para dizer em QUE o SHU foi aplicado.
+            const _itens = (char.inventory || []).map(function (it) { return it && it.name; }).filter(Boolean);
+            const itemOpts = ['<option value="">— escolher item —</option>'].concat(_itens.map(function (nm) {
+                return '<option value="' + nm.replace(/"/g, '&quot;') + '"' + (ps.item === nm ? ' selected' : '') + '>' + nm + '</option>';
+            })).join('');
+            const alvoBtns = sup
+                ? '<div style="font-size:8px;color:#4ade80;margin-top:4px">SHU Superior: vale no Dano E na CA ao mesmo tempo.</div>'
+                : '<div style="display:flex;gap:4px;margin-top:5px">'
+                    + ['dano', 'ca'].map(function (a) {
+                        const sel = ps.alvoMais === a;
+                        return '<button onclick="window._setShuCampo(\'alvoMais\',\'' + a + '\')" style="flex:1;padding:5px;border-radius:7px;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer;border:1px solid '
+                            + (sel ? '#a78bfa' : '#374151') + ';background:' + (sel ? '#a78bfa33' : '#1f2937')
+                            + ';color:' + (sel ? '#a78bfa' : '#9ca3af') + '">' + (a === 'ca' ? 'na CA' : 'no Dano') + '</button>';
+                    }).join('') + '</div>';
+            return '<div style="position:fixed;inset:0;background:#000000cc;display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;font-family:Rajdhani,sans-serif;overflow:auto">'
+                + '<div style="background:#0d1117;border:2px solid #a78bfa;border-radius:18px;padding:20px;width:100%;max-width:360px;box-shadow:0 0 40px #a78bfa44;text-align:center;max-height:92vh;overflow:auto">'
+                + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:13px;color:#a78bfa;text-transform:uppercase;letter-spacing:2px">SHU — o que agregar?</div>'
+                + '<div style="font-size:9px;color:#6b7280;margin-top:5px;line-height:1.5">Base: <b style="color:#9ca3af">10% de aura</b> → +1d4 no Dano e na CA de um item de 1m, por 1 rodada. Cada alternativa custa <b style="color:#9ca3af">+5%</b>.</div>'
+                + '<div style="background:#0f1117;border:1px solid #1f2937;border-radius:9px;padding:8px;margin:10px 0 6px;text-align:left">'
+                + '<div style="font-size:9px;font-weight:700;color:#d1d5db;margin-bottom:4px">Item envolvido</div>'
+                + '<select onchange="window._setShuCampo(\'item\', this.value)" style="width:100%;background:#1f2937;border:1px solid #374151;color:#e5e7eb;border-radius:7px;padding:6px;font-size:9px">'
+                + itemOpts + '</select>'
+                + '<div style="font-size:7px;color:#6b7280;margin-top:3px">O dado de dano do SHU só entra na rolagem desta arma.</div></div>'
+                + '<div style="background:#0f1117;border:1px solid #1f2937;border-radius:9px;padding:8px;margin-bottom:6px;text-align:left">'
+                + '<div style="font-size:9px;font-weight:700;color:#d1d5db">' + _rot('mais') + '</div>'
+                + '<div style="font-size:7px;color:#6b7280;margin-top:1px">No Dano, cada compra sobe 1 degrau na escada (como REN). Na CA, cada compra vale +1.</div>'
+                + '<div style="display:flex;gap:3px;margin-top:5px;flex-wrap:wrap">'
+                + (function () { let s = ''; for (let i = 0; i <= max; i++) {
+                    const sel = (ps.mais || 0) === i;
+                    s += '<button onclick="window._setShuCampo(\'mais\',' + i + ')" style="width:26px;height:26px;border-radius:7px;font-family:Orbitron,sans-serif;font-weight:900;font-size:11px;cursor:pointer;border:1px solid '
+                      + (sel ? '#a78bfa' : '#374151') + ';background:' + (sel ? '#a78bfa33' : '#1f2937')
+                      + ';color:' + (sel ? '#a78bfa' : '#9ca3af') + '">' + (i === 0 ? '–' : i) + '</button>'; } return s; })()
+                + '</div>' + ((ps.mais || 0) > 0 ? alvoBtns : '') + '</div>'
+                + '<div style="background:#0f1117;border:1px solid #1f2937;border-radius:9px;padding:8px;margin-bottom:6px;text-align:left">'
+                + '<div style="display:flex;align-items:center;gap:8px">'
+                + '<div style="flex:1"><div style="font-size:9px;font-weight:700;color:#d1d5db">' + _rot('cerco') + '</div>'
+                + '<div style="font-size:7px;color:#6b7280;margin-top:1px">' + _pct('cerco') + '</div></div>'
+                + '<button onclick="window._setShuCampo(\'cerco\')" style="flex-shrink:0;padding:6px 12px;border-radius:7px;font-size:9px;font-weight:900;cursor:pointer;border:1px solid '
+                + (ps.cerco ? '#a78bfa' : '#374151') + ';background:' + (ps.cerco ? '#a78bfa33' : '#1f2937')
+                + ';color:' + (ps.cerco ? '#a78bfa' : '#9ca3af') + '">' + (ps.cerco ? '✓ Sim' : 'Não') + '</button></div></div>'
+                + contador('duracao', _rot('duracao'), _pct('duracao') + ' por rodada')
+                + contador('tamanho', _rot('tamanho'),
+                    sup ? 'SHU Superior: grátis, a aura é a mesma em qualquer tamanho.' : _pct('tamanho') + ' por metro')
+                + '<div style="background:#a78bfa10;border:1px solid #a78bfa33;border-radius:10px;padding:10px;margin-top:4px">'
+                + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:13px;color:#a78bfa">+'
+                + prev.dadoDano + ' Dano · +1d4' + ((prev.caPasso || 0) > 0 ? ' +' + prev.caPasso : '') + ' CA</div>'
+                + '<div style="font-size:7px;color:#6b7280">o 1d4 da CA é rolado na ativação</div>'
+                + '<div style="font-size:9px;color:#9ca3af;margin-top:3px">' + prev.rodadas + ' rodada(s) · até '
+                + String(prev.metros).replace('.', ',') + 'm' + (prev.cerco ? ' · Arma de Cerco' : '') + '</div>'
+                + '<div style="font-size:10px;color:' + (cabe ? '#a78bfa' : '#f87171') + ';font-weight:900;margin-top:5px">Custo: '
+                + custo + '% de aura' + (cabe ? '' : ' — aura insuficiente') + '</div></div>'
+                + '<div style="display:flex;gap:8px;margin-top:14px">'
+                + '<button onclick="window._fecharMenuShu()" style="flex:1;padding:12px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Cancelar</button>'
+                + '<button ' + (cabe ? 'onclick="window._confirmarMenuShu()"' : 'disabled')
+                + ' style="flex:2;padding:12px;border-radius:10px;background:#a78bfa;border:none;color:#000;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:'
+                + (cabe ? 'pointer' : 'not-allowed') + ';opacity:' + (cabe ? '1' : '0.5') + '">Ativar SHU</button>'
+                + '</div></div></div>';
+        }
+
+        // ── Balão da tabela do RYU ──────────────────────────────────────────────────
+        // O RYU não escala por pacotes nem por menu de alternativas: o custo é fechado
+        // em 30%, e a única decisão é QUAL TABELA seguir. Como as seis tabelas são
+        // ordens diferentes das mesmas três linhas finais, escolher a tabela é escolher
+        // em que turno cada linha vai cair — adiantar o golpe forte (CA+5 / Atq+5) para
+        // o 4º turno ou guardá-lo para o 6º. Essa é a decisão tática do princípio, e
+        // ela precisava de uma tela: antes o jogador ligava o RYU e recebia +3 de CA.
+        window._abrirTabelaRyu = function () {
+            const char = state.currentChar;
+            const disp = window.tabelasRyuDisponiveis ? window.tabelasRyuDisponiveis(char) : [];
+            if (!disp.length) { alert('Nenhuma tabela de RYU disponível.'); return; }
+            state.pendingRyu = { tabela: disp[0].i };
+            render(true);
+        };
+        window._setTabelaRyu = function (i) {
+            if (!state.pendingRyu) return;
+            state.pendingRyu.tabela = parseInt(i) || 0;
+            render(true);
+        };
+        window._fecharTabelaRyu = function () { state.pendingRyu = null; render(true); };
+        window._confirmarTabelaRyu = function () {
+            const pr = state.pendingRyu;
+            state.pendingRyu = null;
+            if (!pr) return;
+            const char = state.currentChar;
+            // Gravado ANTES de ativar: a mensagem de ativação e calcRyuAtivo leem daqui.
+            char.ryuTabela = pr.tabela;
+            char.ryuTurno = 1;
+            window._activatePrincipio('ryu', 30, 1);
+        };
+        function renderTabelaRyuModalHtml() {
+            if (!state.pendingRyu) return '';
+            const char = state.currentChar;
+            const sel = state.pendingRyu.tabela;
+            const disp = window.tabelasRyuDisponiveis ? window.tabelasRyuDisponiveis(char) : [];
+            const ryB = window.calcAvancadoBonus ? window.calcAvancadoBonus(char, 'ryu') : { tabelaBonus: 0 };
+            const extra = ryB.tabelaBonus || 0;
+            const max = window.RYU_TURNOS_MAX || 6;
+            const cabe = (char.vitals.aura || 0) >= 30;
+            const COR = '#38bdf8';
+            const cartoes = disp.map(function (o) {
+                const on = o.i === sel;
+                const linhas = (o.tabela.linhas || []).map(function (l, k) {
+                    const rot = k === 0 ? 'Turnos 1-3' : (l.turno + ' turno');
+                    return '<div style="display:flex;gap:6px;font-size:8px;color:' + (on ? '#e5e7eb' : '#6b7280') + ';padding:2px 0">'
+                        + '<span style="width:62px;flex-shrink:0;color:#9ca3af">' + rot + '</span>'
+                        + '<span style="flex:1">+' + (l.ca + extra) + ' CA</span>'
+                        + '<span style="flex:1">+' + (l.ataqueDano + extra) + ' Atq/Dano</span>'
+                        + '<span style="flex:1">' + (l.reacoes == null ? '—' : ('+' + (l.reacoes + extra) + ' Reaç.')) + '</span>'
+                        + '</div>';
+                }).join('');
+                return '<button onclick="window._setTabelaRyu(' + o.i + ')" style="display:block;width:100%;text-align:left;'
+                    + 'border-radius:10px;padding:8px 10px;margin-bottom:6px;cursor:pointer;border:1px solid '
+                    + (on ? COR : '#1f2937') + ';background:' + (on ? COR + '15' : '#0f1117') + '">'
+                    + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:9px;color:'
+                    + (on ? COR : '#9ca3af') + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">'
+                    + (on ? '✓ ' : '') + o.tabela.nome + (o.tabela.superior ? ' · Superior' : '') + '</div>'
+                    + linhas + '</button>';
+            }).join('');
+            return '<div style="position:fixed;inset:0;background:#000000cc;display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;font-family:Rajdhani,sans-serif;overflow:auto">'
+                + '<div style="background:#0d1117;border:2px solid ' + COR + ';border-radius:18px;padding:20px;width:100%;max-width:380px;box-shadow:0 0 40px ' + COR + '44;text-align:center;max-height:92vh;overflow:auto">'
+                + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:13px;color:' + COR + ';text-transform:uppercase;letter-spacing:2px">RYU — qual tabela?</div>'
+                + '<div style="font-size:9px;color:#6b7280;margin-top:5px;line-height:1.5">As tabelas são a mesma combinação de linhas em <b style="color:#9ca3af">ordens diferentes</b>. Escolha uma e siga até o ' + max + 'º turno — o botão <b style="color:#9ca3af">Passar turno</b> anda nela.</div>'
+                + (extra > 0 ? '<div style="font-size:8px;color:' + COR + ';margin-top:4px">Aprimoramento: +' + extra + ' já somado em todos os valores abaixo.</div>' : '')
+                + '<div style="margin-top:12px">' + cartoes + '</div>'
+                + '<div style="font-size:10px;color:' + (cabe ? COR : '#f87171') + ';font-weight:900;margin-top:4px">Custo: 30% de aura' + (cabe ? '' : ' — aura insuficiente') + '</div>'
+                + '<div style="display:flex;gap:8px;margin-top:14px">'
+                + '<button onclick="window._fecharTabelaRyu()" style="flex:1;padding:12px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Cancelar</button>'
+                + '<button ' + (cabe ? 'onclick="window._confirmarTabelaRyu()"' : 'disabled')
+                + ' style="flex:2;padding:12px;border-radius:10px;background:' + COR + ';border:none;color:#000;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:'
+                + (cabe ? 'pointer' : 'not-allowed') + ';opacity:' + (cabe ? '1' : '0.5') + '">Ativar RYU</button>'
+                + '</div></div></div>';
+        }
+        function renderEscalaPrincipioModalHtml() {
+            if (!state.pendingEscala) return '';
+            const char = state.currentChar;
+            const pe = state.pendingEscala;
+            const key = pe.key, pac = pe.pacotes || 1, maxPac = pe.maxPac || 1;
+            const NOMES = { ten: 'TEN', en: 'EN', ken: 'KEN' };
+            const c = window.custoPacotePrincipio ? window.custoPacotePrincipio(char, key) : { aura: pe.custo, reacoes: 0 };
+            const auraTot = c.aura * pac, reaTot = c.reacoes * pac;
+            const reaMax = window.calcReacoesMax ? window.calcReacoesMax(char) : 7;
+            const reaAtual = (char.vitals.rea !== undefined) ? char.vitals.rea : reaMax;
+            const cabe = (char.vitals.aura || 0) >= auraTot && reaAtual >= reaTot;
+            const steps = Array.from({ length: maxPac }, function (_, i) { return i + 1; }).map(function (n) {
+                const sel = pac === n;
+                return '<button onclick="window._setEscalaPacotes(' + n + ')" style="width:34px;height:34px;border-radius:9px;'
+                    + 'font-family:Orbitron,sans-serif;font-weight:900;font-size:13px;cursor:pointer;border:1.5px solid '
+                    + (sel ? '#60a5fa' : '#374151') + ';background:' + (sel ? '#60a5fa33' : '#1f2937')
+                    + ';color:' + (sel ? '#60a5fa' : '#9ca3af') + '">' + n + '</button>';
+            }).join('');
+            return '<div style="position:fixed;inset:0;background:#000000cc;display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;font-family:Rajdhani,sans-serif">'
+                + '<div style="background:#0d1117;border:2px solid #60a5fa;border-radius:18px;padding:22px;width:100%;max-width:340px;box-shadow:0 0 40px #60a5fa44;text-align:center">'
+                + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:13px;color:#60a5fa;text-transform:uppercase;letter-spacing:2px">'
+                + 'Quanto pagar no ' + (NOMES[key] || key.toUpperCase()) + '?</div>'
+                + '<div style="font-size:9px;color:#6b7280;margin-top:6px;line-height:1.5">Cada pacote custa <b style="color:#9ca3af">'
+                + c.aura + '% de aura' + (c.reacoes > 0 ? ' e ' + c.reacoes + ' Reaç' + (c.reacoes > 1 ? 'ões' : 'ão') : '') + '</b>.</div>'
+                + '<div style="display:flex;gap:4px;justify-content:center;margin-top:12px">' + steps + '</div>'
+                + '<div style="font-size:8px;color:#6b7280;margin-top:6px">Pacotes (máx. ' + maxPac + ' — aura e Reações disponíveis)</div>'
+                + '<div style="background:#60a5fa10;border:1px solid #60a5fa33;border-radius:10px;padding:10px;margin-top:12px">'
+                + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:15px;color:#60a5fa">'
+                + _resultadoEscala(char, key, pac) + '</div>'
+                + '<div style="font-size:9px;color:#9ca3af;margin-top:4px">Custo: ' + auraTot + '% de aura'
+                + (reaTot > 0 ? ' · ' + reaTot + ' Reaç' + (reaTot > 1 ? 'ões' : 'ão') : '') + '</div></div>'
+                + '<div style="display:flex;gap:8px;margin-top:16px">'
+                + '<button onclick="window._fecharEscalaPrincipio()" style="flex:1;padding:12px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Cancelar</button>'
+                + '<button ' + (cabe ? 'onclick="window._confirmarEscalaPrincipio()"' : 'disabled')
+                + ' style="flex:2;padding:12px;border-radius:10px;background:#60a5fa;border:none;color:#000;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:'
+                + (cabe ? 'pointer' : 'not-allowed') + ';opacity:' + (cabe ? '1' : '0.5') + '">Ativar</button>'
+                + '</div></div></div>';
+        }
+        // ── Balão: como este Hatsu é entregue? ──────────────────────────────────────
+        // O RYU só vale em combate direto, mas um Hatsu que comprou ALCANCE pode ser
+        // tanto uma rajada quanto uma adaga arremessada — os metros são os mesmos nos
+        // dois casos. Quem sabe é o jogador, então o app pergunta UMA VEZ por Hatsu e
+        // guarda a resposta: como o Hatsu é entregue não muda de golpe para golpe, e
+        // perguntar a cada rolagem seria o terceiro balão do mesmo ataque (os outros
+        // dois são o modo de rolagem e o REN).
+        //
+        // A lista oferece só as armas do inventário que de fato qualificam — nada de
+        // mostrar o arco para depois recusar o bônus em silêncio.
+        function ryuArmasDoInventario(char) {
+            const vistos = {};
+            return ((char || {}).inventory || [])
+                .map(function (it) { return it && it.name; })
+                .filter(function (nome) {
+                    if (!nome || vistos[nome]) return false;
+                    vistos[nome] = 1;
+                    return !!(window.ryuAlcancaArma && window.ryuAlcancaArma(findItemData(nome), nome));
+                });
+        }
+        window._trocarRyuEntrega = function (idx) {
+            // Chamado pelo link "trocar" na tela do Hatsu: abre o balão sem nenhuma
+            // rolagem em andamento (mode null), então confirmar só grava e fecha.
+            state.pendingRyuEntrega = { idx: idx, mode: null };
+            render(true);
+        };
+        window._fecharRyuEntrega = function () { state.pendingRyuEntrega = null; render(true); };
+        function _gravarRyuEntrega(valor) {
+            const p = state.pendingRyuEntrega;
+            state.pendingRyuEntrega = null;
+            if (!p) return;
+            const char = state.currentChar;
+            const h = (char.hatsus || [])[p.idx];
+            if (h) { h.ryuEntrega = String(valor); saveCharacter(char); }
+            render(true);
+            // Retoma a rolagem de onde ela parou. O render acima refez o
+            // _hatsuRollState, então o maybeAskRenThenRoll segue com o estado novo.
+            if (p.mode) setTimeout(function () { maybeAskRenThenRoll(p.mode); }, 0);
+        }
+        window._confirmarRyuEntrega = function (valor) { _gravarRyuEntrega(valor); };
+        // Por ÍNDICE, e não por nome: nome de item pode ter aspas e acento, e montar
+        // isso dentro de um onclick é pedir para quebrar.
+        window._confirmarRyuEntregaArma = function (i) {
+            const armas = ryuArmasDoInventario(state.currentChar);
+            const nome = armas[parseInt(i)];
+            if (!nome) return;
+            _gravarRyuEntrega(nome);
+        };
+        function renderRyuEntregaModalHtml() {
+            if (!state.pendingRyuEntrega) return '';
+            const char = state.currentChar;
+            const h = (char.hatsus || [])[state.pendingRyuEntrega.idx] || {};
+            const armas = ryuArmasDoInventario(char);
+            const COR = '#38bdf8';
+            const atual = h.ryuEntrega || '';
+            const botao = function (acao, rotulo, nota, ligado) {
+                return '<button onclick="' + acao + '" style="display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:9px 11px;margin-bottom:6px;border-radius:9px;cursor:pointer;border:1px solid '
+                    + (ligado ? COR : '#1f2937') + ';background:' + (ligado ? COR + '15' : '#0f1117') + '">'
+                    + '<span style="flex:1;font-size:10px;font-weight:700;color:' + (ligado ? COR : '#d1d5db') + '">' + rotulo + '</span>'
+                    + (nota ? '<span style="font-size:8px;color:#6b7280">' + nota + '</span>' : '')
+                    + '</button>';
+            };
+            const DESARM = window.RYU_ENTREGA_DESARMADO || 'desarmado';
+            const NENHUM = window.RYU_ENTREGA_NENHUM || 'nenhum';
+            let lista = botao("window._confirmarRyuEntrega('" + DESARM + "')", '✊ Desarmado', 'corpo-a-corpo', atual === DESARM);
+            lista += armas.map(function (nome, i) {
+                const d = findItemData(nome) || {};
+                const arremesso = (d.tags || []).some(function (t) { return /^arremesso/i.test(String(t).trim()); });
+                return botao('window._confirmarRyuEntregaArma(' + i + ')', '⚔️ ' + nome,
+                    arremesso ? 'arremesso' : 'corpo-a-corpo', atual === nome);
+            }).join('');
+            lista += botao("window._confirmarRyuEntrega('" + NENHUM + "')",
+                '✖ Nenhum dos dois', 'o RYU não entra', atual === NENHUM);
+            const semArmas = armas.length === 0
+                ? '<div style="font-size:8px;color:#6b7280;margin:-2px 0 8px">Nenhuma arma de corpo-a-corpo ou de arremesso no seu inventário.</div>'
+                : '';
+            return '<div style="position:fixed;inset:0;background:#000000cc;display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;font-family:Rajdhani,sans-serif;overflow:auto">'
+                + '<div style="background:#0d1117;border:2px solid ' + COR + ';border-radius:18px;padding:20px;width:100%;max-width:360px;box-shadow:0 0 40px ' + COR + '44;text-align:center;max-height:92vh;overflow:auto">'
+                + '<div style="font-size:22px;margin-bottom:4px">🌊</div>'
+                + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:12px;color:' + COR + ';text-transform:uppercase;letter-spacing:1.5px">Esse ataque é desarmado ou usa arma?</div>'
+                + '<div style="font-size:9px;color:#6b7280;margin:7px 0 12px;line-height:1.5">O RYU só vale em combate direto. Este Hatsu tem alcance, então pode ser tanto um arremesso quanto uma rajada — a ficha não tem como saber. <b style="color:#9ca3af">A resposta fica salva neste Hatsu</b> e dá para trocar depois.</div>'
+                + '<div style="text-align:left">' + lista + '</div>'
+                + semArmas
+                + '<button onclick="window._fecharRyuEntrega()" style="width:100%;margin-top:6px;padding:11px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Cancelar</button>'
+                + '</div></div>';
+        }
+        // ── Balão: que tipo de ação falhou na Ênfase? ───────────────────────────────
+        // Abre no instante da falha, antes de qualquer outra coisa, porque a
+        // consequência muda tudo e só o jogador sabe o que a ação era.
+        window._abrirFalhaEnfase = function () { state.pendingFalhaEnfase = { tipo: null }; render(true); };
+        window._fecharFalhaEnfase = function () { state.pendingFalhaEnfase = null; render(true); };
+        window._aplicarFalhaEnfase = function (id) {
+            const char = state.currentChar;
+            const t = window.tipoFalhaEnfase(id);
+            if (!t) return;
+            let ambiental = null;
+            if (t.tabela) {
+                const r = Math.floor(Math.random() * 10) + 1;
+                ambiental = { roll: r, texto: (window.ENFASE_FALHA_AMBIENTAL || [])[r - 1] || '—' };
+            }
+            // O estado com duração vive aqui e é descontado pelo "Passar rodada".
+            if (t.rodadas > 0 || t.interacoes > 0) {
+                char.enfaseFalha = { tipo: t.id, rotulo: t.rotulo,
+                    rodadas: t.rodadas, penalidade: t.penalidade, interacoes: t.interacoes };
+            }
+            // Fica registrado no painel de Condições, junto dos surtos, para não
+            // depender de ninguém lembrar.
+            if (!char.conditions) char.conditions = [];
+            char.conditions.push({
+                categoria: 'FALHA DE ÊNFASE',
+                condicao: t.texto + (ambiental ? ' → 1d10 [' + ambiental.roll + ']: ' + ambiental.texto : ''),
+                roll: ambiental ? (ambiental.roll + ' (1d10)') : '—',
+                duracao: t.rodadas > 0 ? (t.rodadas + ' rodadas') : (t.interacoes > 0 ? (t.interacoes + ' interações') : 'imediata'),
+                sanPct: Math.round(((char.vitals.san || 100) / (char.vitals.sanMax || 100)) * 100),
+                data: new Date().toLocaleDateString('pt-BR'),
+                resolved: false,
+            });
+            state.pendingFalhaEnfase = null;
+            // A sanidade sai pelo updateVital para o surto de loucura disparar se a
+            // perda cruzar uma faixa — é o mesmo caminho de qualquer outro dano mental.
+            if (t.sanidade < 0) { saveCharacter(char); updateVital('san', t.sanidade); }
+            else { saveCharacter(char); render(true); }
+            window._showXpToast && window._showXpToast('💥 ' + t.rotulo + (t.sanidade ? (' — ' + t.sanidade + ' de Sanidade') : ''));
+        };
+        function renderFalhaEnfaseModalHtml() {
+            if (!state.pendingFalhaEnfase) return '';
+            const COR = '#f87171';
+            const opts = (window.ENFASE_FALHA_TIPOS || []).map(function (t) {
+                const custo = [];
+                if (t.sanidade) custo.push(t.sanidade + ' Sanidade');
+                if (t.penalidade) custo.push(t.penalidade + ' por ' + t.rodadas + ' rodadas');
+                else if (t.rodadas) custo.push(t.rodadas + ' rodadas');
+                if (t.interacoes) custo.push(t.interacoes + ' interações');
+                if (t.tabela) custo.push('rola 1d10');
+                return '<button onclick="window._aplicarFalhaEnfase(\'' + t.id + '\')" style="display:block;width:100%;text-align:left;padding:9px 11px;margin-bottom:6px;border-radius:9px;cursor:pointer;border:1px solid #1f2937;background:#0f1117">'
+                    + '<div style="font-size:10px;font-weight:700;color:#d1d5db">' + t.icone + ' ' + t.rotulo
+                    + (custo.length ? ' <span style="font-size:8px;color:' + COR + '">(' + custo.join(' · ') + ')</span>' : '') + '</div>'
+                    + '<div style="font-size:8px;color:#6b7280;margin-top:2px;line-height:1.45">' + t.texto + '</div>'
+                    + '</button>';
+            }).join('');
+            return '<div style="position:fixed;inset:0;background:#000000dd;display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;font-family:Rajdhani,sans-serif;overflow:auto">'
+                + '<div style="background:#0d1117;border:2px solid ' + COR + ';border-radius:18px;padding:20px;width:100%;max-width:380px;box-shadow:0 0 40px ' + COR + '44;text-align:center;max-height:92vh;overflow:auto">'
+                + '<div style="font-size:24px;margin-bottom:2px">💥</div>'
+                + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:12px;color:' + COR + ';text-transform:uppercase;letter-spacing:1.5px">Falha na Ênfase</div>'
+                + '<div style="font-size:9px;color:#6b7280;margin:6px 0 12px;line-height:1.5">A Ênfase cobra o preço na falha. <b style="color:#9ca3af">Que tipo de ação era?</b> A consequência muda conforme a resposta.</div>'
+                + '<div style="text-align:left">' + opts + '</div>'
+                + '<button onclick="window._fecharFalhaEnfase()" style="width:100%;margin-top:4px;padding:10px;border-radius:10px;background:transparent;border:1px solid #374151;color:#6b7280;font-family:Orbitron,sans-serif;font-weight:900;font-size:9px;text-transform:uppercase;cursor:pointer">O mestre resolve na mão</button>'
+                + '</div></div>';
+        }
+
+        // ── Recuperar Sanidade pelas rotas de mesa ──────────────────────────────────
+        // As quatro rotas não automáticas: um descanso longo, cumprir o que se ama,
+        // o Foco de Caça e a Ação Protagonista BEM SUCEDIDA. Essa última depende de
+        // um julgamento que só o jogador faz — o app sabe que ela foi gasta, não que
+        // ela deu certo.
+        window._recuperarSanidade = function (id) {
+            const char = state.currentChar;
+            const v = char.vitals || {};
+            if ((v.san || 0) >= (v.sanMax || 100)) return;
+            const rec = window.calcRecuperacaoSanidade ? window.calcRecuperacaoSanidade(char, id) : null;
+            if (!rec) return;
+            const antes = v.san || 0;
+            v.san = Math.min(v.sanMax || 100, antes + rec.total);
+            const ganho = v.san - antes;
+            const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            char.history.push({ time, label: '🔮 Sanidade — ' + rec.rota.rotulo,
+                dice: rec.dados.join(', '), mod: rec.int, total: rec.total });
+            if (char.history.length > 50) char.history.shift();
+            saveCharacter(char);
+            render(true);
+            window._showXpToast && window._showXpToast('🔮 +' + ganho + ' de Sanidade — '
+                + rec.rota.rotulo + ' (' + rec.rota.dado + ' [' + rec.dados.join(', ') + ']'
+                + (rec.int ? (rec.int > 0 ? ' +' : ' ') + rec.int : '') + ')');
+        };
+
+        // ── Nova sessão: devolve os 3 usos de Ênfase ────────────────────────────────
+        // Não mexe na Ação Protagonista guardada: ela é fruto de uma falha que
+        // aconteceu, e não um recurso que recarrega.
+        window._novaSessaoEnfase = function () {
+            const char = state.currentChar;
+            const _max = window.ENFASE_USOS_POR_SESSAO || 3;
+            if (!confirm('Nova sessão?\n\nIsso devolve os ' + _max + ' usos de Ênfase. A Ação Protagonista guardada, se houver, continua.')) return;
+            char.enfaseUsos = 0;
+            saveCharacter(char);
+            render(true);
+            window._showXpToast && window._showXpToast('🎯 Nova sessão — ' + _max + ' usos de Ênfase disponíveis.');
+        };
+
+        // ── Balão da Ação Protagonista ──────────────────────────────────────────────
+        window._abrirAcaoProtagonista = function () {
+            if (!window.temAcaoProtagonista || !window.temAcaoProtagonista(state.currentChar)) return;
+            state.pendingAcaoProt = { uso: 'virada', resultado: null };
+            render(true);
+        };
+        window._setUsoAcaoProtagonista = function (id) {
+            if (!state.pendingAcaoProt) return;
+            state.pendingAcaoProt.uso = String(id);
+            render(true);
+        };
+        window._fecharAcaoProtagonista = function () { state.pendingAcaoProt = null; render(true); };
+        window._rolarAcaoProtagonista = function () {
+            const pa = state.pendingAcaoProt;
+            if (!pa) return;
+            const char = state.currentChar;
+            const uso = window.usoAcaoProtagonista(pa.uso);
+            if (!uso) return;
+            // Gasta primeiro: assim uma falha de rede no Discord não devolve o recurso
+            // sem o jogador perceber.
+            char.acaoProtagonista = Math.max(0, (parseInt(char.acaoProtagonista) || 0) - 1);
+            // Inclinação Decisiva: "ao utilizar uma ação protagonista, o ataque ganha
+            // +2 no acerto e +1 grau de dano". É aqui que a condição acontece — e era
+            // a condição que faltava para o bônus sair do "sempre".
+            const _dec = window.armarDecisiva && window.armarDecisiva(char);
+            let dados, total;
+            if (uso.modo) {
+                // Rerolagem com Vantagem ou Desvantagem: 2d20, como qualquer outra.
+                // Passa pelo mesmo getRollResult para não existirem duas regras de
+                // Vantagem no app.
+                const r = getRollResult(uso.modo);
+                dados = r.dice; total = r.total;
+            } else {
+                dados = [];
+                for (let i = 0; i < 3; i++) dados.push(Math.floor(Math.random() * 6) + 1);
+                total = dados.reduce(function (a, b) { return a + b; }, 0);
+            }
+            const rotulo = '⭐ Ação Protagonista — ' + uso.rotulo;
+            const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            char.history.push({ time, label: rotulo, dice: dados.join(', '), mod: 0, total: total });
+            if (char.history.length > 50) char.history.shift();
+            saveCharacter(char);
+            sendToDiscord(rotulo + ' (' + uso.dado + ')', dados, 0, total, char.name);
+            if (_dec) setTimeout(function () {
+                window._showXpToast && window._showXpToast('⚔ Decisiva armada — o próximo ataque ganha +'
+                    + (window.DECISIVA_ACERTO || 2) + ' no acerto e +' + (window.DECISIVA_GRAUS || 1) + ' grau de dano.');
+            }, 300);
+            state.pendingAcaoProt = { uso: pa.uso, resultado: { dados: dados, total: total, uso: uso } };
+            render(true);
+        };
+        function renderAcaoProtagonistaModalHtml() {
+            if (!state.pendingAcaoProt) return '';
+            const pa = state.pendingAcaoProt;
+            const COR = '#fbbf24';
+            if (pa.resultado) {
+                const r = pa.resultado;
+                const explica = r.uso.id === 'virada'
+                    ? 'Este é o seu novo resultado. Some os seus bônus normalmente.'
+                    : (r.uso.id === 'penalizar'
+                        ? 'Passe este número ao mestre: é a nova rolagem do inimigo.'
+                        : (r.uso.alvo === 'inimigo'
+                            ? 'Passe ao mestre: este total sai da rolagem do inimigo.'
+                            : 'Some este total ao resultado que você tinha rolado.'));
+                return '<div style="position:fixed;inset:0;background:#000000cc;display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;font-family:Rajdhani,sans-serif">'
+                    + '<div style="background:#0d1117;border:2px solid ' + COR + ';border-radius:18px;padding:22px;width:100%;max-width:330px;box-shadow:0 0 40px ' + COR + '44;text-align:center">'
+                    + '<div style="font-size:26px;margin-bottom:4px">⭐</div>'
+                    + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:11px;color:' + COR + ';text-transform:uppercase;letter-spacing:1.5px">' + r.uso.rotulo + '</div>'
+                    + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:40px;color:#fff;margin:10px 0 2px;text-shadow:0 0 18px ' + COR + '88">'
+                    + (r.uso.id === 'impulso_subtrair' ? '−' : '') + r.total + '</div>'
+                    + '<div style="font-size:9px;color:#6b7280">' + r.uso.dado + ': [' + r.dados.join(', ') + ']</div>'
+                    + '<div style="font-size:10px;color:#9ca3af;margin-top:10px;line-height:1.5">' + explica + '</div>'
+                    // "Após o uso/gasto de uma Ação Protagonista BEM SUCEDIDA: 1d10+INT."
+                    // O app sabe que ela foi gasta, não que deu certo — então pergunta
+                    // aqui, no momento em que o jogador acabou de ver o resultado.
+                    + ((state.currentChar.vitals.san || 100) < (state.currentChar.vitals.sanMax || 100)
+                        ? '<button onclick="window._recuperarSanidade(\'usar_ap\');window._fecharAcaoProtagonista()" style="width:100%;margin-top:12px;padding:10px;border-radius:10px;background:#c084fc18;border:1px solid #c084fc55;color:#c084fc;font-family:Orbitron,sans-serif;font-weight:900;font-size:9px;text-transform:uppercase;cursor:pointer">🔮 Foi bem sucedida (+1d10+INT de Sanidade)</button>'
+                        : '')
+                    + '<button onclick="window._fecharAcaoProtagonista()" style="width:100%;margin-top:8px;padding:12px;border-radius:10px;background:' + COR + ';border:none;color:#000;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Fechar</button>'
+                    + '</div></div>';
+            }
+            const opts = (window.ACAO_PROTAGONISTA_USOS || []).map(function (u) {
+                const on = pa.uso === u.id;
+                return '<button onclick="window._setUsoAcaoProtagonista(\'' + u.id + '\')" style="display:block;width:100%;text-align:left;padding:9px 11px;margin-bottom:6px;border-radius:9px;cursor:pointer;border:1px solid '
+                    + (on ? COR : '#1f2937') + ';background:' + (on ? COR + '15' : '#0f1117') + '">'
+                    + '<div style="font-size:10px;font-weight:700;color:' + (on ? COR : '#d1d5db') + '">'
+                    + u.icone + ' ' + u.rotulo + ' <span style="font-size:8px;color:#6b7280">(' + u.dado + ')</span></div>'
+                    + '<div style="font-size:8px;color:#6b7280;margin-top:2px">' + u.nota + '</div>'
+                    + '</button>';
+            }).join('');
+            return '<div style="position:fixed;inset:0;background:#000000cc;display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;font-family:Rajdhani,sans-serif;overflow:auto">'
+                + '<div style="background:#0d1117;border:2px solid ' + COR + ';border-radius:18px;padding:20px;width:100%;max-width:360px;box-shadow:0 0 40px ' + COR + '44;text-align:center;max-height:92vh;overflow:auto">'
+                + '<div style="font-size:24px;margin-bottom:2px">⭐</div>'
+                + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:12px;color:' + COR + ';text-transform:uppercase;letter-spacing:1.5px">Ação Protagonista</div>'
+                + '<div style="font-size:9px;color:#6b7280;margin:6px 0 12px;line-height:1.5">Use depois de ver o resultado. Gasta a sua única Ação Protagonista — a próxima só vem na próxima falha de Ênfase.</div>'
+                + '<div style="text-align:left">' + opts + '</div>'
+                + '<div style="display:flex;gap:8px;margin-top:10px">'
+                + '<button onclick="window._fecharAcaoProtagonista()" style="flex:1;padding:12px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Cancelar</button>'
+                + '<button onclick="window._rolarAcaoProtagonista()" style="flex:2;padding:12px;border-radius:10px;background:' + COR + ';border:none;color:#000;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Rolar</button>'
+                + '</div></div></div>';
+        }
         function renderRenPromptModalHtml() {
             if (!state.pendingRenRoll) return '';
             const char = state.currentChar;
@@ -1954,7 +3444,10 @@
                 { id: 'NORMAL',      label: 'Normal',      icon: '🎲', desc: '1d20',       bg: '#1f2937', col: '#9ca3af' },
                 { id: 'VANTAGEM',    label: 'Vantagem',    icon: '⬆️', desc: '2d20 maior',  bg: '#14532d', col: '#4ade80' },
                 { id: 'DESVANTAGEM', label: 'Desvantagem', icon: '⬇️', desc: '2d20 menor',  bg: '#7f1d1d', col: '#f87171' },
-                { id: 'ÊNFASE',      label: 'Ênfase',      icon: '🎯', desc: '2d20 ≈ 10',   bg: '#1e1b4b', col: '#a78bfa' },
+                // O rótulo dizia "2d20 ≈ 10", o OPOSTO do que o getRollResult faz: ele fica
+                // com o dado MAIS DISTANTE de 10. O bestiario já descrevia certo ("o mais
+                // extremo"); era a ficha que mentia para o jogador.
+                { id: 'ÊNFASE',      label: 'Ênfase',      icon: '🎯', desc: '2d20, o mais extremo', bg: '#1e1b4b', col: '#a78bfa' },
             ];
             const _mwhs = loadWebhooks();
             // Só mostra o seletor se há múltiplos webhooks E nenhum padrão definido
@@ -1993,13 +3486,32 @@
                     ${_imageAttachHtml}
                     <div style="font-size:9px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:14px;text-align:center">🎲 Modo de Rolagem</div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
-                        ${MODES.map(m => `<button onclick="executePendingRoll('${m.id}')"
-                            style="display:flex;flex-direction:column;align-items:center;padding:14px 8px;border-radius:12px;background:${m.bg};border:2px solid ${m.col}44;color:${m.col};cursor:pointer;font-family:'Rajdhani',sans-serif">
+                        ${MODES.map(m => {
+                            // A Ênfase tem 3 usos por sessão e é o único modo contado.
+                            // Sem usos, o botão apaga e deixa de ser clicável — senão o
+                            // jogador gastaria um 4º sem o app dizer nada.
+                            const _enf = m.id === 'ÊNFASE';
+                            const _rest = _enf && window.enfaseUsosRestantes
+                                ? window.enfaseUsosRestantes(state.currentChar) : null;
+                            const _off = _enf && _rest === 0;
+                            return `<button ${_off ? '' : `onclick="executePendingRoll('${m.id}')"`}
+                            style="display:flex;flex-direction:column;align-items:center;padding:14px 8px;border-radius:12px;background:${m.bg};border:2px solid ${m.col}44;color:${m.col};cursor:${_off ? 'not-allowed' : 'pointer'};opacity:${_off ? 0.4 : 1};font-family:'Rajdhani',sans-serif">
                             <span style="font-size:20px;margin-bottom:4px">${m.icon}</span>
                             <span style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:9px;text-transform:uppercase;letter-spacing:1px">${m.label}</span>
-                            <span style="font-size:8px;opacity:.6;margin-top:2px">${m.desc}</span>
-                        </button>`).join('')}
+                            <span style="font-size:8px;opacity:.6;margin-top:2px">${_enf ? (_off ? 'sem usos' : m.desc + ' · ' + _rest + '/' + (window.ENFASE_USOS_POR_SESSAO || 3)) : m.desc}</span>
+                        </button>`; }).join('')}
                     </div>
+                    ${(() => {
+                        // Aviso ANTES de rolar: com uma Ação Protagonista ainda guardada, a
+                        // falha da Ênfase não concede outra — e esse é justamente o motivo
+                        // de alguém escolher Ênfase de propósito. Sem o aviso, o jogador
+                        // arriscaria a rolagem mais extrema do jogo por um prêmio que não viria.
+                        const _c = state.currentChar;
+                        if (!(window.temAcaoProtagonista && window.temAcaoProtagonista(_c))) return '';
+                        return `<div style="margin:-4px 0 12px;padding:8px 10px;border-radius:9px;background:#fbbf2412;border:1px solid #fbbf2444;font-size:9px;color:#fbbf24;line-height:1.5;text-align:left">
+                            ⭐ Você ainda tem uma <b>Ação Protagonista</b> guardada — falhar na Ênfase <b>não</b> vai conceder outra até gastar esta.
+                        </div>`;
+                    })()}
                     <button onclick="cancelPendingRoll()" style="width:100%;padding:10px;border-radius:10px;background:transparent;border:1px solid #374151;color:#6b7280;font-size:9px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:1px">Cancelar</button>
                 </div>
             </div>`;
@@ -2008,13 +3520,43 @@
             const char = state.currentChar;
             const mod = window.calcAtributoEfetivo ? window.calcAtributoEfetivo(char, attrKey).mod : getMod((char.attributes[attrKey] || {}).value || 10);
             const pb = getProficiencyBonus(char.level);
+            // Instâncias e Inclinações de acerto (Observador, Decisiva) — o mesmo
+            // calcBonusAcerto que o Hatsu usa, para os dois caminhos não divergirem.
+            const _baW = window.calcBonusAcerto ? window.calcBonusAcerto(char) : { total: 0, fontes: [] };
+            // RYU: vale com o punho, com arma de corpo-a-corpo e com arma de arremesso.
+            // Fica de fora de arco, besta, arma de fogo e arma de cerco — nelas a aura
+            // do RYU não acompanha o projétil. findItemData acha a arma no ITEM_DB, que
+            // já traz a categoria e as etiquetas.
+            // Decisiva armada: vale para ESTE ataque e some depois dele, tenha
+            // acertado ou não — o que ela condiciona é o uso da Ação Protagonista.
+            const _decW = window.consumirDecisiva ? window.consumirDecisiva(char) : false;
+            // Carga de Energia dobra o DANO INTEIRO, como o KO — o texto diz "dobra
+            // dano do próximo ataque", sem recortar dados.
+            const _cargaW = window.consumirEfeito ? window.consumirEfeito(char, 'ri_e24') : false;
+            // Força Descomunal dobra o BÔNUS de Força, então só vale quando o ataque
+            // usa FOR: dobrar o modificador de Destreza não seria o efeito.
+            const _forcaW = (attrKey === 'FOR' && window.consumirEfeito) ? window.consumirEfeito(char, 'ri_e31') : false;
+            const _modEf = mod + (_forcaW ? Math.max(0, mod) : 0);
+            const _decAcerto = _decW ? (window.DECISIVA_ACERTO || 2) : 0;
+            const _ryuArmaOk = window.ryuAlcancaArma
+                ? window.ryuAlcancaArma(findItemData(weaponName), weaponName) : false;
+            const _ryuW = window.calcBonusAcertoRyu
+                ? window.calcBonusAcertoRyu(char, _ryuArmaOk) : { total: 0, ryu: null };
             const attackRoll = getRollResult(mode || state.rollMode);
-            const attackTotal = attackRoll.total + mod + pb;
+            // Na falha da Ênfase todo esse pacote vira penalidade — ver totalComEnfase.
+            const attackTotal = window.totalComEnfase(attackRoll, _modEf + pb + _baW.total + _ryuW.total + _decAcerto,
+                window.calcPenalidadeEnfase ? window.calcPenalidadeEnfase(char) : 0);
+            // Margem de crítico da ficha, piso 18, comparada contra o d20 USADO.
+            const _mcW = window.calcMargemCritico ? window.calcMargemCritico(char) : { valor: 20 };
+            const isCrit = attackRoll.total >= _mcW.valor;
+            const isFumble = attackRoll.dice.length === 1 && attackRoll.dice[0] === 1;
 
             // ── REN: escalona +N Grau(s) de dano deste golpe (Manual: cada 5% Aura = +1 grau/passo) ──
             const renGraus = Math.max(0, parseInt(grausRen) || 0);
             const useRen = renGraus > 0;
             let renDiceExpr = diceExpr;
+            // O +1 grau da Decisiva anda na MESMA escada do REN, então é um degrau a
+            // mais em cima do que o REN já subiu.
             let renCost = 0;
             let renUsedFree = false;
             if (useRen && window.DAMAGE_TABLE) {
@@ -2028,18 +3570,36 @@
                 char.vitals.aura = Math.max(0, (char.vitals.aura || 0) - renCost);
             }
 
+            // SHU: o dado vai no item envolvido, então só entra quando a arma rolada é ela.
+            // Só é possível somar como SEGUNDO TERMO porque o rollDiceExpr passou a aceitar
+            // expressão de vários termos.
+            if (_decW && window.DAMAGE_TABLE) {
+                const _iD = window.DAMAGE_TABLE.indexOf(renDiceExpr);
+                if (_iD >= 0) renDiceExpr = window.DAMAGE_TABLE[Math.min(_iD + (window.DECISIVA_GRAUS || 1), window.DAMAGE_TABLE.length - 1)];
+            }
+            const _shuR = (window.calcShuAtivo && window.principioAtivo && window.principioAtivo(char, 'shu'))
+                ? window.calcShuAtivo(char) : null;
+            const _shuNaArma = !!(_shuR && _shuR.item && _shuR.item === weaponName);
+            if (_shuNaArma) renDiceExpr = renDiceExpr + ' + ' + _shuR.dadoDano;
             const dmgResult = rollDiceExpr(renDiceExpr);
-            const dmgTotal = dmgResult.total + mod;
+            // Crítico dobra os DADOS; o KO multiplica o dano inteiro depois disso.
+            const _koMultW = window.multiplicadorDanoKo ? window.multiplicadorDanoKo(char) : 1;
+            // RYU: o mesmo número que entrou no acerto entra também no dano, porque a
+            // coluna da tabela é "Ataque e Dano". É valor fixo, então fica FORA da dobra
+            // do crítico — o crítico dobra os dados.
+            const dmgTotal = ((isCrit ? dmgResult.total * 2 : dmgResult.total) + _modEf + _ryuW.total) * _koMultW * (_cargaW ? 2 : 1);
             const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
             const renLabel = useRen ? ' 💪REN' : '';
             char.history.push({ time, label: `⚔️ ${weaponName} (${attrKey})${renLabel}`, dice: attackRoll.dice.join(', '), mod: mod + pb, total: attackTotal, img: state.pendingRollImage || '' });
             if (char.history.length > 50) char.history.shift();
             saveCharacter(char);
-            const isCrit = attackRoll.dice.includes(20);
-            const isFumble = attackRoll.dice.length === 1 && attackRoll.dice[0] === 1;
-            const suffix = isCrit ? ' 🎯 **CRÍTICO!**' : isFumble ? ' 💀 **FALHA CRÍTICA!**' : '';
+            const suffix = isCrit
+                ? ` 🎯 **CRÍTICO!**${_mcW.valor < 20 ? ` (margem ${_mcW.valor}+)` : ''}`
+                : (isFumble ? ' 💀 **FALHA CRÍTICA!**' : '');
             const renNote = useRen ? `\n💪 **REN ativado** — +${renGraus} Grau${renGraus>1?'s':''} de dano${renUsedFree ? ' (1º grátis no dia)' : ''}` : '';
-            const content = `⚔️ **${char.name}** atacou com **${weaponName}**\nAtaque: [${attackRoll.dice.join(', ')}] +${mod + pb} = **${attackTotal}**${suffix}\nDano: [${dmgResult.rolls.join('+')}] +${mod} = **${dmgTotal}** (${renDiceExpr} + ${attrKey})${renNote}`;
+            const _critNote = isCrit ? '\n🎯 **Crítico** — dados de dano dobrados' : '';
+            const _koNote = _koMultW > 1 ? `\n🔥 **KO ativado** — dano total ×${_koMultW} (CA reduzida em 80%)` : '';
+            const content = `⚔️ **${char.name}** atacou com **${weaponName}**\nAtaque: [${attackRoll.dice.join(', ')}] +${mod + pb} = **${attackTotal}**${suffix}\nDano: [${dmgResult.rolls.join('+')}] +${mod} = **${dmgTotal}** (${renDiceExpr} + ${attrKey})${renNote}${_critNote}${_koNote}`;
             sendRollToDiscord(content, state.pendingRollImage);
             state.pendingRollImage = '';
             state.attackModal = null;
@@ -2056,21 +3616,111 @@
             const content = `🎲 **${charName}** rolou **${label}**\nDado: ${diceStr}${modStr} = **${total}**${suffix}`;
             fetch(getActiveWebhookUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content }) }).catch(() => {});
         }
-        function rollDice(attrName, mod, mode) { const roll = getRollResult(mode || state.rollMode); const total = roll.total + mod; const entry = { time: new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}), label: `${attrName} (${roll.label})`, dice: roll.dice.join(', '), mod: mod, total: total }; state.currentChar.history.push(entry); if (state.currentChar.history.length > 50) state.currentChar.history.shift(); saveCharacter(state.currentChar); state.rollResult = { name: attrName, total: total, diceVal: roll.total, mod: mod, label: roll.label }; if (state.activeTab !== 'DADOS') state.unreadRolls = true; sendToDiscord(`${attrName} (${roll.label})`, roll.dice, mod, total, state.currentChar.name || 'Personagem'); render(true); }
+        function rollDice(attrName, mod, mode) { const roll = getRollResult(mode || state.rollMode); const total = window.totalComEnfase(roll, mod, window.calcPenalidadeEnfase ? window.calcPenalidadeEnfase(state.currentChar) : 0); const entry = { time: new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}), label: `${attrName} (${roll.label})`, dice: roll.dice.join(', '), mod: mod, total: total }; state.currentChar.history.push(entry); if (state.currentChar.history.length > 50) state.currentChar.history.shift(); saveCharacter(state.currentChar); state.rollResult = { name: attrName, total: total, diceVal: roll.total, mod: mod, label: roll.label }; if (state.activeTab !== 'DADOS') state.unreadRolls = true; sendToDiscord(`${attrName} (${roll.label})`, roll.dice, mod, total, state.currentChar.name || 'Personagem'); render(true); }
         // Entrega o valor MÁXIMO de cada dado em vez de rolar. Usado pela Condição
         // Hostil, cuja regra diz "os dados de dano são maximizados (não rolados)".
+        // Mesma tolerância a vários termos do rollDiceExpr: a Condição Hostil maximiza os
+        // dados, e um "2d10 + 1d6" tem de maximizar os dois termos, não devolver zero.
         function maximizarExpr(expr) {
-            const m = String(expr || '').match(/^(\d+)d(\d+)$/);
-            if (!m) return { total: 0, rolls: [] };
-            const n = parseInt(m[1]), faces = parseInt(m[2]);
-            const rolls = Array.from({ length: n }, () => faces);
-            return { total: n * faces, rolls: rolls };
+            let rolls = [], total = 0, achou = false;
+            _termosExpr(expr).forEach(function (termo) {
+                const m = termo.match(/^(\d+)d(\d+)$/);
+                if (m) {
+                    achou = true;
+                    const n = parseInt(m[1]), faces = parseInt(m[2]);
+                    for (let i = 0; i < n; i++) rolls.push(faces);
+                    total += n * faces;
+                    return;
+                }
+                const fixo = parseInt(termo);
+                if (!isNaN(fixo)) { achou = true; total += fixo; }
+            });
+            if (!achou) return { total: 0, rolls: [] };
+            return { total: total, rolls: rolls };
         }
 
-        function rollSkill(skillName, attrKey, mode, zetsuBonus) { const char = state.currentChar; const _efS = window.calcAtributoEfetivo ? window.calcAtributoEfetivo(char, attrKey) : null; const mod = _efS ? _efS.mod : getMod(char.attributes[attrKey].value); const isTrained = char.skills.includes(skillName); const isExpert = (char.expertise || []).includes(skillName); const pb = getProficiencyBonus(char.level); let totalMod = mod; if (isExpert) { totalMod += (pb * 2); } else if (isTrained) { totalMod += pb; } const zb = zetsuBonus || 0; totalMod += zb; const zetsuTag = zb > 0 ? ' 👁️Zetsu' : ''; const _ini = (skillName === 'Iniciativa' && window.calcIniciativaBonus) ? window.calcIniciativaBonus(char) : { total: 0, fontes: [] }; totalMod += _ini.total; const _nb = window.calcBonusPericiaNen ? window.calcBonusPericiaNen(char, skillName) : { total: 0 }; totalMod += _nb.total; const _ib = window.calcBonusPericiaInclinacao ? window.calcBonusPericiaInclinacao(char, skillName) : { total: 0 }; totalMod += _ib.total; const roll = getRollResult(mode || state.rollMode); const total = roll.total + totalMod; const entry = { time: new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}), label: `${skillName} ${isExpert ? "(Exp)" : ""}${zetsuTag} (${roll.label})`, dice: roll.dice.join(', '), mod: totalMod, total: total }; state.currentChar.history.push(entry); if (state.currentChar.history.length > 50) state.currentChar.history.shift(); saveCharacter(state.currentChar); state.rollResult = { name: skillName, total: total, diceVal: roll.total, mod: totalMod, label: roll.label }; if (state.activeTab !== 'DADOS') state.unreadRolls = true; sendToDiscord(`${skillName}${isExpert ? ' (Exp)' : ''}${zetsuTag} (${roll.label})`, roll.dice, totalMod, total, char.name || 'Personagem'); render(true); }
+        function rollSkill(skillName, attrKey, mode, zetsuBonus) { const char = state.currentChar; const _efS = window.calcAtributoEfetivo ? window.calcAtributoEfetivo(char, attrKey) : null; const mod = _efS ? _efS.mod : getMod(char.attributes[attrKey].value); const isTrained = char.skills.includes(skillName); const isExpert = (char.expertise || []).includes(skillName); const pb = getProficiencyBonus(char.level); let totalMod = mod; if (isExpert) { totalMod += (pb * 2); } else if (isTrained) { totalMod += pb; } const zb = zetsuBonus || 0; totalMod += zb; const zetsuTag = zb > 0 ? ' 👁️Zetsu' : ''; const _ini = (skillName === 'Iniciativa' && window.calcIniciativaBonus) ? window.calcIniciativaBonus(char) : { total: 0, fontes: [] }; totalMod += _ini.total; const _nb = window.calcBonusPericiaNen ? window.calcBonusPericiaNen(char, skillName) : { total: 0 }; totalMod += _nb.total; const _ib = window.calcBonusPericiaInclinacao ? window.calcBonusPericiaInclinacao(char, skillName) : { total: 0 }; totalMod += _ib.total; const roll = getRollResult(mode || state.rollMode); const total = window.totalComEnfase(roll, totalMod, window.calcPenalidadeEnfase ? window.calcPenalidadeEnfase(char) : 0); const entry = { time: new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}), label: `${skillName} ${isExpert ? "(Exp)" : ""}${zetsuTag} (${roll.label})`, dice: roll.dice.join(', '), mod: totalMod, total: total }; state.currentChar.history.push(entry); if (state.currentChar.history.length > 50) state.currentChar.history.shift(); saveCharacter(state.currentChar); state.rollResult = { name: skillName, total: total, diceVal: roll.total, mod: totalMod, label: roll.label }; if (state.activeTab !== 'DADOS') state.unreadRolls = true; sendToDiscord(`${skillName}${isExpert ? ' (Exp)' : ''}${zetsuTag} (${roll.label})`, roll.dice, totalMod, total, char.name || 'Personagem'); render(true); }
         function closeRollModal() { state.rollResult = null; render(true); }
         function copyToClipboard(idx) { const h = state.currentChar.history[idx]; if(!h) return; const text = `**${h.label}**\nRolagem: [${h.dice}] ${h.mod>=0?'+':''}${h.mod} = **${h.total}**`; navigator.clipboard.writeText(text).then(() => { const btn = document.activeElement; if(btn && btn.tagName === 'BUTTON') { const originalHTML = btn.innerHTML; btn.innerHTML = '<i data-lucide="check" size="14"></i>'; btn.classList.add('text-green-500'); setTimeout(() => { btn.innerHTML = originalHTML; btn.classList.remove('text-green-500'); lucide.createIcons(); }, 1000); } }); }
-        function getRollResult(mode) { const r1 = Math.floor(Math.random() * 20) + 1; const r2 = Math.floor(Math.random() * 20) + 1; if (mode === 'NORMAL') return { total: r1, dice: [r1], label: 'Normal' }; if (mode === 'VANTAGEM') return { total: Math.max(r1, r2), dice: [r1, r2], label: 'Vantagem' }; if (mode === 'DESVANTAGEM') return { total: Math.min(r1, r2), dice: [r1, r2], label: 'Desvantagem' }; if (mode === 'ÊNFASE') { const dist1 = Math.abs(r1 - 10.5); const dist2 = Math.abs(r2 - 10.5); return { total: dist1 > dist2 ? r1 : r2, dice: [r1, r2], label: 'Ênfase' }; } return { total: r1, dice: [r1], label: 'Normal' }; }
+        // Devolve a sanidade do 20 natural: "Resultado 20 em qualquer rolagem →
+        // recupere 1d20+INT". Fica num lugar só porque o getRollResult tem saída
+        // única — era por isso que ele foi reescrito assim.
+        function _sanidadeNatural20(res) {
+            const char = state.currentChar;
+            if (!char || !res || res.total !== 20) return res;
+            const v = char.vitals || {};
+            if ((v.san || 0) >= (v.sanMax || 100)) return res;   // já está cheia
+            const rec = window.calcRecuperacaoSanidade ? window.calcRecuperacaoSanidade(char, 'natural20') : null;
+            if (!rec || rec.total <= 0) return res;
+            v.san = Math.min(v.sanMax || 100, (v.san || 0) + rec.total);
+            saveCharacter(char);
+            setTimeout(function () {
+                window._showXpToast && window._showXpToast('🎲 20 natural — +' + rec.total
+                    + ' de Sanidade (1d20 [' + rec.dados.join(', ') + ']'
+                    + (rec.int ? (rec.int > 0 ? ' +' : ' ') + rec.int : '') + ')');
+            }, 260);
+            return res;
+        }
+        function getRollResult(mode) {
+            const d20 = function () { return Math.floor(Math.random() * 20) + 1; };
+            const r1 = d20(), r2 = d20();
+            if (mode === 'NORMAL') return _sanidadeNatural20({ total: r1, dice: [r1], label: 'Normal' });
+            if (mode === 'VANTAGEM') return _sanidadeNatural20({ total: Math.max(r1, r2), dice: [r1, r2], label: 'Vantagem' });
+            if (mode === 'DESVANTAGEM') return _sanidadeNatural20({ total: Math.min(r1, r2), dice: [r1, r2], label: 'Desvantagem' });
+            if (mode === 'ÊNFASE') {
+                // Distância a partir de 10 — ver ENFASE_REFERENCIA (config.js). Era
+                // 10,5, e com 10,5 o empate do livro nunca acontecia.
+                const REF = window.ENFASE_REFERENCIA || 10;
+                const dados = [r1, r2];
+                let escolhido;
+                if (Math.abs(r1 - REF) === Math.abs(r2 - REF)) {
+                    // "Em caso de empate um novo dado é rolado." Vale tanto para o
+                    // empate de distância (5 e 15) quanto para dados iguais (7 e 7).
+                    escolhido = d20();
+                    dados.push(escolhido);
+                } else {
+                    escolhido = Math.abs(r1 - REF) > Math.abs(r2 - REF) ? r1 : r2;
+                }
+                const out = {
+                    total: escolhido, dice: dados, label: 'Ênfase',
+                    // É isto que o totalComEnfase lê para virar o bônus em penalidade.
+                    enfaseInferior: escolhido < REF
+                };
+                const _c = state.currentChar;
+                if (_c) {
+                    _c.enfaseUsos = (parseInt(_c.enfaseUsos) || 0) + 1;
+                    // A concessão mora aqui porque o getRollResult é o funil de TODAS
+                    // as rolagens de d20 da ficha — ataque, Hatsu, atributo e perícia.
+                    window._resultadoEnfase = window.resolverEnfase ? window.resolverEnfase(_c, mode, out.total) : null;
+                    saveCharacter(_c);
+                    // "Ao receber uma Ação Protagonista: recupere 1d4+INT." É automática
+                    // porque o gatilho é mecânico e o app o enxerga no mesmo instante.
+                    let _sanTxt = '';
+                    if (window._resultadoEnfase === 'ganhou') {
+                        const _rec = window.calcRecuperacaoSanidade ? window.calcRecuperacaoSanidade(_c, 'receber_ap') : null;
+                        const _v = _c.vitals || {};
+                        if (_rec && _rec.total > 0 && (_v.san || 0) < (_v.sanMax || 100)) {
+                            _v.san = Math.min(_v.sanMax || 100, (_v.san || 0) + _rec.total);
+                            _sanTxt = ' (+' + _rec.total + ' de Sanidade)';
+                        }
+                    }
+                    const _msg = window._resultadoEnfase === 'ganhou'
+                        ? '⭐ Falha na Ênfase — você ganhou uma Ação Protagonista!' + _sanTxt
+                        : (window._resultadoEnfase === 'jaTinha'
+                            ? '⚠ Falha na Ênfase, mas a Ação Protagonista anterior ainda não foi gasta.'
+                            : '');
+                    if (_msg) setTimeout(function () { window._showXpToast && window._showXpToast(_msg); }, 120);
+                    // As consequências valem em TODA falha de Ênfase — inclusive quando
+                    // a Ação Protagonista anterior ainda não foi gasta e nenhuma nova é
+                    // concedida. O preço é da rolagem, não do prêmio.
+                    if (out.total < (window.ENFASE_FALHA_ABAIXO_DE || 10)) {
+                        setTimeout(function () { window._abrirFalhaEnfase && window._abrirFalhaEnfase(); }, 420);
+                    }
+                }
+                return _sanidadeNatural20(out);
+            }
+            return _sanidadeNatural20({ total: r1, dice: [r1], label: 'Normal' });
+        }
         function buyStat(attr, delta) { lockAttributeMethod(); const current = state.tempChar.attributes[attr]; const next = current + delta; if (next >= 1 && next <= 30) { const currentCost = calculateTotalCost(state.tempChar.attributes); const costDiff = getPointBuyCost(next) - getPointBuyCost(current); const MAX = 20; if (costDiff > 0 && (currentCost + costDiff > MAX)) { const totalEl = document.getElementById('buy-total'); totalEl.classList.add('text-red-500', 'shake'); setTimeout(() => totalEl.classList.remove('shake'), 500); return; } state.tempChar.attributes[attr] = next; render(true); } }
         function setAttrTab(mode) { if (state.attrMethodLocked) return; state.attrTab = mode; state.selectedPoolIdx = null; if(mode === 'COMPRA') { Object.keys(state.tempChar.attributes).forEach(k => state.tempChar.attributes[k] = 10); state.attrPool = []; } else { Object.keys(state.tempChar.attributes).forEach(k => state.tempChar.attributes[k] = null); state.attrPool = []; } render(true); }
         function lockAttributeMethod() { if(!state.attrMethodLocked) { state.attrMethodLocked = true; render(true); } }
@@ -2191,14 +3841,43 @@
             const v = state.currentChar.vitals;
             const char = state.currentChar;
 
-            if (type === 'pv') v.hp = Math.min(v.hpMax || v.hp, v.hp + delta);
+            if (type === 'pv') {
+                const _antes = v.hp;
+                v.hp = Math.min(v.hpMax || v.hp, v.hp + delta);
+                // ── Recuperações automáticas ──────────────────────────────────
+                // Têm gatilho mecânico — o PV cruzando um limiar — então o app
+                // aplica sozinho. É só no instante da queda que a condição existe;
+                // perguntar depois seria perguntar tarde demais.
+                if (delta < 0 && window.calcRecuperacaoPV) {
+                    const _max = v.hpMax || 0;
+                    // Resiliência Suprema primeiro: ela é a que impede chegar a 0.
+                    if (v.hp <= 0 && _antes > 0) {
+                        const g = window.calcRecuperacaoPV(char, 'ri_e32');
+                        if (g > 0) {
+                            v.hp = Math.min(_max, g);
+                            window.marcarEfeitoUsado(char, 'ri_e32', 'dia');
+                            setTimeout(function () { window._showXpToast && window._showXpToast('🛡 Resiliência Suprema — você não cai: +' + g + ' PV (1× por dia).'); }, 120);
+                        }
+                    }
+                    if (_max > 0 && _antes >= _max / 2 && v.hp < _max / 2 && v.hp > 0) {
+                        const g = window.calcRecuperacaoPV(char, 'ri_e26');
+                        if (g > 0) {
+                            v.hp = Math.min(_max, v.hp + g);
+                            window.marcarEfeitoUsado(char, 'ri_e26', 'combate');
+                            setTimeout(function () { window._showXpToast && window._showXpToast('❤️ Vitalidade Extra — abaixo de 50%: +' + g + ' PV (1× por combate).'); }, 240);
+                        }
+                    }
+                }
+            }
             if (type === 'aura') v.aura = Math.min(v.auraMax || 100, Math.max(0, v.aura + delta));
             if (type === 'rea') { const rMax = 7 + getMod(char.attributes.SAB.value) + (((char.combatInclinations || {}).analitica || 0) >= 1 ? 2 : 0); if (v.rea === undefined) v.rea = rMax; v.rea = Math.min(rMax, Math.max(0, v.rea + delta)); }
             if (type === 'san') {
                 if (!v.sanMax) v.sanMax = 100;
                 const prevSan = v.san;
                 const prevPct = Math.round((prevSan / v.sanMax) * 100);
-                v.san = Math.min(v.sanMax, v.san + delta); // cap at sanMax
+                // O piso 0 faltava: aura tinha Math.max(0,…) e sanidade não, então uma
+                // perda grande deixava a barra em número negativo.
+                v.san = Math.max(0, Math.min(v.sanMax, v.san + delta));
                 const newPct = Math.round((v.san / v.sanMax) * 100);
 
                 // Check if we crossed a threshold going DOWN
@@ -2543,7 +4222,11 @@
                         if (confirm(`Você ganhou ${ciGained} ponto(s) de Inclinação! Pode gastar em Combate, em Gerais, ou guardar para depois. Deseja distribuir agora?`)) {
                             state.activeTab = 'TRACOS';
                             render(true);
-                            setTimeout(() => window._openCombatIncModal(), 300);
+                            // Só abre sozinho se o personagem realmente puder comprar: antes,
+                            // um personagem sem Nen levava um alerta de bloqueio ao subir de nível.
+                            if (!window.podeComprarInclinacoes || window.podeComprarInclinacoes(state.currentChar).ok) {
+                                setTimeout(() => window._openCombatIncModal(), 300);
+                            }
                         }
                         // Se tem mais níveis e ganhou atributo, mostrar botão de pausa
                         if (hasMore && choseAttr) {
@@ -2704,9 +4387,113 @@
             document.body.insertAdjacentHTML('beforeend', buildGiHtml());
         };
 
+        // ── Modal das Instâncias Shingen-Ryu ───────────────────────────────────────
+        // Diferente do modal das Inclinações em dois pontos: o recurso é P.N (não Pontos
+        // de Inclinação) e não existe bônus de atributo, então não há ledger a manter —
+        // salvar é só gravar char.instancias.
+        window._openInstanciasModal = function () {
+            const char = state.currentChar;
+            if (!char || !window.INSTANCIAS_DB) { alert('Banco de Instâncias não carregado.'); return; }
+            const porta = window.podeComprarInstancias
+                ? window.podeComprarInstancias(char) : { ok: true, motivo: '' };
+            if (!porta.ok) { alert('Instâncias Shingen-Ryu bloqueadas.\n\n' + (porta.motivo || '')); return; }
+
+            const COR = '#a855f7';
+            const draft = JSON.parse(JSON.stringify(char.instancias || {}));
+            const ci = char.combatInclinations || {};
+            // P.N livre IGNORANDO o que já está gasto em Instâncias, para o modal poder
+            // devolver e regastar livremente sem o orçamento "andar" durante a edição.
+            const gastoSalvo = window.calcPNSpentInInstancias ? window.calcPNSpentInInstancias(char) : 0;
+            const livreBase = (window._pnLivreDoPersonagem ? window._pnLivreDoPersonagem(char) : 0) + gastoSalvo;
+            const custoDe = function (n) {
+                let c = 0;
+                for (let i = 0; i < n; i++) c += (window.INSTANCIA_CUSTO_PN || [2, 3])[i] || 0;
+                return c;
+            };
+            const gastoDraft = function () {
+                return Object.keys(draft).reduce(function (a, k) { return a + custoDe(draft[k] || 0); }, 0);
+            };
+
+            window._instSetNivel = function (id, n) {
+                const atual = draft[id] || 0;
+                if (n === atual) return;
+                if (n > atual) {
+                    const ins = window.INSTANCIAS_DB.filter(function (x) { return x.id === id; })[0];
+                    if (!ins) return;
+                    if (!window.avaliarRequisitoInstancia(ins.requisitos, ci)) return;
+                    const delta = custoDe(n) - custoDe(atual);
+                    if (gastoDraft() + delta > livreBase) return;   // sem P.N suficiente
+                }
+                if (n <= 0) delete draft[id]; else draft[id] = n;
+                redesenhar();
+            };
+            window._instSalvar = function () {
+                char.instancias = JSON.parse(JSON.stringify(draft));
+                saveCharacter(char);
+                document.getElementById('inst-modal-overlay')?.remove();
+                render(true);
+                window._showXpToast && window._showXpToast('Instâncias Shingen-Ryu salvas!');
+            };
+
+            function corpo() {
+                const livre = livreBase - gastoDraft();
+                return window.INSTANCIAS_DB.map(function (ins) {
+                    const cur = draft[ins.id] || 0;
+                    const atende = window.avaliarRequisitoInstancia(ins.requisitos, ci);
+                    const niveis = ins.niveis.map(function (desc, ni) {
+                        const n = ni + 1;
+                        const custo = (window.INSTANCIA_CUSTO_PN || [2, 3])[ni] || 0;
+                        const ativo = cur >= n;
+                        const podeLigar = !ativo && atende && cur === ni && (custo <= livre);
+                        const podeDesligar = ativo && cur === n;
+                        const clicavel = podeLigar || podeDesligar;
+                        return '<div class="flex gap-2 items-start p-2 rounded-lg mb-1" style="background:' + (ativo ? COR + '1a' : '#11182780') + ';border:1px solid ' + (ativo ? COR + '33' : '#1f293780') + '">'
+                            + '<button onclick="window._instSetNivel(\'' + ins.id + '\',' + (ativo ? n - 1 : n) + ')" ' + (clicavel ? '' : 'disabled')
+                            + ' style="min-width:28px;height:28px;border-radius:6px;border:1px solid ' + (ativo ? COR : '#374151') + ';background:' + (ativo ? COR + '20' : '#111827') + ';color:' + (ativo ? COR : '#6b7280') + ';font-weight:900;font-size:11px;cursor:' + (clicavel ? 'pointer' : 'not-allowed') + ';opacity:' + (clicavel || ativo ? '1' : '0.35') + '">' + (ativo ? '✓' : n) + '</button>'
+                            + '<div class="flex-1"><span class="text-[9px] font-bold uppercase tracking-widest block mb-0.5" style="color:' + (ativo ? COR : '#6b7280') + '">Nível ' + n + ' — ' + custo + ' P.N</span>'
+                            + '<p class="text-[10px] leading-relaxed ' + (ativo ? 'text-gray-300' : 'text-gray-600') + '">' + desc + '</p></div></div>';
+                    }).join('');
+                    return '<div class="rounded-xl p-3 mb-2" style="background:#111827;border:1px solid ' + (cur > 0 ? COR + '4d' : '#1f2937') + '">'
+                        + '<div class="flex items-center gap-2 mb-1 flex-wrap">'
+                        + '<span class="text-xs font-bold" style="color:' + (cur > 0 ? COR : '#fff') + '">' + ins.nome + '</span>'
+                        + (ins.etiquetas || []).map(function (e) { return '<span class="text-[8px] font-bold px-1.5 rounded" style="background:#1e3a8a33;color:#93c5fd;border:1px solid #3b82f644">' + e + '</span>'; }).join('')
+                        + (atende
+                            ? '<span class="text-[8px] font-bold px-1.5 rounded ml-auto" style="background:#16a34a22;color:#4ade80;border:1px solid #16a34a44">requisitos OK</span>'
+                            : '<span class="text-[8px] font-bold px-1.5 rounded ml-auto" style="background:#4b556322;color:#9ca3af;border:1px solid #4b556344">requisitos faltando</span>')
+                        + '</div>'
+                        + '<p class="text-[9px] mb-2 leading-relaxed" style="color:' + (atende ? '#6b7280' : '#f59e0b') + '">Requer: ' + ins.reqTexto + '</p>'
+                        + niveis + '</div>';
+                }).join('');
+            }
+
+            function html() {
+                const livre = livreBase - gastoDraft();
+                return '<div id="inst-modal-overlay" style="position:fixed;inset:0;background:#000000ee;display:flex;align-items:flex-start;justify-content:center;z-index:9999;padding:16px;font-family:Rajdhani,sans-serif;overflow-y:auto">'
+                    + '<div style="background:#0d1117;border:2px solid ' + COR + ';border-radius:20px;padding:20px;width:100%;max-width:420px;box-shadow:0 0 60px ' + COR + '44;margin:auto">'
+                    + '<div style="margin-bottom:14px">'
+                    + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:13px;color:' + COR + ';text-transform:uppercase;letter-spacing:2px">Instâncias Shingen-Ryu</div>'
+                    + '<div style="font-size:10px;color:#6b7280;margin-top:2px">Pagas com P.N — o mesmo dos Hatsus e Princípios</div>'
+                    + '</div>'
+                    + '<div style="border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:10px;font-weight:700;background:' + (livre > 0 ? COR + '15' : '#1f2937') + ';border:1px solid ' + (livre > 0 ? COR + '30' : '#374151') + ';color:' + (livre > 0 ? COR : '#9ca3af') + '">⚡ ' + livre + ' P.N disponível(is)</div>'
+                    + '<div style="max-height:52vh;overflow-y:auto;padding-right:4px">' + corpo() + '</div>'
+                    + '<div style="display:flex;gap:8px;margin-top:14px">'
+                    + '<button onclick="document.getElementById(\'inst-modal-overlay\').remove()" style="flex:1;padding:11px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer;letter-spacing:1px">Cancelar</button>'
+                    + '<button onclick="window._instSalvar()" style="flex:2;padding:11px;border-radius:10px;background:' + COR + ';border:none;color:#000;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer;letter-spacing:1px">✓ Salvar</button>'
+                    + '</div></div></div>';
+            }
+            function redesenhar() {
+                document.getElementById('inst-modal-overlay')?.remove();
+                document.body.insertAdjacentHTML('beforeend', html());
+            }
+            redesenhar();
+        };
+
         window._openCombatIncModal = function() {
             const char = state.currentChar;
-            if (!char || char.level < 2) { alert('Inclinações de Combate só estão disponíveis a partir do Nível 2.'); return; }
+            // Gate único (nível + Nen + princípio/técnica) — a mesma função decide o que a
+            // ficha mostra, para a tela e o modal nunca discordarem.
+            const _porta = window.podeComprarInclinacoes ? window.podeComprarInclinacoes(char) : { ok: !!char && char.level >= 2, motivo: '' };
+            if (!char || !_porta.ok) { alert('Inclinações de Combate bloqueadas.\n\n' + (_porta.motivo || '')); return; }
             if (!window.COMBAT_INCLINATIONS_DB) { alert('Banco de Inclinações de Combate não carregado.'); return; }
             const tc = getComputedStyle(document.documentElement).getPropertyValue('--theme-color-hex').trim() || '#f97316';
             const draft = JSON.parse(JSON.stringify(char.combatInclinations || {}));
@@ -2853,10 +4640,20 @@
                 const avail = totalPts - spent;
                 const incsHtml = window.COMBAT_INCLINATIONS_DB.map(inc => {
                     const cur = draft[inc.id] || 0;
+                    // Requisito de princípio POR NÍVEL (a etiqueta do bloco "Com aura" daquele
+                    // nível). Defensiva Precisa pede TEN no Básico e SHU no Intermediário: quem
+                    // só tem TEN compra o Básico e fica travado ali. Antes a inclinação inteira
+                    // liberava junto, e era possível comprar Cirúrgica (KO) tendo só TEN.
+                    const portaInc = window.podeComprarInclinacao
+                        ? window.podeComprarInclinacao(char, inc) : { ok: true, motivo: '' };
+                    const portasNivel = inc.tiers.map((_, ti) => window.podeComprarNivelInclinacao
+                        ? window.podeComprarNivelInclinacao(char, inc, ti) : { ok: true, motivo: '' });
+                    const nAbertos = portasNivel.filter(p => p.ok).length;
                     const tiersHtml = inc.tiers.map((desc, ti) => {
                         const tierNum = ti + 1;
                         const active = cur >= tierNum;
-                        const canActivate = !active && avail > 0 && cur === ti;
+                        const portaN = portasNivel[ti];
+                        const canActivate = !active && avail > 0 && cur === ti && portaN.ok;
                         const canDeactivate = active && cur === tierNum;
                         // Tier com bônus de atributo (sempre o último tier, quando inc.attrBonus existe)
                         const isAttrTier = tierNum === inc.tiers.length && !!inc.attrBonus;
@@ -2874,15 +4671,29 @@
                                 attrChoiceHtml = `<div class="mt-1.5 flex flex-wrap gap-1.5 items-center">${btns}${!chosen ? '<span class="text-[9px] text-red-400 font-bold">⚠ escolha o atributo</span>' : ''}</div>`;
                             }
                         }
+                        // Nome do nível como no livro, em vez de "Tier 1/2/3".
+                        const nivelNome = window.CI_NIVEL_NOME ? window.CI_NIVEL_NOME[ti] : ('Tier ' + tierNum);
+                        // Acréscimo "Com aura": vale para quem conhece o princípio e paga a aura.
+                        // "Em vez disso" no texto significa que ele SUBSTITUI o efeito comum.
+                        const auraTxt = (inc.aura || [])[ti];
+                        const auraHtml = auraTxt
+                            ? `<div class="mt-1.5 flex gap-1.5 items-start rounded-md px-2 py-1.5" style="background:#1e3a8a22;border:1px solid #3b82f633"><span style="font-size:9px;line-height:1.3">💠</span><p class="text-[9px] leading-relaxed" style="color:#93c5fd">${auraTxt}</p></div>`
+                            : '';
                         return `<div class="flex gap-2 items-start p-2 rounded-lg ${active ? 'bg-orange-500/10 border border-orange-500/20' : 'bg-gray-900/50 border border-gray-800/50'} mb-1">
                             <button onclick="window._ciSetTier('${inc.id}',${active ? tierNum - 1 : tierNum})" style="min-width:28px;height:28px;border-radius:6px;border:1px solid ${active ? '#f97316' : '#374151'};background:${active ? '#f9731620' : '#111827'};color:${active ? '#f97316' : '#6b7280'};font-weight:900;font-size:11px;cursor:${(active && canDeactivate) || canActivate ? 'pointer' : 'default'};opacity:${(active && canDeactivate) || canActivate || active ? '1' : '0.35'}" ${(!canActivate && !active) ? 'disabled' : ''}>${active ? '✓' : tierNum}</button>
-                            <div class="flex-1"><span class="text-[9px] font-bold ${active ? 'text-orange-400' : 'text-gray-500'} uppercase tracking-widest block mb-0.5">Tier ${tierNum} — 1 ponto</span><p class="text-[10px] ${active ? 'text-gray-300' : 'text-gray-600'} leading-relaxed">${desc}</p>${attrChoiceHtml}</div>
+                            <div class="flex-1"><span class="text-[9px] font-bold ${active ? 'text-orange-400' : 'text-gray-500'} uppercase tracking-widest block mb-0.5">${nivelNome} — 1 ponto${portaN.ok ? '' : ' 🔒'}</span><p class="text-[10px] ${active ? 'text-gray-300' : 'text-gray-600'} leading-relaxed">${desc}</p>${portaN.ok ? '' : `<p class="text-[9px] font-semibold mt-1" style="color:#f59e0b">${portaN.motivo}</p>`}${auraHtml}${attrChoiceHtml}</div>
                         </div>`;
                     }).join('');
                     return `<div class="bg-gray-900 border ${cur > 0 ? 'border-orange-500/30' : 'border-gray-800'} rounded-xl p-3 mb-2">
                         <div class="flex items-center gap-2 mb-2">
                             <span class="text-xs font-bold ${cur > 0 ? 'text-orange-400' : 'text-white'}">${inc.nome}</span>
                             ${inc.req ? `<span class="text-[9px] bg-gray-800 text-gray-500 px-1.5 rounded border border-gray-700">${inc.req}</span>` : ''}
+                            ${(inc.etiquetas || []).map(e => `<span class="text-[8px] font-bold px-1.5 rounded" style="background:#1e3a8a33;color:#93c5fd;border:1px solid #3b82f644">${e}</span>`).join('')}
+                            ${nAbertos === 0
+                                ? `<span class="text-[8px] font-bold px-1.5 rounded ml-auto" style="background:#4b556322;color:#9ca3af;border:1px solid #4b556344">requisitos faltando</span>`
+                                : (nAbertos < inc.tiers.length
+                                    ? `<span class="text-[8px] font-bold px-1.5 rounded ml-auto" style="background:#f59e0b22;color:#fbbf24;border:1px solid #f59e0b44">${nAbertos} de ${inc.tiers.length} níveis</span>`
+                                    : ((inc.etiquetas || []).length ? `<span class="text-[8px] font-bold px-1.5 rounded ml-auto" style="background:#16a34a22;color:#4ade80;border:1px solid #16a34a44">requisitos OK</span>` : ''))}
                             ${cur > 0 ? `<span class="text-[9px] bg-orange-500/10 text-orange-400 border border-orange-500/20 px-1.5 rounded ml-auto">${cur} ponto(s)</span>` : ''}
                         </div>
                         ${tiersHtml}
@@ -2908,6 +4719,7 @@
                             <button onclick="window._ciSetTab('GERAIS')" style="flex:1;padding:8px;border-radius:8px;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.1em;cursor:pointer;font-family:Orbitron,sans-serif;border:none;background:${ciTab === 'GERAIS' ? '#00ff9d' : 'transparent'};color:${ciTab === 'GERAIS' ? '#000' : '#6b7280'}">Gerais</button>
                         </div>
                         <div style="max-height:50vh;overflow-y:auto;padding-right:4px">${ciTab === 'COMBATE' ? incsHtml : (buildGeraisListHtml(avail) + buildNegListHtml())}</div>
+                        ${(ciTab === 'COMBATE' && getCombatSpent() > 0) ? `<button onclick="window._ciZerarCombate()" style="width:100%;margin-top:10px;padding:9px;border-radius:9px;background:transparent;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:9px;text-transform:uppercase;cursor:pointer;letter-spacing:1px">↺ Zerar e realocar</button>` : ''}
                         <div style="display:flex;gap:8px;margin-top:14px">
                             <button onclick="document.getElementById('ci-modal-overlay').remove()" title="Fecha sem gastar: os pontos ficam guardados para um item mais caro depois" style="flex:1;padding:11px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer;letter-spacing:1px">Acumular Pontos</button>
                             <button onclick="window._ciSave()" style="flex:2;padding:11px;border-radius:10px;background:#f97316;border:none;color:#000;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer;letter-spacing:1px;box-shadow:0 0 20px #f9731655">✓ Salvar</button>
@@ -2921,6 +4733,17 @@
                 const cur = draft[id] || 0;
                 if (tierNum > cur && (getTotalPts() - getSpent()) <= 0) return;
                 if (tierNum > 3) return;
+                // Segunda trava, além do botão desabilitado: o handler é global e pode ser
+                // chamado de fora. Valida TODO o caminho, não só o nível de destino — subir
+                // para a Maestria passa pelo Intermediário, que pode estar travado.
+                if (tierNum > cur && window.podeComprarNivelInclinacao) {
+                    const _i = (window.COMBAT_INCLINATIONS_DB || []).filter(function (x) { return x.id === id; })[0];
+                    if (_i) {
+                        for (let _ti = cur; _ti < tierNum; _ti++) {
+                            if (!window.podeComprarNivelInclinacao(char, _i, _ti).ok) return;
+                        }
+                    }
+                }
                 draft[id] = tierNum;
                 if (tierNum < 3) delete draftChoices[id]; // saiu do tier de bônus — esquece a escolha
                 document.getElementById('ci-modal-overlay')?.remove();
@@ -2933,6 +4756,18 @@
                 document.body.insertAdjacentHTML('beforeend', buildModalHtml());
             };
 
+            // ── Zerar as Inclinações de Combate para realocar ───────────────────────────
+            // Mexe só no DRAFT e não salva: quem devolve os bônus de atributo é o ledger do
+            // _ciSave (appliedBefore → changes com delta negativo). Zerar direto em
+            // char.combatInclinations deixaria os +1 de atributo aplicados para sempre.
+            window._ciZerarCombate = function () {
+                if (!confirm('Zerar todas as Inclinações de Combate para realocar?\n\nOs Pontos de Inclinação voltam para o bolo e os bônus de atributo das Maestrias são desfeitos ao salvar.')) return;
+                Object.keys(draft).forEach(function (k) { delete draft[k]; });
+                Object.keys(draftChoices).forEach(function (k) { delete draftChoices[k]; });
+                document.getElementById('ci-modal-overlay')?.remove();
+                document.body.insertAdjacentHTML('beforeend', buildModalHtml());
+            };
+
             window._ciSave = function() {
                 // Bloqueia salvar se algum tier de bônus com escolha está ativo sem atributo escolhido
                 const pending = window.COMBAT_INCLINATIONS_DB.find(inc =>
@@ -2940,6 +4775,25 @@
                     (draft[inc.id] || 0) >= inc.tiers.length && !draftChoices[inc.id]
                 );
                 if (pending) { alert(`Escolha o atributo do bônus de "${pending.nome}" antes de salvar.`); return; }
+
+                // As Instâncias Shingen-Ryu têm inclinações como requisito. Realocar pode
+                // derrubar o requisito de uma Instância já paga com P.N — o jogador precisa
+                // saber antes de confirmar, senão descobre depois que treinou uma Instância
+                // que a ficha não sustenta mais.
+                if (window.INSTANCIAS_DB && window.avaliarRequisitoInstancia) {
+                    const inst = char.instancias || {};
+                    const orfas = window.INSTANCIAS_DB.filter(function (ins) {
+                        if (!(inst[ins.id] > 0)) return false;
+                        const antes = window.avaliarRequisitoInstancia(ins.requisitos, char.combatInclinations || {});
+                        const depois = window.avaliarRequisitoInstancia(ins.requisitos, draft);
+                        return antes && !depois;
+                    }).map(function (ins) { return ins.nome; });
+                    if (orfas.length > 0) {
+                        if (!confirm('Atenção: esta distribuição derruba o requisito de ' + orfas.length
+                            + ' Instância(s) Shingen-Ryu já treinada(s):\n\n• ' + orfas.join('\n• ')
+                            + '\n\nElas continuam na ficha e o P.N segue gasto, mas ficam sem requisito. Salvar assim mesmo?')) return;
+                    }
+                }
 
                 // "Ledger" do que já foi de fato aplicado nos atributos: fixo → true, escolha → attr
                 // escolhido. Comparar contra isso (em vez de contra o tier salvo anteriormente) também
@@ -3062,48 +4916,112 @@
         // Melhor armadura vestida (uma só) + soma de TODOS os escudos do inventário.
         function calcCAArmadura(char) {
             const modDes = getMod(((char.attributes || {}).DES || {}).value || 10);
+            // Maestrias de armadura, que até aqui não chegavam à CA. As duas mexem na CA
+            // DA PEÇA, então entram ANTES da escolha da "melhor armadura": aplicadas depois,
+            // uma média com o teto de DES ampliado poderia perder a comparação para uma
+            // pesada sem o +2 e o jogador veria a CA errada.
+            // O tipo da peça vem do findItemData, que devolve sub = 'leves'|'medias'|'pesadas'.
+            // Peça com CA digitada à mão e fora do ITEM_DB não tem sub: as maestrias não
+            // se aplicam, porque não há como saber o tipo.
+            const _ci = (char && char.combatInclinations) || {};
+            const _mMedia  = (parseInt(_ci.maestria_armadura_media) || 0) >= 2;   // tier 2
+            const _mPesada = (parseInt(_ci.maestria_armadura_pesada) || 0) >= 1;  // tier 1
             let melhorArmadura = 0, bonusEscudo = 0;
             (char.inventory || []).forEach(function (item) {
                 const data = (typeof findItemData === 'function') ? findItemData(item && item.name) : null;
                 const info = _parseCAItem((item && item.ca) || (data && data.ca));
                 if (!info) return;
                 if (info.tipo === 'escudo') { bonusEscudo += info.bonus; return; }
+                const sub = (data && data.sub) || '';
                 let total = info.base;
-                if (info.usaDes) total += (info.teto != null) ? Math.min(modDes, info.teto) : modDes;
+                let teto = info.teto;
+                // "Some até 4 de DES na CA, em vez do máximo 3." O livro assume que média
+                // tem teto 3; o ITEM_DB também tem médias de teto 2. Subimos 1, com 4 de
+                // limite: dá exatamente o 4 do livro no caso dele e nunca mais de +1.
+                if (_mMedia && sub === 'medias' && teto != null) teto = Math.min(4, teto + 1);
+                if (info.usaDes) total += (teto != null) ? Math.min(modDes, teto) : modDes;
+                if (_mPesada && sub === 'pesadas') total += 2;   // "+2 na CA da armadura"
                 if (total > melhorArmadura) melhorArmadura = total;
             });
             return { armadura: melhorArmadura, escudo: bonusEscudo };
         }
         // ── Princípios ativos que mexem na CA ───────────────────────────────────────
-        // KEN dobra a CA, KO reduz 80%, RYU soma 3 e SHU soma 1d4 (usamos a média, 2).
+        // KEN multiplica a CA, KO reduz 80%, RYU soma a linha da tabela do turno e SHU
+        // soma o 1d4 rolado na ativação. (O comentário antigo descrevia duas médias que
+        // não existem mais: nem o RYU é fixo em 3, nem o SHU usa a média 2 do 1d4.)
         // O GYO concentrado em CON entra pela porta normal, no 10 + modificador.
         function calcCAPrincipios(char, caBase) {
             const at = (char && char.principiosAtivos) || {};
             const fontes = [];
             let ca = caBase;
-            if (at.ken) { ca = ca * 2; fontes.push('KEN (×2)'); }
+            if (at.ken) {
+                // 1 pacote dobra, 2 triplicam, 3 quadruplicam — "gastar o dobro de aura e
+                // Reações para triplicar a CA original no lugar de dobrar".
+                const _mk = window.multiplicadorKen ? window.multiplicadorKen(char) : 2;
+                ca = ca * _mk; fontes.push('KEN (×' + _mk + ')');
+            }
             if (at.ko) {
                 const koB = window.calcAvancadoBonus ? window.calcAvancadoBonus(char, 'ko') : { caBonus: 0 };
                 ca = Math.round(ca * 0.2) + (koB.caBonus || 0);
                 fontes.push('KO (−80%' + ((koB.caBonus || 0) > 0 ? ', +' + koB.caBonus : '') + ')');
             }
             if (at.ryu) {
-                const ryB = window.calcAvancadoBonus ? window.calcAvancadoBonus(char, 'ryu') : { tabelaBonus: 0 };
-                const v = 3 + (ryB.tabelaBonus || 0);
-                ca += v; fontes.push('RYU (+' + v + ')');
+                // Era +3 fixo, o valor dos 3 turnos iniciais, para sempre. Agora vem da
+                // linha vigente: nos turnos 4-6 ela vale 3, 4 ou 5 conforme a ordem da
+                // tabela que o jogador escolheu.
+                const _r = window.calcRyuAtivo ? window.calcRyuAtivo(char) : null;
+                const v = _r ? _r.ca : 3;
+                ca += v;
+                fontes.push('RYU (+' + v + (_r ? ', ' + _r.tabela + ' turno ' + _r.turno : '') + ')');
             }
-            if (at.shu) { ca += 2; fontes.push('SHU (+1d4, média 2)'); }
+            if (at.shu) {
+                // Antes era fixo em 2, a média do 1d4. O livro manda somar o RESULTADO do
+                // 1d4, que agora é rolado na ativação (char.shuCaRolado), mais +1 por cada
+                // 5% do item 1 do menu. No SHU Superior esse +1 vem junto com o degrau
+                // de escada do Dano, sem precisar escolher entre os dois.
+                const _s = window.calcShuAtivo ? window.calcShuAtivo(char) : { caBonus: 0, caRolado: 0, caPasso: 0 };
+                ca += _s.caBonus;
+                fontes.push('SHU (1d4 rolou ' + _s.caRolado
+                    + (_s.caPasso > 0 ? ' +' + _s.caPasso : '') + ')');
+            }
             return { ca: Math.max(0, ca), fontes: fontes };
         }
 
         function calcCAAtual(char) {
             if (!char) return 10;
             const arm = calcCAArmadura(char);
-            // A maior entre "sem armadura" e a armadura vestida, e o escudo soma dos dois jeitos.
-            const base = Math.max(calcCASemArmadura(char), arm.armadura) + arm.escudo;
-            return calcCAPrincipios(char, base).ca;
+            // ── Armadura quebrada não protege mais ──────────────────────────────────
+            // A durabilidade é o número de golpes que a armadura aguenta, e esse número
+            // É a CA que ela concede: uma armadura de CA 13 aguenta 13 golpes. Zerada,
+            // o personagem cai para a CA natural. Antes a durabilidade era só um
+            // contador na tela — dava para zerar e a CA não mudava um ponto.
+            // Sem recursão: getDurabilidade chama calcCAArmadura, nunca calcCAAtual.
+            const _dur = getDurabilidade(char);
+            const _caArmadura = _dur.quebrada ? 0 : arm.armadura;
+            // A maior entre "sem armadura" e a armadura vestida, e o escudo soma dos dois
+            // jeitos — escudo é item à parte e não tem durabilidade.
+            const base = Math.max(calcCASemArmadura(char), _caArmadura) + arm.escudo;
+            // Instância Combatente Rápido nível 2, quando o jogador escolheu CA.
+            // Primeiro bônus de CA vindo de Instância/Inclinação a entrar no cálculo —
+            // antes nada disso chegava aqui (ver a lacuna de CA no backlog).
+            const _bci = window.calcBonusCAInstancia ? window.calcBonusCAInstancia(char).total : 0;
+            // Inclinações: só o que é permanente. O condicional fica no painel da Ficha.
+            const _bcl = window.calcBonusCAInclinacao ? window.calcBonusCAInclinacao(char).total : 0;
+            return calcCAPrincipios(char, base + _bci + _bcl).ca;
         }
         window.calcCAAtual = calcCAAtual;
+
+        // Escolha de uma Instância que oferece "ou" na descrição (hoje só o
+        // Combatente Rápido nível 2). Guarda em char.instanciaEscolhas para os
+        // dois destinos possíveis poderem ler de um lugar só.
+        window._setInstanciaEscolha = function (chave, valor) {
+            const char = state.currentChar;
+            if (!char) return;
+            if (!char.instanciaEscolhas) char.instanciaEscolhas = {};
+            char.instanciaEscolhas[chave] = valor;
+            saveCharacter(char);
+            render(true);
+        };
 
         // ── Durabilidade de Equipamentos de Proteção ─────────────────────────────────
         // Regra: a durabilidade de uma armadura é igual à CA que ela concede — Colete de
@@ -3159,14 +5077,6 @@
             saveCharacter(char);
             render(true);
         }
-        window.handleArmorRepair = function () {
-            const char = state.currentChar;
-            const d = getDurabilidade(char);
-            if (!d.temArmadura) return;
-            char.armorDurability = d.max;
-            saveCharacter(char);
-            render(true);
-        };
         function uploadCharacterImage(input) { if (input.files && input.files[0]) { const reader = new FileReader(); reader.onload = function(e) { state.currentChar.imageUrl = e.target.result; state.currentChar.imagePosition = { x: 50, y: 50 }; saveCharacter(state.currentChar); render(true); }; reader.readAsDataURL(input.files[0]); } }
 
         // Modal pra escolher qual parte da imagem do personagem fica visível no recorte do header

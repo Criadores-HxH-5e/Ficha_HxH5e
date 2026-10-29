@@ -44,7 +44,7 @@ window.CONSTRUCTO_DB = {
         rc_e7: 2,    // Corpo Evoluído 3
         rc_e10: 2,   // Corpo Evoluído 4
         rc_e13: 3,   // Forma Suprema
-        em_e1: 12,   // Aura Viva (CA fixa 12)
+        em_e1: 10,   // Aura Viva (CA fixa 10 — o livro diz "CA = 10"; o app tinha 12)
     },
     // Quantos "slots" de Característica de Invocação cada efeito concede ao ser comprado
     EFEITO_CARACTERISTICAS: {
@@ -54,14 +54,14 @@ window.CONSTRUCTO_DB = {
 
     // Bônus de restrições de conjuração relevantes para PV/CA
     RESTRICAO_PV: {
-        rc_p3: 10,   // Sacrifício Ritual — "+2 em CA e +10 PV ao ser criada"
-        rm_p3: 10,   // Componentes Materiais — mesmo benefício, não estava ligado
-    },           // Sacrifício Ritual: +2 CA e +10 PV ao ser criada
+        rm_p3: 10,   // Componentes Materiais — "+2 em CA e +10 PV ao ser criada"
+    },
     RESTRICAO_CA: {
-        rc_l1: 1,
-        rc_p3: 2,    // Sacrifício Ritual
-        rm_p3: 2,    // Componentes Materiais — mesmo benefício, não estava ligado
-    },  // Vínculo de Alcance: +1 na CA / Sacrifício Ritual: +2 CA
+        rm_l1: 1,    // Alcance Máximo 6m — "+1 na CA". Só o gêmeo rc_l1 estava ligado
+                     // aqui, então quem marcava rm_l1 não recebia a CA. Religado na
+                     // dedup; é um ganho visível para quem já tinha esse Hatsu.
+        rm_p3: 2,    // Componentes Materiais — "+2 em CA"
+    },
 
     // Valor ABSOLUTO (não cumulativo) por nº de vezes que a Característica foi escolhida.
     // Índice 0 = 1ª escolha, índice 1 = 2ª escolha, etc. Além do array, mantém o último valor.
@@ -91,7 +91,10 @@ window.CONSTRUCTO_DB = {
     ],
 
     ACOES_SIMPLES: [
-        { nome: 'Arma Natural', desc: 'Golpe corpo-a-corpo: 2d6 + atributo (normalmente FOR) em um acerto.' },
+        // Texto corrigido pelo Lucas no livro em 29/10: o 2d6 não é a regra, é a exceção
+        // — o golpe é 1d8 e só começa em 2d6 quando o Hatsu já tem dano próprio comprado
+        // (Dano/Cura Focal, Materialização que é uma arma, efeito envelopado equivalente).
+        { nome: 'Arma Natural', desc: 'Golpe corpo-a-corpo: 1d8 (ou 2d6, se comprado) + modificador de atributo de dano (normalmente FOR) em um acerto.' },
         { nome: 'Ataque Simples', desc: 'Realiza um ataque simples e direto.' },
         { nome: 'Auxílio Rápido', desc: 'Concede a ação de Ajuda a um aliado a até 1,5m para Testes ou Ataques.' },
         { nome: 'Desarme Simples', desc: 'Ataque vs Atletismo do alvo; vencendo, o alvo derruba o item em 1,5m.' },

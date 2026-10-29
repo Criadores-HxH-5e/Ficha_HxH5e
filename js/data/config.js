@@ -3,7 +3,23 @@ const DISCORD_CONFIG = {
     clientId: '1271506937111904286', // Substitua pelo ID do seu App Discord
     guildId: '831867588656758804',   // ID do Servidor Discord
     roleId: '1335940980628521000',     // ID do Cargo necessário
-    redirectUri: window.location.origin + window.location.pathname // URL atual
+    // ── redirect_uri do Discord ──────────────────────────────────────────────
+    // Era `origin + pathname`: a URL EXATA em que o jogador estava quando clicou em
+    // entrar. O Discord só aceita URIs cadastradas no portal, e esta mesma tela tem
+    // mais de um endereço:
+    //   https://ficha-hx-h5e.vercel.app/            → o vercel.json reescreve para
+    //                                                 /HxH5e.html, mas a barra de
+    //                                                 endereço continua em "/"
+    //   https://ficha-hx-h5e.vercel.app/HxH5e.html  → quem abre o link direto
+    // Quem caía no caminho não cadastrado levava "redirect_uri de OAuth2 inválido".
+    // Como o caminho dependia de COMO a pessoa chegou no site, o erro parecia
+    // aleatório: o mesmo jogador entrava hoje e falhava amanhã.
+    //
+    // Agora o caminho é sempre "/", que é a entrada canônica (o vercel.json já a
+    // reescreve para HxH5e.html, e só o HxH5e.html carrega o auth.js, que é quem lê
+    // o token do hash na volta). A ORIGEM continua dinâmica, para o app seguir
+    // funcionando em localhost e nos previews da Vercel.
+    redirectUri: window.location.origin + '/'
 };
 
 // Lista de IDs de usuários que pagaram (Acesso liberado sem cargo)
@@ -722,16 +738,25 @@ window.calcIniciativaBonus = function (char) {
 //
 // Fonte: Inclinações de Combate (livro v2.0). A RD vinda dos Princípios de Nen
 // (TEN, KEN) entra aqui quando a ativação dos princípios existir.
+// rev. cap. 4 atualizado: a RD das inclinações defensivas virou acréscimo "Com aura".
+// A tabela anterior tinha três entradas que não correspondem mais ao texto:
+//   • Defensiva Bruta Básico dava RD 3 PASSIVA. No livro, o Básico é "+2 no Bloqueio
+//     Desarmado" (não é RD) e a RD +2 só existe no acréscimo com TEN.
+//   • Defensiva Precisa Básico dava RD 5. No livro, o Básico é "+1 na CA contra o alvo
+//     marcado" e a RD +2 só existe com TEN.
+//   • Defensiva Bruta Intermediário dava 3×CON. O livro diz "some sua CON na RD do TEN".
+// Por isso as três passaram a exigir TEN (requerTen) e deixaram de ser passivas: sem o
+// princípio ativo elas não acontecem. requerTen também as esconde de quem não tem TEN.
 window.RD_FONTES = [
-    { id: 'defensiva_bruta_1',   inc: 'defensiva_bruta',          tier: 1, valor: 3,
-      nome: 'Defensiva Bruta', passiva: true,
-      condicao: 'Qualquer dano, de qualquer oponente' },
-    { id: 'defensiva_precisa_1', inc: 'defensiva_precisa',        tier: 1, valor: 5,
-      nome: 'Defensiva Precisa', passiva: false,
-      condicao: 'Só contra UM alvo escolhido no combate' },
-    { id: 'defensiva_bruta_2',   inc: 'defensiva_bruta',          tier: 2, valor: null, formula: 'con3',
-      nome: 'Defensiva Bruta (3×CON)', passiva: false,
-      condicao: 'Ataque que falhou em bloquear — 1× por rodada' },
+    { id: 'defensiva_bruta_1',   inc: 'defensiva_bruta',          tier: 1, valor: 2, requerTen: true,
+      nome: 'Defensiva Bruta (com TEN)', passiva: false,
+      condicao: 'Exige TEN ativo — ao sofrer dano bloqueando, além da RD do TEN' },
+    { id: 'defensiva_precisa_1', inc: 'defensiva_precisa',        tier: 1, valor: 2, requerTen: true,
+      nome: 'Defensiva Precisa (com TEN)', passiva: false,
+      condicao: 'Exige TEN ativo — só contra golpes do alvo marcado' },
+    { id: 'defensiva_bruta_2',   inc: 'defensiva_bruta',          tier: 2, valor: null, formula: 'conMod', requerTen: true,
+      nome: 'Defensiva Bruta (CON na RD do TEN)', passiva: false,
+      condicao: 'Exige TEN ativo — quando o Bloqueio falha; aplique antes de dividir o dano' },
     { id: 'armadura_pesada_2',   inc: 'maestria_armadura_pesada', tier: 2, valor: 3,
       nome: 'Maestria em Armadura Pesada', passiva: false,
       condicao: 'Só quando o acerto IGUALA a sua CA' },
@@ -743,25 +768,929 @@ window.calcFontesRD = function (char) {
     if (!char) return [];
     const ci = char.combatInclinations || {};
     const conMod = Math.floor(((((char.attributes || {}).CON || {}).value || 10) - 10) / 2);
+    const temTen = ((char.nenDominio || {}).ten || 0) > 0;
     const lista = (window.RD_FONTES || []).filter(function (f) {
-        return (parseInt(ci[f.inc]) || 0) >= f.tier;
+        if ((parseInt(ci[f.inc]) || 0) < f.tier) return false;
+        // Fonte que depende de TEN não aparece para quem não treinou TEN.
+        if (f.requerTen && !temTen) return false;
+        return true;
     }).map(function (f) {
         return {
             id: f.id, nome: f.nome, passiva: f.passiva, condicao: f.condicao,
-            valor: f.formula === 'con3' ? Math.max(0, conMod * 3) : f.valor,
+            valor: f.formula === 'conMod' ? Math.max(0, conMod) : f.valor,
         };
     });
     // TEN ativo também dá RD. Entra ligado por padrão: se o princípio está ativo, a
     // proteção vale — mas só contra Corte, Impacto e Explosão, por isso a condição
     // aparece escrita e o jogador pode desligar quando o dano for de outro tipo.
     if (((char.principiosAtivos) || {}).ten && window.calcTenRD) {
-        const v = window.calcTenRD(char) || 0;
+        // Pacotes extras pagos na ativação multiplicam a RD — ver custoPacotePrincipio
+        // em nen-affinity.js. Com 1 pacote o valor é exatamente o de antes.
+        const _pacTen = window.pacotesPrincipio ? window.pacotesPrincipio(char, 'ten') : 1;
+        const v = (window.calcTenRDAtivo ? window.calcTenRDAtivo(char) : window.calcTenRD(char)) || 0;
         if (v > 0) lista.unshift({
-            id: 'principio_ten', nome: 'TEN (ativo)', passiva: true, valor: v,
+            id: 'principio_ten', nome: 'TEN (ativo)' + (_pacTen > 1 ? ' ×' + _pacTen : ''),
+            passiva: true, valor: v,
             condicao: 'Só contra Corte, Impacto e Explosão',
         });
     }
+    // rm_e12 Aura Condensada com destino 'rd': cada 5% guardados valem 1 ponto de RD,
+    // sem rolagem. Entra PASSIVA (já ligada) porque o jogador decidiu gastar a reserva
+    // nisso — não é condicional ao golpe. Vive enquanto o Hatsu estiver ativo: desligar
+    // apaga hatsusAtivos[idx] e a fonte sai daqui sozinha.
+    const _ativosAC = char.hatsusAtivos || {};
+    Object.keys(_ativosAC).forEach(function (k) {
+        const res = (_ativosAC[k] || {}).reservaCondensada;
+        if (!res || res.destino !== 'rd') return;
+        const pontos = window.passosAuraCondensada ? window.passosAuraCondensada(res.pct) : 0;
+        if (pontos <= 0) return;
+        const hh = (char.hatsus || [])[parseInt(k)] || {};
+        lista.push({
+            id: 'aura_condensada_' + k,
+            nome: 'Aura Condensada — ' + (hh.nome || ('Hatsu ' + (parseInt(k) + 1))),
+            passiva: true, valor: pontos,
+            condicao: res.pct + '% de aura guardados neste Hatsu. Vale enquanto ele estiver ativo.',
+        });
+    });
+    // ── RD dos efeitos de Hatsu (Reforço) ───────────────────────────────────────
+    // Três efeitos de Reforço concedem RD com número fechado e NENHUM deles entrava
+    // no cálculo: quem comprava "Corpo de Aço" tinha 10 de RD no livro e 0 no app.
+    // Entram como fontes CONDICIONAIS (passiva: false), desligadas por padrão, porque
+    // valem só contra certos tipos de dano — o jogador liga a que serve ao golpe, do
+    // mesmo jeito que já faz com as fontes das inclinações. E só com o Hatsu ATIVO:
+    // efeito de Hatsu não é traço permanente (mesma regra do Aumento de Atributo).
+    const _ativosRDH = char.hatsusAtivos || {};
+    ((char.hatsus) || []).forEach(function (h, i) {
+        if (!_ativosRDH[i] || !h) return;
+        const efeitos = h.efeitos || [];
+        const sc = h.specialChoices || {};
+        const nomeH = h.nome || ('Hatsu ' + (i + 1));
+
+        // ri_e7 Pele de Pedra: 3 RD contra Impacto, Perfurante e Cortante.
+        // Repetível: cada compra soma outros 3.
+        const nPedra = efeitos.filter(function (id) { return id === 'ri_e7'; }).length;
+        if (nPedra > 0) lista.push({
+            id: 'ri_e7_' + i, nome: 'Pele de Pedra — ' + nomeH,
+            passiva: false, valor: 3 * nPedra,
+            condicao: 'Só contra Impacto, Perfurante e Cortante'
+                + (nPedra > 1 ? ' · ' + nPedra + ' compras × 3' : ''),
+        });
+
+        // ri_e16 Barreira Interna: 5 RD contra Energia e Elementais, "+2 a cada nova escolha".
+        const nBarreira = efeitos.filter(function (id) { return id === 'ri_e16'; }).length;
+        if (nBarreira > 0) lista.push({
+            id: 'ri_e16_' + i, nome: 'Barreira Interna — ' + nomeH,
+            passiva: false, valor: 5 + 2 * (nBarreira - 1),
+            condicao: 'Só contra Energia e Elementais'
+                + (nBarreira > 1 ? ' · ' + nBarreira + ' compras (5 +2 por recompra)' : ''),
+        });
+
+        // ri_e25 Corpo de Aço: 10 RD contra UM tipo entre Explosivo, Balístico ou Mortal.
+        // O tipo é escolhido na compra; cada compra tem o seu (chaves ri_e25 / ri_e25#1…).
+        const nAco = efeitos.filter(function (id) { return id === 'ri_e25'; }).length;
+        for (let c = 0; c < nAco; c++) {
+            const tipo = sc[c > 0 ? ('ri_e25#' + c) : 'ri_e25'];
+            lista.push({
+                id: 'ri_e25_' + i + '_' + c, nome: 'Corpo de Aço — ' + nomeH,
+                passiva: false, valor: 10,
+                condicao: tipo
+                    ? ('Só contra dano ' + tipo)
+                    : 'Escolha o tipo de dano ao editar o Hatsu (Explosivo, Balístico ou Mortal)',
+            });
+        }
+    });
     return lista;
+};
+
+// ── Bônus nos RESULTADOS das reações ─────────────────────────────────────────
+// A mesa online (mesa/mesa.html) já tem o sistema completo de reações: a tabela
+// REACOES com as 7 ações, o gasto de 1 Reação por uso e a rolagem de verdade
+// (rolarD20 / rolarDano). O que ela NÃO faz está escrito lá no modAt:
+//
+//     // Modificadores base (sem Hatsu/princípios, como o resto da mesa).
+//
+// Ou seja: a mesa monta "1d20 + DES" com o atributo cru e ignora de propósito tudo
+// que vem de Nen, Instâncias e Inclinações. Então os bônus que o livro dá para
+// Esquiva e Bloqueio nunca chegavam a nenhuma rolagem — nem aqui, nem lá.
+//
+// Esta função é a ponte. A mesa carrega este mesmo arquivo (<script src="../js/data/config.js">)
+// e já consome funções daqui (calcReacoesMax), então basta ela somar o que isto devolve.
+// Devolve SÓ os bônus — a fórmula base continua sendo da mesa, sem duplicar nada.
+window.REACOES_HXH = [
+    { k: 'esq',    n: 'Esquiva',                 f: '1d20 + DES' },
+    { k: 'acro',   n: 'Esquiva Acrobática',      f: '1d20 + Acrobacia' },
+    { k: 'bdes',   n: 'Bloqueio Desarmado',      f: '1d20 + CON + FOR' },
+    { k: 'barm',   n: 'Bloqueio Armado',         f: '1d20 + CON + FOR + arma' },
+    { k: 'lugar',  n: 'Assumir Lugar',           f: '1d6 + CA' },
+    { k: 'contra', n: 'Contra-ataque',           f: 'rolagem de ataque' },
+    { k: 'ado',    n: 'Ataque de Oportunidade',  f: 'rolagem de ataque' },
+];
+
+// Quais reações cada fonte alcança. 'todas' vale para as 7.
+const _REAC_ESQUIVAS = ['esq', 'acro'];
+
+window.calcBonusReacao = function (char, k) {
+    const fontes = [];
+    let total = 0;
+    if (!char) return { total: 0, fontes: fontes };
+    const add = function (nome, valor, condicao) {
+        if (!(valor > 0)) return;
+        total += valor;
+        fontes.push({ nome: nome, valor: valor, condicao: condicao || '' });
+    };
+
+    // ── Potencial Liberado "Pernas — Ágil" (ri_e30 → pl_perna_rea) ───────────
+    // "+2 aos resultados das reações", +1 por recompra. Vale em TODAS as reações
+    // e só com o Hatsu ativo, como todo efeito de Hatsu.
+    const ativos = char.hatsusAtivos || {};
+    (char.hatsus || []).forEach(function (h, i) {
+        if (!ativos[i] || !window.bonusPotencialLiberado) return;
+        const pl = window.bonusPotencialLiberado(h);
+        if (pl.resultadoReacoes > 0) {
+            add('Potencial Liberado (' + (h.nome || ('Hatsu ' + (i + 1))) + ')', pl.resultadoReacoes);
+        }
+    });
+
+    // ── Instâncias Shingen-Ryu ──────────────────────────────────────────────
+    // Ágil, nível 1: "+2 na Esquiva e na Esquiva Acrobática."
+    const inst = char.instancias || {};
+    if ((parseInt(inst.agil) || 0) >= 1 && _REAC_ESQUIVAS.indexOf(k) >= 0) {
+        add('Instância Ágil', 2);
+    }
+
+    // Combatente Rápido, nível 2: "+2 na CA OU Ações de Esquivas" — escolha do
+    // jogador, guardada em char.instanciaEscolhas. Só conta aqui se ele escolheu
+    // Esquivas; se escolheu CA, vai para o calcBonusCAInstancia.
+    if ((parseInt(inst.combatente_rapido) || 0) >= 2 && _REAC_ESQUIVAS.indexOf(k) >= 0
+        && ((char.instanciaEscolhas || {}).combatente_rapido_2 === 'esquiva')) {
+        add('Instância Combatente Rápido', 2);
+    }
+
+    // ── Inclinações de Combate ──────────────────────────────────────────────
+    // Defensiva Bruta, Básico: "+2 no Bloqueio Desarmado."
+    // Defensiva Precisa, Intermediário: "+2 no resultado final do Bloqueio Armado."
+    const ci = char.combatInclinations || {};
+    if ((parseInt(ci.defensiva_bruta) || 0) >= 1 && k === 'bdes') {
+        add('Defensiva Bruta (Básico)', 2);
+    }
+    if ((parseInt(ci.defensiva_precisa) || 0) >= 2 && k === 'barm') {
+        add('Defensiva Precisa (Intermediário)', 2);
+    }
+
+    // Defensiva Reativa Ágil, Intermediário: "Some o dobro da proficiência na
+    // Esquiva Acrobática." Dobrar = a proficiência passa a contar 2× EM VEZ de 1×.
+    // Com PB 2 e proficiência em Acrobacia, o total vai de DES+2 para DES+4; com
+    // PB 3, de DES+3 para DES+6. Como a fórmula base (modAcrobacia na mesa, ou a
+    // perícia na ficha) já soma 1×, o que falta somar aqui é exatamente +1 PB.
+    // Com Especialização a perícia já conta 2×: dobrar leva a 4×, então o extra
+    // é 2× PB. É a leitura literal de "dobre a proficiência".
+    if ((parseInt(ci.defensiva_reativa_agil) || 0) >= 2 && k === 'acro') {
+        const pb = Math.max(2, Math.floor(((parseInt(char.level) || 1) - 1) / 4) + 2);
+        const temAcro = (char.skills || []).indexOf('Acrobacia') >= 0;
+        const expAcro = (char.expertise || []).indexOf('Acrobacia') >= 0;
+        // Sem proficiência em Acrobacia não há o que dobrar.
+        if (expAcro) add('Defensiva Reativa Ágil (proficiência dobrada)', pb * 2, 'Acrobacia com Especialização: 2× → 4×');
+        else if (temAcro) add('Defensiva Reativa Ágil (proficiência dobrada)', pb, 'Acrobacia proficiente: 1× → 2×');
+    }
+
+    // Mestre do Fluxo, nível 2: "1x por rodada, qualquer reação sua possui +2 no
+    // resultado." É CONDICIONAL (uma vez por rodada), então NÃO entra no total —
+    // somar automático daria +2 em toda reação da rodada. Sai como fonte marcada
+    // `condicional`, para a ficha mostrar "disponível" e o jogador aplicar na que
+    // escolher. Mesma ideia das fontes desligadas do modal de Dano Recebido.
+    if ((parseInt(inst.mestre_do_fluxo) || 0) >= 2) {
+        fontes.push({ nome: 'Instância Mestre do Fluxo', valor: 2, condicional: true,
+            condicao: '1× por rodada, na reação que você escolher' });
+    }
+
+    return { total: total, fontes: fontes };
+};
+
+// ── Margem de acerto crítico ─────────────────────────────────────────────────
+// O app não tinha esse campo, e três coisas do livro mexem nele — nenhuma valia:
+//   ri_e9 Aura Afiada (Reforço)  "Reduz a margem em 1 (máx. 2 usos)"
+//   Instância Assassino Veterano N2  "Crítico em 18+"
+//   Instância Executor N1  "+1 na margem (19, ou 18 se a arma já tiver Crítico)"
+// Base 20 e PISO 18: acumular nunca desce abaixo disso.
+// A do Executor é CONDICIONAL — vale só no golpe decisivo, não em todo ataque —,
+// então sai em `condicionais` e não entra no valor, como o Mestre do Fluxo nas
+// reações. A Aura Afiada é efeito de Hatsu: só conta com o Hatsu ativo.
+window.MARGEM_CRITICO_BASE = 20;
+window.MARGEM_CRITICO_PISO = 18;
+
+window.calcMargemCritico = function (char) {
+    const base = window.MARGEM_CRITICO_BASE;
+    const piso = window.MARGEM_CRITICO_PISO;
+    const fontes = [];
+    const condicionais = [];
+    if (!char) return { valor: base, base: base, piso: piso, fontes: fontes, condicionais: condicionais };
+    let reducao = 0;
+
+    // ri_e9 Aura Afiada: −1 por compra, teto de 2 usos, só com o Hatsu ativo.
+    const ativos = char.hatsusAtivos || {};
+    (char.hatsus || []).forEach(function (h, i) {
+        if (!ativos[i] || !h) return;
+        const n = Math.min(2, (h.efeitos || []).filter(function (id) { return id === 'ri_e9'; }).length);
+        if (n > 0) {
+            reducao += n;
+            fontes.push({ nome: 'Aura Afiada (' + (h.nome || ('Hatsu ' + (i + 1))) + ')', valor: n });
+        }
+    });
+
+    // Instância Assassino Veterano, nível 2: "Crítico em 18+" — valor absoluto, que
+    // com o piso 18 equivale a −2. Fica como −2 para somar com as outras fontes.
+    const inst = char.instancias || {};
+    if ((parseInt(inst.assassino_veterano) || 0) >= 2) {
+        reducao += 2;
+        fontes.push({ nome: 'Instância Assassino Veterano', valor: 2 });
+    }
+
+    // Instância Executor, nível 1: só no golpe decisivo.
+    if ((parseInt(inst.executor) || 0) >= 1) {
+        condicionais.push({ nome: 'Instância Executor', valor: 1, condicao: 'só no golpe decisivo' });
+    }
+
+    const valor = Math.max(piso, base - reducao);
+    return {
+        valor: valor, base: base, piso: piso,
+        reducao: reducao,
+        // Quanto foi perdido para o piso, para a ficha poder avisar.
+        perdidoNoPiso: Math.max(0, (base - reducao) < piso ? piso - (base - reducao) : 0),
+        fontes: fontes, condicionais: condicionais,
+    };
+};
+
+// ── Bônus nas jogadas de ACERTO vindos de Instâncias e Inclinações ───────────
+// Até aqui o acerto só somava bônus de restrições e efeitos do Hatsu (o ACERTO_BNF_MAP
+// em hatsu-detail.js). Instância e Inclinação não chegavam a nenhuma jogada — era a
+// lacuna "Acerto não lê combatInclinations" do backlog.
+// Vale para o ataque com arma E para o Hatsu, por isso fica aqui e não no detalhe.
+
+// ── Surtos de Loucura ────────────────────────────────────────────────────────
+// As quatro tabelas existiam no init.js, mas numa versão ANTIGA e diferente da do
+// livro: dez faixas em cada uma onde o livro tem cinco e seis, textos que não
+// batiam, e três dados errados —
+//
+//   Curta:              duração 1d6 rodadas  →  o livro diz 1d10 rodadas
+//   Indeterminado Leve: rolava 1d12          →  o livro diz 1d8
+//   Indeterminado Pesado: rolava 1d100       →  o livro diz 1d12
+//
+// A lista "Leve" do app também misturava as duas: Covardia, Dupla Personalidade,
+// Impulsividade e Instinto Assassino são do PESADO, e estavam entre as leves.
+// Um jogador a 50% podia tirar "Instinto Assassino", que é efeito de 25%.
+//
+// As tabelas mudaram de casa para cá, e não para o init.js, para poderem ser
+// conferidas contra o livro sem abrir a interface.
+//
+// O livro chama as duas últimas de "Indeterminado", e não "Permanente": elas
+// "permanecem até o ponto de sanidade ser restaurado". Fichas salvas antes disso
+// guardaram a categoria como texto, então SANIDADE_CATEGORIA_LEGADO traduz as
+// antigas para as novas na hora de pintar o cartão.
+window.SANIDADE_SURTOS = {
+    90: {
+        cat: 'CURTA DURAÇÃO', cor: '#fbbf24', dado: '1d100', faces: 100,
+        duracaoFaces: 10, duracaoUnidade: 'rodada',
+        tabela: [
+            [1, 20, 'Vontade avassaladora de comer coisas estranhas como terra, limo ou restos. Fica Envenenado.'],
+            [21, 40, 'Fica Amedrontado e deve usar sua ação para se mover a cada rodada, fugindo da fonte do medo.'],
+            [41, 60, 'Começa a balbuciar e fica incapaz de falar ou de usar um Hatsu que dependa de comandos verbais.'],
+            [61, 80, 'Deve usar sua ação a cada rodada para atacar a criatura mais próxima à sua frente ou à sua direita.'],
+            [81, 100, 'Faz o que qualquer um mandar, desde que não seja obviamente suicida.'],
+        ]
+    },
+    75: {
+        cat: 'LONGA DURAÇÃO', cor: '#f87171', dado: '1d100', faces: 100,
+        duracaoFaces: 10, duracaoUnidade: 'hora',
+        tabela: [
+            [1, 20, 'Sente-se obrigado a repetir uma atividade específica que custa sua ação principal e é irrelevante para o combate (lavar as mãos, contar moedas). Não gastar a ação a cada 3 rodadas custa −1 de sanidade a cada 3 rodadas.'],
+            [21, 40, 'Fica ligado a uma pessoa como um "talismã da sorte": desvantagem em ataques, testes de habilidade e testes de resistência enquanto estiver a mais de 1,5 m dela.'],
+            [41, 55, 'Experimenta uma alucinação poderosa e se vê sofrendo (ou apaixonado) por algo no contexto da cena, desligando-se do que acontece ao redor.'],
+            [56, 70, 'Começa a balbuciar e fica incapaz de falar ou de usar um Hatsu que dependa de comandos verbais.'],
+            [71, 86, 'Tremores e tiques incontroláveis: desvantagem em todas as jogadas que envolvam Força ou Destreza.'],
+            [87, 100, 'Amnésia parcial. Desconfia e não reconhece outras pessoas além de si mesmo, de suas habilidades e de seus equipamentos.'],
+        ]
+    },
+    50: {
+        cat: 'INDETERMINADO LEVE', cor: '#a78bfa', dado: '1d8', faces: 8,
+        duracaoFaces: null, duracaoUnidade: null,
+        lista: [
+            'Inclinação Negativa: Avareza',
+            'Inclinação Negativa: Cleptomania',
+            'Inclinação Negativa: Desvio de Atenção',
+            'Inclinação Negativa: Megalomania',
+            'Inclinação Negativa: Mente de Criança (penalidade de −5 em Intuição)',
+            'Inclinação Negativa: Paranoia',
+            'Inclinação Negativa: Pesadelos',
+            'Inclinação Negativa: Visões de Morte',
+        ]
+    },
+    25: {
+        cat: 'INDETERMINADO PESADO', cor: '#ff4df7', dado: '1d12', faces: 12,
+        duracaoFaces: null, duracaoUnidade: null,
+        lista: [
+            'Inclinação Negativa: Covardia',
+            'Inclinação Negativa: Dupla Personalidade',
+            'Inclinação Negativa: Impulsividade',
+            'Inclinação Negativa: Instinto Assassino',
+            'Não reconhece nenhum aliado, considera todos inimigos — OU reconhece o inimigo como seu melhor amigo.',
+            'Arranca os cabelos gritando de horror (Fascinado).',
+            'Machuca os olhos tentando arrancá-los enquanto grita (Ataque mirado).',
+            'Tenta estrangular um aliado, ou a si mesmo se estiver lutando sozinho.',
+            'Esquece a própria identidade, perdendo seu Hatsu até retomar a memória ou a sanidade.',
+            'Atitude suicida: tenta se matar ou se jogar no perigo que causou a insanidade.',
+            'Sem ação e totalmente sugestionável, faz o que os outros mandam e perde a vontade própria.',
+            'Sempre que sofrer dano, deve passar num teste de resistência de Sabedoria CD 15 ou o dano também reduz sua sanidade.',
+        ]
+    },
+};
+window.SANIDADE_CATEGORIA_LEGADO = {
+    'PERMANENTE LEVE': 'INDETERMINADO LEVE',
+    'PERMANENTE PESADO': 'INDETERMINADO PESADO',
+};
+
+// Sorteia o resultado de um surto na faixa dada. Separado da interface para poder
+// ser conferido contra o livro sem abrir a tela.
+window.rolarSurto = function (faixa, rng) {
+    const cfg = (window.SANIDADE_SURTOS || {})[faixa];
+    if (!cfg) return null;
+    const r = rng || function (n) { return Math.floor(Math.random() * n) + 1; };
+    const roll = r(cfg.faces);
+    const resultado = cfg.lista
+        ? (cfg.lista[roll - 1] || cfg.lista[0])
+        : ((cfg.tabela.filter(function (e) { return roll >= e[0] && roll <= e[1]; })[0] || [0, 0, '—'])[2]);
+    const durVal = cfg.duracaoFaces ? r(cfg.duracaoFaces) : null;
+    const duracao = durVal == null
+        ? 'Indeterminado'
+        : (durVal + ' ' + cfg.duracaoUnidade + (durVal !== 1 ? 's' : ''));
+    return { categoria: cfg.cat, cor: cfg.cor, dado: cfg.dado, roll: roll,
+             resultado: resultado, duracao: duracao, duracaoValor: durVal };
+};
+
+// ── Recuperando Sanidade ─────────────────────────────────────────────────────
+// Seis rotas, todas com +INT. Três delas dependem da Ação Protagonista, que até
+// hoje não existia no app — é por isso que a recuperação inteira estava de fora.
+//
+// 'auto' marca as que o app aplica sozinho, porque o gatilho é mecânico e o app
+// o enxerga: receber a Ação Protagonista e tirar 20 natural. As outras quatro
+// são de mesa (um descanso, cumprir o que ama, o Foco de Caça) ou dependem de um
+// julgamento que só o jogador faz — se a Ação Protagonista foi BEM SUCEDIDA.
+window.SANIDADE_RECUPERACAO = [
+    { id: 'receber_ap', dado: '1d4',  faces: 4,  qtd: 1, auto: true,  icone: '⭐',
+      rotulo: 'Ao receber uma Ação Protagonista' },
+    { id: 'descanso',   dado: '1d8',  faces: 8,  qtd: 1, auto: false, icone: '🛏',
+      rotulo: 'Descanso Longo' },
+    { id: 'usar_ap',    dado: '1d10', faces: 10, qtd: 1, auto: false, icone: '🎯',
+      rotulo: 'Ação Protagonista bem sucedida' },
+    { id: 'o_que_ama',  dado: '2d6',  faces: 6,  qtd: 2, auto: false, icone: '❤️',
+      rotulo: 'Cumprir o que gosta ou ama' },
+    { id: 'foco_caca',  dado: '2d12', faces: 12, qtd: 2, auto: false, icone: '🏹',
+      rotulo: 'Cumprir objetivos do Foco de Caça' },
+    { id: 'natural20',  dado: '1d20', faces: 20, qtd: 1, auto: true,  icone: '🎲',
+      rotulo: 'Resultado 20 em qualquer rolagem' },
+];
+window.rotaSanidade = function (id) {
+    return (window.SANIDADE_RECUPERACAO || []).filter(function (r) { return r.id === id; })[0] || null;
+};
+
+// Quanto uma rota devolve: os dados mais o modificador de INT.
+window.calcRecuperacaoSanidade = function (char, id, rng) {
+    const rota = window.rotaSanidade(id);
+    if (!rota || !char) return null;
+    const r = rng || function (n) { return Math.floor(Math.random() * n) + 1; };
+    const dados = [];
+    for (let i = 0; i < rota.qtd; i++) dados.push(r(rota.faces));
+    const _int = window.calcAtributoEfetivo
+        ? window.calcAtributoEfetivo(char, 'INT').mod
+        : Math.floor((((char.attributes || {}).INT || {}).value - 10) / 2) || 0;
+    const soma = dados.reduce(function (a, b) { return a + b; }, 0);
+    // O modificador de INT pode ser negativo; a recuperação nunca vira dano.
+    const total = Math.max(0, soma + _int);
+    return { rota: rota, dados: dados, int: _int, total: total };
+};
+
+// ── Rolagem com Ênfase ───────────────────────────────────────────────────────
+// "O jogador rola 2d20 e seleciona o resultado inferior ou superior mais distante
+//  do valor 10. Em caso de empate um novo dado é rolado. Caso o resultado seja
+//  superior, qualquer penalidade ou bônus cabível é adicionado. Caso o resultado
+//  seja inferior, qualquer bônus cabível se torna penalidade."
+//
+// O app tinha a Ênfase pela metade, e errada em três pontos:
+//   1. media a distância a partir de 10,5 (o meio do d20) e não de 10. Com 10,5
+//      nunca existe empate — as distâncias caem sempre em meios diferentes — e
+//      por isso o desempate do livro simplesmente não existia no código. Num 5 e
+//      15 o app escolhia o 5 em silêncio, em vez de rolar um dado novo.
+//   2. não havia desempate.
+//   3. a INVERSÃO DO BÔNUS não existia em lugar nenhum: no exemplo do livro, um 5
+//      com +3 dá 2, e o app dava 8.
+// A primeira é o que torna as outras duas visíveis.
+window.ENFASE_REFERENCIA = 10;
+window.ENFASE_USOS_POR_SESSAO = 3;
+
+// "Um jogador dispõe de apenas 3 usos de Ênfase por sessão."
+window.enfaseUsosRestantes = function (char) {
+    const max = window.ENFASE_USOS_POR_SESSAO || 3;
+    return Math.max(0, max - (parseInt((char || {}).enfaseUsos) || 0));
+};
+
+// Soma o bônus com o sinal certo. Na falha da Ênfase TUDO que somava passa a
+// subtrair — atributo, proficiência, Instâncias, Inclinações, RYU: o pacote
+// inteiro (decisão de regra do Lucas, 28/10).
+window.totalComEnfase = function (roll, bonusTotal, penalidadePlana) {
+    const b = parseInt(bonusTotal) || 0;
+    // A penalidade da falha anterior entra DEPOIS da inversão e nunca troca de
+    // sinal: inverter uma penalidade a transformaria em prêmio exatamente na
+    // rolagem seguinte à falha, que é o oposto do que o livro descreve.
+    const p = parseInt(penalidadePlana) || 0;
+    if (!roll) return b + p;
+    return (roll.enfaseInferior ? (roll.total - b) : (roll.total + b)) + p;
+};
+
+// ── Perdendo Sanidade ────────────────────────────────────────────────────────
+// "Hatsus que aplicam as seguintes condições reduzem a sanidade em 1 (valor
+//  mínimo), por padrão." São onze, e todas as onze já existiam em
+//  CONDICOES_POR_NIVEL — o que faltava era alguém ligar as duas coisas. Hoje um
+//  Hatsu que aplica Abalado e Confuso tira 2 de sanidade do alvo, e nada na tela
+//  dizia isso: a conta ficava na memória da mesa.
+//
+// A sanidade atingida é a do ALVO, que está em OUTRA ficha — então o app informa,
+// ele não aplica. O que ele pode fazer, e faz, é não deixar a regra invisível.
+//
+// Os nomes aqui são os do CONDICOES_POR_NIVEL, não os do livro: o livro escreve
+// "Amedrontado / Assustado / Aterrorizado" e "Enfeitiçado/Manipulado", e o banco
+// do app chama de 'Amedrontado/Assustado' e 'Manipulado'. São as mesmas.
+window.CONDICOES_QUE_REDUZEM_SANIDADE = [
+    'Abalado',
+    'Amedrontado/Assustado',
+    'Condenado',
+    'Confuso',
+    'Desorientado',
+    'Manipulado',
+    'Exposto',
+    'Fragilizado',
+    'Incapacitado',
+    'Queimado',
+    'Vulnerável',
+];
+window.SANIDADE_POR_CONDICAO = 1;
+
+// "A redução máxima da sanidade em um Hatsu será 75% da sanidade do alvo."
+window.SANIDADE_TETO_POR_HATSU_PCT = 75;
+
+// "Hatsus de Ilusão: −1 de sanidade por rodada OU dano psíquico determinado no
+//  Hatsu." O app não tem uma marca formal de "Hatsu de Ilusão" — o mais perto é
+//  o ma_e6 (Jogos Mentais), e as categorias que mais usariam ilusão ainda não
+//  foram importadas. Então quem marca é o jogador, no próprio Hatsu.
+window.ILUSAO_SANIDADE_OPCOES = [
+    ['rodada',   '−1 de sanidade por rodada'],
+    ['psiquico', 'Dano psíquico determinado no Hatsu'],
+];
+
+// Quais condições deste Hatsu cobram sanidade. Varre TODAS as escolhas gravadas
+// em specialChoices, em vez de olhar efeito por efeito: assim qualquer picker que
+// guarde um nome de condição — o eg3, o rt_m1, e os que ainda vão existir nas
+// categorias que faltam — entra na conta sem precisar ser listado aqui.
+//
+// Conta por condição DISTINTA, e não por rodada comprada: o livro diz "Hatsus que
+// aplicam as seguintes condições reduzem a sanidade em 1", uma vez por condição.
+window.condicoesDeSanidadeDoHatsu = function (h) {
+    const lista = window.CONDICOES_QUE_REDUZEM_SANIDADE || [];
+    const sc = (h || {}).specialChoices || {};
+    const achadas = {};
+    const olhar = function (v) {
+        if (typeof v === 'string') { if (lista.indexOf(v) >= 0) achadas[v] = true; return; }
+        if (Array.isArray(v)) v.forEach(olhar);
+    };
+    Object.keys(sc).forEach(function (k) { olhar(sc[k]); });
+    return Object.keys(achadas).sort();
+};
+
+// O resumo que a tela do Hatsu mostra. sanidadeAlvo é opcional e serve só para o
+// teto virar um número concreto; sem ele, o teto fica em porcentagem.
+window.calcSanidadeDoHatsu = function (h, sanidadeAlvo) {
+    const condicoes = window.condicoesDeSanidadeDoHatsu(h);
+    const porCondicao = window.SANIDADE_POR_CONDICAO || 1;
+    const ilusao = (h || {}).ilusaoSanidade || '';
+    const base = condicoes.length * porCondicao;
+    const tetoPct = window.SANIDADE_TETO_POR_HATSU_PCT || 75;
+    const san = parseInt(sanidadeAlvo);
+    const teto = isNaN(san) ? null : Math.floor((san * tetoPct) / 100);
+    return {
+        condicoes: condicoes,
+        porCondicao: porCondicao,
+        base: base,
+        ilusao: ilusao,
+        ilusaoRotulo: (window.ILUSAO_SANIDADE_OPCOES || [])
+            .filter(function (o) { return o[0] === ilusao; }).map(function (o) { return o[1]; })[0] || '',
+        tetoPct: tetoPct,
+        teto: teto,
+        // Só vale a pena desenhar o cartão se houver alguma coisa a dizer.
+        temAlgo: condicoes.length > 0 || !!ilusao,
+    };
+};
+
+// ── Resultados de Falhas de Ênfase ───────────────────────────────────────────
+// A Ênfase já concedia a Ação Protagonista ao falhar, mas o outro lado do trato
+// — "traz impactos negativos imediatos" — não existia. Na prática a Ênfase era
+// uma aposta sem risco: o jogador escolhia o modo mais extremo do jogo e, na
+// falha, só ganhava coisa.
+//
+// A consequência depende do que a ação ERA, e isso o app não tem como saber:
+// a mesma rolagem de Carisma pode ser uma negociação ou um blefe no meio do
+// combate. Por isso ele pergunta, uma vez, no instante da falha.
+window.ENFASE_FALHA_TIPOS = [
+    { id: 'social', icone: '💬', rotulo: 'Ação Social',
+      texto: 'Sua fala e compreensão ficam confusas e você continua piorando as coisas. As próximas 3 interações (com alvos diferentes ou falas importantes) são mal expressadas e interpretadas, gerando desconfiança e hostilidade sempre que possível.',
+      sanidade: 0, rodadas: 0, penalidade: 0, interacoes: 3 },
+    { id: 'combate_ativa', icone: '⚔️', rotulo: 'Ação Ativa em Combate',
+      texto: 'Além de falhar no ataque/ação, suas próximas ações em combate recebem penalidade de −3 por 3 rodadas e você perde 7 de sanidade.',
+      sanidade: -7, rodadas: 3, penalidade: -3, interacoes: 0 },
+    { id: 'combate_passiva', icone: '🛡', rotulo: 'Ação Passiva/Reativa em Combate',
+      texto: 'Os inimigos envolvidos no combate causam dano dobrado sobre você por 3 rodadas e recebem +3 em ataques e testes.',
+      sanidade: 0, rodadas: 3, penalidade: 0, interacoes: 0 },
+    { id: 'ambiental', icone: '🌍', rotulo: 'Ação Ambiental/Contextual',
+      texto: 'O mestre rola na tabela de consequências do contexto da cena.',
+      sanidade: 0, rodadas: 0, penalidade: 0, interacoes: 0, tabela: true },
+];
+window.ENFASE_FALHA_AMBIENTAL = [
+    'Você deixa pistas da sua presença.',
+    'O ambiente muda contra você.',
+    'Você perde tempo ou um item precioso.',
+    'Um detalhe importante passa despercebido.',
+    'Você recebe informação demais e se confunde.',
+    'Surge um custo financeiro ou material inesperado.',
+    'Uma testemunha entende errado o ocorrido.',
+    'Você atrai alguém curioso.',
+    'Seu objetivo atual gera outro problema imediato.',
+    'Surge um inimigo de poder similar ao último.',
+];
+window.tipoFalhaEnfase = function (id) {
+    return (window.ENFASE_FALHA_TIPOS || []).filter(function (t) { return t.id === id; })[0] || null;
+};
+
+// A penalidade de −3 da Ação Ativa em Combate, enquanto durar. Fica fora da
+// inversão da Ênfase de propósito: penalidade é penalidade, e inverter uma
+// penalidade a transformaria em prêmio justamente na rolagem seguinte à falha.
+window.calcPenalidadeEnfase = function (char) {
+    const f = (char || {}).enfaseFalha;
+    if (!f || !(f.rodadas > 0) || !(f.penalidade < 0)) return 0;
+    return f.penalidade;
+};
+
+// ── Ação Protagonista ────────────────────────────────────────────────────────
+// "Sempre que um personagem falhar em uma Jogada de Ênfase... ele recebe uma Ação
+//  Protagonista."
+//
+// A economia não é por sessão nem por descanso: ela nasce do risco da Ênfase. E
+// não acumula — enquanto a anterior não for gasta, uma nova falha não concede
+// outra, e o app avisa isso ANTES de rolar (decisão do Lucas).
+window.ACAO_PROTAGONISTA_MAX = 1;
+window.ENFASE_FALHA_ABAIXO_DE = 10;
+
+window.temAcaoProtagonista = function (char) {
+    return ((parseInt((char || {}).acaoProtagonista) || 0) > 0);
+};
+
+// Chamado depois de cada rolagem em Ênfase. Devolve 'ganhou', 'jaTinha' (falhou
+// mas já tem uma guardada) ou null (não falhou, ou não era Ênfase).
+window.resolverEnfase = function (char, modo, total) {
+    if (!char || modo !== 'ÊNFASE') return null;
+    if (total >= (window.ENFASE_FALHA_ABAIXO_DE || 10)) return null;
+    const atual = parseInt(char.acaoProtagonista) || 0;
+    if (atual >= (window.ACAO_PROTAGONISTA_MAX || 1)) return 'jaTinha';
+    char.acaoProtagonista = atual + 1;
+    return 'ganhou';
+};
+
+// As TRÊS opções do livro. As duas primeiras são REROLAGENS com Vantagem ou
+// Desvantagem (2d20), e não a troca por um único d20 — é uma diferença grande de
+// probabilidade, e foi onde a primeira versão deste código errou.
+//
+// "Penalizar" e "subtrair do inimigo" rolam e mostram o número, mas não aplicam
+// nada sozinhas: a ficha não tem a rolagem do inimigo em mãos — quem tem é o
+// mestre. Elas entregam o dado pronto, no histórico e no Discord.
+window.ACAO_PROTAGONISTA_USOS = [
+    { id: 'virada', icone: '🎲', dado: '2d20', modo: 'VANTAGEM', alvo: 'voce',
+      rotulo: 'Virada do Protagonista',
+      nota: 'Role a SUA rolagem de novo, com Vantagem.' },
+    { id: 'penalizar', icone: '⬇️', dado: '2d20', modo: 'DESVANTAGEM', alvo: 'inimigo',
+      rotulo: 'Penalizar Ação do Inimigo',
+      nota: 'O inimigo rola de novo, com Desvantagem. O mestre aplica.' },
+    { id: 'impulso_somar', icone: '➕', dado: '3d6', modo: null, alvo: 'voce',
+      rotulo: 'Impulso Dramático — somar',
+      nota: 'Role 3d6 e SOME o resultado à sua rolagem anterior.' },
+    { id: 'impulso_subtrair', icone: '➖', dado: '3d6', modo: null, alvo: 'inimigo',
+      rotulo: 'Impulso Dramático — subtrair',
+      nota: 'Role 3d6 e SUBTRAIA o resultado da rolagem de um inimigo.' },
+];
+window.usoAcaoProtagonista = function (id) {
+    return (window.ACAO_PROTAGONISTA_USOS || []).filter(function (u) { return u.id === id; })[0] || null;
+};
+
+window.calcBonusAcerto = function (char) {
+    const fontes = [];
+    let total = 0;
+    if (!char) return { total: 0, fontes: fontes };
+    const add = function (nome, valor, condicao) {
+        if (!(valor > 0)) return;
+        total += valor;
+        fontes.push({ nome: nome, valor: valor, condicao: condicao || '' });
+    };
+
+    // Instância Observador, nível 1: "+3 para acertar."
+    const inst = char.instancias || {};
+    if ((parseInt(inst.observador) || 0) >= 1) add('Instância Observador', 3);
+
+    // A Decisiva SAIU daqui. O texto dela é "Ao utilizar uma ação protagonista, o
+    // ataque ganha +2 no acerto e +1 grau de dano" — e o app somava os +2 em TODO
+    // ataque, ignorando a condição. Era super-aplicação, não decoração: dava um
+    // bônus que a regra condiciona.
+    //
+    // Agora ela é ARMADA quando o jogador gasta a Ação Protagonista (que até
+    // ontem não existia no app, e é por isso que a condição não tinha como ser
+    // verificada) e CONSUMIDA pelo ataque seguinte. Ver decisivaArmada, abaixo.
+    //
+    // O Observador fica: o nível 1 dele é "+3 para acertar", sem condição nenhuma.
+    // (O nível 2 tem condição, e é um dos situacionais do painel novo.)
+
+    // O RYU NÃO entra aqui. Esta função é compartilhada pela arma e pelo Hatsu, e o
+    // RYU só vale em combate direto (corpo-a-corpo ou arremesso) — somar no cálculo
+    // comum faria o bônus aparecer também num Hatsu de área a 30m. Quem decide é
+    // cada ponto de rolagem, com a arma ou o Hatsu em mãos: ver calcBonusAcertoRyu
+    // logo abaixo, e ryuAlcancaArma / ryuAlcancaHatsu (nen-affinity.js).
+
+    return { total: total, fontes: fontes };
+};
+
+// ── A parte do acerto que depende de QUAL ataque é ───────────────────────────
+// Separada de calcBonusAcerto porque aquela não sabe com o que o jogador está
+// batendo, e o RYU precisa saber. Devolve 0 quando o princípio está desligado ou
+// quando o ataque está fora do alcance dele, então os dois pontos de rolagem
+// somam o resultado sem nenhum if por perto.
+window.calcBonusAcertoRyu = function (char, alcanca) {
+    const r = window.calcRyuAtivo ? window.calcRyuAtivo(char) : null;
+    if (!r || !alcanca) return { total: 0, ryu: r };
+    return { total: r.ataqueDano, ryu: r };
+};
+
+
+// ── Efeitos que prometiam número e não tinham gatilho ────────────────────────
+// Cinco efeitos cujo texto traz um número e que, até aqui, eram lidos SÓ pelo
+// banco: `grep` de cada id devolvia um arquivo só. O jogador pagava o P.N e
+// recebia uma frase.
+//
+// Eles não são todos iguais, e é por isso que precisaram de desenhos diferentes:
+//
+//   ri_e24 Carga de Energia   — "dobra o dano do próximo ataque (1x por combate)"
+//   ri_e31 Força Descomunal   — "gasta 15% de aura: dobra o bônus de Força"
+//        → os dois são ARMADOS pelo jogador e consumidos pela rolagem seguinte,
+//          como a Decisiva. Quem decide qual golpe é "o próximo" é ele.
+//
+//   ri_e26 Vitalidade Extra   — "recupera 1d6+CON ao cair abaixo de 50% da vida"
+//   ri_e32 Resiliência Suprema— "quando cairia a 0 PV, recupera 30% do PV máximo"
+//        → esses dois têm gatilho MECÂNICO: o app enxerga o PV cruzando o limiar
+//          e aplica sozinho. Não há o que perguntar.
+//
+//   em_e8  Stalker            — "+1 para encontrar/acertar (máx. +3)"
+//        → entra no acerto do próprio Hatsu, com teto, uma vez por compra.
+window.EFEITOS_ARMAVEIS = [
+    { id: 'ri_e24', icone: '⚡', nome: 'Carga de Energia', escopo: 'combate',
+      custoAura: 0, rotulo: 'Dobra o dano do próximo ataque',
+      nota: 'Uma vez por combate.' },
+    { id: 'ri_e31', icone: '💪', nome: 'Força Descomunal', escopo: 'livre',
+      custoAura: 15, rotulo: 'Dobra o bônus de Força no próximo Teste ou Ataque',
+      nota: 'Custa 15% de aura por uso.' },
+];
+window.efeitoArmavel = function (id) {
+    return (window.EFEITOS_ARMAVEIS || []).filter(function (e) { return e.id === id; })[0] || null;
+};
+
+// Quantas vezes o personagem comprou um efeito, somando TODOS os Hatsus. Um
+// efeito comprado em dois Hatsus diferentes continua sendo o mesmo recurso do
+// personagem — é ele que arma, não o Hatsu.
+window.comprasDoEfeito = function (char, id) {
+    let n = 0;
+    ((char || {}).hatsus || []).forEach(function (h) {
+        n += ((h || {}).efeitos || []).filter(function (x) { return x === id; }).length;
+    });
+    return n;
+};
+window.temEfeito = function (char, id) { return window.comprasDoEfeito(char, id) > 0; };
+
+// Armados ficam em char.efeitosArmados. Usos gastos ficam em char.efeitosUsados,
+// por escopo: 'combate' zera no botão de novo combate; 'dia' segue a data, no
+// mesmo molde do uso grátis diário do REN (isRenFreeUsoDisponivel).
+window.efeitoArmado = function (char, id) { return !!(((char || {}).efeitosArmados) || {})[id]; };
+// O escopo pode estar em QUALQUER uma das duas listas — os armáveis e as
+// recuperações automáticas. Procurar só na primeira fazia a Resiliência Suprema,
+// que é de 1x por DIA, ser tratada como 1x por combate: uma vez usada, ela nunca
+// mais voltava, porque a data gravada era lida como "usado" para sempre.
+window.escopoDoEfeito = function (id) {
+    const e = (window.EFEITOS_ARMAVEIS || []).concat(window.RECUPERACOES_PV || [])
+        .filter(function (x) { return x.id === id; })[0];
+    return (e && e.escopo) || 'combate';
+};
+window.efeitoUsado = function (char, id) {
+    const u = ((char || {}).efeitosUsados) || {};
+    const escopo = window.escopoDoEfeito(id);
+    if (escopo === 'livre') return false;               // sem limite de uso: o limite é a aura
+    if (escopo === 'dia') return u[id] === new Date().toLocaleDateString('pt-BR');
+    return !!u[id];
+};
+window.marcarEfeitoUsado = function (char, id, escopo) {
+    if (!char.efeitosUsados) char.efeitosUsados = {};
+    char.efeitosUsados[id] = (escopo === 'dia') ? new Date().toLocaleDateString('pt-BR') : true;
+};
+window.armarEfeito = function (char, id) {
+    const e = window.efeitoArmavel(id);
+    if (!e || !window.temEfeito(char, id) || window.efeitoUsado(char, id)) return null;
+    if (e.custoAura > 0 && (char.vitals.aura || 0) < e.custoAura) return 'semAura';
+    if (e.custoAura > 0) char.vitals.aura = Math.max(0, (char.vitals.aura || 0) - e.custoAura);
+    if (!char.efeitosArmados) char.efeitosArmados = {};
+    char.efeitosArmados[id] = true;
+    if (e.escopo !== 'livre') window.marcarEfeitoUsado(char, id, e.escopo);
+    return 'ok';
+};
+window.consumirEfeito = function (char, id) {
+    if (!window.efeitoArmado(char, id)) return false;
+    delete char.efeitosArmados[id];
+    return true;
+};
+
+// ── Recuperações automáticas ─────────────────────────────────────────────────
+// Devolvem o quanto recuperar, ou 0. Quem chama é o updateVital, no instante em
+// que o PV cruza o limiar — é só ali que a condição existe.
+window.RECUPERACOES_PV = [
+    { id: 'ri_e26', icone: '❤️', nome: 'Vitalidade Extra', escopo: 'combate',
+      gatilho: 'abaixo de 50% da vida', formula: '1d6+CON' },
+    { id: 'ri_e32', icone: '🛡', nome: 'Resiliência Suprema', escopo: 'dia',
+      gatilho: 'quando cairia a 0 PV', formula: '30% do PV máximo' },
+];
+window.calcRecuperacaoPV = function (char, id, rng) {
+    if (!char || !window.temEfeito(char, id) || window.efeitoUsado(char, id)) return 0;
+    const r = rng || function (n) { return Math.floor(Math.random() * n) + 1; };
+    const max = (char.vitals || {}).hpMax || 0;
+    if (id === 'ri_e26') {
+        const con = window.calcAtributoEfetivo
+            ? window.calcAtributoEfetivo(char, 'CON').mod
+            : Math.floor(((((char.attributes || {}).CON || {}).value || 10) - 10) / 2);
+        return Math.max(1, r(6) + con);
+    }
+    if (id === 'ri_e32') return Math.max(1, Math.round(max * 0.3));
+    return 0;
+};
+
+// ── em_e8 Stalker: +1 para acertar por compra, teto +3 ───────────────────────
+// O texto é "Marca alvo e localiza-o por 1h ou 100m OU +1 para encontrar/acertar
+// (máx. +3)". O "ou" é escolha de compra: cada cópia vale uma coisa ou a outra.
+window.STALKER_TETO = 3;
+window.STALKER_ESCOLHA_ACERTO = 'acerto';
+window.bonusStalker = function (h) {
+    if (!h) return 0;
+    const sc = h.specialChoices || {};
+    const copias = (h.efeitos || []).filter(function (id) { return id === 'em_e8'; }).length;
+    let n = 0;
+    for (let i = 0; i < copias; i++) {
+        const k = (window.chaveCopia ? window.chaveCopia('em_e8', i) : (i ? 'em_e8#' + i : 'em_e8'));
+        if (sc[k] === window.STALKER_ESCOLHA_ACERTO) n++;
+    }
+    return Math.min(window.STALKER_TETO, n);
+};
+
+// ── Decisiva: armada pela Ação Protagonista ──────────────────────────────────
+// "Ao utilizar uma ação protagonista, o ataque ganha +2 no acerto e +1 grau de
+//  dano (se acertar)."
+// Fica guardada em char.decisivaArmada e vale para o PRÓXIMO ataque, seja com
+// arma ou com Hatsu. É assim porque a ficha não tem como saber sozinha qual dos
+// ataques do turno é "o da ação protagonista" — quem sabe é o jogador, e ele diz
+// ao gastar o recurso.
+window.DECISIVA_ACERTO = 2;
+window.DECISIVA_GRAUS = 1;
+window.temDecisiva = function (char) {
+    return (parseInt(((char || {}).combatInclinations || {}).decisiva) || 0) >= 1;
+};
+window.decisivaArmada = function (char) { return !!((char || {}).decisivaArmada); };
+window.armarDecisiva = function (char) {
+    if (!window.temDecisiva(char)) return false;
+    char.decisivaArmada = true;
+    return true;
+};
+window.consumirDecisiva = function (char) {
+    if (!window.decisivaArmada(char)) return false;
+    delete char.decisivaArmada;
+    return true;
+};
+
+// ── Bônus que dependem de uma situação ───────────────────────────────────────
+// Seis promessas numéricas de Instância e de Inclinação que não eram lidas por
+// cálculo nenhum — ficavam como texto no cartão e o jogador somava de cabeça, se
+// lembrasse. Nenhuma delas pode entrar num total: todas dependem de algo que a
+// ficha não enxerga (estar montado, o alvo estar agarrado, ter observado o alvo
+// por uma rodada). Então elas seguem o padrão que o app já usa nas Reações e na
+// margem de crítico: aparecem com o NÚMERO e com a CONDIÇÃO, para o jogador
+// aplicar na mão sabendo exatamente quanto é.
+//
+// O que NÃO está aqui, de propósito:
+//   Ágil N2       — virou CA de verdade (ver calcBonusCAInstancia)
+//   Decisiva      — virou gatilho da Ação Protagonista (acima)
+//   Observador N1 — é incondicional e já entra no calcBonusAcerto
+window.calcBonusSituacionais = function (char) {
+    const out = [];
+    if (!char) return out;
+    const inst = char.instancias || {};
+    const ci = char.combatInclinations || {};
+    const nvI = id => parseInt(inst[id]) || 0;
+    const nvC = id => parseInt(ci[id]) || 0;
+
+    if (nvI('domadora') >= 1) out.push({ nome: 'Domadora I', valor: '+2',
+        onde: 'testes', condicao: 'escalar, montar e se manter sobre criaturas e veículos' });
+    if (nvI('domadora') >= 2) out.push({ nome: 'Domadora II', valor: '+1 grau/passo',
+        onde: 'dano', condicao: 'corpo a corpo contra a criatura em que você está montado' });
+    if (nvI('observador') >= 2) out.push({ nome: 'Observador II', valor: '−3',
+        onde: 'no ataque do inimigo', condicao: 'alvos que você observou por 1 rodada inteira' });
+    if (nvC('investida_poderosa') >= 2) out.push({ nome: 'Investida Poderosa II', valor: '+5',
+        onde: 'dano', condicao: 'no ataque de Ação Bônus após Disparada de 6 m — ou empurre 4 m, à escolha' });
+    if (nvC('imobilizador') >= 2) out.push({ nome: 'Imobilizador (REN)', valor: '+2 graus/passos',
+        onde: 'dano', condicao: 'gastando REN contra alvo agarrado, no lugar do +1 no ataque' });
+    if (nvC('combate_montado') >= 3) out.push({ nome: 'Combate Montado III', valor: '+2',
+        onde: 'CA ou dano', condicao: 'do veículo ou da montaria que você conduz, à sua escolha' });
+    return out;
+};
+
+// ── +2 na CA da Instância Combatente Rápido ──────────────────────────────────
+// A outra metade da escolha do nível 2: "+2 na CA ou Ações de Esquivas". Se o
+// jogador escolheu CA, o bônus entra aqui; se escolheu Esquivas, entra no
+// calcBonusReacao. Nunca nos dois.
+window.calcBonusCAInstancia = function (char) {
+    const fontes = [];
+    let total = 0;
+    if (!char) return { total: 0, fontes: fontes };
+    const inst = char.instancias || {};
+    if ((parseInt(inst.combatente_rapido) || 0) >= 2
+        && ((char.instanciaEscolhas || {}).combatente_rapido_2 === 'ca')) {
+        total += 2;
+        fontes.push({ nome: 'Instância Combatente Rápido', valor: 2 });
+    }
+    // Ágil II: "quem te ataca tem −3 no acerto". O app não tem lado do atacante —
+    // ele nunca rola o ataque do inimigo — e −3 na rolagem de quem ataca é a mesma
+    // conta que +3 na CA de quem defende. É permanente e sem condição, então entra
+    // no total, com o rótulo dizendo de onde vem para ninguém achar que é bug.
+    if ((parseInt(inst.agil) || 0) >= 2) {
+        total += 3;
+        fontes.push({ nome: 'Instância Ágil II (quem te ataca tem −3)', valor: 3 });
+    }
+    return { total: total, fontes: fontes };
+};
+
+// ── CA vinda das Inclinações de Combate ──────────────────────────────────────
+// Antes NENHUMA Inclinação chegava à CA: calcCAAtual somava armadura, escudo,
+// Instância (Combatente Rápido) e princípios, e parava ali. Duas inclinações
+// cobram CA como PREÇO do próprio nível Básico ("+1 grau ... e você fica com −1
+// na CA") — esse desconto é permanente e entra no total, inclusive negativo.
+//
+// O resto é condicional e segue o padrão que o app já usa nas Reações e na margem
+// de crítico: aparece na lista para o jogador aplicar na mão, mas fica FORA do
+// total, porque a ficha não sabe quem é o alvo marcado nem se o REN está no ataque.
+//
+// As duas MAESTRIAS DE ARMADURA não entram aqui: elas mexem na CA DA ARMADURA e
+// dependem de qual peça está vestida, então vivem em calcCAArmadura (sheet.js).
+window.calcBonusCAInclinacao = function (char) {
+    const fontes = [], condicionais = [];
+    let total = 0;
+    if (!char) return { total: 0, fontes: fontes, condicionais: condicionais };
+    const ci = char.combatInclinations || {};
+    const nv = function (id) { return parseInt(ci[id]) || 0; };
+
+    if (nv('ofensiva_bruta') >= 1) {
+        total -= 1;
+        fontes.push({ nome: 'Ofensiva Bruta', valor: -1 });
+    }
+    if (nv('ofensiva_precisa') >= 1) {
+        total -= 1;
+        fontes.push({ nome: 'Ofensiva Precisa', valor: -1 });
+    }
+
+    if (nv('defensiva_precisa') >= 1) {
+        condicionais.push({ nome: 'Defensiva Precisa', valor: 1, condicao: 'só contra o alvo marcado' });
+    }
+    if (nv('ofensiva_bruta') >= 1) {
+        condicionais.push({ nome: 'Ofensiva Bruta (REN)', valor: -2, condicao: 'substitui o −1 nos turnos com REN (lá são +2 graus)' });
+    }
+    if (nv('ofensiva_precisa') >= 1) {
+        condicionais.push({ nome: 'Ofensiva Precisa (SHU)', valor: -2, condicao: 'substitui o −1 nos turnos com SHU (lá são +2 graus)' });
+    }
+    if (nv('fluida') >= 1) {
+        condicionais.push({ nome: 'Fluida', valor: 2, condicao: 'troque até 2 pontos entre acerto e CA no início do seu turno' });
+    }
+    return { total: total, fontes: fontes, condicionais: condicionais };
+};
+
+// Resumo para a ficha: todas as reações que têm algum bônus agora.
+// [{ k, nome, formula, total, fontes }]
+window.resumoBonusReacoes = function (char) {
+    return (window.REACOES_HXH || []).map(function (r) {
+        const b = window.calcBonusReacao(char, r.k);
+        return { k: r.k, nome: r.n, formula: r.f, total: b.total, fontes: b.fontes };
+    }).filter(function (r) { return r.total > 0; });
 };
 
 // Reações máximas do personagem. Já existia embutido na ficha (sheet.js); virou função
@@ -778,7 +1707,25 @@ window.calcReacoesMax = function (char) {
             incl += (window.INCLINACAO_REACOES || {})[n2] || 0;
         });
     }
-    return 7 + Math.floor((sab - 10) / 2) + analitica + incl;
+    // ri_e23 Vigor Contínuo: "Reduz 1 grau de Exaustão em combate e adiciona 2
+    // Reações". O +2 estava escrito no banco e nunca chegava aqui — calcReacoesMax
+    // não olhava os Hatsus. Vale enquanto o Hatsu estiver ATIVO, pela regra geral de
+    // que todo efeito dura pela duração do Hatsu. Cópias somam.
+    let hatsu = 0;
+    const _ativosR = (char.hatsusAtivos) || {};
+    Object.keys(_ativosR).forEach(function (k) {
+        const h = (char.hatsus || [])[parseInt(k)];
+        if (!h) return;
+        hatsu += (h.efeitos || []).filter(function (id) { return id === 'ri_e23'; }).length * 2;
+    });
+    // RYU nos Exemplos 4-6 (só com Superior): a linha da tabela concede Reações Extras,
+    // e elas estavam escritas no banco sem nunca chegarem ao total. Nos Exemplos 1-3 a
+    // coluna não existe e calcRyuAtivo devolve 0, então nada muda para quem não tem
+    // Superior.
+    const _ryuR = window.calcRyuAtivo ? window.calcRyuAtivo(char) : null;
+    const ryu = (_ryuR && _ryuR.temReacoes) ? _ryuR.reacoes : 0;
+
+    return 7 + Math.floor((sab - 10) / 2) + analitica + incl + hatsu + ryu;
 };
 
 // ── Bônus de Nen em atributos e perícias ──────────────────────────────────────
@@ -825,6 +1772,20 @@ window.calcAtributoEfetivo = function (char, attr) {
             bonusValor += n * 2;
             fontes.push({ nome: 'Aumento de Atributo (' + (h.nome || ('Hatsu ' + (i + 1))) + ')', valor: '+' + (n * 2) });
         }
+
+        // Potencial Liberado (ri_e30): Torso → CON, Troglodita → FOR, Cirurgião → DES.
+        // Mesma regra de ativação: é efeito de Hatsu, vale enquanto o Hatsu estiver
+        // ligado. O Paladar/Dicção (PRE) fica FORA daqui porque é condicional — sai
+        // em `condicionais` de bonusPotencialLiberado e aparece como nota, não no
+        // valor do atributo.
+        if (window.bonusPotencialLiberado) {
+            const pl = window.bonusPotencialLiberado(h);
+            const vPl = (pl.attrBonus || {})[attr] || 0;
+            if (vPl > 0) {
+                bonusValor += vPl;
+                fontes.push({ nome: 'Potencial Liberado (' + (h.nome || ('Hatsu ' + (i + 1))) + ')', valor: '+' + vPl });
+            }
+        }
     });
 
     const valor = base + bonusValor;
@@ -833,6 +1794,29 @@ window.calcAtributoEfetivo = function (char, attr) {
         mod: Math.floor((valor - 10) / 2) + bonusMod,
         bonusValor: bonusValor, bonusMod: bonusMod, fontes: fontes,
     };
+};
+
+// ── Deslocamento efetivo ─────────────────────────────────────────────────────
+// char.vitals.desl guarda o deslocamento terrestre (9m por padrão) e até agora era
+// exibido cru, sem nenhum caminho de bônus. O Potencial Liberado "Velocista"
+// (ri_e30 → pl_perna_desl) soma +3m na 1ª escolha e +1,5m em cada recompra, e vale
+// enquanto o Hatsu estiver ativo — mesma regra do Aumento de Atributo.
+// Devolve as fontes junto, para a ficha poder mostrar de onde vem.
+window.calcDeslocamentoEfetivo = function (char) {
+    const base = ((char && char.vitals && char.vitals.desl) != null) ? char.vitals.desl : 9;
+    const fontes = [];
+    let bonus = 0;
+    const ativos = (char && char.hatsusAtivos) || {};
+    ((char && char.hatsus) || []).forEach(function (h, i) {
+        if (!ativos[i]) return;
+        if (!window.bonusPotencialLiberado) return;
+        const pl = window.bonusPotencialLiberado(h);
+        if (pl.deslocamento > 0) {
+            bonus += pl.deslocamento;
+            fontes.push({ nome: 'Potencial Liberado (' + (h.nome || ('Hatsu ' + (i + 1))) + ')', valor: '+' + String(pl.deslocamento).replace('.', ',') + 'm' });
+        }
+    });
+    return { base: base, bonus: bonus, total: base + bonus, fontes: fontes };
 };
 
 // Bônus de Nen em perícias específicas.
@@ -889,6 +1873,118 @@ window.INCLINACAO_PERICIA_BONUS = {
 window.INCLINACAO_REACOES = { 'Noção do Perigo': 3 };
 window.INCLINACAO_SITUACIONAL = {
     'Resistência a Venenos': '+10 em testes de CON contra venenos não produzidos por aura',
+};
+
+// ── Porta de entrada das Inclinações de Combate (livro v2.0, cap. 4) ──────────
+// Antes, qualquer personagem de nível 2 ou mais comprava Inclinações de Combate
+// usando só Pontos de Inclinação. A regra atualizada diz que o treino marcial do
+// Shingen-Ryu acompanha o treino de Nen: o personagem gasta DOIS recursos ao longo
+// da evolução — P.N nos Princípios/Técnicas (que é o que abre o acesso) e Pontos
+// de Inclinação nas inclinações em si. Sem Nen, e sem nenhum princípio ou técnica
+// desbloqueado, não há acesso.
+window.temPrincipioOuTecnica = function (char) {
+    const d = (char || {}).nenDominio || {};
+    if ((d.ten || 0) > 0 || (d.ren || 0) > 0 || (d.zetsu || 0) > 0) return true;
+    return (window.NEN_AVANCADOS || []).some(function (k) { return !!d[k]; });
+};
+
+// ── Quem pode comprar o mesmo efeito mais de uma vez no MESMO nível ──────────
+// A regra normal é uma compra por nível: é assim que a evolução do personagem acontece.
+// Mas o mestre precisa montar NPC já pronto em nível alto — simular quem evoluiu do 1 ao
+// 10 sem subir de nível dez vezes na mão. Antes só a flag isNPC da ficha liberava isso,
+// então o mestre tinha de marcar a ficha como NPC primeiro, e numa ficha de jogador não
+// havia saída nenhuma.
+//
+// A mesma regra aparece em quatro pontos de hatsu-creator.js (texto do card, botão de
+// remover cópia, compra e descompra). Virou função para os quatro lerem a mesma coisa.
+window.podeRepetirEfeitoNoNivel = function (char) {
+    if ((char || {}).isNPC) return true;
+    const s = window.state || {};
+    return !!(s.isMestre || s.isAdmin);
+};
+
+// Etiqueta da inclinação → o que precisa estar desbloqueado na ficha.
+// As etiquetas do livro são os princípios usados nos acréscimos "Com aura" da inclinação.
+// A regra do Lucas: não dá para treinar a inclinação sem ter o princípio que ela mostra.
+window.ETIQUETA_REQUISITO = {
+    TEN:   { tipo: 'fund', chave: 'ten',   nome: 'TEN' },
+    REN:   { tipo: 'fund', chave: 'ren',   nome: 'REN' },
+    ZETSU: { tipo: 'fund', chave: 'zetsu', nome: 'ZETSU' },
+    EN:    { tipo: 'adv',  chave: 'en',    nome: 'EN' },
+    IN:    { tipo: 'adv',  chave: 'inp',   nome: 'IN' },
+    GYO:   { tipo: 'adv',  chave: 'gyo',   nome: 'GYO' },
+    SHU:   { tipo: 'adv',  chave: 'shu',   nome: 'SHU' },
+    KEN:   { tipo: 'adv',  chave: 'ken',   nome: 'KEN' },
+    KO:    { tipo: 'adv',  chave: 'ko',    nome: 'KO' },
+    RYU:   { tipo: 'adv',  chave: 'ryu',   nome: 'RYU' },
+    HATSU: { tipo: 'hatsu',                nome: 'um Hatsu criado' },
+};
+
+window.temEtiquetaDesbloqueada = function (char, etiqueta) {
+    const def = window.ETIQUETA_REQUISITO[etiqueta];
+    if (!def) return true;                       // etiqueta desconhecida não bloqueia nada
+    const c = char || {};
+    if (def.tipo === 'hatsu') return ((c.hatsus || []).length > 0);
+    const d = c.nenDominio || {};
+    if (def.tipo === 'fund') return (parseInt(d[def.chave]) || 0) > 0;
+    return !!d[def.chave];
+};
+
+// Porta de UM NÍVEL de uma inclinação. Retorna { ok, motivo }.
+// O requisito é do nível, não da inclinação: cada nível usa o princípio do seu próprio
+// bloco "Com aura" (ver auraEtq em combat-inclinations-db.js). Defensiva Precisa pede TEN
+// no Básico e SHU no Intermediário — quem só tem TEN leva o Básico e para ali, em vez de
+// a inclinação inteira liberar ou travar junto.
+// Nível sem princípio exigido (auraEtq null) é treino marcial puro e libera para qualquer
+// personagem, inclusive sem Nen: é o caso de Arsenal Militar e das Maestrias.
+// Lista com mais de um princípio: basta um ("REN/GYO" do livro).
+// tier é 0-based (0 = Básico, 1 = Intermediário, 2 = Maestria).
+window.podeComprarNivelInclinacao = function (char, inc, tier) {
+    const c = char || {};
+    if ((parseInt(c.level) || 1) < 2) return { ok: false, motivo: 'Disponível a partir do Nível 2.' };
+    const porNivel = (inc && inc.auraEtq) || null;
+    // Sem a tabela por nível, cai no comportamento antigo: a etiqueta da inclinação inteira.
+    const etq = porNivel ? (porNivel[tier] || []) : ((inc && inc.etiquetas) || []);
+    if (!etq || etq.length === 0) return { ok: true, motivo: '' };
+    const tem = etq.some(function (e) { return window.temEtiquetaDesbloqueada(c, e); });
+    if (tem) return { ok: true, motivo: '' };
+    const nomes = etq.map(function (e) {
+        const d = window.ETIQUETA_REQUISITO[e];
+        return (d && d.nome) || e;
+    });
+    const nomeNivel = (window.CI_NIVEL_NOME || [])[tier] || ('Nível ' + (tier + 1));
+    return {
+        ok: false,
+        motivo: nomeNivel + ' exige ' + (nomes.length > 1 ? nomes.join(' ou ') : nomes[0]) + ' desbloqueado.',
+    };
+};
+
+// A inclinação está disponível se ALGUM nível dela está. Usada para o selo do card e para
+// decidir se a seção toda tem o que oferecer.
+window.podeComprarInclinacao = function (char, inc) {
+    const tiers = ((inc && inc.tiers) || []).length || 3;
+    for (let i = 0; i < tiers; i++) {
+        const r = window.podeComprarNivelInclinacao(char, inc, i);
+        if (r.ok) return { ok: true, motivo: '' };
+    }
+    return window.podeComprarNivelInclinacao(char, inc, 0);
+};
+
+// Porta GERAL da seção. Era aqui que vivia a exigência de Nen e de princípio, mas isso
+// travava Arsenal Militar, que não depende de nenhum princípio e é treino marcial comum.
+// A exigência de princípio desceu para cada inclinação (podeComprarInclinacao); aqui fica
+// só o nível, mais o aviso de quando NENHUMA inclinação está liberada.
+window.podeComprarInclinacoes = function (char) {
+    const c = char || {};
+    if ((parseInt(c.level) || 1) < 2) {
+        return { ok: false, motivo: 'Disponível a partir do Nível 2.' };
+    }
+    const db = window.COMBAT_INCLINATIONS_DB || [];
+    const alguma = db.some(function (inc) { return window.podeComprarInclinacao(c, inc).ok; });
+    if (db.length && !alguma) {
+        return { ok: false, motivo: 'Nenhuma inclinação liberada: desbloqueie um Princípio ou Técnica de Nen.' };
+    }
+    return { ok: true, motivo: '' };
 };
 
 // Lista plana das inclinações gerais do personagem, de todas as origens.

@@ -119,7 +119,7 @@
         { id:'ri_l1', peso:'leve',    nome:"PV < 75%",                   desc:"Só pode usar com menos de 75% dos PV",                               bnf:"+1 grau/passo no dano do Hatsu" },
         { id:'ri_l2', peso:'leve',    nome:"Corpo a Corpo Obrigatório",   desc:"Exige ataque corpo a corpo para ativar o Hatsu",                     bnf:"Alvo sofre desvantagem em reação contra o Hatsu" },
         { id:'ri_l3', peso:'leve',    nome:"Sem Defesas",                 desc:"Não pode usar habilidades ou reações defensivas durante o uso",      bnf:"+1 na jogada de ataque com o Hatsu" },
-        { id:'ri_m1', peso:'moderada',nome:"Aumento por Rodada",          desc:"Efeitos de atributo, dano, cura ou RD ativados parcialmente (não de uma vez)", bnf:"+2 Graus de Potência no total de cada efeito similar" },
+        { id:'ri_m1', peso:'moderada',nome:"Aumento por Rodada",          desc:"Efeitos de atributo, dano, cura ou RD ativados parcialmente (não de uma vez)", bnf:"+2 Graus de Potência no efeito escolhido" },
         { id:'ri_m2', peso:'moderada',nome:"Sem Buffs Ativos",            desc:"Só pode ser usado sem buffs ativos",                                 bnf:"Ignora resistências a dano físico do alvo (uso/dia = proficiência)" },
         { id:'ri_m3', peso:'moderada',nome:"Inutilizável c/ +50% Aura",   desc:"Não pode usar com mais de 50% da aura",                             bnf:"+1 Grau de Potência no Hatsu" },
         { id:'ri_p1', peso:'pesada',  nome:"Dano de Aura",                desc:"Causa 5% da aura como dano ao usuário (≈1d6 com REN). +1 grau por dado rerolado", bnf:"Pode rerrolar um dos dados de dano" },
@@ -130,7 +130,7 @@
         { id:'ri_e1',  nome:"Aumento de Atributo",    desc:"Aumenta valor de atributo em 2 (mod. +1). Máximo: bônus +5",                 req:"Nível 1",  pn:1 },
         { id:'ri_e2',  nome:"Intensificação",          desc:"+1 Grau de Potência no Hatsu (Acerto, Atributos ou Redução de Custo)",       req:"Nível 1",  pn:1 },
         { id:'ri_e3',  nome:"Recuperação Veloz",       desc:"Cura 1d8 + CON de um alvo",                                                 req:"Nível 1",  pn:1 },
-        { id:'ri_e4',  nome:"Mais de 8000",            desc:"Poder transbordante compartilhado: divida 5% de aura por escolha com outros seres", req:"Nível 1",  pn:1 },
+        { id:'ri_e4',  nome:"Mais de 8000",            desc:"Sua aura pode ser dada a outras pessoas (5% por escolha do efeito). A aura dada SE PERDE mesmo que o alvo não a utilize, e só pode ser recuperada com Zetsu", req:"Nível 1",  pn:1 },
         { id:'ri_e5',  nome:"Estabilizar Aliado",      desc:"Impede morte de aliado adjacente, mantendo-o em 1 PV ao consumir 1 Reação", req:"Nível 2 — Recuperação Veloz", pn:1 },
         { id:'ri_e6',  nome:"Impacto Pesado",          desc:"TR de FOR: empurra em 3m alvo(s) que falhem, independente do dano",         req:"Nível 2",  pn:1 },
         { id:'ri_e7',  nome:"Pele de Pedra",           desc:"3 RD contra danos de Impacto, Perfurante e Cortante",                       req:"Nível 2",  pn:1 },
@@ -154,11 +154,11 @@
         { id:'ri_e25', nome:"Corpo de Aço",            desc:"10 RD contra Explosivo, Balístico ou Mortal (escolha um)",                  req:"Nível 8",  pn:1 },
         { id:'ri_e26', nome:"Vitalidade Extra",        desc:"Recupera 1d6+CON PV ao cair abaixo de 50% da vida (1x por combate)",        req:"Nível 8",  pn:1 },
         { id:'ri_e27', nome:"Força Titânica",          desc:"Ataques físicos recebem +5 de dano",                                        req:"Nível 9",  pn:1 },
-        { id:'ri_e28', nome:"Trabalho em Equipe",      desc:"Usa aura de aliados (10%) para ampliar dano/cura ou concede atributos a aliado/objeto", req:"Nível 9", pn:1 },
+        { id:'ri_e28', nome:"Trabalho em Equipe ou Simbiose",      desc:"Trabalho em Equipe: usa aura de aliados (10%) para AMPLIAR dano/cura ou REDUZIR TRs e danos de inimigos em 1 Grau de Potência. Simbiose: concede a um objeto ou criatura até 2 pontos de atributo, Reações ou 5% de aura", req:"Nível 9", pn:1 },
         { id:'ri_e29', nome:"Dano Fragilizante",       desc:"Dano >20: a)-3 durabilidade armadura b)-2 ataques c)-2 reações defensivas", req:"Nível 10", pn:1 },
-        { id:'ri_e30', nome:"Potencial Liberado",      desc:"Escolha por uso qualquer efeito da tabela de Potencial Liberado",           req:"Nível 10", pn:1 },
+        { id:'ri_e30', nome:"Potencial Liberado",      desc:"Escolha um efeito da tabela de Potencial Liberado por P.N gasto neste efeito. Comprar o MESMO efeito da tabela aumenta seu grau/passo",           req:"Nível 10", pn:1 },
         { id:'ri_e31', nome:"Força Descomunal",        desc:"Gasta 15% aura: dobra Força (bônus) em Testes ou Ataques",                  req:"Nível 12", pn:1 },
-        { id:'ri_e32', nome:"Resiliência Suprema",     desc:"1x/dia: ao cair a 0 PV, recupera imediatamente 30% da vida máxima",         req:"Nível 12", pn:1 },
+        { id:'ri_e32', nome:"Resiliência Suprema",     desc:"1x por dia, quando cairia a 0 PV (ou até metade do PV negativo), recupera imediatamente 30% da vida máxima",         req:"Nível 12", pn:1 },
       ]
     },
 
@@ -218,52 +218,57 @@
         { id:'rm_p1', peso:'pesada',  nome:"Perde Ação Principal",        desc:"Perde Ação Principal enquanto a Conjuração estiver ativa",           bnf:"A criatura age com +4 em testes ofensivos" },
         { id:'rm_p2', peso:'pesada',  nome:"Conjuração Controlável",      desc:"Conjuração pode ser manipulada/usada por outros contra a vontade do usuário (reverter: 1 teste SAB CD 15)", bnf:"Dado de dano máximo ou alcance dobra ou custo -15% ou dura +2 rodadas" },
         { id:'rm_p3', peso:'pesada',  nome:"Componentes Materiais",       desc:"O Hatsu depende de componentes materiais que são consumidos ao conjurar", bnf:"A criatura tem +2 em CA e +10 PV ao ser criada" },
-        { id:'rc_l1', peso:'leve',    nome:"Vínculo de Alcance",          desc:"A criatura conjurada não pode se afastar mais de 6 metros do conjurador",                              bnf:"A criatura recebe +1 na CA" },
-        { id:'rc_l2', peso:'leve',    nome:"Criatura Pacífica",           desc:"A criatura conjurada não causa dano direto",                                                            bnf:"+2 bônus em suporte (cura, sensor, defesa)" },
-        { id:'rc_l3', peso:'leve',    nome:"Uma Invocação por Combate",   desc:"Só pode conjurar 1 criatura do mesmo tipo por combate",                                                 bnf:"A criatura ganha +2 rodadas de duração" },
-        { id:'rc_m1', peso:'moderada',nome:"Sustento de Aura",            desc:"A criatura conjurada consome 5% de aura por rodada",                                                    bnf:"Pode realizar 1 ação bônus extra em seu turno" },
-        { id:'rc_m2', peso:'moderada',nome:"Vínculo de Alma",             desc:"Usuário sofre dano = metade da vida da criatura se ela for destruída",                                  bnf:"A criatura explode ao morrer causando 1d6 em 3m de área (círculo)" },
-        { id:'rc_m3', peso:'moderada',nome:"Ritual de Invocação",         desc:"Só pode conjurar em local fixo ou calmo predeterminado (ex: em casa/carro ou fora de combate)",        bnf:"Conjurador ganha vantagem no primeiro teste que realizar" },
-        { id:'rc_p1', peso:'pesada',  nome:"Concentração Total",          desc:"Perde Ação Principal enquanto a criatura conjurada estiver ativa",                                      bnf:"A criatura age com +4 em testes ofensivos" },
-        { id:'rc_p2', peso:'pesada',  nome:"Criatura Incontrolável",      desc:"A criatura pode ser manipulada/usada por outros contra a vontade do usuário (reverter: 1 teste SAB CD 15)", bnf:"Um dos dados de dano se torna máx. ou alcance dobra ou custo -15% ou dura +2 rodadas" },
-        { id:'rc_p3', peso:'pesada',  nome:"Sacrifício Ritual",           desc:"O Hatsu depende de componentes materiais que são consumidos ao conjurar",                               bnf:"A criatura tem +2 em CA e +10 PV ao ser criada" },
+        // ── rc_l1..rc_p3 REMOVIDAS (dedup MATERIALIZAÇÃO × CONJURAÇÃO) ──────────
+        // Quando as duas categorias foram unificadas, as 9 restrições de CONJURAÇÃO
+        // (rc_*) ficaram no array junto com as 9 de MATERIALIZAÇÃO (rm_*). Eram as
+        // MESMAS nove limitações com outro nome e o MESMO benefício — e, sem exclusão
+        // mútua, o jogador podia marcar as duas e receber o benefício e o desconto de
+        // aura em dobro pela mesma limitação. O livro tem 9 linhas; o app agora também.
+        // NÃO reaproveitar os ids rc_l*/rc_m*/rc_p*: Hatsus salvos podem carregá-los e
+        // são convertidos para o rm_* equivalente por ID_DEDUP_CONJURACAO (abaixo).
+        // Os EFEITOS rc_e* continuam válidos — a remoção é só das restrições.
       ],
       efeitos: [
         // ── Nível 1 ──────────────────────────────────────────────
         { id:'rm_e1',  nome:"Forjar Objeto, Arma ou Equipamento Conjurada(o)", desc:"Cria um objeto, equipamento ou arma com as mesmas propriedades de um real, que pode ser \"alimentado\" por aura (ao usar munições). Causa 2d6 de dano ao escolher arma.", req:"Nível 1", pn:1 },
-        { id:'rm_e2',  nome:"Golem de Aura",             desc:"Cria um constructo pequeno com o material escolhido (PV = 5 + CON ×2, 1 ação por rodada e 1 Característica de Invocação).", req:"Nível 1 + Acesso a Manipulação", pn:1 },
-        { id:'rm_e3',  nome:"Características Básicas",   desc:"Adiciona uma Característica de Invocação.", req:"Nível 1", pn:1 },
-        { id:'rm_e4',  nome:"Dimensão de Bolso",         desc:"Envia até 3 objetos ou criaturas para a Dimensão em até o dobro de tamanho/peso do alvo (cada).", req:"Nível 1 — Característica Dimensão", pn:1 },
-        { id:'rm_e5',  nome:"Aparências Enganam",        desc:"Permite acessar a Tabela de Conjuração com Alterações Físicas.", req:"Nível 1", pn:1 },
+        { id:'rm_e2',  nome:"Golem de Aura",             desc:"Cria um constructo pequeno com o material escolhido (PV = 5 + CON ×2, 1 ação por rodada e 1 Característica de Invocação).", req:"Nível 1", pn:1 },
+        { id:'rm_e3',  nome:"Características Básicas",   desc:"Adiciona uma Característica de Invocação. A cada P.N, adicione uma característica NOVA ou melhore uma já escolhida.", req:"Nível 1", pn:1 },
+        { id:'rm_e4',  nome:"Dimensão de Bolso",         desc:"Envia até 3 objetos ou criaturas para a Dimensão em até o dobro de tamanho/peso do alvo (cada). Cada P.N gasto neste efeito aumenta a quantidade em +3 — escala própria, diferente do aumento padrão de grau/passo. No nível 12, comprando em todos os níveis, chega a 36.", req:"Nível 1 — Característica Dimensão", pn:1 },
+        { id:'rm_e5',  nome:"Aparências Enganam",        desc:"Permite acessar a Tabela de Materialização com Alterações Físicas.", req:"Nível 1", pn:1 },
         // ── Nível 2 ──────────────────────────────────────────────
-        { id:'rm_e6',  nome:"Conjuração Modular",        desc:"O(s) Objeto(s), Arma(s) ou Equipamento(s) Conjurado(s) podem ser diferentes cada vez que conjura. Alternar entre eles depois de conjurados requer Ação bônus ou Reação.", req:"Nível 2 + Forjar Objeto, Arma ou Equipamento Conjurada(o)", pn:1 },
-        { id:'rm_e7',  nome:"Cópia Perfeita",            desc:"Permite copiar, através de conjuração, um objeto marcado ou tocado, reproduzindo-o uma vez com todas as suas propriedades originais, desde que seja um objeto comum (não podendo copiar objetos oriundos de outros Hatsus).", req:"Nível 2", pn:1 },
-        { id:'rm_e8',  nome:"Imbuir Conjuração",         desc:"Adiciona um efeito de qualquer categoria até seu nível que não possua pré-requisitos (como outro efeito dependente ou determinado valor de atributo). Não aplicável a efeitos de Especialização.", req:"Nível 2", pn:1 },
-        { id:'rm_e9',  nome:"Pesos e Medidas",           desc:"Permite reduzir e/ou aumentar o peso e/ou tamanho da conjuração na metade (reduzindo) ou no dobro (aumentando).", req:"Nível 2", pn:1 },
+        { id:'rm_e6',  nome:"Materialização Modular",   desc:"As Materializações podem ser diferentes cada vez que conjura. Alternar entre elas depois de materializadas requer Ação bônus ou Reação (exceto por restrições).", req:"Nível 2 + Forjar Objeto, Arma ou Equipamento Conjurada(o) ou Golem de Aura", pn:1 },
+        { id:'rm_e7',  nome:"Cópia Perfeita",            desc:"Permite copiar, por Materialização, 1 objeto OU criatura marcado(s) ou tocado(s) POR RESTRIÇÕES, com todas as suas propriedades originais, EXCETO Dano, CA e PV. Para armas e objetos simples copia tipo e natureza de dano, alcance, área, durabilidade do material, PV, tamanho (espaço/peso) e resistências. Para criaturas copia tudo da ficha, exceto Dano, CA e PV. Se esses três não forem comprados por efeitos, valem: Dano 1d8, CA 10 e PV = nível do usuário + 10.", req:"Nível 2", pn:1 },
+        { id:'rm_e8',  nome:"Imbuir Materialização",    desc:"Adiciona um efeito de qualquer categoria até seu nível que não possua pré-requisitos (como outro efeito dependente ou determinado valor de atributo). Não aplicável a efeitos de Especialização.", req:"Nível 2", pn:1 },
+        { id:'rm_e9',  nome:"Pesos e Medidas",           desc:"Permite reduzir e/ou aumentar o peso e/ou tamanho da Materialização na metade (reduzindo) ou no dobro (aumentando).", req:"Nível 2", pn:1 },
         // ── Nível 4 ──────────────────────────────────────────────
+        // rm_e10 NÃO EXISTE, e é de propósito. Era o "Vínculo Persistente" (manter o Hatsu
+        // ao perder a consciência, como os prédios de Kortopi). O efeito foi removido do livro:
+        // a mesma função passou a ser coberta pela compra de Duração + Experiência Comprovada +
+        // Evolução de Conjuração. Não reaproveite este id: um Hatsu salvo antes da remoção pode
+        // tê-lo em h.efeitos, e reusar o número o transformaria em outro efeito silenciosamente.
         { id:'rm_e11', nome:"Vínculo Sustentado",        desc:"O Hatsu dura enquanto o usuário mantiver concentração e gastar 5% de aura a cada 2 rodadas. Para compartilhar sentidos, o gasto passa a ser por rodada.", req:"Nível 4", pn:1 },
         // ── Nível 5 ──────────────────────────────────────────────
-        { id:'rm_e12', nome:"Aura Condensada",           desc:"O item armazena até 10% da aura para liberar depois como impulso de dano +1d8 ou de defesa (1d8 RD).", req:"Nível 5", pn:1 },
-        { id:'rm_e13', nome:"Forja Avançada",            desc:"Ao gastar uma ação bônus, a arma ganha +1d8 de dano pela duração de 1 rodada.", req:"Nível 5", pn:1 },
+        { id:'rm_e12', nome:"Aura Condensada",           desc:"O item armazena entre 5% e 25% da aura, escolhidos na compra, para liberar depois como impulso de dano ou de defesa (RD). Escala: 5% = 1d8, 10% = 1d10, 15% = 1d12, 20% = 2d6, 25% = 2d8. A aura é consumida no momento do uso.", req:"Nível 5", pn:1 },
+        { id:'rm_e13', nome:"Forja Avançada",            desc:"Ao gastar uma ação bônus, a arma ganha +1d8 de dano. Um uso por rodada. Não é aumento de grau: é transformar a Ação Bônus em +1d8, e o benefício não se mantém.", req:"Nível 5", pn:1 },
         // ── Nível 6 ──────────────────────────────────────────────
         { id:'rm_e14', nome:"Forma Evoluída",            desc:"10 PV, +2 CA e uma Característica de Invocação adicional.", req:"Nível 6", pn:1 },
         { id:'rm_e15', nome:"Lugar Secreto / Pique Esconde", desc:"A Dimensão pode ser usada como um espaço de 12×12m com a composição (ambiente, aparência, mobília) que o usuário pré-definir.", req:"Nível 6 — Característica Dimensão", pn:1 },
         { id:'rm_e16', nome:"Invencível",                desc:"Não pode ser destruída ou desfeita a não ser pelo usuário ou pela duração. Adiciona temporariamente o valor máximo natural em 2 atributos. Requer consciência. Req. especial: o Hatsu não pode causar dano direto pelo usuário. Requer 2 Restrições Pesadas OU 1 Restrição Extrema.", req:"Nível 6 + Restrições Específicas", pn:1 },
         // ── Nível 7 ──────────────────────────────────────────────
-        { id:'rm_e17', nome:"Proativo",                  desc:"A conjuração pode realizar um ataque a mais no turno, consumindo reações do usuário.", req:"Nível 7", pn:1 },
+        { id:'rm_e17', nome:"Proativo",                  desc:"A Materialização pode realizar um ataque a mais no turno, consumindo reações do usuário.", req:"Nível 7", pn:1 },
         // ── Nível 8 ──────────────────────────────────────────────
         { id:'rm_e18', nome:"Encantamento Especializado", desc:"Escolhe uma das propriedades: Desarmar, Mortal ×3, Oculto/Finta.", req:"Nível 8", pn:1 },
-        { id:'rm_e19', nome:"Fusão ou Divisão de Constructos", desc:"Ao fundir duas criaturas conjuradas: +10 PV, unindo suas habilidades e +1 grau/passo em acerto ou dano. Ao dividir: -10 PV, -5 CA e -1 grau/passo em acerto ou dano.", req:"Nível 8 + Forjar Objeto, Arma ou Equipamento Conjurada(o) ou Golem de Aura", pn:1 },
+        { id:'rm_e19', nome:"Fusão ou Divisão de Constructos", desc:"Ao fundir duas criaturas materializadas: +10 PV, unindo suas habilidades e +1 grau/passo em acerto ou dano. Ao dividir: -10 PV, -5 CA e -1 grau/passo em acerto ou dano.", req:"Nível 8 + Forjar Objeto, Arma ou Equipamento Conjurada(o) ou Golem de Aura", pn:1 },
         // ── Nível 11 ─────────────────────────────────────────────
         { id:'rm_e20', nome:"Constructo Apex",           desc:"Sua criatura ganha +1 Ação Principal e um efeito de outra categoria (respeitando a tabela de acesso).", req:"Nível 11", pn:1 },
         // ── Nível 12 ─────────────────────────────────────────────
-        { id:'rm_e21', nome:"Relíquia Viva",             desc:"Artefato se torna permanente independente do tempo de duração ou concentração. Pode ser desfeito apenas ao ser destruído.", req:"Nível 12", pn:1 },
+        { id:'rm_e21', nome:"Relíquia Viva",             desc:"Artefato se torna permanente SEM custar aura por rodada, independente do tempo de duração ou concentração. Pode ser desfeito apenas ao ser destruído.", req:"Nível 12", pn:1 },
         // ── Conjuração com Alterações Físicas (via Aparências Enganam) ──
         { id:'rm_e22', nome:"Aparência por Partes",      desc:"Permite simular, imitar ou reproduzir até no máximo 3 características (voz, cor da pele, olhos, tamanho e peso da mesma categoria, cabelo, roupas e detalhes menores) de uma criatura qualquer ou objeto/material. Custo de aura +10% por categoria de tamanho acima do usuário.", req:"Nível 1 + Aparências Enganam + Interação Sensorial Simples sobre o alvo", pn:1 },
         { id:'rm_e23', nome:"Aparência Completa",        desc:"Permite simular, imitar ou reproduzir completamente a aparência de uma criatura qualquer ou objeto/material (da mesma categoria de tamanho). Custo de aura +10% por categoria de tamanho acima do usuário.", req:"Nível 5 + Aparências Enganam + Interação Sensorial Simples + Conhecimento do Alvo", pn:1 },
         { id:'rm_e24', nome:"Funções em Partes",         desc:"Permite simular, imitar ou reproduzir outras partes físicas (extras ou não) de uma criatura qualquer ou objeto/material por suas funções. Ex.: guelras para respirar embaixo d'água, asas para voar, braço que se transforma em corda. Custo de aura +10% por categoria de tamanho acima do usuário.", req:"Nível 1 + Aparências Enganam + conhecimento profundo das dimensões e propriedades (interações constantes/profundas ou algo específico como ferimento)", pn:1 },
         { id:'rm_e25', nome:"Funções Completas",         desc:"Permite simular, imitar ou reproduzir completamente funções de uma criatura qualquer ou objeto/material. Normalmente requer alteração na categoria de tamanho. Ex.: transformar-se em moto ou pequeno avião. Custo de aura +10% por categoria de tamanho acima do usuário.", req:"Nível 5 + Aparências Enganam + conhecimento profundo com interações profundas/constantes ou pontuais mas importantes (como um trauma)", pn:1 },
-        { id:'rm_e26', nome:"Ben 10",                   desc:"A conjuração pode assumir os Atributos Físicos além das funções no caso de seres vivos.", req:"Nível 6 + Funções em Partes ou Funções Completas", pn:1 },
+        { id:'rm_e26', nome:"Ben 10",                   desc:"A Materialização pode assumir os Atributos Físicos além das funções no caso de seres vivos.", req:"Nível 6 + Funções em Partes ou Funções Completas", pn:1 },
         { id:'rc_e1',  nome:"Invocar Criatura",        desc:"Invoca uma criatura pequena de aura (PV = 5 + CON, ataque 1d6). Controla com 1 ação por rodada",                       req:"Nível 1",  pn:1 },
         { id:'rc_e2',  nome:"Corpo Evoluído 1",        desc:"A criatura conjurada recebe +5 PV e +1 CA",                                                                              req:"Nível 1",  pn:1 },
         { id:'rc_e3',  nome:"Propriedade Natural",     desc:"A criatura recebe uma propriedade natural (veneno, fogo, gelo, elétrico...)",                                             req:"Nível 2",  pn:1 },
@@ -381,27 +386,27 @@
         { id:'em_p3', peso:'pesada',  nome:"Ricochete em Aliado",         desc:"Ricocheteia em aliado se errar",                                    bnf:"Acerto automático contra alvo Desprevenido" },
       ],
       efeitos: [
-        { id:'em_e1',  nome:"Aura Viva",              desc:"Cria até 2 massas de aura com turno em combate: a) Portais (indestrutiveis por padrão) ou b) Criaturas/Objetos médios (PV e dano 1d6, CA 12)", req:"Nível 1", pn:1 },
+        { id:'em_e1',  nome:"Aura Viva",              desc:"Cria até 2 massas de aura com turno em combate: a) Portais (indestrutiveis por padrão) ou b) Criaturas/Objetos médios (CA 10, PV 1d6 cheio, dano 1d6). Constructos rolam 1d20 cru de iniciativa e usam o acerto do usuário", req:"Nível 1", pn:1 },
         { id:'em_e2',  nome:"Distância Segura",       desc:"Adiciona 4 Grau/Passo de Alcance (6m) ou 2 Grau/Passo de Área (3m)",                    req:"Nível 1", pn:1 },
         { id:'em_e3',  nome:"Plano Avançado (Detonador)", desc:"Aplica 'marca' prévia (restrição de ativação, 5% aura). Não conta no tempo ou duração do Hatsu", req:"Nível 1", pn:1 },
-        { id:'em_e4',  nome:"Projétil de Aura",       desc:"Desprende aura em projétil balístico (mínimo 1d8). Alternativa: cria munições para armas", req:"Nível 1", pn:1 },
+        { id:'em_e4',  nome:"Projétil de Aura",       desc:"Desprende aura em projétil de aura pura, balístico. Hatsu hostil inicia em 2d6; suporte e demais tipos iniciam em 1d8. Alternativa: cria munições para armas (5% de aura por carga)", req:"Nível 1", pn:1 },
         { id:'em_e5',  nome:"Transporte Abstrato",    desc:"Transfere informações ou sensações/condições ou efeitos (dano) a algo/alguém vinculado", req:"Nível 1", pn:1 },
-        { id:'em_e6',  nome:"Transporte de Cargas",   desc:"Transporta a si e/ou alvos marcados para 3m mínimo. Dobro em metros gastando toda ação de movimento", req:"Nível 1", pn:1 },
+        { id:'em_e6',  nome:"Transporte de Cargas",   desc:"Transporta a si e/ou alvos e objetos marcados ou na área/alcance, cada um com no máximo 3x seu peso ou tamanho, para 3m (mínimo). Dobro em metros gastando toda a ação de movimento", req:"Nível 1", pn:1 },
         { id:'em_e7',  nome:"Empurrar e Puxar",       desc:"Marca de aura ou ataque permite empurrar ou puxar o alvo em 3m",                         req:"Nível 2", pn:1 },
         { id:'em_e8',  nome:"Stalker",                desc:"Marca alvo e localiza-o por 1h ou 100m ou +1 para encontrar/acertar (máx. +3)",           req:"Nível 2", pn:1 },
-        { id:'em_e9',  nome:"Troca Estratégica",      desc:"Gasta 1 reação para trocar de lugar com constructo de aura ou aliado marcado",            req:"Nível 2 — Aura Viva ou Plano Avançado", pn:1 },
+        { id:'em_e9',  nome:"Troca Estratégica",      desc:"Gasta 1 reação para trocar de lugar com constructo de aura ou ALVO marcado. Já embute o gasto da reação: não exige Reação Ofensiva/Defensiva", req:"Nível 2 — Aura Viva ou Plano Avançado", pn:1 },
         { id:'em_e10', nome:"Reformar Constructo",    desc:"Divide constructo em duas entidades menores ou reconstrói um destruído (metade dos PVs)", req:"Nível 3", pn:1 },
-        { id:'em_e11', nome:"Unificação de Constructos", desc:"Dois ou mais constructos se fundem em um único ser maior (soma PVs ou DANO)",          req:"Nível 3 — Aura Viva", pn:1 },
+        { id:'em_e11', nome:"Unificação de Constructos", desc:"Dois ou mais constructos se fundem em um único ser maior até o fim do combate (soma PVs ou DANO). Se forem só de Emissão, o dano ganha a propriedade Mortal", req:"Nível 3 — Aura Viva", pn:1 },
         { id:'em_e12', nome:"Ancoragem",              desc:"Não pode ser movido por meios físicos. Também prende objeto no espaço (como flutuando)",  req:"Nível 4", pn:1 },
         { id:'em_e13', nome:"Lugar Marcado",          desc:"Aplica Ren em local/alvo (5%), marcando para teletransporte independente da distância",   req:"Nível 4", pn:1 },
-        { id:'em_e14', nome:"Expansão de Domínio",    desc:"a) 4 Grau/Passo de Área (cone, círculo, cilindro ou linha de 6m a partir de si) ou b) 2 Grau/Passo de Alcance (3m à distância)", req:"Nível 5", pn:1 },
+        { id:'em_e14', nome:"Expansão de Domínio",    desc:"Adiciona ÁREA em cone, círculo, cilindro ou linha: a) 6m (4 Grau/Passo) quando o Hatsu não possui alcance além de toque, partindo de si ou de uma marca; ou b) 3m (2 Grau/Passo) quando já possui alcance", req:"Nível 5", pn:1 },
         { id:'em_e15', nome:"Mira Concentrada",       desc:"Vantagem no próximo ataque a distância com Hatsu a cada 10% de aura gasto (não redutível)", req:"Nível 5", pn:1 },
         { id:'em_e16', nome:"Mira Guiada",            desc:"Projétil contorna/atravessa obstáculos simples e alvos estáticos no caminho",             req:"Nível 5 — SAB 3+ e Projétil de Aura", pn:1 },
         { id:'em_e17', nome:"Troca Dimensional",      desc:"Troca de lugar com aliado, portal ou marca",                                              req:"Nível 6", pn:1 },
         { id:'em_e18', nome:"Núcleo Vinculante",      desc:"Constructo canaliza aura para amplificar ataque/defesa, sacrificando-se. Absorve ou Aumenta dano de acordo com PV restante", req:"Nível 8 — Aura Viva", pn:1 },
         { id:'em_e19', nome:"Espaço Reverso",         desc:"Rebate ataque de aura ou Hatsu com dano de volta ao alvo (1x/combate). Sem Reação Ofensiva/Defensiva, só funciona se o atacante mirar alvo/área já sob o efeito",                   req:"Nível 8 — SAB 5+", pn:1 },
         { id:'em_e20', nome:"Disparo Potente",        desc:"Aumenta dano em +2d6 e +12 Grau/Passo de Alcance ou +12 Grau/Passo de Área (18m)",       req:"Nível 10 — Projétil de Aura ou Rajada Canalizada", pn:1 },
-        { id:'em_e21', nome:"Tão Tão Distante",       desc:"Dobra alcance/área ou muda de categoria (metros→km, requer 2 restrições pesadas ou 1 extrema)", req:"Nível 10", pn:1 },
+        { id:'em_e21', nome:"Tão Tão Distante",       desc:"Depois de TODOS os cálculos de efeitos, dobra o alcance ou a área do Hatsu, ou muda de categoria (metros→km)", req:"Nível 10 — a segunda opção exige 2 Restrições Pesadas ou 1 Extrema", pn:1 },
       ]
     },
 
@@ -409,6 +414,570 @@
 }; // fim HATSU_DB
 // Alias para compatibilidade retroativa: hatsus salvos com classe='CONJURAÇÃO' usam MATERIALIZAÇÃO
 window.HATSU_DB.categorias['CONJURAÇÃO'] = window.HATSU_DB.categorias['MATERIALIZAÇÃO'];
+
+// ── Dedup CONJURAÇÃO → MATERIALIZAÇÃO (restrições de categoria) ──────────────
+// As 9 restrições rc_* saíram do banco por serem duplicatas exatas das rm_*. Hatsus
+// já salvos no Supabase guardam o ID CRU em h.restricoes, então sem esta tabela a
+// restrição simplesmente desapareceria da ficha — levando com ela o desconto de aura
+// e os graus de potência que o jogador pagou. migrarRestricoesConjuracao() em
+// sheet.js consome este mapa uma única vez por personagem.
+window.ID_DEDUP_CONJURACAO = {
+    'rc_l1': 'rm_l1',   // Vínculo de Alcance        → Alcance Máximo 6m
+    'rc_l2': 'rm_l2',   // Criatura Pacífica         → Sem Dano Direto
+    'rc_l3': 'rm_l3',   // Uma Invocação por Combate → 1 Item por Combate
+    'rc_m1': 'rm_m1',   // Sustento de Aura          → 5% de Aura por Rodada
+    'rc_m2': 'rm_m2',   // Vínculo de Alma           → Dano ao Destruir
+    'rc_m3': 'rm_m3',   // Ritual de Invocação       → Local Fixo ou Calmo
+    'rc_p1': 'rm_p1',   // Concentração Total        → Perde Ação Principal
+    'rc_p2': 'rm_p2',   // Criatura Incontrolável    → Conjuração Controlável
+    'rc_p3': 'rm_p3',   // Sacrifício Ritual         → Componentes Materiais
+};
+
+
+// ── ri_e29 "Dano Fragilizante" (Reforço) ─────────────────────────────────────
+// "Um dano causado superior a 20 por ataque pode: a) reduzir a durabilidade da
+//  armadura do alvo em 3; b) aplicar −2 nos ataques do oponente; c) aplicar −2
+//  em reações defensivas."
+//
+// A escolha é NA COMPRA, e o efeito é repetível: comprando a+b+c o jogador recebe
+// os três ao mesmo tempo quando o dano passa de 20. Comprar a MESMA opção de novo
+// ACUMULA linearmente — duas compras de "−2 nos ataques" valem −4.
+//
+// Guarda o `id`, não o rótulo: a frase é longa e qualquer ajuste de texto no livro
+// quebraria as escolhas já salvas. O `base` fica aqui para a escala ser calculada
+// em um lugar só, em vez de extraída do texto.
+window.DANO_FRAGILIZANTE_OPCOES = [
+    { id: 'df_armadura', base: 3, alvo: 'na durabilidade da armadura do alvo',
+      rotulo: '−3 na durabilidade da armadura do alvo' },
+    { id: 'df_ataques',  base: 2, alvo: 'nos ataques do oponente',
+      rotulo: '−2 nos ataques do oponente' },
+    { id: 'df_reacoes',  base: 2, alvo: 'em reações defensivas',
+      rotulo: '−2 em reações defensivas' },
+];
+
+window.danoFragilizantePorId = function (id) {
+    return (window.DANO_FRAGILIZANTE_OPCOES || []).filter(function (o) { return o.id === id; })[0] || null;
+};
+
+window.chaveDanoFragilizante = function (i) { return i > 0 ? ('ri_e29#' + i) : 'ri_e29'; };
+
+// O que o Dano Fragilizante aplica neste Hatsu, já somado:
+// [{ opcao, vezes, total }] — uma entrada por opção escolhida, com o total acumulado.
+// Aceita o Hatsu salvo (h.efeitos) e o rascunho do criador (hb.eg + hb.ec).
+window.bonusDanoFragilizante = function (h) {
+    const ids = Array.isArray((h || {}).efeitos) ? h.efeitos : [].concat((h || {}).eg || [], (h || {}).ec || []);
+    const compras = ids.filter(function (id) { return id === 'ri_e29'; }).length;
+    const sc = (h || {}).specialChoices || {};
+    const vezes = {};
+    for (let i = 0; i < compras; i++) {
+        const v = sc[window.chaveDanoFragilizante(i)];
+        if (v) vezes[v] = (vezes[v] || 0) + 1;
+    }
+    const out = [];
+    (window.DANO_FRAGILIZANTE_OPCOES || []).forEach(function (o) {
+        const n = vezes[o.id] || 0;
+        if (n > 0) out.push({ opcao: o, vezes: n, total: o.base * n });
+    });
+    return out;
+};
+
+
+// ── ri_e30 "Potencial Liberado" (Reforço) ────────────────────────────────────
+// "Escolha um efeito da tabela de Potencial Liberado POR P.N GASTO neste efeito.
+//  Comprar o MESMO efeito da tabela aumenta seu grau/passo."
+//
+// Então: ri_e30 é repetível e cada compra (1 P.N) vale uma escolha. Escolher a
+// MESMA linha duas vezes não dá duas cópias do benefício — sobe um grau/passo.
+// Chaves por compra: 'ri_e30', 'ri_e30#1', 'ri_e30#2'… (padrão de rm_e2/eg15/ri_e1).
+//
+// As tabelas não existiam no app, então o efeito apontava para o nada. São duas:
+// Físico (por parte do corpo) e Sentidos. Linhas com duas variantes nomeadas no
+// livro (Troglodita × Cirurgião, Velocista × Ágil, Toph × "Hum, nem doeu",
+// Olfato Aguçado × Apotecário) viraram duas opções próprias, porque é assim que
+// se escolhe: uma por P.N.
+//
+// `aplica.grandeza` decide o que a recompra faz:
+//   'atributo' | 'deslocamento' | 'reacoes'  → sobe pelo `passo` a cada recompra
+//   'fixo'                                   → NÃO melhora (vantagem, imunidade,
+//                                              sentido, alcance dobrado). Recomprar
+//                                              não dá nada, e o app avisa.
+// `base` é o valor da 1ª compra (o do livro) e `passo` o que cada recompra soma.
+// POTENCIAL_LIBERADO_PASSO saiu em 29/10: o passo real vem do `aplica.passo` de cada
+// entrada, e conferindo as 6 entradas uma a uma nenhuma divergia do mapa. Duas fontes
+// para o mesmo número só criam chance de uma envelhecer.
+window.POTENCIAL_LIBERADO_FISICO = [
+    { id: 'pl_torso',      parte: 'Torso (Tronco)', variante: '',
+      efeito: 'Adicione +2 ao seu bônus de Constituição',
+      aplica: { grandeza: 'atributo', attr: 'CON', base: 2, passo: 1 } },
+    { id: 'pl_braco_for',  parte: 'Mãos/Braços',    variante: 'Troglodita',
+      efeito: 'Adicione +2 ao seu bônus de Força (acerto e dano físico)',
+      aplica: { grandeza: 'atributo', attr: 'FOR', base: 2, passo: 1 } },
+    { id: 'pl_braco_des',  parte: 'Mãos/Braços',    variante: 'Cirurgião',
+      efeito: 'Adicione +2 ao seu bônus de Destreza (acerto e dano físico)',
+      aplica: { grandeza: 'atributo', attr: 'DES', base: 2, passo: 1 } },
+    { id: 'pl_perna_desl', parte: 'Pernas',         variante: 'Velocista',
+      efeito: 'Adicione +3m em seu deslocamento',
+      aplica: { grandeza: 'deslocamento', base: 3, passo: 1.5 } },
+    { id: 'pl_perna_rea',  parte: 'Pernas',         variante: 'Ágil',
+      efeito: 'Adicione +2 aos resultados das reações',
+      aplica: { grandeza: 'reacoes', base: 2, passo: 1 } },
+    { id: 'pl_cabeca',     parte: 'Cabeça',         variante: '',
+      efeito: 'Vantagem contra efeitos que o deixem atordoado',
+      aplica: { grandeza: 'fixo' } },
+];
+
+window.POTENCIAL_LIBERADO_SENTIDOS = [
+    { id: 'pl_tato_sismico', parte: 'Tato',           variante: 'Toph',
+      efeito: 'Adquire sentido sísmico ("enxerga" formas físicas pelas vibrações)',
+      aplica: { grandeza: 'fixo' } },
+    { id: 'pl_tato_dor',     parte: 'Tato',           variante: '"Hum, nem doeu"',
+      efeito: 'Imunidade à redução de sanidade por efeito de dor física (como em torturas)',
+      aplica: { grandeza: 'fixo' } },
+    // Único bônus de atributo CONDICIONAL da tabela: vale só em fala e socialização,
+    // então sobe de grau como os outros mas não entra na soma geral do atributo.
+    { id: 'pl_paladar',      parte: 'Paladar/Dicção', variante: '',
+      efeito: 'Adicione +2 ao seu bônus de Presença envolvendo fala e socialização',
+      aplica: { grandeza: 'atributo', attr: 'PRE', base: 2, passo: 1, condicao: 'fala e socialização' } },
+    { id: 'pl_olfato_furt',  parte: 'Olfato',         variante: 'Olfato Aguçado',
+      efeito: 'Vantagem para perceber inimigos em furtividade baseado em olfato',
+      aplica: { grandeza: 'fixo' } },
+    { id: 'pl_olfato_venen', parte: 'Olfato',         variante: 'Apotecário',
+      efeito: 'Vantagem para identificar venenos e substâncias perigosas',
+      aplica: { grandeza: 'fixo' } },
+    // As duas linhas de Visão são as únicas sem nome de variante no livro (as
+    // células a) e b) estão vazias, enquanto Tato/Pernas/Olfato têm Toph,
+    // Velocista, Apotecário etc.). Ficam com os marcadores a)/b) do livro para
+    // não aparecerem idênticas na lista de escolha.
+    { id: 'pl_visao_furt',   parte: 'Visão',          variante: 'a)',
+      efeito: 'Vantagem para perceber inimigos baseado em visão',
+      aplica: { grandeza: 'fixo' } },
+    { id: 'pl_visao_alc',    parte: 'Visão',          variante: 'b)',
+      efeito: 'Dobra o alcance de acerto com armas à distância sem penalidade',
+      aplica: { grandeza: 'fixo' } },
+    { id: 'pl_audicao',      parte: 'Audição',        variante: 'Audição Aguçada',
+      efeito: 'Vantagem para perceber inimigos em furtividade baseado em audição',
+      aplica: { grandeza: 'fixo' } },
+];
+
+// As 14 opções numa lista só, com o grupo marcado — é o que o picker consome.
+window.potencialLiberadoTodos = function () {
+    return [].concat(
+        (window.POTENCIAL_LIBERADO_FISICO || []).map(function (o) { return Object.assign({ grupo: 'Físico' }, o); }),
+        (window.POTENCIAL_LIBERADO_SENTIDOS || []).map(function (o) { return Object.assign({ grupo: 'Sentidos' }, o); })
+    );
+};
+
+window.potencialLiberadoPorId = function (id) {
+    return (window.potencialLiberadoTodos() || []).filter(function (o) { return o.id === id; })[0] || null;
+};
+
+// Rótulo curto: "Mãos/Braços — Troglodita" ou "Cabeça".
+window.rotuloPotencialLiberado = function (o) {
+    if (!o) return '';
+    return o.parte + (o.variante ? ' — ' + o.variante : '');
+};
+
+// Recomprar melhora? Falso para vantagem, imunidade, sentido e alcance dobrado —
+// aí o app avisa em vez de deixar o jogador gastar P.N em nada.
+window.potencialLiberadoMelhora = function (o) {
+    return !!(o && o.aplica && o.aplica.grandeza !== 'fixo');
+};
+
+// Valor da opção quando escolhida `vezes` vezes: base na 1ª, +passo em cada recompra.
+window.valorPotencialLiberado = function (o, vezes) {
+    if (!window.potencialLiberadoMelhora(o)) return null;
+    const n = Math.max(1, parseInt(vezes) || 1);
+    return o.aplica.base + o.aplica.passo * (n - 1);
+};
+
+// Quantas vezes cada opção foi escolhida neste Hatsu: { pl_torso: 2, pl_cabeca: 1 }.
+// Aceita o Hatsu salvo (h.efeitos) e o rascunho do criador (hb.eg + hb.ec).
+window.chavePotencialLiberado = function (i) { return i > 0 ? ('ri_e30#' + i) : 'ri_e30'; };
+window.escolhasPotencialLiberado = function (h) {
+    const ids = Array.isArray((h || {}).efeitos) ? h.efeitos : [].concat((h || {}).eg || [], (h || {}).ec || []);
+    const compras = ids.filter(function (id) { return id === 'ri_e30'; }).length;
+    const sc = (h || {}).specialChoices || {};
+    const out = {};
+    for (let i = 0; i < compras; i++) {
+        const v = sc[window.chavePotencialLiberado(i)];
+        if (v) out[v] = (out[v] || 0) + 1;
+    }
+    return out;
+};
+
+// O que o Potencial Liberado concede, já somado e pronto para entrar em cálculo.
+// attrBonus  — soma geral de atributo (NÃO inclui o condicional do Paladar/Dicção)
+// condicionais — bônus que valem só em certa situação, listados à parte
+// deslocamento / resultadoReacoes — números
+// fixos — os benefícios sem número, para exibir
+window.bonusPotencialLiberado = function (h) {
+    const esc = window.escolhasPotencialLiberado(h);
+    const out = { attrBonus: {}, condicionais: [], deslocamento: 0, resultadoReacoes: 0, fixos: [] };
+    Object.keys(esc).forEach(function (id) {
+        const o = window.potencialLiberadoPorId(id);
+        if (!o) return;
+        const vezes = esc[id];
+        if (!window.potencialLiberadoMelhora(o)) { out.fixos.push({ opcao: o, vezes: vezes }); return; }
+        const v = window.valorPotencialLiberado(o, vezes);
+        const a = o.aplica;
+        if (a.grandeza === 'atributo') {
+            if (a.condicao) out.condicionais.push({ opcao: o, attr: a.attr, valor: v, condicao: a.condicao, vezes: vezes });
+            else out.attrBonus[a.attr] = (out.attrBonus[a.attr] || 0) + v;
+        } else if (a.grandeza === 'deslocamento') {
+            out.deslocamento += v;
+        } else if (a.grandeza === 'reacoes') {
+            out.resultadoReacoes += v;
+        }
+    });
+    return out;
+};
+
+
+// ── rm_e7 "Cópia Perfeita" ───────────────────────────────────────────────────
+// Copia um objeto OU criatura marcado por restrições, com TODAS as propriedades
+// originais EXCETO Dano, CA e PV. O livro fecha a regra assim: "Se esses três não
+// forem comprados por efeitos, valem: Dano 1d8, CA 10 e PV = nível do usuário + 10."
+// Então a pergunta que decide cada um dos três é só uma: o Hatsu comprou um efeito
+// (ou restrição) que concede aquilo? Se comprou, vale o valor do Hatsu/Constructo;
+// se não, vale o padrão do livro.
+// Chave do picker por cópia: 'rm_e7', 'rm_e7#1'… (rm_e7 é repetível).
+window.chaveCopiaPerfeita = function (i) { return i > 0 ? ('rm_e7#' + i) : 'rm_e7'; };
+
+window.COPIA_PERFEITA_PADRAO = { dano: '1d8', ca: 10, pvBonus: 10 };
+
+// OBJETO e CRIATURA não copiam a mesma coisa — a diferença é do efeito, não errata:
+//
+//   Objeto/arma simples: "copia tipo e natureza de dano, alcance, área,
+//     durabilidade do material, PV, tamanho (espaço/peso) e resistências".
+//     → O PV É COPIADO (vem da tabela tamanho × durabilidade, que é a mesma coisa
+//       que "durabilidade do material, PV, tamanho").
+//     → De dano copia-se o TIPO e a NATUREZA, não o valor.
+//     → CA não está na lista: fica no mínimo ou no comprado.
+//
+//   Criatura: "copia tudo da ficha, exceto Dano, CA e PV".
+//     → Os três no mínimo (nota do dicionário) ou no comprado.
+//
+// PV de objeto copiado: a mesma tabela do constructo, porque é a mesma pergunta
+// (que tamanho, e quão durável é o material).
+window.pvObjetoCopiado = function (tamanho, durabilidade) {
+    const t = (window.CONSTRUCTO_DB || {}).PV_POR_TAMANHO || {};
+    const linha = t[tamanho];
+    if (!linha) return null;
+    return linha[durabilidade === 'resistente' ? 'resistente' : 'fragil'] || null;
+};
+
+// Decide os três campos excetuados. `dano` vem de fora (o dano já calculado do
+// Hatsu), porque quem sabe disso é a tela de detalhe.
+// Cada campo devolve { valor, padrao } — padrao:true significa "o Hatsu não comprou
+// isso, então vale o valor do livro".
+// `opcoes` (opcional): { objeto: true, pvObjeto: <número> } para o caminho de objeto.
+window.excecoesCopiaPerfeita = function (h, char, danoDoHatsu, opcoes) {
+    const CDB = window.CONSTRUCTO_DB || {};
+    const ids = [].concat((h && h.efeitos) || [], (h && h.restricoes) || []);
+    const comprou = function (mapaEfeito, mapaRestr) {
+        return ids.some(function (id) {
+            return (mapaEfeito || {})[id] !== undefined || (mapaRestr || {})[id] !== undefined;
+        });
+    };
+    const temCA = comprou(CDB.EFEITO_CA, CDB.RESTRICAO_CA);
+    const temPV = comprou(CDB.EFEITO_PV, CDB.RESTRICAO_PV);
+    const nivel = parseInt((char || {}).level) || 1;
+    return {
+        dano: danoDoHatsu
+            ? { valor: danoDoHatsu, padrao: false }
+            : { valor: window.COPIA_PERFEITA_PADRAO.dano, padrao: true },
+        ca: temCA
+            ? { valor: null, padrao: false }      // null = ver a Ficha do Constructo
+            : { valor: window.COPIA_PERFEITA_PADRAO.ca, padrao: true },
+        // PV do OBJETO é copiado do original; o do animal/criatura não é.
+        pv: (opcoes && opcoes.objeto && opcoes.pvObjeto)
+            ? { valor: opcoes.pvObjeto, padrao: false, copiado: true }
+            : (temPV
+                ? { valor: null, padrao: false }
+                : { valor: nivel + window.COPIA_PERFEITA_PADRAO.pvBonus, padrao: true }),
+    };
+};
+
+
+// ── em_e1 "Aura Viva" e em_e11 "Unificação de Constructos" ───────────────────
+// Dicionário da Emissão: "Em novas escolhas do efeito adicione 1 massa de aura OU um
+// passo/grau no dado de dano e PV do Constructo, que por sua vez inicia cheia."
+// E na Unificação: "em novas escolhas do efeito Dobre o PV(1), Adicione 1 à CA(2)."
+//
+// Até aqui as duas eram tratadas como efeito de valor fixo: cada cópia somava os
+// mesmos +6 de PV, sem escolha nenhuma. O jogador comprava de novo e recebia sempre
+// a mesma coisa, que não é o que o livro oferece.
+//
+// A PRIMEIRA compra é a base; a escolha existe a partir da SEGUNDA, e é por cópia —
+// mesmo padrão de chave do resto do app ('em_e1', 'em_e1#1', 'em_e1#2'…).
+window.AURA_VIVA_BASE = { massas: 2, dado: '1d6', ca: 10 };
+window.AURA_VIVA_OPCOES = [
+    { id: 'massa', rotulo: '+1 massa de aura' },
+    { id: 'grau',  rotulo: '+1 grau/passo no dado de dano e PV' },
+];
+window.UNIFICACAO_OPCOES = [
+    { id: 'pv', rotulo: 'Dobrar o PV' },
+    { id: 'ca', rotulo: '+1 na CA' },
+];
+window.chaveCopia = function (id, i) { return i > 0 ? (id + '#' + i) : id; };
+
+// "PV = 1d6 (cheio)": cheio é o valor MÁXIMO do dado, não uma rolagem.
+window.dadoCheio = function (dado) {
+    const m = String(dado || '').match(/^(\d+)d(\d+)$/);
+    return m ? parseInt(m[1]) * parseInt(m[2]) : 0;
+};
+
+// Estado da Aura Viva neste Hatsu: massas, dado (dano e PV andam juntos) e PV cheio.
+window.statusAuraViva = function (h) {
+    const base = window.AURA_VIVA_BASE;
+    const copias = ((h || {}).efeitos || []).filter(function (id) { return id === 'em_e1'; }).length;
+    if (!copias) return null;
+    const sc = (h || {}).specialChoices || {};
+    const T = window.DAMAGE_TABLE || ['1d4', '1d6', '1d8', '1d10', '1d12'];
+    let massas = base.massas, passos = 0;
+    const escolhas = [];
+    for (let i = 1; i < copias; i++) {               // a 1ª compra é a base
+        const esc = sc[window.chaveCopia('em_e1', i)] || '';
+        escolhas.push(esc);
+        if (esc === 'grau') passos++;
+        else if (esc === 'massa') massas++;
+    }
+    const i0 = Math.max(0, T.indexOf(base.dado));
+    const dado = T[Math.min(i0 + passos, T.length - 1)];
+    return {
+        copias: copias, massas: massas, passos: passos, escolhas: escolhas,
+        dado: dado, pv: window.dadoCheio(dado), ca: base.ca,
+        // Quantas cópias ainda não têm escolha marcada — o criador avisa.
+        semEscolha: escolhas.filter(function (e) { return !e; }).length,
+    };
+};
+
+// Unificação: cada cópia dobra o PV ou soma 1 na CA. Aplicada SOBRE o que a Aura Viva
+// (ou outro efeito de constructo) já montou, por isso devolve multiplicador e soma.
+window.statusUnificacao = function (h) {
+    const copias = ((h || {}).efeitos || []).filter(function (id) { return id === 'em_e11'; }).length;
+    if (!copias) return null;
+    const sc = (h || {}).specialChoices || {};
+    let dobras = 0, caExtra = 0;
+    const escolhas = [];
+    for (let i = 0; i < copias; i++) {
+        const esc = sc[window.chaveCopia('em_e11', i)] || '';
+        escolhas.push(esc);
+        if (esc === 'pv') dobras++;
+        else if (esc === 'ca') caExtra++;
+    }
+    return {
+        copias: copias, dobras: dobras, caExtra: caExtra, escolhas: escolhas,
+        multPV: Math.pow(2, dobras),
+        semEscolha: escolhas.filter(function (e) { return !e; }).length,
+    };
+};
+
+// ── rm_e12 "Aura Condensada" ─────────────────────────────────────────────────
+// Como funciona na mesa:
+//   • A COMPRA só habilita o efeito e levanta o teto. Não há % escolhida na compra.
+//   • Com o Hatsu ATIVO, o botão "Reservar +5%" aparece na aba Ficha, junto do
+//     "Desligar" daquele Hatsu, e cada clique tira 5% da aura do personagem e
+//     guarda dentro do item.
+//   • A reserva inteira vai para UM destino só, escolhido no momento do uso:
+//       – Dano: cada 5% vale +1 Grau/Passo no dano DO PRÓPRIO HATSU. Por ser grau,
+//               obedece ao teto de Grau de Potência do nível, igual a qualquer
+//               outra fonte (mesma regra do REN).
+//       – RD:   cada 5% vale 1 ponto de Redução de Dano, sem rolagem.
+//   • Teto: 25% por compra (5 cliques). Duas compras = 50% / 10 graus ou 10 de RD.
+//   • A reserva morre com a desativação do Hatsu: a aura já foi gasta para carregar.
+// A tabela do livro (5%=1d8 · 10%=1d10 · 15%=1d12 · 20%=2d6 · 25%=2d8) é a MESMA
+// regra lida na DAMAGE_TABLE: partindo de 1d6 (índice 1), cada 5% sobe um degrau e
+// 25% chega em 2d8 (índice 6). Não é uma escala paralela.
+window.AURA_CONDENSADA_PASSO = 5;    // % de aura por clique
+
+// ── Marcas e cargas da Emissão ───────────────────────────────────────────────
+// Três efeitos de Emissão cobram 5% de aura por unidade aplicada, e nenhum dos
+// três tinha onde ser contado — o jogador pagava (ou esquecia de pagar) de
+// cabeça, e nada na ficha dizia quantas marcas estavam no tabuleiro:
+//
+//   em_e3  Plano Avançado (Detonador) — "aplica marca prévia (5% aura)"
+//   em_e13 Lugar Marcado             — "aplica Ren em local/alvo (5%)"
+//   em_e4  Projétil de Aura          — "cria munições para armas (5% por carga)"
+//
+// Regras confirmadas com o Lucas (28/10):
+//   • Só a AURA limita quantas existem ao mesmo tempo — não há teto por compra.
+//   • Retirar uma marca DEVOLVE os 5%: dá para remanejar durante a cena.
+//   • A marca do Plano Avançado é, por padrão, aplicada "com REN", mas também
+//     pode ser um toque que suga 5%. É só o modo de aplicar: o REN aqui NÃO é o
+//     princípio sendo ativado, e por isso o app não chama _activatePrincipio
+//     nem começa contagem de rodadas de REN. Era a armadilha óbvia deste efeito.
+window.MARCA_EMISSAO_CUSTO = 5;
+
+window.MARCAS_EMISSAO = [
+    { id: 'em_e3',  icone: '📍', nome: 'Plano Avançado',  unidade: 'marca',   plural: 'marcas',
+      nota: 'Marca prévia de detonação. Não conta no tempo nem na duração do Hatsu.',
+      modos: [['ren', 'com REN'], ['toque', 'por toque']] },
+    { id: 'em_e13', icone: '🌀', nome: 'Lugar Marcado',   unidade: 'marca',   plural: 'marcas',
+      nota: 'Marca um local ou alvo para teletransporte, a qualquer distância.' },
+    { id: 'em_e4',  icone: '🔫', nome: 'Projétil de Aura', unidade: 'carga',  plural: 'cargas',
+      nota: 'Munição para armas. Cada carga é um disparo carregado de aura.' },
+];
+window.marcaEmissao = function (id) {
+    return (window.MARCAS_EMISSAO || []).filter(function (m) { return m.id === id; })[0] || null;
+};
+
+// Quais destes efeitos o Hatsu comprou. Aceita o Hatsu salvo (h.efeitos) e o
+// rascunho do criador (hb.eg + hb.ec), como o comprasAuraCondensada faz.
+window.marcasDoHatsu = function (h) {
+    if (!h) return [];
+    const ids = Array.isArray(h.efeitos) ? h.efeitos : [].concat(h.eg || [], h.ec || []);
+    return (window.MARCAS_EMISSAO || []).filter(function (m) { return ids.indexOf(m.id) >= 0; });
+};
+
+// O estado vivo. Fica em char.marcasEmissao[idx], e NÃO em char.hatsusAtivos[idx],
+// porque a marca do Plano Avançado é PRÉVIA: ela existe antes de o Hatsu ser
+// ativado, e some junto com ele seria o contrário da regra.
+window.contagemMarcas = function (char, idx, id) {
+    const m = (((char || {}).marcasEmissao) || {})[idx] || {};
+    return Math.max(0, parseInt(m[id]) || 0);
+};
+window.modoMarca = function (char, idx, id) {
+    const m = (((char || {}).marcasEmissao) || {})[idx] || {};
+    const cfg = window.marcaEmissao(id);
+    if (!cfg || !cfg.modos) return '';
+    return m[id + '_modo'] || cfg.modos[0][0];
+};
+
+// Total de marcas e de aura empatada em TODOS os Hatsus, para a ficha mostrar de
+// uma vez só quanta aura está presa no tabuleiro.
+window.resumoMarcasEmissao = function (char) {
+    const todos = ((char || {}).marcasEmissao) || {};
+    let marcas = 0;
+    Object.keys(todos).forEach(function (idx) {
+        (window.MARCAS_EMISSAO || []).forEach(function (m) {
+            marcas += Math.max(0, parseInt(todos[idx][m.id]) || 0);
+        });
+    });
+    return { marcas: marcas, aura: marcas * (window.MARCA_EMISSAO_CUSTO || 5) };
+};
+
+// ── rm_e19 Fusão ou Divisão de Constructos ───────────────────────────────────
+// O banco descreve: "Ao fundir duas criaturas materializadas: +10 PV, unindo suas
+// habilidades e +1 grau/passo em acerto ou dano. Ao dividir: -10 PV, -5 CA e -1
+// grau/passo em acerto ou dano." Era o último efeito que prometia número e não
+// tinha para onde ir — nenhum arquivo fora do banco mencionava o id.
+//
+// Regras confirmadas com o Lucas (29/10):
+//   • É AÇÃO DE MESA, não escolha de compra: o jogador liga durante o uso e a
+//     escolha some quando o Hatsu é desativado (ver _desativarHatsu em init.js).
+//   • FUNDIR junta duas fichas numa só — os PV das duas somam, as Características
+//     das duas passam a valer ("unindo suas habilidades") e cada compra do efeito
+//     acrescenta +10 PV e +1 grau/passo.
+//   • DIVIDIR parte uma ficha em DUAS e aí "não importa quantos foram
+//     adicionados/acumulados, sempre será dividido por 2": o PV de cada metade é a
+//     METADE do total (é esse corte que faz o papel do "-10 PV" do texto) e os -5
+//     de CA são REPARTIDOS entre as duas, -3 e -2. O ponto que sobra vai para a
+//     metade que o jogador escolher — daí a pergunta na hora de dividir.
+//   • "+1 grau/passo em ACERTO" é +1 plano no d20 do constructo, não um degrau da
+//     tabela de dano. Em DANO é o degrau normal da DAMAGE_TABLE.
+window.FUSAO_DIVISAO_ID = 'rm_e19';
+window.FUSAO_PV_POR_COMPRA = 10;
+window.FUSAO_GRAUS_POR_COMPRA = 1;
+window.DIVISAO_CA_PENALIDADE = 5;
+
+window.comprasFusaoDivisao = function (h) {
+    if (!h) return 0;
+    const ids = Array.isArray(h.efeitos) ? h.efeitos : [].concat(h.eg || [], h.ec || []);
+    return ids.filter(function (id) { return id === window.FUSAO_DIVISAO_ID; }).length;
+};
+
+// O -5 de CA repartido entre as duas metades: devolve [maior, menor] = [3, 2].
+// A metade escolhida pelo jogador leva a MENOR, ficando 1 de CA acima da outra.
+window.repartirCaDivisao = function (total) {
+    const n = Math.max(0, parseInt(total) || 0);
+    return [Math.ceil(n / 2), Math.floor(n / 2)];
+};
+
+// Estado vivo, guardado em h.fusaoDiv = { modo, alvo, folga }.
+//   modo  'fundir' | 'dividir' | null (nenhum)
+//   alvo  'dano' | 'acerto'  — onde entra o grau/passo
+//   folga 0 | 1 — qual das duas metades fica com o ponto de CA que sobra
+// `copias` é quantas fichas de constructo o Hatsu tem hoje: fundir exige duas,
+// dividir exige uma. Um modo impossível é tratado como desligado, para que uma
+// ficha salva não mostre número que não vale.
+window.statusFusaoDivisao = function (h, copias) {
+    const compras = window.comprasFusaoDivisao(h);
+    if (!compras) return null;
+    const n = Math.max(1, parseInt(copias) || 1);
+    const fd = (h && h.fusaoDiv) || {};
+    let modo = (fd.modo === 'fundir' || fd.modo === 'dividir') ? fd.modo : null;
+    if (modo === 'fundir' && n < 2) modo = null;
+    if (modo === 'dividir' && n > 1) modo = null;
+    return {
+        compras: compras,
+        modo: modo,
+        alvo: fd.alvo === 'acerto' ? 'acerto' : 'dano',
+        folga: (parseInt(fd.folga) || 0) === 1 ? 1 : 0,
+        podeFundir: n >= 2,
+        podeDividir: n === 1,
+        // Fundindo acumula por compra; dividindo é sempre uma divisão só.
+        pv: modo === 'fundir' ? compras * window.FUSAO_PV_POR_COMPRA : 0,
+        graus: modo === 'fundir' ? compras * window.FUSAO_GRAUS_POR_COMPRA
+             : (modo === 'dividir' ? -1 : 0),
+        caPenalidade: window.repartirCaDivisao(window.DIVISAO_CA_PENALIDADE),
+    };
+};
+
+window.AURA_CONDENSADA_TETO_POR_COMPRA = 25;
+
+// Quantas vezes o Hatsu comprou rm_e12. Aceita o Hatsu salvo (h.efeitos) e o
+// rascunho do criador (hb.eg + hb.ec).
+window.comprasAuraCondensada = function (h) {
+    if (!h) return 0;
+    const ids = Array.isArray(h.efeitos) ? h.efeitos : [].concat(h.eg || [], h.ec || []);
+    return ids.filter(function (id) { return id === 'rm_e12'; }).length;
+};
+
+// Teto de aura reservável neste Hatsu, em %.
+window.tetoAuraCondensada = function (h) {
+    return window.comprasAuraCondensada(h) * window.AURA_CONDENSADA_TETO_POR_COMPRA;
+};
+
+// A reserva viva fica em char.hatsusAtivos[idx] — ou seja, só existe com o Hatsu
+// ativo. { pct, destino: null | 'dano' | 'rd', rdAplicada }
+window.reservaAuraCondensada = function (ativo) {
+    const r = (ativo || {}).reservaCondensada;
+    return {
+        pct: Math.max(0, parseInt((r || {}).pct) || 0),
+        destino: ((r || {}).destino) || null,
+    };
+};
+
+// Quantos "passos" (graus de dano, ou pontos de RD) a reserva atual vale.
+window.passosAuraCondensada = function (pct) {
+    return Math.floor((Math.max(0, parseInt(pct) || 0)) / window.AURA_CONDENSADA_PASSO);
+};
+
+// ── Conjuração ≡ Materialização ───────────────────────────────────────────────
+// No livro as duas palavras são SINÔNIMAS e aparecem trocadas à vontade. No app isso
+// confundia: havia "Imbuir Conjuração" e "Conjuração Modular" dentro da categoria
+// MATERIALIZAÇÃO, e o jogador lia como se fosse outra categoria. O app foi padronizado
+// em "Materialização"; o alias de categoria acima continua valendo.
+//
+// Este mapa existe para a conferência livro × app: ao comparar os textos, uma diferença
+// que caia aqui NÃO é divergência de regra, é só escolha de palavra. Sem isso, cada
+// sincronização futura acusaria dezenas de divergências falsas.
+window.SINONIMOS_MATERIALIZACAO = {
+    'Conjuração': 'Materialização',   'conjuração': 'materialização',
+    'Conjurador': 'Materializador',   'conjurador': 'materializador',
+    'Conjurada':  'Materializada',    'conjurada':  'materializada',
+    'Conjurado':  'Materializado',    'conjurado':  'materializado',
+    'conjurar':   'materializar',     'conjura':    'materializa',
+};
+// Normaliza um texto para comparação, trocando os sinônimos pela forma do app.
+window.normalizarSinonimosMat = function (s) {
+    let out = String(s || '');
+    Object.keys(window.SINONIMOS_MATERIALIZACAO).forEach(function (de) {
+        out = out.split(de).join(window.SINONIMOS_MATERIALIZACAO[de]);
+    });
+    return out;
+};
 
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•

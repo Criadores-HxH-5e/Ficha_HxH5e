@@ -35,9 +35,10 @@ function renderHatsuCreator(container) {
 
     const pnBase = window.calcularPHBase(char.level);
     const pnBonus = window.calcPNBonusFromRestr(state.hatsuBuilder || {});
+    // pnSpentOthers continua aqui porque a TELA mostra o número ("−N em outros Hatsus"),
+    // em três lugares. O que saiu foi a conta repetida do pnBaseAvail, não o dado.
     const pnSpentOthers = window.calcPNSpentInOtherHatsus(char, hb.editingIdx);
-    const pnSpentDominio = window.calcPNSpentInDominio ? window.calcPNSpentInDominio(char) : 0;
-    const pnBaseAvail = Math.max(0, pnBase - pnSpentOthers - pnSpentDominio); // base pool disponível
+    const pnBaseAvail = window.calcPNDisponivelParaHatsu(char, hb.editingIdx); // base pool disponível
     let pnUsed = 0;
     hb.eg.forEach(id => { const e = window.HATSU_DB.efeitos_gerais.find(x=>x.id===id); if(e) pnUsed += e.pn; });
     hb.ec.forEach(id => {
@@ -116,6 +117,152 @@ function renderHatsuCreator(container) {
             + '</div>';
     }
 
+    // Picker de característica dos graus "genéricos". Vale para restrições e para o
+    // efeito Poder Valioso (eg7), por isso vive fora das duas funções de render.
+    window._hGrauGenericoPicker = function (itemId, hb, cor) {
+        const qtd = (window.GRAU_GENERICO_IDS || {})[itemId];
+        if (qtd === undefined) return '';
+        // rg_p5 (Efeitos Aleatórios) é "Margem de Crítico OU Graus de Potência": sem a
+        // escolha dos Graus não há grau nenhum para alocar, então o picker não aparece.
+        if (itemId === 'rg_p5') {
+            const esc = String(((hb && hb.beneficioChoices) || {})[itemId] || '').toLowerCase();
+            if (!esc || esc.indexOf('margem') >= 0 || esc.indexOf('crítico') >= 0) return '';
+        }
+        const sc = (hb && hb.specialChoices) || {};
+        const cat = (state.currentChar || {}).class || '';
+        const daCat = (window.CATEGORIA_CARACTERISTICAS_GRAU || {})[cat] || ['dano'];
+        const aplic = (window.GRAU_DESTINOS_APLICAVEIS || ['dano']);
+        // Só as características DA CATEGORIA e que o app sabe aplicar de verdade.
+        let opts = daCat.filter(function (k) { return aplic.indexOf(k) >= 0; });
+        if (opts.indexOf('dano') < 0) opts = ['dano'].concat(opts);
+        const labels = { dano:'🔥 Dano/Cura', alcance:'📏 Alcance', area:'🔵 Área',
+                         duracao:'⏱️ Duração', cd:'🎯 CD do TR', acerto:'⚔️ Acerto',
+                         alvos:'👥 Nº de Alvos', custo:'💨 Reduz Custo' };
+
+        // Estado atual. Sem distribuição salva, converte o destino único antigo (ou o
+        // padrão Dano/Cura) para que a ficha abra mostrando exatamente o que valia antes.
+        let dist = sc[itemId + '_dist'];
+        if (!dist || typeof dist !== 'object') {
+            const antigo = sc[itemId + '_carac'] || 'dano';
+            dist = {}; dist[antigo] = qtd;
+        }
+        let usado = 0;
+        opts.forEach(function (k) { usado += Math.max(0, parseInt(dist[k]) || 0); });
+        const livre = Math.max(0, qtd - usado);
+
+        const linhas = opts.map(function (k) {
+            const v = Math.max(0, parseInt(dist[k]) || 0);
+            const podeMais = livre > 0;
+            return '<div style="display:flex;align-items:center;gap:7px;margin-bottom:4px">'
+                + '<div style="flex:1;min-width:0;font-size:9px;font-weight:700;color:' + (v > 0 ? cor : '#9ca3af') + ';overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (labels[k] || k) + '</div>'
+                + '<button onclick="event.stopPropagation();window._hGrauGenMudar(\'' + itemId + '\',\'' + k + '\',-1)" ' + (v > 0 ? '' : 'disabled')
+                + ' style="width:24px;height:24px;border-radius:6px;background:' + (v > 0 ? '#1f2937' : '#111') + ';border:1px solid #374151;color:' + (v > 0 ? '#f87171' : '#374151') + ';font-size:13px;font-weight:900;cursor:' + (v > 0 ? 'pointer' : 'not-allowed') + ';padding:0;line-height:1">−</button>'
+                + '<div style="min-width:18px;text-align:center;font-size:12px;font-weight:900;color:#fff">' + v + '</div>'
+                + '<button onclick="event.stopPropagation();window._hGrauGenMudar(\'' + itemId + '\',\'' + k + '\',1)" ' + (podeMais ? '' : 'disabled')
+                + ' style="width:24px;height:24px;border-radius:6px;background:' + (podeMais ? cor + '22' : '#111') + ';border:1px solid ' + (podeMais ? cor + '55' : '#374151') + ';color:' + (podeMais ? cor : '#374151') + ';font-size:13px;font-weight:900;cursor:' + (podeMais ? 'pointer' : 'not-allowed') + ';padding:0;line-height:1">+</button>'
+                + '</div>';
+        }).join('');
+
+        return '<div style="margin-top:8px" onclick="event.stopPropagation()">'
+            + '<div style="font-size:8px;font-weight:700;color:' + cor + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">⚖ Distribua os ' + qtd + ' Grau(s)</div>'
+            + '<div style="font-size:8px;color:#6b7280;margin-bottom:6px">Pode dividir entre características diferentes. O que sobrar vai para Dano/Cura.</div>'
+            + linhas
+            + '<div style="font-size:8px;font-weight:700;margin-top:4px;color:' + (livre > 0 ? '#fbbf24' : '#4ade80') + '">'
+            + (livre > 0 ? ('⚠ ' + livre + ' grau(s) sem destino — ficam em Dano/Cura') : ('✓ todos os ' + qtd + ' distribuídos'))
+            + '</div></div>';
+    };
+
+    // +/- de um destino. Guarda em specialChoices[id + '_dist'] e nunca deixa a soma
+    // passar do que a restrição concede.
+    window._hGrauGenMudar = function (itemId, chave, delta) {
+        const hb = state.hatsuBuilder; if (!hb) return;
+        const qtd = (window.GRAU_GENERICO_IDS || {})[itemId];
+        if (qtd === undefined) return;
+        if (!hb.specialChoices) hb.specialChoices = {};
+        let dist = hb.specialChoices[itemId + '_dist'];
+        if (!dist || typeof dist !== 'object') {
+            const antigo = hb.specialChoices[itemId + '_carac'] || 'dano';
+            dist = {}; dist[antigo] = qtd;
+        }
+        const atual = Math.max(0, parseInt(dist[chave]) || 0);
+        let usado = 0;
+        Object.keys(dist).forEach(function (k) { usado += Math.max(0, parseInt(dist[k]) || 0); });
+        const novo = atual + delta;
+        if (novo < 0) return;
+        if (delta > 0 && usado >= qtd) return;
+        if (novo === 0) delete dist[chave]; else dist[chave] = novo;
+        hb.specialChoices[itemId + '_dist'] = dist;
+        renderHatsuInPlace();
+    };
+
+
+    // Seletor de QUAL linha recebe os graus de uma restrição que escolhe o efeito.
+    // ri_m1 (Aumento por Rodada): "+2 Graus de Potência no total de cada efeito similar",
+    // com os efeitos "ativados parcialmente". Antes os 2 graus caíam sempre no dano base.
+    window._hGrauDirigidoPicker = function (itemId, hb, cor) {
+        const qtd = (window.GRAU_DIRIGIDO_IDS || {})[itemId];
+        if (qtd === undefined) return '';
+        if (!window.linhasDanoPorIds) return '';
+        const ids = [].concat(hb.eg || [], hb.ec || []);
+        const pseudoH = { specialChoices: hb.specialChoices || {}, efeitos: ids, restricoes: [].concat(hb.rg || [], hb.rc || []) };
+        const linhas = window.linhasDanoPorIds(pseudoH, ids);
+        if (!linhas.length) return '';
+        const atual = (hb.specialChoices || {})[itemId + '_linha'] || linhas[0].id;
+        return '<div style="margin-top:8px" onclick="event.stopPropagation()">'
+            + '<div style="font-size:8px;font-weight:700;color:' + cor + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">\u23f1 Qual efeito recebe os ' + qtd + ' Graus?</div>'
+            + '<div style="font-size:8px;color:#6b7280;margin-bottom:6px;line-height:1.5">Os ' + qtd + ' graus entram em UMA linha, 1 por rodada (ativação parcial). O padrão é o dano base.</div>'
+            + '<div style="display:flex;flex-direction:column;gap:5px">'
+            + linhas.map(function (l) {
+                const on = atual === l.id;
+                const dado = l.dado ? (' <span style="color:#6b7280">(parte de ' + String(l.dado).replace(/^\+\s*/, '') + ')</span>') : '';
+                return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\'' + itemId + '_linha\',\'' + l.id + '\')" '
+                    + 'style="padding:7px 10px;border-radius:8px;font-size:8px;font-weight:700;cursor:pointer;text-align:left;border:1.5px solid '
+                    + (on ? cor : '#1f2937') + ';background:' + (on ? cor + '22' : 'transparent')
+                    + ';color:' + (on ? cor : '#9ca3af') + '">' + l.label + dado + '</button>';
+            }).join('')
+            + '</div></div>';
+    };
+
+    // Por meio de QUEM o Dano/Cura Focal acontece. Alocar o Focal num constructo, arma ou
+    // criatura não muda o número: muda quem bate. Com uma origem escolhida, é ELA que causa
+    // os 2d6 e o Hatsu não causa dano por si.
+    window._hOrigemFocalPicker = function (hb, cor) {
+        const sc = (hb && hb.specialChoices) || {};
+        const atual = String(sc['eg15_veiculo'] || 'usuario');
+        const txt = String(sc['eg15_veiculo_txt'] || '');
+        const comprados = [].concat(hb.rg || [], hb.rc || [], hb.eg || [], hb.ec || []);
+        const mapa = window.ORIGEM_DANO_IDS || {};
+        // Só oferece origens que o jogador REALMENTE comprou neste Hatsu.
+        const doHatsu = Object.keys(mapa).filter(function (id) { return comprados.indexOf(id) >= 0; });
+        const botao = function (val, rotulo) {
+            const on = atual === val;
+            return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\'eg15_veiculo\',\'' + val + '\')" '
+                + 'style="padding:7px 10px;border-radius:8px;font-size:8px;font-weight:700;cursor:pointer;text-align:left;border:1.5px solid '
+                + (on ? cor : '#1f2937') + ';background:' + (on ? cor + '22' : 'transparent')
+                + ';color:' + (on ? cor : '#9ca3af') + '">' + rotulo + '</button>';
+        };
+        return '<div style="margin-top:8px;background:#0a0f1a;border:1px solid ' + cor + '33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
+            + '<div style="font-size:8px;font-weight:900;color:' + cor + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">⚔ Quem causa esse dano?</div>'
+            + '<div style="font-size:8px;color:#6b7280;margin-bottom:8px;line-height:1.5">O padrão é o usuário. Escolhendo outra origem, o dano passa a ser causado <b>por ela</b>, não pelo usuário diretamente. Para ter dano fora dela, compre e atribua ao próprio usuário.</div>'
+            + '<div style="display:flex;flex-direction:column;gap:5px">'
+            + botao('usuario', '🙋 O usuário (direto)')
+            + doHatsu.map(function (id) { return botao(id, '🧩 ' + mapa[id]); }).join('')
+            + botao('texto', '✏️ Outro (descrever)')
+            + '</div>'
+            + (atual === 'texto'
+                ? '<input type="text" value="' + txt.replace(/"/g, '&quot;') + '" placeholder="Ex: Marionete de aura, Lâmina flutuante..."'
+                  + ' onchange="window._hSetSpecialChoice(\'eg15_veiculo_txt\', this.value)"'
+                  + ' oninput="window._hSetSpecialText(\'eg15_veiculo_txt\', this.value)"'
+                  + ' style="width:100%;box-sizing:border-box;margin-top:7px;background:#0a0f1a;border:1.5px solid '
+                  + (txt ? cor : '#374151') + ';border-radius:8px;padding:8px 10px;color:#fff;font-size:10px;outline:none">'
+                  + (txt ? '' : '<div style="font-size:8px;color:#f87171;margin-top:4px">\u26a0 Descreva a origem, senão o dano volta a ser do usuário.</div>')
+                : '')
+            + (doHatsu.length === 0 && atual !== 'texto'
+                ? '<div style="font-size:8px;color:#4b5563;margin-top:7px;font-style:italic">Compre um efeito de constructo, criatura ou arma forjada para ele aparecer como opção.</div>'
+                : '')
+            + '</div>';
+    };
+
     function renderR(items, arr, tipo) {
         const PURE_PN = { leve:1, moderada:2, pesada:3, extrema:4 };
         return items.map(function(item) {
@@ -127,12 +274,12 @@ function renderHatsuCreator(container) {
             var loreOpen = !!(hb && hb.openLore && hb.openLore[item.id]);
             var hasAlt = !!(item.bnf && /\s[Oo][Uu]\s/.test(item.bnf));
             var choiceKey = (hb && hb.beneficioChoices) ? hb.beneficioChoices[item.id] : undefined;
-            var needsChoice = sel && !isPure && hasAlt && choiceKey === null && !['rg_l9','rg_l10'].includes(item.id);
+            var needsChoice = sel && !isPure && hasAlt && choiceKey === null && !['rg_l9','rg_l10','rt_m1'].includes(item.id);
             var borderColor = isPure ? '#fbbf24' : sel ? (needsChoice ? '#fb923c' : p.bs) : p.bun;
             var purePn = PURE_PN[pw] || 0;
 
             var choiceHtml = '';
-            if (sel && !isPure && hasAlt && item.id !== 'rma_m2' && item.id !== 're_p1' && !['rg_l9','rg_l10'].includes(item.id)) {
+            if (sel && !isPure && hasAlt && item.id !== 'rma_m2' && item.id !== 're_p1' && !['rg_l9','rg_l10','rt_m1'].includes(item.id)) {
                 var opts = item.bnf.split(/\s[Oo][Uu]\s/);
                 if (!window._hBnfOpts) window._hBnfOpts = {};
                 window._hBnfOpts[item.id] = opts.map(function(o){ return o.trim(); });
@@ -152,6 +299,45 @@ function renderHatsuCreator(container) {
                     + ';margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">'
                     + (needsChoice ? '⚠ Escolha um benefício:' : '✓ Benefício escolhido:') + '</div>'
                     + '<div style="display:flex;flex-direction:column;gap:4px">' + optBtns + '</div></div>';
+            }
+
+            // ── Quantidade, para os benefícios cobrados por unidade ──────────────
+            // rg_e1 (por membro), rg_v9 (por Reação) e rg_v12 (a cada 2 Graus) valem
+            // "por X", e até aqui não havia onde dizer quanto é X — o desconto saía
+            // errado ou não saía. O seletor só aparece depois que a opção de AURA foi
+            // escolhida, nos dois que têm escolha; o rg_v12 não tem " ou " no benefício,
+            // então aparece direto.
+            var qtdHtml = '';
+            var _cfgQ = (window.CUSTO_AURA_QUANTIDADE || {})[item.id];
+            if (sel && !isPure && _cfgQ) {
+                var _escQ = String(choiceKey || '').toLowerCase();
+                var _liberado = !_cfgQ.exigeEscolhaAura
+                    || _escQ.indexOf('aura') >= 0 || _escQ.indexOf('%') >= 0;
+                if (_liberado) {
+                    var _qAtual = parseInt((hb && hb.specialChoices && hb.specialChoices[item.id + '_qtd'])) || 0;
+                    var _passo = _cfgQ.porUnidade || 1;
+                    var _btns = '';
+                    for (var _q = 0; _q <= _cfgQ.max; _q += _passo) {
+                        var _on = _qAtual === _q;
+                        _btns += '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\''
+                            + item.id + '_qtd\',' + _q + ');return false"'
+                            + ' style="width:28px;height:28px;border-radius:7px;font-family:Orbitron,sans-serif;font-weight:900;font-size:11px;cursor:pointer;border:1.5px solid '
+                            + (_on ? '#4ade80' : '#1f2937') + ';background:' + (_on ? '#4ade8018' : '#0d1117')
+                            + ';color:' + (_on ? '#4ade80' : '#9ca3af') + '">' + (_q === 0 ? '\u2013' : _q) + '</button>';
+                    }
+                    var _efeito = window.custoAuraQuantidade
+                        ? window.custoAuraQuantidade(item.id, (hb && hb.specialChoices) || {}) : 0;
+                    qtdHtml = '<div style="margin-top:8px;padding:8px;background:#060a10;border-radius:8px;border:1px solid #1f2937">'
+                        + '<div style="font-size:8px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:1px">'
+                        + _cfgQ.rotulo + '</div>'
+                        + '<div style="font-size:8px;color:#6b7280;margin-top:1px">' + _cfgQ.nota + '</div>'
+                        + '<div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap">' + _btns + '</div>'
+                        + '<div style="font-size:9px;font-weight:900;margin-top:5px;color:'
+                        + (_efeito === 0 ? '#6b7280' : (_efeito < 0 ? '#4ade80' : '#f87171')) + '">'
+                        + (_efeito === 0 ? 'Sem efeito no custo'
+                            : (_efeito < 0 ? _efeito + '% de aura' : '+' + _efeito + '% de aura')) + '</div>'
+                        + '</div>';
+                }
             }
 
             // Restrições com P.N automático: exibe badge fixo, sem toggle pura
@@ -222,6 +408,33 @@ function renderHatsuCreator(container) {
                         + '</div>';
                 }
             }
+            // Special: rt_m1 (Perde 5% de aura extra ao errar) — o benefício é "Se atingir,
+            // causa 1 Condição fraca adicional". O jogador escolhe QUAL condição aqui, na
+            // criação. A lista vem de CONDICOES_POR_NIVEL (js/data/hatsu-db.js), a mesma do
+            // Condição Perigosa — o bnf cita só alguns exemplos, mas valem todas as fracas.
+            if (sel && item.id === 'rt_m1') {
+                var m1Val = (hb && hb.specialChoices && hb.specialChoices['rt_m1']) || '';
+                var fracas = ((window.CONDICOES_POR_NIVEL || {}).fracas) || [];
+                specialInputHtml += '<div style="margin-top:8px" onclick="event.stopPropagation()">'
+                    + '<div style="font-size:8px;font-weight:700;color:' + p.bs + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">🩸 Condição aplicada ao atingir</div>'
+                    + '<div style="font-size:8px;color:#6b7280;margin-bottom:6px">Escolha 1 Condição fraca. Ela entra quando o ataque acerta.</div>'
+                    + '<div style="display:flex;flex-wrap:wrap;gap:4px">'
+                    + fracas.map(function(c) {
+                        var active = m1Val === c;
+                        return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\'rt_m1\',\'' + c.replace(/'/g, "\\'") + '\')" '
+                            + 'style="padding:5px 9px;border-radius:7px;font-size:8px;font-weight:700;cursor:pointer;border:1.5px solid '
+                            + (active ? p.bs : '#1f2937') + ';background:' + (active ? p.bs + '22' : 'transparent')
+                            + ';color:' + (active ? p.bs : '#9ca3af') + '">' + c + '</button>';
+                    }).join('')
+                    + '</div>'
+                    + (m1Val ? '<div style="font-size:8px;color:' + p.bs + ';margin-top:5px">✓ ' + m1Val + '</div>'
+                             : '<div style="font-size:8px;color:#f87171;margin-top:5px">⚠ Escolha a condição.</div>')
+                    + '</div>';
+            }
+            // Graus "genéricos": o benefício diz "qualquer característica da Categoria",
+            // então o jogador escolhe onde eles entram (ver _hGrauGenericoPicker).
+            if (sel && !isPure) specialInputHtml += window._hGrauGenericoPicker(item.id, hb, p.bs);
+            if (sel && !isPure) specialInputHtml += window._hGrauDirigidoPicker(item.id, hb, p.bs);
             if (sel && item.id === 'rg_p8') {
                 var currentVal = (hb && hb.specialChoices && hb.specialChoices['rg_p8']) || '';
                 specialInputHtml = '<div style="margin-top:8px" onclick="event.stopPropagation()">'
@@ -409,6 +622,7 @@ function renderHatsuCreator(container) {
                     : '<div style="font-size:8px;font-weight:700;color:' + p.bt + ';margin-top:4px">⚡ ' + item.bnf + '</div>')
                 + '</div></div>'
                 + (isPure ? '' : choiceHtml)
+                + (isPure ? '' : qtdHtml)
                 + pureToggleHtml
                 + specialInputHtml
                 + (item.lore
@@ -617,7 +831,8 @@ function renderHatsuCreator(container) {
             const repetivelNiveisArr = (hb.efeitoNiveis && hb.efeitoNiveis[item.id]) || [];
             const repetivelTracked = itemRepetivel ? repetivelNiveisArr.length : 0;
             const repetivelCompradoNesteNivel = itemRepetivel && repetivelNiveisArr.some(lv => lv === charLevel);
-            const repetivelNesteNivel = repetivelCompradoNesteNivel && !char.isNPC;
+            const _podeRepetir = window.podeRepetirEfeitoNoNivel ? window.podeRepetirEfeitoNoNivel(char) : !!char.isNPC;
+            const repetivelNesteNivel = repetivelCompradoNesteNivel && !_podeRepetir;
             const showRepetivelBadge = itemRepetivel && sel && totalCopies > 0;
 
             // Duplicatas via Restrição Extrema Pura: para efeitos repetíveis, só as cópias ALÉM das já
@@ -646,6 +861,10 @@ function renderHatsuCreator(container) {
                 const specialChoices = hb.specialChoices || {};
 
                 // eg3: Condição Perigosa — show condition picker based on level
+                // eg7 (Poder Valioso) é efeito, mas o benefício dele também é genérico.
+                if (item.id === 'eg7') {
+                    specialHtml = window._hGrauGenericoPicker('eg7', hb, color);
+                }
                 if (item.id === 'eg3') {
                     // As condições e as faixas vêm de CONDICOES_POR_NIVEL (js/data/hatsu-db.js),
                     // que segue o livro. A tabela que existia aqui era inventada: liberava Cego
@@ -779,8 +998,13 @@ function renderHatsuCreator(container) {
                     const restricoesDaRaiz = [].concat(hb.rg||[], hb.rc||[])
                         .map(_acharRestr).filter(Boolean);
 
+                    // As 4 chaves do eg4 (eg4, eg4_remove, eg4_restr_off, eg4_restr_add)
+                    // guardam o ID, nunca o nome: "Sem Movimento no Turno" existe em
+                    // TRANSMUTAÇÃO (rt_l2, +2 Grau/Passo de Alcance) e em EMISSÃO (em_l2,
+                    // ignora cobertura total) com benefícios diferentes, e a busca por
+                    // nome pegava sempre o primeiro. O botão exibe o nome; o value é o id.
                     function eg4Btn(e, chave, escolhido) {
-                        var active = escolhido === e.nome;
+                        var active = escolhido === e.id;
                         var rq = checkReq(e.req);
                         var isBlocked = !rq.ok;
                         var st = 'padding:4px 8px;border-radius:7px;font-size:8px;white-space:nowrap;font-weight:' + (active?'900':'600') + ';border:1px solid ';
@@ -792,7 +1016,7 @@ function renderHatsuCreator(container) {
                             var msg = 'Requisito não atendido\n\n' + rq.reason + '\n\nReq: ' + e.req;
                             onclick = "event.stopPropagation();alert('" + msg.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n') + "')";
                         } else {
-                            onclick = "event.stopPropagation();window._hSetSpecialChoice('" + chave + "','" + e.nome.replace(/'/g,"\\'") + "')";
+                            onclick = "event.stopPropagation();window._hSetSpecialChoice('" + chave + "','" + e.id + "')";
                         }
                         return '<button onclick="' + onclick + '" style="' + st + '">' + (active ? '✓ ' : '') + e.nome + (isBlocked ? ' 🔒' : '') + '</button>';
                     }
@@ -886,10 +1110,10 @@ function renderHatsuCreator(container) {
 
                         const removeBtns = efeitosDaRaiz.length
                             ? efeitosDaRaiz.map(function(e){
-                                var sel = remEscolhido === e.nome;
+                                var sel = remEscolhido === e.id;
                                 var st = 'padding:4px 8px;border-radius:7px;font-size:8px;white-space:nowrap;font-weight:' + (sel?'900':'600')
                                     + ';border:1px solid ' + (sel ? '#ef4444;background:#ef444422;color:#f87171' : '#1f2937;background:transparent;color:#9ca3af') + ';cursor:pointer';
-                                return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\'' + kRem + '\',\'' + e.nome.replace(/'/g,"\\'") + '\')" style="' + st + '">'
+                                return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\'' + kRem + '\',\'' + e.id + '\')" style="' + st + '">'
                                     + (sel ? '✕ ' : '') + e.nome + '</button>';
                               }).join('')
                             : '<div style="font-size:8px;color:#f87171">Escolha os efeitos do modo raiz antes de criar um modo.</div>';
@@ -902,27 +1126,32 @@ function renderHatsuCreator(container) {
                             return _idsRaiz.indexOf(r.id) < 0;
                         });
                         const restrAddBtns = _disponiveis.map(function (r) {
-                            const sel = restrAdd.indexOf(r.nome) >= 0;
+                            const sel = restrAdd.indexOf(r.id) >= 0;
                             const st = 'padding:4px 8px;border-radius:7px;font-size:8px;white-space:nowrap;font-weight:600;border:1px solid '
                                 + (sel ? '#4ade8088;background:#4ade8018;color:#4ade80' : '#1f2937;background:transparent;color:#6b7280') + ';cursor:pointer';
-                            return '<button onclick="event.stopPropagation();window._hToggleModoRestricao(\'' + kRestrAdd + '\',\'' + r.nome.replace(/'/g, "\\'") + '\')" style="' + st + '">'
+                            return '<button onclick="event.stopPropagation();window._hToggleModoRestricao(\'' + kRestrAdd + '\',\'' + r.id + '\')" style="' + st + '">'
                                 + (sel ? '+ ' : '') + r.nome + '</button>';
                         }).join('');
 
                         const restrBtns = restricoesDaRaiz.length
                             ? restricoesDaRaiz.map(function(r){
-                                var desligada = restrOff.indexOf(r.nome) >= 0;
+                                var desligada = restrOff.indexOf(r.id) >= 0;
                                 var st = 'padding:4px 8px;border-radius:7px;font-size:8px;white-space:nowrap;font-weight:600;border:1px solid '
                                     + (desligada ? '#374151;background:#0f1117;color:#4b5563;text-decoration:line-through' : '#f9731655;background:#f9731615;color:#fb923c') + ';cursor:pointer';
-                                return '<button onclick="event.stopPropagation();window._hToggleModoRestricao(\'' + kRestr + '\',\'' + r.nome.replace(/'/g,"\\'") + '\')" style="' + st + '">' + r.nome + '</button>';
+                                return '<button onclick="event.stopPropagation();window._hToggleModoRestricao(\'' + kRestr + '\',\'' + r.id + '\')" style="' + st + '">' + r.nome + '</button>';
                               }).join('')
                             : '<div style="font-size:8px;color:#6b7280">Nenhuma restrição no modo raiz.</div>';
 
-                        const addObj = addEscolhido ? _todosEfeitos.find(function(e){ return e.nome === addEscolhido; }) : null;
+                        const addObj = addEscolhido ? _acharEfeito(addEscolhido) : null;
+                        const remObj = remEscolhido ? _acharEfeito(remEscolhido) : null;
+                        // As chaves guardam id; o resumo mostra o nome. O fallback para o
+                        // próprio valor cobre um dado antigo que ainda não migrou.
+                        const addTxt = addObj ? addObj.nome : addEscolhido;
+                        const remTxt = remObj ? remObj.nome : remEscolhido;
                         const resumo = (addEscolhido && remEscolhido)
                             ? '<div style="margin-top:6px;background:#060d1a;border:1px solid ' + color + '33;border-radius:8px;padding:8px">'
-                                + '<div style="font-size:8px;color:#4ade80;font-weight:700">+ ' + addEscolhido + (addObj ? ' (' + (addObj.pn||0) + ' P.N)' : '') + '</div>'
-                                + '<div style="font-size:8px;color:#f87171;font-weight:700;margin-top:2px">− ' + remEscolhido + ' <span style="color:#4b5563;font-weight:400">(sem devolução de P.N)</span></div>'
+                                + '<div style="font-size:8px;color:#4ade80;font-weight:700">+ ' + addTxt + (addObj ? ' (' + (addObj.pn||0) + ' P.N)' : '') + '</div>'
+                                + '<div style="font-size:8px;color:#f87171;font-weight:700;margin-top:2px">− ' + remTxt + ' <span style="color:#4b5563;font-weight:400">(sem devolução de P.N)</span></div>'
                                 + '</div>'
                             : '<div style="font-size:8px;color:#f87171;margin-top:4px">⚠ Escolha 1 efeito para ADICIONAR e 1 para REMOVER neste modo.</div>';
 
@@ -988,6 +1217,25 @@ function renderHatsuCreator(container) {
                         + '<div style="font-size:8px;font-weight:900;color:' + color + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">🎯 Esta compra é Dano ou Cura?</div>'
                         + '<div style="font-size:8px;color:#6b7280;margin-bottom:8px">Cada tag tem a própria escada. Ex.: 1 compra em Dano e 2 em Cura = 2d6 de dano e 2d8 de cura.</div>'
                         + _blocosT
+                        + '</div>'
+                        + window._hOrigemFocalPicker(hb, color);
+                }
+
+                // ── rm_e4: Dimensão de Bolso — a quantidade sobe +3 por P.N gasto ──────────
+                // Escala PRÓPRIA do efeito, diferente do grau/passo padrão. Não há escolha
+                // a fazer: a quantidade vem da contagem de compras — 3 na primeira e +3 em
+                // cada recompra. No nível 12, comprando em todos os níveis, chega a 36.
+                // O bloco é só informativo, para o jogador ver o número crescer ao recomprar
+                // em vez de ter que calcular de cabeça.
+                if (item.id === 'rm_e4') {
+                    const _cop4 = [].concat(hb.eg || [], hb.ec || []).filter(function (x) { return x === 'rm_e4'; }).length;
+                    const _n4 = Math.max(1, _cop4);
+                    const _qtd4 = 3 * _n4;
+                    specialHtml += '<div style="margin-top:8px;background:#0a0f1a;border:1px solid ' + color + '33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
+                        + '<div style="font-size:8px;font-weight:900;color:' + color + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">📦 Capacidade da Dimensão</div>'
+                        + '<div style="font-size:13px;font-weight:900;color:' + color + '">' + _qtd4 + ' <span style="font-size:9px;font-weight:700;color:#9ca3af">objetos ou criaturas</span></div>'
+                        + '<div style="font-size:8px;color:#6b7280;margin-top:4px">' + _n4 + ' compra' + (_n4 > 1 ? 's' : '') + ' × 3. Cada recompra soma +3 — escala própria, não usa grau/passo. Máximo de 36 no nível 12, comprando em todos os níveis.</div>'
+                        + '<div style="font-size:8px;color:#6b7280;margin-top:3px">Cada alvo pode ter até o dobro do tamanho/peso do alvo original.</div>'
                         + '</div>';
                 }
 
@@ -1013,6 +1261,318 @@ function renderHatsuCreator(container) {
                         + (_f
                             ? '<div style="font-size:8px;color:' + (_f === 'Arma' ? '#4ade80' : '#6b7280') + ';margin-top:5px">' + (_f === 'Arma' ? '✓ Dano básico 2d6 liberado' : '✓ ' + _f + ' — sem dano básico') + '</div>'
                             : '<div style="font-size:8px;color:#f87171;margin-top:5px">⚠ Escolha o que foi forjado.</div>')
+                        + '</div>';
+                }
+
+                // ── rm_e7: Cópia Perfeita — QUAL criatura está sendo copiada ───────────────
+                // Liga a ficha ao Manual de Monstros pelo `id` da criatura, que foi adicionado
+                // ao bestiário exatamente para isso. Guarda o id, nunca o nome: renomear a
+                // criatura no livro não pode quebrar o Hatsu salvo.
+                // Repetível, então um seletor por cópia ('rm_e7', 'rm_e7#1'…).
+                // Objeto/arma simples não vem do bestiário — fica a opção "objeto", que
+                // libera o campo de texto livre.
+                if (item.id === 'rm_e7') {
+                    const _cop7 = [].concat(hb.eg || [], hb.ec || []).filter(function (x) { return x === 'rm_e7'; }).length;
+                    const _grupos = window.bestiarioPorCategoria ? window.bestiarioPorCategoria() : {};
+                    const _cats = Object.keys(_grupos).sort();
+                    let _blocos7 = '';
+                    for (let _i = 0; _i < Math.max(1, _cop7); _i++) {
+                        const _ch7 = window.chaveCopiaPerfeita(_i);
+                        const _sel7 = specialChoices[_ch7] || '';
+                        const _ehObj = _sel7 === 'objeto';
+                        const _cri = (!_ehObj && _sel7 && window.criaturaPorId) ? window.criaturaPorId(_sel7) : null;
+                        const _chTxt = _ch7 + '_txt';
+                        _blocos7 += '<div style="' + (_i > 0 ? 'margin-top:8px;padding-top:8px;border-top:1px dashed ' + color + '33;' : '') + '">'
+                            + (Math.max(1, _cop7) > 1 ? '<div style="font-size:8px;font-weight:700;color:#9ca3af;margin-bottom:4px">Cópia ' + (_i + 1) + '</div>' : '')
+                            + '<select onchange="event.stopPropagation();window._hSetSpecialChoice(\'' + _ch7 + '\', this.value)" '
+                            + 'style="width:100%;box-sizing:border-box;background:#111827;border:1px solid #374151;border-radius:8px;padding:7px 9px;color:#fff;font-size:9px;outline:none">'
+                            + '<option value=""' + (!_sel7 ? ' selected' : '') + '>— escolha o que está sendo copiado —</option>'
+                            + '<option value="objeto"' + (_ehObj ? ' selected' : '') + '>🔨 Objeto ou arma simples (descrever)</option>'
+                            + _cats.map(function (cat) {
+                                return '<optgroup label="' + cat + '">'
+                                    + _grupos[cat].map(function (m) {
+                                        return '<option value="' + m.id + '"' + (_sel7 === m.id ? ' selected' : '') + '>'
+                                            + String(m.nome).replace(/</g, '&lt;') + '</option>';
+                                    }).join('')
+                                    + '</optgroup>';
+                            }).join('')
+                            + '</select>';
+                        if (_ehObj) {
+                            // Objeto não vem de banco nenhum: o jogador declara o original.
+                            // Tamanho + durabilidade dão o PV pela mesma tabela do constructo —
+                            // é o que o efeito chama de "durabilidade do material, PV, tamanho".
+                            // Os demais campos são texto livre porque descrevem um objeto
+                            // arbitrário, e a mesa valida.
+                            const _kT = _ch7 + '_tam', _kD = _ch7 + '_dur';
+                            const _tam = specialChoices[_kT] || '';
+                            const _dur = specialChoices[_kD] || '';
+                            const _pvObj = (_tam && _dur && window.pvObjetoCopiado) ? window.pvObjetoCopiado(_tam, _dur) : null;
+                            const _ordem = ((window.CONSTRUCTO_DB || {}).TAMANHO_ORDEM) || ['Minúsculo','Pequeno','Médio','Grande','Enorme','Colossal'];
+                            const _campo = function (chave, rot, ph) {
+                                return '<div style="margin-top:5px"><div style="font-size:8px;font-weight:700;color:#9ca3af;margin-bottom:2px">' + rot + '</div>'
+                                    + '<input type="text" value="' + String(specialChoices[chave] || '').replace(/"/g, '&quot;') + '" '
+                                    + 'placeholder="' + ph + '" onclick="event.stopPropagation()" '
+                                    + 'onchange="window._hSetSpecialText(\'' + chave + '\', this.value)" '
+                                    + 'style="width:100%;box-sizing:border-box;background:#111827;border:1px solid #374151;border-radius:8px;padding:6px 9px;color:#fff;font-size:9px;outline:none" /></div>';
+                            };
+                            _blocos7 += _campo(_chTxt, 'Objeto copiado', 'Ex.: katana de aço, escudo de madeira')
+                                + '<div style="display:flex;gap:5px;margin-top:5px">'
+                                + '<div style="flex:1"><div style="font-size:8px;font-weight:700;color:#9ca3af;margin-bottom:2px">Tamanho</div>'
+                                + '<select onchange="event.stopPropagation();window._hSetSpecialChoice(\'' + _kT + '\', this.value)" '
+                                + 'style="width:100%;box-sizing:border-box;background:#111827;border:1px solid #374151;border-radius:8px;padding:6px 8px;color:#fff;font-size:9px;outline:none">'
+                                + '<option value="">—</option>'
+                                + _ordem.map(function (t3) { return '<option value="' + t3 + '"' + (_tam === t3 ? ' selected' : '') + '>' + t3 + '</option>'; }).join('')
+                                + '</select></div>'
+                                + '<div style="flex:1"><div style="font-size:8px;font-weight:700;color:#9ca3af;margin-bottom:2px">Durabilidade</div>'
+                                + '<select onchange="event.stopPropagation();window._hSetSpecialChoice(\'' + _kD + '\', this.value)" '
+                                + 'style="width:100%;box-sizing:border-box;background:#111827;border:1px solid #374151;border-radius:8px;padding:6px 8px;color:#fff;font-size:9px;outline:none">'
+                                + '<option value="">—</option>'
+                                + '<option value="fragil"' + (_dur === 'fragil' ? ' selected' : '') + '>Frágil</option>'
+                                + '<option value="resistente"' + (_dur === 'resistente' ? ' selected' : '') + '>Resistente</option>'
+                                + '</select></div>'
+                                + '</div>'
+                                + (_pvObj
+                                    ? '<div style="font-size:8px;color:#4ade80;margin-top:4px">✓ PV copiado do original: <b>' + _pvObj + '</b> (' + _tam + ' · ' + (_dur === 'resistente' ? 'Resistente' : 'Frágil') + ')</div>'
+                                    : '<div style="font-size:8px;color:#fbbf24;margin-top:4px">⚠ Escolha tamanho e durabilidade para o PV ser copiado. Sem isso vale o mínimo.</div>')
+                                + _campo(_ch7 + '_dano', 'Tipo e natureza do dano', 'Ex.: cortante; mágico')
+                                + _campo(_ch7 + '_alc', 'Alcance e área', 'Ex.: corpo a corpo 1,5m')
+                                + _campo(_ch7 + '_res', 'Resistências do original', 'Ex.: resistente a fogo')
+                                + '<div style="font-size:8px;color:#6b7280;margin-top:5px;line-height:1.45">Para objeto o <b>PV é copiado</b>. Só o <b>valor</b> do dano e a <b>CA</b> ficam no mínimo ou no comprado — de dano copia-se o tipo, não o valor.</div>';
+                        } else if (_cri) {
+                            _blocos7 += '<div style="font-size:8px;color:#4ade80;margin-top:4px">✓ ' + _cri.nome
+                                + ' <span style="color:#6b7280">— ' + String(_cri.tipo || '').split(',')[0] + '</span></div>'
+                                + '<div style="font-size:8px;color:#6b7280;margin-top:2px">A ficha inteira é copiada na tela do Hatsu. Para criatura, Dano, CA e PV ficam no mínimo ou no comprado.</div>';
+                        } else if (_sel7) {
+                            _blocos7 += '<div style="font-size:8px;color:#f87171;margin-top:4px">⚠ Criatura não encontrada no bestiário (id "' + _sel7 + '"). Escolha de novo.</div>';
+                        } else {
+                            _blocos7 += '<div style="font-size:8px;color:#f87171;margin-top:4px">⚠ Escolha o alvo da cópia.</div>';
+                        }
+                        _blocos7 += '</div>';
+                    }
+                    specialHtml += '<div style="margin-top:8px;background:#0a0f1a;border:1px solid ' + color + '33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
+                        + '<div style="font-size:8px;font-weight:900;color:' + color + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">🧬 O que está sendo copiado</div>'
+                        + _blocos7
+                        + '</div>';
+                }
+
+                // ── ri_e29: Dano Fragilizante — acumula ao repetir a mesma opção ───────────
+                // Comprar a+b+c dá os três ao mesmo tempo; comprar a MESMA duas vezes
+                // soma linearmente (duas de "−2 nos ataques" = −4). Por isso tem picker
+                // próprio em vez de entrar no bloco genérico: o rótulo mostra o total
+                // acumulado, para o jogador ver a soma antes de gastar o P.N.
+                if (item.id === 'ri_e29') {
+                    const _cop29 = [].concat(hb.eg || [], hb.ec || []).filter(function (x) { return x === 'ri_e29'; }).length;
+                    const _opc29 = window.DANO_FRAGILIZANTE_OPCOES || [];
+                    const _sel29 = [];
+                    for (let _i = 0; _i < _cop29; _i++) _sel29.push(specialChoices[window.chaveDanoFragilizante(_i)] || '');
+                    const _vezes29 = function (id, exceto) {
+                        let n = 0;
+                        _sel29.forEach(function (v, k) { if (v === id && k !== exceto) n++; });
+                        return n;
+                    };
+                    let _blocos29 = '';
+                    for (let _i = 0; _i < Math.max(1, _cop29); _i++) {
+                        const _ch29 = window.chaveDanoFragilizante(_i);
+                        const _at29 = _sel29[_i] || '';
+                        _blocos29 += '<div style="' + (_i > 0 ? 'margin-top:8px;padding-top:8px;border-top:1px dashed ' + color + '33;' : '') + '">'
+                            + (Math.max(1, _cop29) > 1 ? '<div style="font-size:8px;font-weight:700;color:#9ca3af;margin-bottom:4px">Compra ' + (_i + 1) + '</div>' : '')
+                            + '<div style="display:flex;gap:5px;flex-wrap:wrap">'
+                            + _opc29.map(function (o) {
+                                const active = _at29 === o.id;
+                                const n = _vezes29(o.id, _i) + 1;
+                                const total = o.base * n;
+                                const st = 'flex:1;min-width:104px;padding:7px 6px;border-radius:8px;font-size:9px;font-weight:900;cursor:pointer;text-align:center;border:1.5px solid '
+                                    + (active ? color : '#374151') + ';background:' + (active ? color + '22' : 'transparent')
+                                    + ';color:' + (active ? color : '#9ca3af');
+                                return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\'' + _ch29 + '\',\'' + o.id + '\')" style="' + st + '">'
+                                    + (active ? '✓ ' : '') + '−' + total
+                                    + '<div style="font-size:8px;font-weight:700;color:' + (active ? color : '#6b7280') + '">' + o.alvo + '</div>'
+                                    + (n > 1 ? '<div style="font-size:7px;font-weight:600;color:#fbbf24">' + n + ' compras</div>' : '')
+                                    + '</button>';
+                            }).join('')
+                            + '</div>'
+                            + (_at29
+                                ? (function () {
+                                    const o = window.danoFragilizantePorId(_at29);
+                                    const n = _vezes29(_at29, _i) + 1;
+                                    return '<div style="font-size:8px;color:#4ade80;margin-top:4px">✓ −' + (o ? o.base * n : 0) + ' ' + (o ? o.alvo : '')
+                                        + (n > 1 ? ' <span style="color:#9ca3af">(' + n + ' compras acumuladas)</span>' : '') + '</div>';
+                                })()
+                                : '<div style="font-size:8px;color:#f87171;margin-top:4px">⚠ Escolha o que este P.N provoca.</div>')
+                            + '</div>';
+                    }
+                    specialHtml += '<div style="margin-top:8px;background:#0a0f1a;border:1px solid ' + color + '33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
+                        + '<div style="font-size:8px;font-weight:900;color:' + color + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">💥 O que o dano acima de 20 provoca?</div>'
+                        + '<div style="font-size:8px;color:#6b7280;margin-bottom:7px;line-height:1.45">Só dispara em ataques que causem MAIS de 20 de dano. Comprando opções diferentes, todas valem juntas; repetindo a mesma, o valor acumula.</div>'
+                        + _blocos29
+                        + '</div>';
+                }
+
+                // ── Escolhas simples de Reforço (uma opção por compra) ─────────────────────
+                // Quatro efeitos de Reforço oferecem escolha e nenhum tinha picker: o
+                // jogador comprava e a opção ficava só na cabeça dele. Todos usam o mesmo
+                // formato de botões, uma linha por compra (os quatro são repetíveis).
+                // Chaves: 'ri_eNN' na 1ª compra, 'ri_eNN#1', '#2'… nas extras.
+                // Compartilhado pelos quatro efeitos de Materialização abaixo: o
+                // acréscimo é o mesmo texto nos quatro, então a configuração é uma só.
+                const _TAMANHO_ACIMA = {
+                    icone: '📏', titulo: 'Quantas categorias de tamanho acima de você?',
+                    nota: 'Custo de aura +10% por categoria acima da sua. Mesma categoria não acrescenta nada.',
+                    opcoes: [['0', 'Mesma categoria'], ['1', '+1 (+10%)'],
+                             ['2', '+2 (+20%)'], ['3', '+3 (+30%)'], ['4', '+4 (+40%)']]
+                };
+                const _ESCOLHAS_REFORCO = {
+                    // 10 RD contra UM tipo de dano. A escolha é lida pelo calcFontesRD,
+                    // que monta a fonte de Redução de Dano com a condição certa.
+                    ri_e25: { icone: '🛡', titulo: 'Contra qual tipo de dano?',
+                        nota: 'Concede 10 de RD contra o tipo escolhido.',
+                        opcoes: ['Explosivo', 'Balístico', 'Mortal'] },
+                    // O nome do efeito no livro é "Socos e Chutes: a) Perfurante b) Atordoante".
+                    ri_e14: { icone: '👊', titulo: 'Socos e Chutes',
+                        nota: 'Perfurante: golpes com os punhos ganham a propriedade. Atordoante: aplica Atordoado ao tirar 18+ no acerto.',
+                        opcoes: ['Perfurante', 'Atordoante'] },
+                    // São dois efeitos alternativos sob o mesmo nome, não variações.
+                    ri_e28: { icone: '🤝', titulo: 'Trabalho em Equipe ou Simbiose?',
+                        nota: 'Trabalho em Equipe usa 10% da aura de aliados. Simbiose concede a um objeto ou criatura até 2 pontos de atributo, Reações ou 5% de aura.',
+                        opcoes: ['Trabalho em Equipe', 'Simbiose'] },
+                    // ── Emissão ────────────────────────────────────────────────────────
+                    // Aura Viva: a 1ª compra é a base (2 massas, CA 10, 1d6 de dano e PV
+                    // cheio). Da 2ª em diante o livro dá escolha, e o app aplicava sempre
+                    // o mesmo +6 de PV. 'pulaPrimeira' faz o picker começar na 2ª cópia.
+                    em_e1: { icone: '🫧', titulo: 'O que esta compra acrescenta?',
+                        nota: 'Base: 2 massas, CA 10, dano 1d6 e PV 1d6 cheio. Cada compra a mais soma uma massa OU sobe um degrau no dado — que vale para o dano E para o PV.',
+                        pulaPrimeira: true,
+                        opcoes: [['massa', '+1 massa de aura'], ['grau', '+1 grau/passo no dado']] },
+                    em_e11: { icone: '🔗', titulo: 'O que esta compra acrescenta?',
+                        nota: 'Dobrar o PV compõe: duas compras de PV quadruplicam.',
+                        opcoes: [['pv', 'Dobrar o PV'], ['ca', '+1 na CA']] },
+                    // Stalker: o "ou" do texto é escolha de COMPRA. Cada cópia vale
+                    // localizar OU +1 no acerto, e só as de acerto somam (teto +3).
+                    em_e8: { icone: '🎯', titulo: 'O que esta compra do Stalker faz?',
+                        nota: 'Localizar não entra em cálculo — é informação de cena. O +1 no acerto soma no ataque deste Hatsu, até +3 no total.',
+                        opcoes: [['localizar', 'Localizar por 1h ou 100m'], ['acerto', '+1 para encontrar/acertar']] },
+                    // ── Materialização: o +10% por categoria de tamanho ──────────────
+                    // Os quatro efeitos de aparência/função dizem "Custo de aura +10% por
+                    // categoria de tamanho acima do usuário", e esse acréscimo nunca era
+                    // cobrado: virar uma moto custava o mesmo que virar um gato. O número
+                    // de categorias é uma escolha do jogador, então vira picker — e o
+                    // calcAuraCost lê daqui.
+                    rm_e22: _TAMANHO_ACIMA, rm_e23: _TAMANHO_ACIMA,
+                    rm_e24: _TAMANHO_ACIMA, rm_e25: _TAMANHO_ACIMA,
+                };
+                if (_ESCOLHAS_REFORCO[item.id]) {
+                    const _cfg = _ESCOLHAS_REFORCO[item.id];
+                    const _copR = [].concat(hb.eg || [], hb.ec || []).filter(function (x) { return x === item.id; }).length;
+                    const _kR = function (i) { return i > 0 ? (item.id + '#' + i) : item.id; };
+                    let _blocosR = '';
+                    // 'pulaPrimeira': a 1ª compra é a base do efeito e não tem escolha.
+                    const _iniR = _cfg.pulaPrimeira ? 1 : 0;
+                    if (_cfg.pulaPrimeira && _copR <= 1) _blocosR = '<div style="font-size:8px;color:#6b7280">A primeira compra é a base. A escolha aparece a partir da segunda.</div>';
+                    for (let _i = _iniR; _i < Math.max(_iniR + (_cfg.pulaPrimeira ? 0 : 1), _copR); _i++) {
+                        const _ch = _kR(_i);
+                        const _at = specialChoices[_ch] || '';
+                        _blocosR += '<div style="' + (_i > 0 ? 'margin-top:8px;padding-top:8px;border-top:1px dashed ' + color + '33;' : '') + '">'
+                            + (Math.max(1, _copR) > 1 ? '<div style="font-size:8px;font-weight:700;color:#9ca3af;margin-bottom:4px">Compra ' + (_i + 1) + '</div>' : '')
+                            + '<div style="display:flex;gap:5px;flex-wrap:wrap">'
+                            + _cfg.opcoes.map(function (o) {
+                                // Opção pode ser uma string (valor = rótulo) ou um par
+                                // [valorGravado, rótulo]. O par existe para os efeitos cujo
+                                // cálculo lê um id curto ('massa', 'grau', 'pv', 'ca') e cujo
+                                // botão precisa de um texto legível.
+                                const _val = Array.isArray(o) ? o[0] : o;
+                                const _lbl = Array.isArray(o) ? o[1] : o;
+                                const active = _at === _val;
+                                const st = 'flex:1;min-width:92px;padding:7px 6px;border-radius:8px;font-size:9px;font-weight:900;cursor:pointer;text-align:center;border:1.5px solid '
+                                    + (active ? color : '#374151') + ';background:' + (active ? color + '22' : 'transparent')
+                                    + ';color:' + (active ? color : '#9ca3af');
+                                return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\'' + _ch + '\',\''
+                                    + _val.replace(/'/g, "\\'") + '\')" style="' + st + '">' + (active ? '✓ ' : '') + _lbl + '</button>';
+                            }).join('')
+                            + '</div>'
+                            + (_at
+                                ? '<div style="font-size:8px;color:#4ade80;margin-top:4px">✓ '
+                                    + (function () {
+                                        const _o = _cfg.opcoes.filter(function (x) { return (Array.isArray(x) ? x[0] : x) === _at; })[0];
+                                        return _o ? (Array.isArray(_o) ? _o[1] : _o) : _at;
+                                    })() + '</div>'
+                                : '<div style="font-size:8px;color:#f87171;margin-top:4px">⚠ Escolha uma opção.</div>')
+                            + '</div>';
+                    }
+                    specialHtml += '<div style="margin-top:8px;background:#0a0f1a;border:1px solid ' + color + '33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
+                        + '<div style="font-size:8px;font-weight:900;color:' + color + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">' + _cfg.icone + ' ' + _cfg.titulo + '</div>'
+                        + '<div style="font-size:8px;color:#6b7280;margin-bottom:7px;line-height:1.45">' + _cfg.nota + '</div>'
+                        + _blocosR
+                        + '</div>';
+                }
+
+                // ── ri_e30: Potencial Liberado — uma escolha POR P.N GASTO ─────────────────
+                // "Escolha um efeito da tabela por P.N gasto neste efeito. Comprar o MESMO
+                //  efeito aumenta seu grau/passo."
+                // Então: uma linha de escolha por compra, e o valor que cada opção mostra é
+                // quanto ela valeria SE escolhida ali — contando as outras compras que já
+                // apontam para ela. Assim o jogador vê a escada antes de decidir.
+                // As 8 opções sem número (vantagem, imunidade, sentido, alcance dobrado) não
+                // melhoram com recompra: ficam marcadas e o aviso sai no clique.
+                if (item.id === 'ri_e30') {
+                    const _cop30 = [].concat(hb.eg || [], hb.ec || []).filter(function (x) { return x === 'ri_e30'; }).length;
+                    const _todos30 = window.potencialLiberadoTodos ? window.potencialLiberadoTodos() : [];
+                    // Quantas vezes cada opção já foi escolhida, por índice de compra.
+                    const _porCompra = [];
+                    for (let _i = 0; _i < _cop30; _i++) _porCompra.push(specialChoices[window.chavePotencialLiberado(_i)] || '');
+                    const _vezesDe = function (id, exceto) {
+                        let n = 0;
+                        _porCompra.forEach(function (v, k) { if (v === id && k !== exceto) n++; });
+                        return n;
+                    };
+                    let _blocos30 = '';
+                    for (let _i = 0; _i < _cop30; _i++) {
+                        const _ch30 = window.chavePotencialLiberado(_i);
+                        const _at30 = _porCompra[_i];
+                        const _obj30 = _at30 && window.potencialLiberadoPorId ? window.potencialLiberadoPorId(_at30) : null;
+                        const _grupos30 = ['Físico', 'Sentidos'];
+                        _blocos30 += '<div style="' + (_i > 0 ? 'margin-top:8px;padding-top:8px;border-top:1px dashed ' + color + '33;' : '') + '">'
+                            + '<div style="font-size:8px;font-weight:700;color:#9ca3af;margin-bottom:4px">P.N ' + (_i + 1) + '</div>'
+                            + '<select onchange="event.stopPropagation();window._hEscolherPotencialLiberado(\'' + _ch30 + '\', this.value)" '
+                            + 'style="width:100%;box-sizing:border-box;background:#111827;border:1px solid #374151;border-radius:8px;padding:7px 9px;color:#fff;font-size:9px;outline:none">'
+                            + '<option value=""' + (!_at30 ? ' selected' : '') + '>— escolha um efeito —</option>'
+                            + _grupos30.map(function (g) {
+                                const lista = _todos30.filter(function (o) { return o.grupo === g; });
+                                if (!lista.length) return '';
+                                return '<optgroup label="' + g + '">'
+                                    + lista.map(function (o) {
+                                        const rot = window.rotuloPotencialLiberado(o);
+                                        let sufixo = '';
+                                        if (window.potencialLiberadoMelhora(o)) {
+                                            const v = window.valorPotencialLiberado(o, _vezesDe(o.id, _i) + 1);
+                                            const un = o.aplica.grandeza === 'deslocamento' ? 'm' : '';
+                                            sufixo = '  (+' + String(v).replace('.', ',') + un + (o.aplica.attr ? ' ' + o.aplica.attr : '') + ')';
+                                        } else if (_vezesDe(o.id, _i) > 0) {
+                                            sufixo = '  (já escolhido — não melhora)';
+                                        }
+                                        return '<option value="' + o.id + '"' + (_at30 === o.id ? ' selected' : '') + '>' + rot + sufixo + '</option>';
+                                    }).join('')
+                                    + '</optgroup>';
+                            }).join('')
+                            + '</select>';
+                        if (_obj30) {
+                            const _vz = _vezesDe(_obj30.id, _i) + 1;
+                            const _melhora = window.potencialLiberadoMelhora(_obj30);
+                            const _val = _melhora ? window.valorPotencialLiberado(_obj30, _vz) : null;
+                            _blocos30 += '<div style="font-size:8px;color:#6b7280;margin-top:3px;line-height:1.45">' + _obj30.efeito + '</div>'
+                                + (_melhora
+                                    ? '<div style="font-size:8px;color:#4ade80;margin-top:3px">✓ ' + (_vz > 1 ? _vz + 'ª escolha desta opção → ' : '') + '+' + String(_val).replace('.', ',')
+                                        + (_obj30.aplica.grandeza === 'deslocamento' ? 'm de deslocamento' : (_obj30.aplica.attr ? ' em ' + _obj30.aplica.attr : ' nas reações'))
+                                        + (_obj30.aplica.condicao ? ' <span style="color:#fbbf24">(só em ' + _obj30.aplica.condicao + ')</span>' : '') + '</div>'
+                                    : '<div style="font-size:8px;color:#fbbf24;margin-top:3px">⚠ Benefício sem número — recomprar esta opção não melhora nada.</div>');
+                        } else {
+                            _blocos30 += '<div style="font-size:8px;color:#f87171;margin-top:3px">⚠ Este P.N ainda não foi gasto em nada.</div>';
+                        }
+                        _blocos30 += '</div>';
+                    }
+                    specialHtml += '<div style="margin-top:8px;background:#0a0f1a;border:1px solid ' + color + '33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
+                        + '<div style="font-size:8px;font-weight:900;color:' + color + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">💪 Potencial Liberado — 1 escolha por P.N</div>'
+                        + _blocos30
+                        + '<div style="font-size:8px;color:#6b7280;margin-top:6px">Escolher a MESMA opção de novo sobe o grau/passo: atributo +1, deslocamento +1,5m, reações +1. Os benefícios valem enquanto o Hatsu estiver ativo.</div>'
                         + '</div>';
                 }
 
@@ -1134,16 +1694,22 @@ function renderHatsuCreator(container) {
                         + '</div>';
                 }
 
-                // em_e2: Distância Segura (+6m Alcance ou +3m Área) / em_e14: Expansão de Domínio (+3m Alcance ou +6m Área)
+                // em_e2: Distância Segura (+6m Alcance ou +3m Área)
+                // em_e14: Expansão de Domínio — as DUAS opções são Área; muda o ponto de
+                // partida. Os rótulos antigos ("Alcance"/"Área") ficaram gravados em fichas
+                // salvas e continuam sendo entendidos por opcaoExpansaoDominio.
                 if (item.id === 'em_e2' || item.id === 'em_e14') {
                     const scKey = item.id;
                     const chosen = specialChoices[scKey] || '';
                     const opts = item.id === 'em_e2'
                         ? [['Alcance','📐','+6m · 4 Grau/Passo'],['Área','🔵','+3m · 2 Grau/Passo']]
-                        : [['Alcance','📐','+3m à distância · 2 Grau/Passo'],['Área','🔵','+6m em forma · 4 Grau/Passo']];
+                        : [['si','🎯','Área 6m, partindo de si · 4 Grau/Passo'],['distancia','📐','Área 3m, à distância · 2 Grau/Passo']];
                     const confirmLabel = item.id === 'em_e2'
                         ? { Alcance: '+6m · 4 Grau/Passo', 'Área': '+3m · 2 Grau/Passo' }
-                        : { Alcance: '+3m à distância · 2 Grau/Passo', 'Área': '+6m em forma · 4 Grau/Passo' };
+                        : { si: 'Área de 6m a partir de si ou de uma marca · 4 Grau/Passo',
+                            distancia: 'Área de 3m à distância · 2 Grau/Passo',
+                            'Área': 'Área de 6m a partir de si ou de uma marca · 4 Grau/Passo',
+                            Alcance: 'Área de 3m à distância · 2 Grau/Passo' };
                     specialHtml = '<div style="margin-top:8px;background:#0a0f1a;border:1px solid '+ color +'33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
                         + '<div style="font-size:8px;font-weight:900;color:'+ color +';text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">📐 Aplicar bônus em:</div>'
                         + '<div style="display:flex;gap:6px">'
@@ -1178,27 +1744,12 @@ function renderHatsuCreator(container) {
                         + '</div>';
                 }
 
-                // eg10: Flagelo da Mente — Puro (2d6 principal) ou Complementar (1d8 adicional)
-                if (item.id === 'eg10') {
-                    const chosen = specialChoices['eg10'] || '';
-                    const eg10opts = [
-                        ['Puro','💜','1d10 Psíquico — substitui o dano base do Hatsu'],
-                        ['Complementar','➕','1d8 Psíquico — efeito adicional ao dano'],
-                    ];
-                    specialHtml = '<div style="margin-top:8px;background:#0a0f1a;border:1px solid '+ color +'33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
-                        + '<div style="font-size:8px;font-weight:900;color:'+ color +';text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">💜 Modo do Flagelo da Mente:</div>'
-                        + '<div style="display:flex;gap:6px">'
-                        + eg10opts.map(function(op) {
-                            var active = chosen === op[0];
-                            return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\'eg10\',\''+ op[0] +'\')" '
-                                + 'style="flex:1;padding:8px 6px;border-radius:8px;font-size:8px;font-weight:900;cursor:pointer;border:1.5px solid '+ (active?color:'#1f2937') +';background:'+ (active?color+'22':'transparent') +';color:'+ (active?color:'#9ca3af') +';transition:all .15s;text-align:center">'
-                                + op[1]+' <b>'+ op[0] +'</b><br><span style="font-size:7px;opacity:.7">'+ op[2] +'</span></button>';
-                        }).join('')
-                        + '</div>'
-                        + (chosen ? '<div style="font-size:8px;color:'+ color +';margin-top:6px">✓ '+chosen+'</div>'
-                                  : '<div style="font-size:8px;color:#f87171;margin-top:4px">⚠ Escolha o modo do efeito</div>')
-                        + '</div>';
-                }
+                // eg10: Flagelo da Mente — não tem mais modo a escolher.
+                // Antes o jogador escolhia entre "Puro" (1d10 substituindo o dano base) e
+                // "Complementar" (1d8 adicional). Pelo manual, o Flagelo é o Dano/Cura Focal
+                // da SANIDADE: sempre a sua própria linha, partindo de 1d10 e subindo um
+                // grau/passo por compra. Um Hatsu pode ter dano em PV e em Sanidade ao mesmo
+                // tempo, sem escolher entre eles.
 
                 // rm_e2: Golem de Aura — material picker (tamanho fixo: Pequeno)
                 // rev. — cada cópia comprada (Golem de Aura é repetível) precisa de material e
@@ -1207,14 +1758,32 @@ function renderHatsuCreator(container) {
                 // era impossível ter dois Golems diferentes. Cópia 0 usa a chave sem sufixo (mantém
                 // compatibilidade com hatsus salvos antes desta correção); cópias extras usam "#N".
                 if (item.id === 'rm_e2') {
-                   const MATERIAIS = [
+                   // ── Materialização é de SÓLIDOS ──────────────────────────────────
+                    // "Gasoso" saiu da lista (e "Energia", que o livro passou a trazer, não
+                    // entrou). Materialização/Conjuração cria o que tem corpo e massa — algo
+                    // que pode ser atingido. Constructo de energia é EMISSÃO; de gás ou
+                    // fumaça é TRANSMUTAÇÃO (Forma Esculpida Maleável, que cresce 1,5x1,5m
+                    // a cada recompra).
+                    //
+                    // O motivo não é só narrativo: material era escolha livre do jogador, e
+                    // gás/energia carregam imunidade a dano físico. Qualquer um que entendesse
+                    // a mecânica escolheria sempre esses dois. Tirar do cardápio resolve sem
+                    // precisar de regra de exceção.
+                    //
+                    // Líquido/Gel FICA: tem massa, agarra, segura e pode ser atingido — o
+                    // critério que vale é "tem corpo atingível", não "sólido" ao pé da letra.
+                    //
+                    // A tabela CA_POR_MATERIAL em constructo-db.js mantém 'Gasoso' de
+                    // propósito: o bestiário usa gás em criatura (o Cavalo Bolha tem "Corpo
+                    // Gasoso de Núcleo Sólido"), e fichas salvas antes desta mudança podem
+                    // tê-lo escolhido. A restrição é só do seletor do jogador.
+                    const MATERIAIS = [
                         { nome:'Tecido/Papel',      ca:11, icon:'📄' },
                         { nome:'Cristal/Vidro',     ca:12, icon:'💎' },
                         { nome:'Madeira/Orgânico',  ca:13, icon:'🌿' },
                         { nome:'Mineral/Pedra',     ca:14, icon:'🪨' },
                         { nome:'Líquido/Gel',       ca:14, icon:'💧' },
                         { nome:'Metal',             ca:15, icon:'⚙️' },
-                        { nome:'Gasoso',            ca:'—', icon:'💨' },
                     ];
                     const CARACTS_E2 = window.CARACTERISTICAS_INVOCACAO || [];
                     const totalCopiasRm2 = Math.max(1, (hb.ec||[]).filter(function(x){ return x === 'rm_e2'; }).length);
@@ -1330,11 +1899,11 @@ function renderHatsuCreator(container) {
                     const allEgList6 = [...eg6Gerais, ...eg6CatEfs];
                     Object.values((window.HATSU_DB && window.HATSU_DB.categorias) || {}).forEach(function (c) {
                         (c.efeitos || []).forEach(function (e) {
-                            if (!allEgList6.some(function (x) { return x.nome === e.nome; })) allEgList6.push(e);
+                            if (!allEgList6.some(function (x) { return x.id === e.id; })) allEgList6.push(e);
                         });
                     });
                     function eg6BtnHtml(e) {
-                        var active = chosen === e.nome;
+                        var active = chosen === e.id;
                         var rq = checkReq(e.req);
                         var isBlocked = !rq.ok;
                         var btnStyle = 'padding:4px 8px;border-radius:7px;font-size:8px;white-space:nowrap;transition:all .15s;font-weight:' + (active?'900':'600') + ';border:1.5px solid ';
@@ -1350,7 +1919,7 @@ function renderHatsuCreator(container) {
                             var alertMsg = '❌ Requisito não atendido\\n\\n' + rq.reason + '\\n\\nReq: ' + e.req;
                             onclick = 'event.stopPropagation();alert(\'' + alertMsg.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n') + '\')';
                         } else {
-                            onclick = 'event.stopPropagation();window._hSetSpecialChoice(\'eg6\',\'' + e.nome.replace(/'/g,"\\'") + '\')';
+                            onclick = 'event.stopPropagation();window._hSetSpecialChoice(\'eg6\',\'' + e.id + '\')';
                         }
                         return '<button onclick="' + onclick + '" style="' + btnStyle + '">'
                             + (active ? '✓ ' : '') + e.nome + (isBlocked ? ' 🔒' : '') + '</button>';
@@ -1417,11 +1986,34 @@ function renderHatsuCreator(container) {
                             + '<div style="font-size:7px;color:#4b5563;font-style:italic">Req: '+ chosenEff6.req +'</div>'
                             + '</div>'
                         : '<div style="font-size:8px;color:#f87171;margin-top:2px">⚠ Selecione o efeito alvo</div>';
+                    // Quem recebe o efeito redirecionado. Mesma lógica da origem do dano no
+                    // Dano/Cura Focal: o efeito é o mesmo, muda em quem ele pousa. Sem isso o
+                    // app dizia "direcionado a inimigo(s)" e a mesa não tinha onde registrar
+                    // um Poder é Intenção que mira o próprio usuário ou o constructo.
+                    const dest6 = specialChoices['eg6_destino'] || 'alvo';
+                    const OPC6 = [
+                        ['alvo',    '🎯 O alvo (inimigo)'],
+                        ['usuario', '🙋 O próprio usuário'],
+                        ['hatsu',   '🧩 O Hatsu / constructo'],
+                    ];
+                    const destino6 = '<div style="margin-top:8px;padding-top:8px;border-top:1px dashed ' + color + '33">'
+                        + '<div style="font-size:8px;font-weight:900;color:' + color + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Quem recebe o efeito?</div>'
+                        + '<div style="font-size:8px;color:#6b7280;margin-bottom:6px">O padrão é o alvo, como diz a descrição do efeito.</div>'
+                        + '<div style="display:flex;flex-direction:column;gap:5px">'
+                        + OPC6.map(function (par) {
+                            const on = dest6 === par[0];
+                            return '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\'eg6_destino\',\'' + par[0] + '\')" '
+                                + 'style="padding:7px 10px;border-radius:8px;font-size:8px;font-weight:700;cursor:pointer;text-align:left;border:1.5px solid '
+                                + (on ? color : '#1f2937') + ';background:' + (on ? color + '22' : 'transparent')
+                                + ';color:' + (on ? color : '#9ca3af') + '">' + par[1] + '</button>';
+                        }).join('')
+                        + '</div></div>';
                     specialHtml = '<div style="margin-top:8px;background:#0a0f1a;border:1px solid '+ color +'33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
                         + '<div style="font-size:8px;font-weight:900;color:'+ color +';text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">🎯 Poder é Intenção</div>'
-                        + '<div style="font-size:8px;color:#6b7280;margin-bottom:8px">Selecione o efeito que será direcionado a inimigo(s):</div>'
+                        + '<div style="font-size:8px;color:#6b7280;margin-bottom:8px">Selecione o efeito que será redirecionado:</div>'
                         + eg6Buttons
                         + chosenPanel6
+                        + (chosen ? destino6 : '')
                         + '</div>';
                 }
 
@@ -1445,11 +2037,11 @@ function renderHatsuCreator(container) {
                         return nv <= _nvEf;
                     }
                     function btn8(e) {
-                        const active = chosen8 === e.nome;
+                        const active = chosen8 === e.id;
                         let st = 'padding:4px 8px;border-radius:7px;font-size:8px;white-space:nowrap;font-weight:' + (active ? '900' : '600') + ';border:1px solid ';
                         st += active ? (color + ';background:' + color + '22;color:' + color) : '#1f2937;background:transparent;color:#9ca3af';
                         st += ';cursor:pointer';
-                        const onclick = 'event.stopPropagation();window._hSetSpecialChoice(\'rm_e8\',\'' + e.nome.replace(/'/g, "\\'") + '\')';
+                        const onclick = 'event.stopPropagation();window._hSetSpecialChoice(\'rm_e8\',\'' + e.id + '\')';
                         return '<button onclick="' + onclick + '" style="' + st + '">' + (active ? '✓ ' : '') + e.nome + '</button>';
                     }
 
@@ -1718,7 +2310,7 @@ function renderHatsuCreator(container) {
             const canAddRepetivel = showRepetivelBadge && !repetivelNesteNivel && (!item.maxUsos || totalCopies < item.maxUsos) && pnLeft >= item.pn;
             // NPCs podem desfazer a última cópia comprada mesmo que não tenha sido neste nível
             // (ficha montada livremente pelo mestre, sem seguir a progressão 1-por-nível).
-            const canRemoveRepetivel = showRepetivelBadge && (char.isNPC ? repetivelTracked > 0 : repetivelCompradoNesteNivel);
+            const canRemoveRepetivel = showRepetivelBadge && (_podeRepetir ? repetivelTracked > 0 : repetivelCompradoNesteNivel);
             const repetivelControlsHtml = showRepetivelBadge ? `
                 <div style="margin-top:6px" onclick="event.stopPropagation()">
                     <div style="display:flex;align-items:center;gap:6px">
@@ -1729,6 +2321,7 @@ function renderHatsuCreator(container) {
                         <button onclick="${canAddRepetivel ? `window._hAddRepetivelE('${item.id}','${tipo}',${item.pn})` : 'void(0)'}"
                             style="width:22px;height:22px;border-radius:6px;background:${canAddRepetivel?'#22c55e22':'#1f293755'};border:1px solid ${canAddRepetivel?'#22c55e55':'#374151'};color:${canAddRepetivel?'#4ade80':'#4b5563'};font-size:14px;font-weight:900;cursor:${canAddRepetivel?'pointer':'not-allowed'};display:flex;align-items:center;justify-content:center;line-height:1">+</button>
                         <span style="font-size:8px;color:#6b7280">${repetivelNesteNivel ? 'já evoluído neste nível' : (canAddRepetivel ? `evoluir custa ${item.pn} P.N` : (item.maxUsos && totalCopies >= item.maxUsos ? 'máximo de usos atingido' : 'sem P.N para evoluir'))}</span>
+                        ${(_podeRepetir && !char.isNPC) ? `<span title="Mestres e admins podem comprar várias cópias no mesmo nível, para montar NPC já pronto" style="font-size:7px;font-weight:900;padding:1px 6px;border-radius:8px;background:#a855f722;color:#c084fc;border:1px solid #a855f744">🔑 mestre</span>` : ''}
                     </div>
                     ${hasPureExtreme ? `<div style="display:flex;align-items:center;gap:6px;margin-top:4px">
                         <span style="font-size:8px;color:#fbbf24;font-weight:700">Extra ⚡:</span>
@@ -2649,11 +3242,8 @@ window._hNext = function() {
     if (hb.step === 6) {
         // Bloqueia se há P.N não gastos — P.N não podem ser guardados para outro nível
         const _char5 = state.currentChar;
-        const _pnBase5 = window.calcularPHBase(_char5.level);
         const _pnBonus5 = window.calcPNBonusFromRestr(hb);
-        const _pnSpentOth5 = window.calcPNSpentInOtherHatsus(_char5, hb.editingIdx);
-        const _pnDom5 = window.calcPNSpentInDominio ? window.calcPNSpentInDominio(_char5) : 0;
-        const _pnBaseAvail5 = Math.max(0, _pnBase5 - _pnSpentOth5 - _pnDom5);
+        const _pnBaseAvail5 = window.calcPNDisponivelParaHatsu(_char5, hb.editingIdx);
         let _pnUsed5 = 0;
         hb.eg.forEach(id => { const e = window.HATSU_DB.efeitos_gerais.find(x=>x.id===id); if(e) _pnUsed5+=e.pn; });
         hb.ec.forEach(id => { for (const cat of Object.values(window.HATSU_DB.categorias||{})) { if (!cat||!cat.efeitos) continue; const e=cat.efeitos.find(x=>x.id===id); if(e){_pnUsed5+=e.pn;break;} } });
@@ -2841,7 +3431,7 @@ window._hAddDuplicateE = function(id, tipo, pn) {
             if (e) { used += e.pn; break; }
         }
     });
-    const _pnSpentOth = window.calcPNSpentInOtherHatsus(state.currentChar, hb.editingIdx); const _pnDom = window.calcPNSpentInDominio ? window.calcPNSpentInDominio(state.currentChar) : 0; const _pnBaseAvail = Math.max(0, window.calcularPHBase(state.currentChar.level) - _pnSpentOth - _pnDom); const _pnBonus = window.calcPNBonusFromRestr(hb); const _pnBaseUsed = Math.max(0, used - _pnBonus); if (_pnBaseUsed + pn > _pnBaseAvail && used + pn > _pnBaseAvail + _pnBonus) return;
+    const _pnBaseAvail = window.calcPNDisponivelParaHatsu(state.currentChar, hb.editingIdx); const _pnBonus = window.calcPNBonusFromRestr(hb); const _pnBaseUsed = Math.max(0, used - _pnBonus); if (_pnBaseUsed + pn > _pnBaseAvail && used + pn > _pnBaseAvail + _pnBonus) return;
     const arr = tipo === 'eg' ? hb.eg : hb.ec;
     // Guarda final: efeitos de ESPECIALIZAÇÃO só para ESPECIALIZAÇÃO, MANIPULAÇÃO e MATERIALIZAÇÃO
     if (tipo === 'ec') {
@@ -3206,6 +3796,34 @@ window._hSetTag = function (tagId) {
     hb.tag = tagId;
     // A aba de efeitos de Maldição só existe com a tag M; sair dela volta para Gerais.
     if (tagId !== 'M' && hb.efTab === 'maldicao') hb.efTab = 'gerais';
+    renderHatsuInPlace();
+};
+
+// ── ri_e30: escolhe uma opção de Potencial Liberado para um P.N ──────────────
+// Avisa quando a opção escolhida já foi comprada E não melhora com recompra —
+// o jogador estaria gastando um P.N em nada. O aviso não bloqueia: pode ser
+// escolha deliberada (um mestre liberando, ou um ajuste em andamento).
+window._hEscolherPotencialLiberado = function (chave, id) {
+    const hb = state.hatsuBuilder; if (!hb) return;
+    if (!hb.specialChoices) hb.specialChoices = {};
+    if (id) {
+        const obj = window.potencialLiberadoPorId ? window.potencialLiberadoPorId(id) : null;
+        if (obj && !window.potencialLiberadoMelhora(obj)) {
+            // Conta as OUTRAS compras que já apontam para esta mesma opção.
+            const total = [].concat(hb.eg || [], hb.ec || []).filter(function (x) { return x === 'ri_e30'; }).length;
+            let jaTem = 0;
+            for (let i = 0; i < total; i++) {
+                const k = window.chavePotencialLiberado(i);
+                if (k !== chave && hb.specialChoices[k] === id) jaTem++;
+            }
+            if (jaTem > 0) {
+                alert('Potencial Liberado — sem melhoria\n\n"' + window.rotuloPotencialLiberado(obj)
+                    + '" não tem valor numérico, então comprar de novo NÃO aumenta nada.\n\n'
+                    + obj.efeito + '\n\nEste P.N seria gasto sem efeito. Considere outra opção da tabela.');
+            }
+        }
+    }
+    hb.specialChoices[chave] = id;
     renderHatsuInPlace();
 };
 
@@ -3791,7 +4409,7 @@ function _hTryComprarEfeito(hb, item, id, tipo, pn, isRepetivel) {
             if (e) { used += e.pn; break; }
         }
     });
-    const _pnSpentOth = window.calcPNSpentInOtherHatsus(state.currentChar, hb.editingIdx); const _pnDom = window.calcPNSpentInDominio ? window.calcPNSpentInDominio(state.currentChar) : 0; const _pnBaseAvail = Math.max(0, window.calcularPHBase(state.currentChar.level) - _pnSpentOth - _pnDom); const _pnBonus = window.calcPNBonusFromRestr(hb); const _pnBaseUsed = Math.max(0, used - _pnBonus); if (_pnBaseUsed + pn > _pnBaseAvail && used + pn > _pnBaseAvail + _pnBonus) return false;
+    const _pnBaseAvail = window.calcPNDisponivelParaHatsu(state.currentChar, hb.editingIdx); const _pnBonus = window.calcPNBonusFromRestr(hb); const _pnBaseUsed = Math.max(0, used - _pnBonus); if (_pnBaseUsed + pn > _pnBaseAvail && used + pn > _pnBaseAvail + _pnBonus) return false;
     // Guarda final: efeitos de ESPECIALIZAÇÃO só para ESPECIALIZAÇÃO, MANIPULAÇÃO e MATERIALIZAÇÃO
     if (tipo === 'ec') {
         const _espCatDB = window.HATSU_DB && window.HATSU_DB.categorias['ESPECIALIZAÇÃO'];
@@ -3845,8 +4463,10 @@ window._hAddRepetivelE = function(id, tipo, pn) {
     hb.efeitoNiveis = hb.efeitoNiveis || {};
     const niveisComprados = hb.efeitoNiveis[id] || [];
 
-    // Só pode comprar mais uma cópia por nível (exceto personagens marcados como NPC)
-    if (!char.isNPC && niveisComprados.some(lv => lv === charLevelNow)) return;
+    // Uma cópia por nível. Mestres e admins passam por cima, para montar NPC já em nível
+    // alto sem precisar subir de nível dez vezes (ver podeRepetirEfeitoNoNivel).
+    if (!(window.podeRepetirEfeitoNoNivel ? window.podeRepetirEfeitoNoNivel(char) : char.isNPC)
+        && niveisComprados.some(lv => lv === charLevelNow)) return;
     // Respeita o teto de usos do efeito, se houver
     if (item.maxUsos) {
         const totalAtual = arr.filter(x => x === id).length;
@@ -3881,7 +4501,8 @@ window._hRemoveRepetivelE = function(id, tipo) {
     const charLevelNow = parseInt(char.level) || 0;
     hb.efeitoNiveis = hb.efeitoNiveis || {};
     const niveisComprados = hb.efeitoNiveis[id] || [];
-    const lastIdx = char.isNPC ? niveisComprados.length - 1 : niveisComprados.lastIndexOf(charLevelNow);
+    const lastIdx = (window.podeRepetirEfeitoNoNivel ? window.podeRepetirEfeitoNoNivel(char) : char.isNPC)
+        ? niveisComprados.length - 1 : niveisComprados.lastIndexOf(charLevelNow);
     if (lastIdx === -1) return; // nada comprado neste nível para desfazer
     niveisComprados.splice(lastIdx, 1);
     const removeIdx = arr.lastIndexOf(id);

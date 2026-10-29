@@ -538,7 +538,87 @@ function closeHatsuCreator() {
             rebuild();
         };
 
-        window._openPrimeiroHatsuModal = function() {
+        // ── Painel: distribuir os Graus de Dano/Cura entre as linhas do Hatsu ────────
+// Mesmo padrão do modal dos 5 Graus do 1º Hatsu. O pool e as linhas vêm do que a tela
+// do Hatsu já calculou (window._HATSU_ALOC), para não existir uma segunda conta.
+window._openAlocacaoGraus = function () {
+    const char = state.currentChar;
+    const idx = state.hatsuDetailIdx || 0;
+    const h = (char.hatsus || [])[idx];
+    if (!h) return;
+    const dados = (window._HATSU_ALOC || {})[idx];
+    if (!dados || !dados.linhas.length) { alert('Este Hatsu não tem linhas de dano para distribuir.'); return; }
+    if (dados.pool <= 0) { alert('Nenhum Grau de Dano/Cura comprado ainda.\n\nGraus vêm de restrições, do Bônus Talentoso e dos 5 Graus do 1º Hatsu.'); return; }
+
+    const tc = getComputedStyle(document.documentElement).getPropertyValue('--theme-color-hex').trim() || '#00ff9d';
+    // Começa do que já está valendo, inclusive o padrão (resto no dano base).
+    const alloc = {};
+    dados.linhas.forEach(function (l) { alloc[l.id] = dados.porLinha[l.id] || 0; });
+    window._alocState = { alloc: alloc, linhas: dados.linhas, pool: dados.pool, idx: idx, tc: tc };
+
+    const ov = document.createElement('div');
+    ov.id = 'aloc-graus-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:#000000dd;display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;font-family:Rajdhani,sans-serif';
+    ov.innerHTML = '<div style="background:#0d1117;border:2px solid ' + tc + ';border-radius:20px;padding:18px;width:100%;max-width:400px;max-height:86vh;overflow-y:auto">'
+        + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:12px;color:' + tc + ';text-transform:uppercase;letter-spacing:2px;margin-bottom:3px">🔥 Distribuir Graus de Dano/Cura</div>'
+        + '<div style="font-size:9px;color:#6b7280;margin-bottom:12px;line-height:1.5">Cada grau entra em UMA linha. O que você não distribuir fica no dano base.</div>'
+        + '<div id="aloc-corpo"></div>'
+        + '<div style="display:flex;gap:8px;margin-top:12px">'
+        + '<button onclick="document.getElementById(\'aloc-graus-overlay\').remove()" style="flex:1;padding:11px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Cancelar</button>'
+        + '<button onclick="window._alocSalvar()" style="flex:2;padding:11px;border-radius:10px;background:' + tc + ';border:none;color:#000;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Salvar</button>'
+        + '</div></div>';
+    document.body.appendChild(ov);
+    window._alocRedesenhar();
+};
+
+window._alocRedesenhar = function () {
+    const s = window._alocState; if (!s) return;
+    const el = document.getElementById('aloc-corpo'); if (!el) return;
+    let usado = 0;
+    s.linhas.forEach(function (l) { usado += s.alloc[l.id] || 0; });
+    const livre = s.pool - usado;
+    el.innerHTML = s.linhas.map(function (l) {
+        const v = s.alloc[l.id] || 0;
+        const podeMais = livre > 0;
+        return '<div style="background:#0f1117;border:1px solid #1f2937;border-radius:11px;padding:10px 12px;margin-bottom:7px;display:flex;align-items:center;gap:10px">'
+            + '<div style="flex:1;min-width:0">'
+            + '<div style="font-size:11px;font-weight:700;color:#d1d5db;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + l.label + '</div>'
+            + '<div style="font-size:8px;color:#6b7280;margin-top:1px">' + (l.dado ? ('parte de ' + String(l.dado).replace(/^\+\s*/, '')) : '') + '</div>'
+            + '</div>'
+            + '<button onclick="window._alocMudar(\'' + l.id + '\',-1)" ' + (v > 0 ? '' : 'disabled') + ' style="width:30px;height:30px;border-radius:8px;background:' + (v > 0 ? '#1f2937' : '#111') + ';border:1px solid #374151;color:' + (v > 0 ? '#f87171' : '#374151') + ';font-size:15px;font-weight:900;cursor:' + (v > 0 ? 'pointer' : 'not-allowed') + '">−</button>'
+            + '<div style="min-width:26px;text-align:center;font-family:Orbitron,sans-serif;font-weight:900;font-size:16px;color:#fff">' + v + '</div>'
+            + '<button onclick="window._alocMudar(\'' + l.id + '\',1)" ' + (podeMais ? '' : 'disabled') + ' style="width:30px;height:30px;border-radius:8px;background:' + (podeMais ? s.tc + '22' : '#111') + ';border:1px solid ' + (podeMais ? s.tc + '55' : '#374151') + ';color:' + (podeMais ? s.tc : '#374151') + ';font-size:15px;font-weight:900;cursor:' + (podeMais ? 'pointer' : 'not-allowed') + '">+</button>'
+            + '</div>';
+    }).join('')
+    + '<div style="text-align:center;font-size:10px;font-weight:700;margin-top:8px;color:' + (livre > 0 ? '#fbbf24' : '#4ade80') + '">'
+    + (livre > 0 ? ('⚠ ' + livre + ' grau(s) por distribuir — ficam no dano base') : '✓ Todos os ' + s.pool + ' graus distribuídos')
+    + '</div>';
+};
+
+window._alocMudar = function (linhaId, delta) {
+    const s = window._alocState; if (!s) return;
+    let usado = 0;
+    s.linhas.forEach(function (l) { usado += s.alloc[l.id] || 0; });
+    const novo = (s.alloc[linhaId] || 0) + delta;
+    if (novo < 0) return;
+    if (delta > 0 && usado >= s.pool) return;
+    s.alloc[linhaId] = novo;
+    window._alocRedesenhar();
+};
+
+window._alocSalvar = function () {
+    const s = window._alocState; if (!s) return;
+    const char = state.currentChar;
+    const h = (char.hatsus || [])[s.idx];
+    if (!h) return;
+    h.grauLinhas = {};
+    s.linhas.forEach(function (l) { if (s.alloc[l.id] > 0) h.grauLinhas[l.id] = s.alloc[l.id]; });
+    saveCharacter(char);
+    document.getElementById('aloc-graus-overlay')?.remove();
+    renderHatsuInPlace();
+};
+
+window._openPrimeiroHatsuModal = function() {
             const char = state.currentChar;
             const idx = state.hatsuDetailIdx || 0;
             const h = char.hatsus[idx];
@@ -755,63 +835,16 @@ function closeHatsuCreator() {
         };
 
         window._showSanityModal = function(char, threshold, currentPct) {
-            const CURTA = [
-                [1,20,'Paralisia mental — paralisado. Termina ao sofrer qualquer dano.'],
-                [21,30,'Vontade avassaladora de comer coisas estranhas (terra, limo, restos). Envenenado.'],
-                [31,40,'Amedrontado — usa ação a cada rodada para fugir da fonte do medo.'],
-                [41,50,'Balbucia — incapaz de falar ou usar Hatsu com restrições verbais.'],
-                [51,60,'Usa ação a cada rodada para atacar a criatura mais próxima à frente ou direita.'],
-                [61,70,'Atordoado por 5 turnos, ignora a rolagem inicial de tempo.'],
-                [71,75,'Obedece qualquer ordem que não seja obviamente suicida.'],
-                [76,80,'Alucinações vívidas — desvantagem em testes de habilidade.'],
-                [81,90,'Incapacitado — passa o tempo gritando, rindo ou chorando.'],
-                [91,100,'Cai inconsciente.'],
-            ];
-            const LONGA = [
-                [1,10,'Compulsão repetitiva (lavar mãos, tocar objetos, rezar). Não fazê-la a cada 3 rodadas: −1 Sanidade/3 rodadas.'],
-                [11,20,'Perde a capacidade de falar. Hatsus verbais afetados.'],
-                [21,30,'Alucinação vívida — desvantagem em testes de habilidade.'],
-                [31,40,'Alucinação poderosa — vê-se sofrendo ou apaixonado por algo no contexto da cena.'],
-                [41,50,'Ligado a um "talismã da sorte". Desvantagem em ataques, testes e TRs a mais de 9m dele.'],
-                [51,60,'Tremores e tiques incontroláveis — desvantagem em jogadas de Força ou Destreza.'],
-                [61,70,'Amnésia parcial — não reconhece pessoas nem lembra de eventos anteriores à loucura.'],
-                [71,80,'Sem ação própria, totalmente sugestionável.'],
-                [81,90,'Ao sofrer dano: TR de Sabedoria CD 15 ou o dano conta para redução de Sanidade.'],
-                [91,100,'Cai inconsciente — nenhum empurrão ou dano o acorda.'],
-            ];
-            const PERM_LEVE = ['Avareza','Covardia','Cleptomania','Desvio de Atenção','Dupla Personalidade','Impulsividade','Instinto Assassino','Megalomania','Mente de Criança','Paranoia','Pesadelos','Visões de Morte'];
-            const PERM_PESADA = [
-                [1,10,'Medo incontrolável e paralisia.'],
-                [11,20,'Não reconhece aliados (todos são inimigos) OU reconhece inimigo como melhor amigo.'],
-                [21,30,'Atitude homicida — tenta matar um aliado que vê como causa do sofrimento.'],
-                [31,40,'Arranca os cabelos gritando com horror (Fascinado).'],
-                [41,50,'Machuca os olhos tentando arrancá-los (Golpe mirado).'],
-                [51,60,'Tenta estrangular um aliado.'],
-                [61,70,'Tenta estrangular a si mesmo.'],
-                [71,80,'Esquece a própria identidade — perde o Hatsu até retomar a memória.'],
-                [81,90,'Atitude suicida — tenta se matar ou se jogar no perigo que causou a insanidade.'],
-                [91,100,'Cai no chão e assume posição fetal, ignora tudo. (Incapacitado)'],
-            ];
-
-            const configs = {
-                90: { cat:'CURTA DURAÇÃO', dado:'1d100', cor:'#fbbf24', durRoll: () => Math.ceil(Math.random()*6), durLabel: v => v+' rodada'+(v!==1?'s':''), table: CURTA, roll: () => Math.ceil(Math.random()*100) },
-                75: { cat:'LONGA DURAÇÃO', dado:'1d100', cor:'#f87171', durRoll: () => Math.ceil(Math.random()*10), durLabel: v => v+' hora'+(v!==1?'s':''), table: LONGA, roll: () => Math.ceil(Math.random()*100) },
-                50: { cat:'PERMANENTE LEVE', dado:'1d12', cor:'#a78bfa', durRoll: () => null, durLabel: () => 'Permanente', table: PERM_LEVE, roll: () => Math.ceil(Math.random()*12) },
-                25: { cat:'PERMANENTE PESADO', dado:'1d100', cor:'#ff4df7', durRoll: () => null, durLabel: () => 'Permanente', table: PERM_PESADA, roll: () => Math.ceil(Math.random()*100) },
-            };
-
-            const cfg = configs[threshold];
-            const roll = cfg.roll();
-            const durVal = cfg.durRoll();
-            const duracao = cfg.durLabel(durVal);
-
-            let resultado = '';
-            if (threshold === 50) {
-                resultado = PERM_LEVE[roll - 1] || PERM_LEVE[0];
-            } else {
-                const entry = cfg.table.find(e => roll >= e[0] && roll <= e[1]);
-                resultado = entry ? entry[2] : '—';
-            }
+            // As quatro tabelas saíram daqui para o config.js (SANIDADE_SURTOS), onde
+            // podem ser conferidas contra o livro sem abrir a interface — e onde a
+            // versão antiga, com dados e textos que não batiam, foi substituída pela
+            // do livro. Esta função agora só desenha o resultado.
+            const _surto = window.rolarSurto ? window.rolarSurto(threshold) : null;
+            if (!_surto) return;
+            const cfg = { cat: _surto.categoria, cor: _surto.cor, dado: _surto.dado };
+            const roll = _surto.roll;
+            const duracao = _surto.duracao;
+            const resultado = _surto.resultado;
 
             const rdm = calcRDM(char);
 
@@ -1277,6 +1310,10 @@ function closeHatsuCreator() {
         window._desativarHatsu = function (idx) {
             const char = state.currentChar;
             if (char.hatsusAtivos) delete char.hatsusAtivos[idx];
+            // rm_e19: fundir/dividir é ação de mesa e vale enquanto o Hatsu está de pé.
+            // Sem isto, um constructo ficaria dividido para sempre, com metade do PV.
+            const _h = (char.hatsus || [])[idx];
+            if (_h && _h.fusaoDiv) delete _h.fusaoDiv;
             saveCharacter(char);
             render(true);
         };
@@ -1287,7 +1324,7 @@ function closeHatsuCreator() {
             ren: 1,      // próximo ataque do turno
             ken: 2,      // CA dobrada por 2 rodadas
             ko: 1,       // próximo golpe, CA reduzida até o próximo turno
-            ryu: 6,      // 6 rodadas: exemplos 1-3 são padrão, 4-6 exigem Superior
+            ryu: null,   // conta em TURNOS, pelo botão próprio (_passarTurnoRyu), não em rodadas
             shu: null,   // rodadas conforme aprimoramento — resolvido na ativação
             gyo: 1,
             en: 1,
@@ -1348,6 +1385,19 @@ function closeHatsuCreator() {
                 if (k === 'gyo') delete char.gyoAlvo;
             });
 
+            // ── Consequência da falha de Ênfase, contada em rodadas ────────────────
+            // A penalidade de −3 e o dano dobrado dos inimigos duram 3 rodadas. Sem
+            // este desconto a penalidade valeria para sempre, que é pior do que não
+            // existir — o jogador deixaria de usar a Ênfase.
+            const _fe = char.enfaseFalha;
+            if (_fe && _fe.rodadas > 0) {
+                _fe.rodadas -= 1;
+                if (_fe.rodadas <= 0) {
+                    delete char.enfaseFalha;
+                    expirados.push('Falha de Ênfase (' + _fe.rotulo + ')');
+                }
+            }
+
             char.rodadaAtual = (parseInt(char.rodadaAtual) || 0) + 1;
             saveCharacter(char);
             render(true);
@@ -1359,16 +1409,64 @@ function closeHatsuCreator() {
             }
         };
 
+        // Novo combate. Estava definida e sem nenhum botão chamando — era um dos
+        // window.* mortos da auditoria. Agora tem dono: além de zerar a contagem,
+        // ela devolve os usos "1x por combate" (Carga de Energia, Vitalidade Extra).
         window._zerarRodadas = function () {
             const char = state.currentChar;
+            if (!confirm('Novo combate?\n\nZera a contagem de rodadas, desliga Hatsus e princípios e devolve os usos de 1× por combate.')) return;
             char.rodadaAtual = 0;
+            // Só os de combate: os de "1x por dia" seguem a data e não voltam aqui.
+            if (char.efeitosUsados) {
+                (window.EFEITOS_ARMAVEIS || []).concat(window.RECUPERACOES_PV || []).forEach(function (e) {
+                    if (e.escopo === 'combate') delete char.efeitosUsados[e.id];
+                });
+            }
+            char.efeitosArmados = {};
             char.hatsusAtivos = {};
             char.principiosAtivos = {};
             char.principiosRodadas = {};
             delete char.gyoAlvo;
+            delete char.ryuTabela;
+            delete char.ryuTurno;
             saveCharacter(char);
             render(true);
         };
+        // ── Turnos do RYU ────────────────────────────────────────────────
+        // O RYU é o único princípio contado em TURNOS do próprio usuário, e não em rodadas
+        // da mesa: a cada turno ele anda uma linha da tabela escolhida, e é a linha que
+        // diz quanto soma de CA, de Ataque+Dano e de Reações. Por isso ele saiu de
+        // PRINCIPIO_RODADAS (virou null) e quem conta é este botão — "Passar rodada" e
+        // "Passar turno" são independentes, e o jogador aperta cada um na hora dele.
+        //
+        // Ao sair do 6º turno o princípio se desliga sozinho: a tabela acabou, não há
+        // linha seguinte para aplicar, e deixar ligado sem linha daria bônus de graça.
+        window._passarTurnoRyu = function () {
+            const char = state.currentChar;
+            if (!((char.principiosAtivos || {}).ryu)) return;
+            const max = window.RYU_TURNOS_MAX || 6;
+            const t = (parseInt(char.ryuTurno) || 1) + 1;
+            if (t > max) {
+                delete char.principiosAtivos.ryu;
+                if (char.principiosRodadas) delete char.principiosRodadas.ryu;
+                delete char.ryuTabela;
+                delete char.ryuTurno;
+                saveCharacter(char);
+                render(true);
+                if (window._showXpToast) window._showXpToast('⏳ RYU terminou — ' + max + ' turnos completos.');
+                return;
+            }
+            char.ryuTurno = t;
+            saveCharacter(char);
+            render(true);
+            const r = window.calcRyuAtivo ? window.calcRyuAtivo(char) : null;
+            if (r && window._showXpToast) {
+                window._showXpToast('🌊 RYU turno ' + r.turno + '/' + max + ' (' + r.turnoRotulo + ') — +'
+                    + r.ca + ' CA, +' + r.ataqueDano + ' Ataque e Dano'
+                    + (r.temReacoes ? ', +' + r.reacoes + ' Reações' : ''));
+            }
+        };
+
 
         // ── Princípios de Nen ATIVOS ────────────────────────────────────────────────
         // Até aqui o botão do princípio só descontava aura e mostrava um texto: nenhum
@@ -1387,6 +1485,11 @@ function closeHatsuCreator() {
             if (!char.principiosAtivos) char.principiosAtivos = {};
             delete char.principiosAtivos[key];
             if (char.principiosRodadas) delete char.principiosRodadas[key];
+            // Zera os pacotes: a próxima ativação começa do custo base outra vez.
+            if (char.principiosPacotes) delete char.principiosPacotes[key];
+            if (key === 'shu') { delete char.shuEscolhas; delete char.shuCaRolado; }
+            // A próxima ativação escolhe a tabela de novo e recomeça no turno 1.
+            if (key === 'ryu') { delete char.ryuTabela; delete char.ryuTurno; }
             if (key === 'gyo') delete char.gyoAlvo;
             saveCharacter(char);
             render(true);
@@ -1395,7 +1498,12 @@ function closeHatsuCreator() {
         window._desativarTodosPrincipios = function () {
             const char = state.currentChar;
             char.principiosAtivos = {};
+            char.principiosPacotes = {};
             delete char.gyoAlvo;
+            delete char.shuEscolhas;
+            delete char.shuCaRolado;
+            delete char.ryuTabela;
+            delete char.ryuTurno;
             saveCharacter(char);
             render(true);
         };
@@ -1514,23 +1622,55 @@ function closeHatsuCreator() {
             else { saveCharacter(char); render(true); }
         };
 
-        window._activatePrincipio = function(key, custo) {
+        window._activatePrincipio = function(key, custo, pacotes) {
             const char = state.currentChar;
             const d = char.nenDominio || {};
             const aura = char.vitals.aura || 0;
-            if (custo > 0 && aura < custo) {
-                alert('Aura insuficiente! Necessário: ' + custo + '% — disponível: ' + aura + '%');
+            // ── Pacotes de custo (TEN, EN, KEN) ─────────────────────────────────────
+            // 1 pacote = exatamente o comportamento de antes. Acima disso, aura e
+            // Reações são multiplicadas e o multiplicador fica guardado para os
+            // cálculos (calcTenRDAtivo, multiplicadorKen, diametroEnAtivo).
+            const _pac = Math.max(1, parseInt(pacotes) || 1);
+            const _cp = window.custoPacotePrincipio ? window.custoPacotePrincipio(char, key) : null;
+            // SHU não usa pacotes: o custo sai do menu de alternativas, que o balão já
+            // gravou em char.shuEscolhas antes de chamar esta função.
+            const _ehShu = (key === 'shu');
+            // O +1d4 da CA do SHU é rolado UMA vez, aqui, e vale pela duração toda.
+            // Guardado na ficha porque a CA é um número só: recalcular a cada render
+            // faria ela oscilar entre +1 e +4 sem ninguém ter rolado nada.
+            if (_ehShu) char.shuCaRolado = Math.floor(Math.random() * 4) + 1;
+            const custoAura = _ehShu
+                ? (window.custoShu ? window.custoShu(char) : (custo > 0 ? custo : 0))
+                : (custo > 0 ? custo : 0) * _pac;
+            // Reações: o livro cobra 1 no TEN, 2 no EN e 4 no KEN, e o app nunca
+            // descontava nenhuma. Agora desconta — por pacote.
+            const _reaMax = window.calcReacoesMax ? window.calcReacoesMax(char) : 7;
+            const _reaAtual = (char.vitals.rea !== undefined) ? char.vitals.rea : _reaMax;
+            const custoRea = (_cp && _cp.reacoes > 0) ? _cp.reacoes * _pac : 0;
+            if (custoAura > 0 && aura < custoAura) {
+                alert('Aura insuficiente! Necessário: ' + custoAura + '% — disponível: ' + aura + '%');
+                return;
+            }
+            if (custoRea > 0 && _reaAtual < custoRea) {
+                alert('Reações insuficientes! Necessário: ' + custoRea + ' — disponível: ' + _reaAtual);
                 return;
             }
 
             // Deduct aura
-            if (custo > 0) {
-                char.vitals.aura = Math.max(0, aura - custo);
+            if (custoAura > 0) {
+                char.vitals.aura = Math.max(0, aura - custoAura);
+            }
+            if (custoRea > 0) {
+                char.vitals.rea = Math.max(0, _reaAtual - custoRea);
+            }
+            if (window.principioEscalavel && window.principioEscalavel(key)) {
+                if (!char.principiosPacotes) char.principiosPacotes = {};
+                char.principiosPacotes[key] = _pac;
             }
 
             // Effect messages per principle — já refletem o Aprimoramento (P.N extra investido)
             const nivel = d[key] || 1;
-            const tenRD = window.calcTenRD ? window.calcTenRD(char) : 0;
+            const tenRD = (window.calcTenRD ? window.calcTenRD(char) : 0) * (key === 'ten' ? _pac : 1);
             const rBon = window.calcRenBonus ? window.calcRenBonus(char) : { grau:1, teste:0, teste1x:0 };
             const zBon = window.calcZetsuBonus ? window.calcZetsuBonus(char) : { auraPct:0, furtividade:0, rodadas:3 };
             const advB = window.calcAvancadoBonus ? window.calcAvancadoBonus(char, key) : {};
@@ -1544,13 +1684,34 @@ function closeHatsuCreator() {
     zetsu: ['👁️ ZETSU ativado — aguarde 3 rodadas: +' + zBon.auraPct + '% Aura, +1 Reação, +' + zBon.furtividade + ' Furtividade.',
             '👁️ ZETSU ativado — aguarde 2 rodadas: +' + zBon.auraPct + '% Aura, +1 Reação, +' + zBon.furtividade + ' Furtividade.',
             '👁️ ZETSU ativado — aguarde 1 rodada: +' + zBon.auraPct + '% Aura, +2 Reações, +' + zBon.furtividade + ' Furtividade.'],
-    en:    ['🔵 EN ativado — detecta forma e movimento em ' + (advB.diametro||3) + 'm por 1 rodada. Ataque de reação vs quem entrar, sem gastar Ação Principal.'],
+    en:    ['🔵 EN ativado — detecta forma e movimento em ' + ((advB.diametro||3) + (key === 'en' ? (_pac - 1) * 3 : 0)) + 'm por 1 rodada. Ataque de reação vs quem entrar, sem gastar Ação Principal.'],
     inp:   ['🌑 IN ativado — objeto de aura oculto por ' + (advB.rodadas||1) + ' rodada(s).'],
     gyo:   ['👁️ GYO ativado — visão de aura e objetos ocultos (ou +' + (advB.attrBonus||3) + ' FOR/DES/CON por 1 rodada se corporal).'],
-    shu:   ['⚡ SHU ativado — objeto envolto: +1d4 Dano e CA por ' + (advB.rodadas||1) + ' rodada(s). Golpe mirado sem ônus.'],
-    ken:   ['🏯 KEN ativado — CA dobrada por 2 rodadas. Consome ' + (advB.reacoes||4) + ' Reações.'],
+    shu:   [(function () {
+                const s = window.calcShuAtivo ? window.calcShuAtivo(char) : null;
+                if (!s) return '⚡ SHU ativado — objeto envolto: +1d4 Dano e CA por ' + (advB.rodadas||1) + ' rodada(s). Golpe mirado sem ônus.';
+                return '⚡ SHU ativado' + (s.item ? ' em ' + s.item : '') + ' — +' + s.dadoDano + ' no Dano e +'
+                    + s.caBonus + ' na CA (1d4 rolou ' + s.caRolado
+                    + (s.caPasso > 0 ? ' +' + s.caPasso : '') + ') por ' + s.rodadas + ' rodada(s)'
+                    + (s.cerco ? ', com Arma de Cerco' : '')
+                    + (s.metros > 1 ? ', até ' + s.metros + 'm' : '')
+                    + '. Golpe mirado sem ônus.';
+            })()],
+    ken:   ['🏯 KEN ativado — CA ×' + (key === 'ken' ? (1 + _pac) : 2) + ' por 2 rodadas. Consome ' + ((advB.reacoes||4) * (key === 'ken' ? _pac : 1)) + ' Reações.'],
     ko:    ['🔥 KO ativado — próximo golpe: dano ×3. ATENÇÃO: CA reduzida em 80% até próximo turno' + (advB.caBonus>0?(' (+' + advB.caBonus + ' restante)'):'') + '!'],
-    ryu:   ['🌊 RYU ativado — Exemplos 1-3' + (advB.sup?'-6':'') + ' de RYU disponíveis' + (advB.tabelaBonus>0?(' (+' + advB.tabelaBonus + ' em todos os valores)'):'') + '. Múltiplos contra-ataques permitidos.'],
+    ryu:   [(function () {
+                // A mensagem é montada antes de principiosAtivos.ryu existir, então
+                // calcRyuAtivo ainda devolveria null aqui: lemos a linha 1 direto da
+                // tabela que o balão acabou de gravar em char.ryuTabela.
+                const _t = (window.NEN_RYU_TABLES || [])[parseInt(char.ryuTabela) || 0];
+                const _l = _t && _t.linhas && _t.linhas[0];
+                const _e = advB.tabelaBonus || 0;
+                if (!_l) return '🌊 RYU ativado.';
+                return '🌊 RYU ativado — ' + _t.nome + ', turno 1 de ' + (window.RYU_TURNOS_MAX || 6)
+                    + ': +' + (_l.ca + _e) + ' na CA e +' + (_l.ataqueDano + _e) + ' no Ataque e no Dano'
+                    + (_l.reacoes != null ? ', +' + (_l.reacoes + _e) + ' Reações' : '')
+                    + '. Use "Passar turno" para andar na tabela.';
+            })()],
 };
             const msgs = EFEITOS[key];
             const msg = msgs ? (msgs[nivel-1] || msgs[msgs.length-1]) : 'Princípio ativado.';
@@ -1577,6 +1738,9 @@ function closeHatsuCreator() {
                 if (!char.principiosRodadas) char.principiosRodadas = {};
                 let rod = (window.PRINCIPIO_RODADAS || {})[key];
                 if (key === 'shu' || key === 'inp') rod = (advB && advB.rodadas) || 1;
+                // SHU: "+1 rodada de duração" por 5% comprados no menu, em cima do que o
+                // aprimoramento já dá. calcShuAtivo soma os dois.
+                if (key === 'shu' && window.calcShuAtivo) rod = window.calcShuAtivo(char).rodadas;
                 char.principiosRodadas[key] = (rod == null) ? null : rod;
             }
 
@@ -1587,7 +1751,14 @@ function closeHatsuCreator() {
             const toast = document.createElement('div');
             toast.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#0d1117;border:2px solid #a78bfa;border-radius:14px;padding:14px 20px;z-index:9999;font-family:Rajdhani,sans-serif;max-width:320px;text-align:center;box-shadow:0 0 30px #a78bfa44;animation:fadeIn .2s';
             toast.innerHTML = '<div style="font-size:12px;color:#e5e7eb;font-weight:700;line-height:1.5">' + msg + '</div>'
-                + (custo > 0 ? '<div style="font-size:9px;color:#6b7280;margin-top:4px">−' + custo + '% Aura</div>' : '');
+                + (custoAura > 0 || custoRea > 0
+                    ? '<div style="font-size:9px;color:#6b7280;margin-top:4px">'
+                      + (custoAura > 0 ? '−' + custoAura + '% Aura' : '')
+                      + (custoAura > 0 && custoRea > 0 ? ' · ' : '')
+                      + (custoRea > 0 ? '−' + custoRea + ' Reaç' + (custoRea > 1 ? 'ões' : 'ão') : '')
+                      + (_pac > 1 ? ' (' + _pac + ' pacotes)' : '')
+                      + '</div>'
+                    : '');
             document.body.appendChild(toast);
             setTimeout(() => { toast.style.opacity='0'; toast.style.transition='opacity .4s'; setTimeout(()=>toast.remove(),400); }, 3000);
         };
