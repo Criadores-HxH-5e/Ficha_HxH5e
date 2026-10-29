@@ -2612,6 +2612,27 @@
         // IMPORTANTE: a marca "com REN" do Plano Avançado é só o modo de aplicar.
         // Ela NÃO liga o princípio REN — se ligasse, começaria a contagem de rodadas
         // do REN, que não tem nada a ver com este efeito.
+        // ── re_e9 Drenar Aura ───────────────────────────────────────────────────
+        // Contato direto: o alvo perde 5% e o usuário recebe os mesmos 5%. O app só
+        // tem a ficha de quem está com ela aberta, então credita aqui e a tela diz
+        // quanto o mestre tira do alvo.
+        window._drenarAura = function (idx) {
+            const char = state.currentChar;
+            const h = (char.hatsus || [])[idx]; if (!h) return;
+            if (!window.temDrenarAura || !window.temDrenarAura(h)) return;
+            if (!(char.hatsusAtivos || {})[idx]) { alert('O Hatsu precisa estar ativo para drenar.'); return; }
+            const pct = window.DRENAR_AURA_PCT || 5;
+            const max = char.vitals.auraMax || 100;
+            const antes = char.vitals.aura || 0;
+            char.vitals.aura = Math.min(max, antes + pct);
+            const ganho = char.vitals.aura - antes;
+            saveCharacter(char);
+            if (window._showXpToast) window._showXpToast(ganho
+                ? ('🩸 Drenou ' + pct + '% do alvo · +' + ganho + '% para você')
+                : ('🩸 Drenou ' + pct + '% do alvo · sua aura já está cheia'));
+            render(true);
+        };
+
         // ── Transmutação: aura por metro percorrido (rt_e7 e rt_e13) ───────────
         window._avancarTrechoAura = function (idx, id) {
             const char = state.currentChar;

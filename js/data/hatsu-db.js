@@ -815,6 +815,37 @@ window.AURA_CONDENSADA_PASSO = 5;    // % de aura por clique
 // de Emissão: um contador vivo por Hatsu, que debita ao avançar e devolve ao recuar.
 // O teto do rt_e7 é do próprio texto (9m = 3 trechos); o rt_e13 não tem teto escrito,
 // então quem limita é a aura.
+// ── re_e7 Corrupção de Aura ────────────────────────────────────────────────
+// "Seus danos com aura pura causam dano de sanidade com o limite de 1/2 do seu nível
+// (mínimo 1) +1 de dano máximo por rodada." Ou seja: o teto do dano de sanidade começa
+// em metade do nível e sobe 1 a cada rodada que o Hatsu segue de pé.
+window.CORRUPCAO_AURA_ID = 're_e7';
+window.calcCorrupcaoAura = function (char, rodadas) {
+    if (!char) return null;
+    const nivel = Math.max(1, parseInt(char.level) || 1);
+    const r = Math.max(0, parseInt(rodadas) || 0);
+    const base = Math.max(1, Math.floor(nivel / 2));
+    return { base: base, porRodada: r, teto: base + r };
+};
+window.temCorrupcaoAura = function (h) {
+    if (!h) return false;
+    const ids = Array.isArray(h.efeitos) ? h.efeitos : [].concat(h.eg || [], h.ec || []);
+    return ids.indexOf(window.CORRUPCAO_AURA_ID) >= 0;
+};
+
+// ── re_e9 Drenar Aura ──────────────────────────────────────────────────────
+// "O Hatsu pode (ao contato direto com um alvo) drenar 5% de sua aura." Drenar é
+// transferência: o alvo perde e o usuário recebe. O app só sabe mexer na ficha de
+// quem está com ela aberta, então credita o usuário e diz, na tela, quanto o mestre
+// deve tirar do alvo.
+window.DRENAR_AURA_ID = 're_e9';
+window.DRENAR_AURA_PCT = 5;
+window.temDrenarAura = function (h) {
+    if (!h) return false;
+    const ids = Array.isArray(h.efeitos) ? h.efeitos : [].concat(h.eg || [], h.ec || []);
+    return ids.indexOf(window.DRENAR_AURA_ID) >= 0;
+};
+
 window.AURA_POR_METRO_CUSTO = 5;
 window.AURA_POR_METRO_TRECHO = 3;
 window.AURA_POR_METRO = [

@@ -2167,6 +2167,40 @@ function renderHatsuCreator(container) {
                     + (!_chosen5 ? '<div style="font-size:8px;color:#f87171;margin-top:2px">Escolha uma alteracao para usar</div>' : '')
                     + '</div>';
             }
+            // ── re_e3: Mente Aberta — picker da tabela de Memórias ─────────────────
+            // O efeito manda "escolha um dos efeitos da tabela de Memórias" e o app só
+            // listava os quatro nomes dentro da descrição: não havia escolha nenhuma a
+            // registrar. Agora segue o mesmo molde do Oráculo e do Controle do Tempo.
+            if (item.id === 're_e3' && sel) {
+                var _re3c = (hb.specialChoices || {})['re_e3'] || '';
+                var _re3opts = [
+                    { id:'mem_super',  nome:'Acesso Liberado',  lvl:0,  icon:'💭', desc:'Lê as memórias superficiais (últimos 30 min) de um alvo, ou informações específicas em perguntas diretas.', extra:'Restrição de Toque ou Contato Visual' },
+                    { id:'mem_profundo',nome:'Acesso Profundo', lvl:4,  icon:'🧠', desc:'Lê memórias mais profundas (até 24 horas) e as emoções por trás delas.', extra:'—' },
+                    { id:'mem_tribo',  nome:'Tribo de 3 Olhos', lvl:8,  icon:'👁️', desc:'Lê memórias sem contato físico, focando a aura a até 3m com concentração. Pode implantar uma sugestão ou sentimento simples — não um comando complexo.', extra:'—' },
+                    { id:'mem_roteiro',nome:'Grande Roteirista',lvl:12, icon:'📖', desc:'Acesso quase irrestrito às memórias, sem restrição física ou mental ativa. Projeta a consciência numa memória por até 30s e pode criar uma memória falsa simples ou alterar um detalhe menor — um evento por alvo.', extra:'—' },
+                ];
+                var _re3rows = '';
+                for (var _r3i = 0; _r3i < _re3opts.length; _r3i++) {
+                    var _r3 = _re3opts[_r3i];
+                    var _r3ok = charLevel >= _r3.lvl;
+                    var _r3act = _re3c === _r3.id;
+                    _re3rows += '<div onclick="event.stopPropagation();' + (_r3ok ? 'window._hSetSpecialChoice(\'re_e3\',\'' + _r3.id + '\')' : '') + '"'
+                        + ' style="border:1.5px solid ' + (_r3act ? color : (_r3ok ? '#1f2937' : '#111827')) + ';border-radius:8px;padding:7px;margin-bottom:5px;background:' + (_r3act ? color + '22' : 'transparent') + ';cursor:' + (_r3ok ? 'pointer' : 'not-allowed') + '">'
+                        + '<div style="display:flex;align-items:center;gap:6px">'
+                        + '<span style="font-size:12px">' + _r3.icon + '</span>'
+                        + '<span style="font-size:8px;font-weight:900;color:' + (_r3act ? color : (_r3ok ? '#d1d5db' : '#374151')) + '">' + (_r3act ? '✓ ' : '') + _r3.nome + '</span>'
+                        + (_r3.lvl > 0 ? '<span style="margin-left:auto;font-size:7px;font-weight:700;color:' + (_r3ok ? color : '#4b5563') + '">Nv ' + _r3.lvl + '</span>' : '')
+                        + '</div>'
+                        + (_r3act ? '<div style="font-size:7.5px;color:#9ca3af;margin-top:5px;line-height:1.4">' + _r3.desc + '</div>'
+                                  + (_r3.extra !== '—' ? '<div style="font-size:7px;color:#6b7280;font-style:italic;margin-top:3px">Req. extra: ' + _r3.extra + '</div>' : '') : '')
+                        + '</div>';
+                }
+                specialHtml += '<div style="margin-top:8px;background:#0a0f1a;border:1px solid ' + color + '33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
+                    + '<div style="font-size:8px;font-weight:900;color:' + color + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">💭 Memórias</div>'
+                    + _re3rows
+                    + (!_re3c ? '<div style="font-size:8px;color:#f87171;margin-top:2px">Escolha um efeito da tabela de Memórias</div>' : '')
+                    + '</div>';
+            }
             // ── re_e17: Oráculo — picker de Previsões e Clarividência ──────────────
             if (item.id === 're_e17' && sel) {
                 var _re17c = (hb.specialChoices || {})['re_e17'] || '';
@@ -2216,6 +2250,16 @@ function renderHatsuCreator(container) {
                     { id:'tv_envelhece', nome:'Envelhecimento / Rejuvenescimento', lvl:0, icon:'⌚', desc:'Role 1d10. O resultado x2 e a quantidade em anos que um alvo altera seu tempo de vida pela duracao.', extra:'Req: Controle de Tempo + TR' },
                     { id:'tv_deterio',   nome:'Deteriorar',                        lvl:0, icon:'💀', desc:'Ao falhar em um TR, o alvo tem envelhecida determinada caracteristica fisica, cognitiva ou sensorial.', extra:'Req: Envelhecimento + TR' },
                 ];
+                // ── Tempo de Vida CURTO ────────────────────────────────────────
+                // O re_e16 diz "escolha um efeito da tabela de Fluxo Temporal OU Tempo
+                // de Vida", e o seletor só trazia o Tempo de Vida LONGO. A tabela de
+                // Tempo de Vida Curto (acelerar o tempo do alvo) não existia em lugar
+                // nenhum do app — nem como texto.
+                _re16vida = _re16vida.concat([
+                    { id:'tvc_distracao', nome:'Pequena distração', lvl:0, icon:'⏱', desc:'Role 1d10: o resultado é quantas RODADAS (x6s) se passam para o alvo, instantaneamente ou ao fim da duração. Escolher de novo garante +1 no resultado mínimo.', extra:'Controle de Tempo + TR' },
+                    { id:'tvc_espera',    nome:'Sala de espera',    lvl:4, icon:'🕐', desc:'Role 1d10: o resultado é quantos MINUTOS (x10 rodadas) se passam para o alvo. Escolher de novo garante +1 no resultado mínimo.', extra:'Controle de Tempo + TR' },
+                    { id:'tvc_reparticao',nome:'Repartição Pública',lvl:10,icon:'🕛', desc:'Role 1d10: o resultado é quantas HORAS (x60min) se passam para o alvo. Escolher de novo garante +1 no resultado mínimo.', extra:'Controle de Tempo + TR' },
+                ]);
                 var _re16rows = '';
                 for (var _rfi = 0; _rfi < _re16flux.length; _rfi++) {
                     var _rf = _re16flux[_rfi];

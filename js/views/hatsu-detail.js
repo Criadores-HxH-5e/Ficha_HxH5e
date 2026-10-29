@@ -2431,6 +2431,43 @@ function renderHatsuDetail(container) {
     }
     // ── Fim toggle de Ataque ───────────────────────────────────────────────────
 
+    // ── Especialização: Corrupção de Aura e Drenar Aura ───────────────────────
+    let especializacaoHtml = '';
+    (function () {
+        const _temCorr = window.temCorrupcaoAura ? window.temCorrupcaoAura(h) : false;
+        const _temDren = window.temDrenarAura ? window.temDrenarAura(h) : false;
+        if (!_temCorr && !_temDren) return;
+        const _at = (char.hatsusAtivos || {})[idx];
+        const _ativo = !!_at;
+        // Rodadas JÁ passadas: hatsusAtivos guarda `rodadas` contando para BAIXO a
+        // partir de `max`, então o que passou é a diferença. Hatsu constante não tem
+        // contagem (max é null) e fica no teto base.
+        const _rod = (_at && _at.max != null) ? Math.max(0, _at.max - (parseInt(_at.rodadas) || 0)) : 0;
+        let _corpo = '';
+        if (_temCorr) {
+            const c = window.calcCorrupcaoAura(char, _rod);
+            _corpo += `<div style="background:#0a0f1a;border:1px solid #1f2937;border-radius:9px;padding:8px;margin-bottom:6px">
+                <div style="font-size:9px;font-weight:700;color:#d1d5db">🕳 Corrupção de Aura</div>
+                <div style="font-size:8px;color:#6b7280;margin:1px 0 5px">Seus danos com aura pura também tiram Sanidade. O teto é metade do seu nível e sobe 1 a cada rodada que o Hatsu fica de pé.</div>
+                <div style="display:flex;align-items:baseline;gap:6px">
+                    <span style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:18px;color:#a78bfa">${c.teto}</span>
+                    <span style="font-size:8px;color:#6b7280">de Sanidade no máximo por rodada — ${c.base} de base (nível ${char.level})${c.porRodada ? ' + ' + c.porRodada + ' por ' + c.porRodada + ' rodada(s) já passada(s)' : ''}</span>
+                </div>
+                ${_ativo ? '' : '<div style="font-size:8px;color:#4b5563;margin-top:3px">Ative o Hatsu para a contagem de rodadas começar.</div>'}</div>`;
+        }
+        if (_temDren) {
+            _corpo += `<div style="background:#0a0f1a;border:1px solid #1f2937;border-radius:9px;padding:8px;margin-bottom:6px">
+                <div style="font-size:9px;font-weight:700;color:#d1d5db">🩸 Drenar Aura</div>
+                <div style="font-size:8px;color:#6b7280;margin:1px 0 5px">Ao contato direto: o alvo perde ${window.DRENAR_AURA_PCT || 5}% de aura e você recebe os mesmos ${window.DRENAR_AURA_PCT || 5}%. O mestre tira do alvo.</div>
+                <button onclick="event.stopPropagation();window._drenarAura(${idx})" ${_ativo ? '' : 'disabled'} style="width:100%;padding:7px;border-radius:7px;border:1px solid ${_ativo ? '#f8717166' : '#1f2937'};background:${_ativo ? '#f8717122' : 'transparent'};color:${_ativo ? '#f87171' : '#374151'};font-size:9px;font-weight:900;cursor:${_ativo ? 'pointer' : 'not-allowed'}">Drenar ${window.DRENAR_AURA_PCT || 5}% do alvo (+${window.DRENAR_AURA_PCT || 5}% para você)</button></div>`;
+        }
+        especializacaoHtml = `<div style="background:#0d1117;border:1px solid ${tc}33;border-radius:12px;padding:14px;margin-bottom:20px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+                <span style="font-size:14px">✨</span>
+                <span style="font-size:10px;font-weight:900;color:#e5e7eb;text-transform:uppercase;letter-spacing:2px">Especialização</span>
+            </div>${_corpo}</div>`;
+    })();
+
     // ── Transmutação: aura por metro, Custo Duplo e o que o ALVO sofre ────────
     let transmutacaoHtml = '';
     (function () {
@@ -3958,7 +3995,7 @@ function renderHatsuDetail(container) {
                 ${calcRangeDurHtml}
             </div>
 
-            ${transmutacaoHtml}${manipulacaoHtml}${constructoCardHtml}
+            ${especializacaoHtml}${transmutacaoHtml}${manipulacaoHtml}${constructoCardHtml}
             ${copiaPerfeitaHtml}
 
             ${primeiroHatsuSection}
