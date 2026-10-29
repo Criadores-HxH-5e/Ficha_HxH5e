@@ -99,6 +99,20 @@
   .msg-h time { font-size: 11px; font-weight: 600; color: var(--text-3); }
   .msg-h .gm { font: 800 9px/1 var(--f-body); letter-spacing: .08em; text-transform: uppercase; padding: 3px 6px; border-radius: 6px; background: var(--orange-1); color: var(--orange-7); border: 1px solid var(--orange-2); }
   .msg-t { white-space: pre-wrap; word-break: break-word; font-size: 15px; line-height: 1.35; color: var(--text); }
+  /* Menção: @nome vira um selo. O de quem foi mencionado puxa a cor de destaque,
+     e a mensagem inteira ganha uma barra à esquerda para ser achada na rolagem. */
+  .mencao { font-weight: 700; color: var(--blue-6); background: var(--blue-1); border-radius: 6px; padding: 0 4px; }
+  .mencao.eu { color: var(--orange-7); background: var(--orange-1); }
+  .msg.me-marcou { background: var(--orange-1); box-shadow: inset 3px 0 0 var(--orange-7); }
+  /* Lista de nomes que abre ao digitar "@". Sem ela o jogador teria que acertar
+     o nome de cor, acento e tudo. */
+  .mencao-lista { position: absolute; left: 12px; right: 12px; bottom: 100%; margin-bottom: 6px; z-index: 20;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--sh-3); overflow: hidden; }
+  .mencao-lista[hidden] { display: none; }
+  .mencao-lista button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: 0; background: transparent;
+    color: var(--text); font: 600 14px/1.2 var(--f-body); text-align: left; cursor: pointer; }
+  .mencao-lista button:hover, .mencao-lista button.on { background: var(--blue-1); color: var(--blue-6); }
+  .chat-form { position: relative; }
   .chat-list .roll { margin: 4px 0; }
   .chat-form { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--border); background: var(--surface); flex: none; }
   .chat-form .input { height: 42px; }
@@ -630,6 +644,92 @@
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const CELL = 64;
   const root = $('#root');
+  /* ---------- Avisos sonoros ----------
+     Sintetizados na hora com WebAudio: nenhum arquivo, nenhuma requisição e nada
+     para subir junto — combina com o resto da mesa, que é um arquivo só.
+     Também não usa a API de Notificação do navegador: nada de pedir permissão,
+     como foi pedido. O aviso é o som mais o toast que a mesa já mostra. */
+  const Avisos = {
+    ctx: null,
+    get ligado() { return localStorage.getItem('nv_mesa_som') !== '0'; },
+    set ligado(v) { localStorage.setItem('nv_mesa_som', v ? '1' : '0'); },
+    // O contexto só nasce depois do primeiro clique: navegador nenhum deixa tocar
+    // som antes de o usuário interagir com a página.
+    ac() {
+      if (!this.ligado) return null;
+      const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null;
+      if (!this.ctx) this.ctx = new AC();
+      if (this.ctx.state === 'suspended') this.ctx.resume();
+      return this.ctx;
+    },
+    // Um bipe curto. tipo 'triangle' soa mais macio que 'sine' em caixinha de celular.
+    nota(f, t0, dur, vol, tipo) {
+      const c = this.ac(); if (!c) return;
+      const o = c.createOscillator(), g = c.createGain();
+      o.type = tipo || 'triangle'; o.frequency.setValueAtTime(f, c.currentTime + t0);
+      g.gain.setValueAtTime(0.0001, c.currentTime + t0);
+      g.gain.exponentialRampToValueAtTime(vol, c.currentTime + t0 + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + t0 + dur);
+      o.connect(g).connect(c.destination); o.start(c.currentTime + t0); o.stop(c.currentTime + t0 + dur + 0.02);
+    },
+    // Dado: estalos secos e agudos em sequência, como o d20 batendo na mesa.
+    dado() {
+      const c = this.ac(); if (!c) return;
+      [0, 0.055, 0.1, 0.14, 0.21].forEach((t0, i) => {
+        const o = c.createOscillator(), g = c.createGain(), f = 1400 - i * 150 + Math.random() * 260;
+        o.type = 'square'; o.frequency.setValueAtTime(f, c.currentTime + t0);
+        g.gain.setValueAtTime(0.06 - i * 0.008, c.currentTime + t0);
+        g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + t0 + 0.05);
+        o.connect(g).connect(c.destination); o.start(c.currentTime + t0); o.stop(c.currentTime + t0 + 0.06);
+      });
+    },
+    // Mensagem: duas notas subindo, discreto.
+    msg() { this.nota(660, 0, 0.1, 0.05); this.nota(880, 0.08, 0.14, 0.05); },
+    // Menção: três notas, mais alto — é para ser notado.
+    mencao() { this.nota(784, 0, 0.1, 0.09); this.nota(988, 0.09, 0.1, 0.09); this.nota(1319, 0.18, 0.2, 0.09); },
+  };
+  function montarBotaoSom() {
+    const b = $('#somAviso'); if (!b) return;
+    const pinta = () => { b.innerHTML = `<i class="ph-bold ph-speaker-${Avisos.ligado ? 'high' : 'slash'}"></i>`;
+      b.title = Avisos.ligado ? 'Sons de aviso ligados' : 'Sons de aviso desligados'; };
+    pinta();
+    b.onclick = () => { Avisos.ligado = !Avisos.ligado; pinta(); if (Avisos.ligado) Avisos.msg(); };
+  }
+
+  /* ---------- Menções ----------
+     Sem acento e sem maiúscula dos dois lados: "@joao" acha "João". */
+  const semAcento = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  // Quem está na mesa, com o primeiro nome e o nome inteiro — os dois servem de alvo.
+  function alvosMencao() {
+    const ids = [S.mesa.owner, ...S.membros.map(x => x.user_id)];
+    const vistos = {}, out = [];
+    ids.forEach(u => {
+      if (!u || vistos[u]) return; vistos[u] = 1;
+      const p = S.perfis[u] || {}; const nome = (p.nome || '').trim(); if (!nome) return;
+      out.push({ id: u, nome, primeiro: nome.split(/\s+/)[0] });
+    });
+    return out;
+  }
+  // A mensagem me marcou? Compara com o meu primeiro nome e com o inteiro.
+  function mencionaUsuario(texto, userId) {
+    const p = S.perfis[userId] || {}; const nome = (p.nome || '').trim(); if (!nome) return false;
+    const alvos = [semAcento(nome), semAcento(nome.split(/\s+/)[0])];
+    const achados = String(texto || '').match(/@([\p{L}\p{N}_]+)/gu) || [];
+    return achados.some(a => alvos.indexOf(semAcento(a.slice(1))) >= 0);
+  }
+  // Pinta os @nome. O meu fica em laranja; os outros, em azul.
+  function pintarMencoes(textoEscapado) {
+    const meu = S.perfis[NV.user.id] || {};
+    const meus = [semAcento(meu.nome), semAcento(String(meu.nome || '').split(/\s+/)[0])];
+    const nomes = alvosMencao();
+    return textoEscapado.replace(/@([\p{L}\p{N}_]+)/gu, (todo, n) => {
+      const sa = semAcento(n);
+      const existe = nomes.some(a => semAcento(a.nome) === sa || semAcento(a.primeiro) === sa);
+      if (!existe) return todo;
+      return `<span class="mencao${meus.indexOf(sa) >= 0 ? ' eu' : ''}">@${n}</span>`;
+    });
+  }
+
   function toast(msg, e = 'spiral') {
     const t = document.createElement('div'); t.className = 'toast'; t.innerHTML = `${/^[a-z-]+$/.test(e) ? `<i class="ph-fill ph-${e}" style="font-size:18px"></i>` : `<span>${e}</span>`}${msg}`;
     $('#toasts').appendChild(t); setTimeout(() => t.remove(), 2800);
@@ -752,6 +852,7 @@
         <div class="right">
           <div class="faces" id="faces"></div>
           <span class="code hide-sm" id="codeBtn" title="Copiar link do convite">CONVITE · ${S.mesa.codigo}</span>
+          <button class="btn btn-sm btn-icon btn-ghost" id="somAviso" title="Sons de aviso"></button>
           <button class="btn btn-sm btn-icon btn-ghost" id="sideWide"></button>
           <button class="btn btn-sm side-toggle" id="sideBtn">Painel</button>
         </div>
@@ -796,6 +897,7 @@
   function montarLargura() {
     aplicarLargura(sideW);
     $('#sideWide').onclick = () => aplicarLargura(sideW > SIDE_PADRAO + 40 ? SIDE_PADRAO : sideLarga(), true);
+    montarBotaoSom();
     const g = $('#sideGrip');
     g.ondblclick = () => aplicarLargura(SIDE_PADRAO, true);
     g.onpointerdown = e => {
@@ -2437,6 +2539,9 @@
   let diceTimer = null, ultimaRolagem = null, filaTimer = null;
   const filaDados = [], DADO_MIN = 2800;
   function mostrarRolagem(r) {
+    // Som só para rolagem dos outros: a sua você acabou de mandar rolar, e ouvir
+    // o próprio dado a cada clique cansa.
+    if (r && r.user_id !== NV.user.id) Avisos.dado();
     filaDados.push(r); if (filaDados.length > 6) filaDados.shift();
     if (!filaTimer) proximoDado();
   }
@@ -2539,9 +2644,10 @@
     }
     P().innerHTML = `<div class="chat-head"><h4>Chat da mesa</h4>${S.gm && S.chat.length ? '<button class="btn btn-sm btn-ghost" id="chatClr" style="color:var(--red-6)">Limpar</button>' : ''}</div>
       <div class="chat-list" id="chatList"></div>
-      <form class="chat-form" id="chatForm" autocomplete="off"><input class="input" id="chatIn" maxlength="500" placeholder="Mensagem… (/r 1d20+3 rola dado)" aria-label="Mensagem"><button class="btn btn-primary" aria-label="Enviar"><i class="ph-bold ph-paper-plane-right"></i></button></form>`;
+      <form class="chat-form" id="chatForm" autocomplete="off"><div class="mencao-lista" id="mencaoLista" hidden></div><input class="input" id="chatIn" maxlength="500" placeholder="Mensagem… (@nome marca alguém · /r 1d20+3 rola dado)" aria-label="Mensagem"><button class="btn btn-primary" aria-label="Enviar"><i class="ph-bold ph-paper-plane-right"></i></button></form>`;
     renderChatList(true);
-    $('#chatForm').onsubmit = e => { e.preventDefault(); enviarMsg(); };
+    $('#chatForm').onsubmit = e => { e.preventDefault(); if (!mencaoEnter()) enviarMsg(); };
+    ligarMencao();
     // Só foca no desktop: no celular abriria o teclado sozinho.
     if (matchMedia('(pointer: fine)').matches) $('#chatIn').focus();
     const clr = $('#chatClr'); if (clr) clr.onclick = async () => {
@@ -2553,10 +2659,12 @@
   }
   function msgHTML(m, cont) {
     const quem = S.perfis[m.user_id] || {}, gm = m.user_id === S.mesa.owner, meu = m.user_id === NV.user.id;
-    return `<div class="msg ${meu ? 'mine' : ''} ${cont ? 'cont' : ''}">
+    // Fui marcado nesta mensagem? Só vale se foi outra pessoa que escreveu.
+    const marcou = !meu && mencionaUsuario(m.texto, NV.user.id);
+    return `<div class="msg ${meu ? 'mine' : ''} ${cont ? 'cont' : ''} ${marcou ? 'me-marcou' : ''}">
       ${cont ? '<span></span>' : avatar(quem)}
       <div style="min-width:0">${cont ? '' : `<div class="msg-h"><b title="${esc(quem.nome || '')}">${esc(m.nome || quem.nome || 'Hunter')}</b>${gm ? '<span class="gm">Narrador</span>' : ''}<time>${hora(m.created_at)}</time></div>`}
-      <div class="msg-t">${esc(m.texto)}</div></div></div>`;
+      <div class="msg-t">${pintarMencoes(esc(m.texto))}</div></div></div>`;
   }
   function renderChatList(forcar) {
     const el = $('#chatList'); if (!el) return;
@@ -2578,6 +2686,63 @@
     S.chat.push(n); if (S.chat.length > 300) S.chat = S.chat.slice(-300);
     return true;
   }
+  /* ---------- Autocompletar da menção ----------
+     Abre ao digitar "@" e filtra conforme a pessoa escreve. Existe porque sem ele
+     a menção viraria adivinhação: o jogador teria que acertar o nome de cor, com
+     acento e tudo, e um erro de digitação não marcaria ninguém — em silêncio. */
+  let mencaoSel = 0;
+  function mencaoTermo(inp) {
+    // Só o trecho DEPOIS do último "@" e até o cursor; e só se não houver espaço
+    // no meio, senão "@joao falou com" continuaria com a lista aberta.
+    const antes = inp.value.slice(0, inp.selectionStart);
+    const m = antes.match(/@([\p{L}\p{N}_]*)$/u);
+    return m ? m[1] : null;
+  }
+  function fecharMencao() { const l = $('#mencaoLista'); if (l) { l.hidden = true; l.innerHTML = ''; } mencaoSel = 0; }
+  function abrirMencao() {
+    const inp = $('#chatIn'), l = $('#mencaoLista'); if (!inp || !l) return;
+    const termo = mencaoTermo(inp);
+    if (termo === null) return fecharMencao();
+    const sa = semAcento(termo);
+    const nomes = alvosMencao()
+      .filter(a => a.id !== NV.user.id)                 // marcar a si mesmo não serve
+      .filter(a => !sa || semAcento(a.nome).indexOf(sa) === 0 || semAcento(a.primeiro).indexOf(sa) === 0)
+      .slice(0, 6);
+    if (!nomes.length) return fecharMencao();
+    if (mencaoSel >= nomes.length) mencaoSel = 0;
+    l.innerHTML = nomes.map((a, i) => `<button type="button" class="${i === mencaoSel ? 'on' : ''}" data-nome="${esc(a.primeiro)}">${avatar(S.perfis[a.id])}<span>${esc(a.nome)}</span></button>`).join('');
+    l.hidden = false;
+    Array.from(l.querySelectorAll('button')).forEach(b => { b.onclick = () => inserirMencao(b.dataset.nome); });
+  }
+  function inserirMencao(nome) {
+    const inp = $('#chatIn'); if (!inp) return;
+    const antes = inp.value.slice(0, inp.selectionStart), depois = inp.value.slice(inp.selectionStart);
+    const novo = antes.replace(/@([\p{L}\p{N}_]*)$/u, '@' + nome + ' ');
+    inp.value = novo + depois;
+    inp.selectionStart = inp.selectionEnd = novo.length;
+    fecharMencao(); inp.focus();
+  }
+  // Enter com a lista aberta escolhe o nome em vez de enviar a mensagem.
+  function mencaoEnter() {
+    const l = $('#mencaoLista'); if (!l || l.hidden) return false;
+    const b = l.querySelector('button.on') || l.querySelector('button');
+    if (!b) return false;
+    inserirMencao(b.dataset.nome); return true;
+  }
+  function ligarMencao() {
+    const inp = $('#chatIn'); if (!inp) return;
+    inp.oninput = abrirMencao;
+    inp.onblur = () => setTimeout(fecharMencao, 150);   // deixa o clique no nome acontecer
+    inp.onkeydown = e => {
+      const l = $('#mencaoLista'); if (!l || l.hidden) return;
+      const n = l.querySelectorAll('button').length; if (!n) return;
+      if (e.key === 'ArrowDown') { e.preventDefault(); mencaoSel = (mencaoSel + 1) % n; abrirMencao(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); mencaoSel = (mencaoSel - 1 + n) % n; abrirMencao(); }
+      else if (e.key === 'Escape') { e.preventDefault(); fecharMencao(); }
+      else if (e.key === 'Tab') { e.preventDefault(); mencaoEnter(); }
+    };
+  }
+
   async function enviarMsg() {
     const inp = $('#chatIn'), txt = inp.value.trim();
     if (!txt) return;
@@ -2596,9 +2761,19 @@
     chatCh = sb.channel('mesa-chat-' + id)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'mensagens', filter: `mesa_id=eq.${id}` }, ({ eventType, new: n, old: o }) => {
         if (eventType === 'DELETE') S.chat = S.chat.filter(x => x.id !== o.id);
-        else if (addMsg(n) && n.user_id !== NV.user.id && S.tab !== 'chat') {
-          S.naoLidas++; renderTabs();
-          toast(`<b>${esc(n.nome || 'Hunter')}:</b>&nbsp;${esc(n.texto.length > 60 ? n.texto.slice(0, 60) + '…' : n.texto)}`, 'chat-circle-dots');
+        else if (addMsg(n) && n.user_id !== NV.user.id) {
+          // A menção avisa SEMPRE, inclusive com a aba do chat aberta: é o ponto
+          // dela. A mensagem comum só avisa quando o jogador está noutra aba, que
+          // é como já era.
+          const paraMim = mencionaUsuario(n.texto, NV.user.id);
+          if (S.tab !== 'chat') { S.naoLidas++; renderTabs(); }
+          if (paraMim) {
+            Avisos.mencao();
+            toast(`<b>${esc(n.nome || 'Hunter')}</b> marcou você:&nbsp;${esc(n.texto.length > 60 ? n.texto.slice(0, 60) + '…' : n.texto)}`, 'at');
+          } else if (S.tab !== 'chat') {
+            Avisos.msg();
+            toast(`<b>${esc(n.nome || 'Hunter')}:</b>&nbsp;${esc(n.texto.length > 60 ? n.texto.slice(0, 60) + '…' : n.texto)}`, 'chat-circle-dots');
+          }
         }
         if (S.tab === 'chat') renderChatList();
       })
