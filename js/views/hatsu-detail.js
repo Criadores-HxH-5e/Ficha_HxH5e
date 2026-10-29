@@ -2431,6 +2431,62 @@ function renderHatsuDetail(container) {
     }
     // ── Fim toggle de Ataque ───────────────────────────────────────────────────
 
+    // ── Transmutação: aura por metro, Custo Duplo e o que o ALVO sofre ────────
+    let transmutacaoHtml = '';
+    (function () {
+        const _apm = window.auraPorMetroDoHatsu ? window.auraPorMetroDoHatsu(h) : [];
+        const _ef = h.efeitos || [];
+        const _temP3 = (h.restricoes || []).indexOf('rt_p3') >= 0;
+        // Efeitos cujo número cai no ALVO. O app não tem lado-do-atacante, então
+        // eles são declarados, não somados — a mesma regra das condicionais.
+        const _noAlvo = [
+            _ef.indexOf('rt_e9') >= 0 ? ['Concussão Leve', 'TR de CON no golpe; na falha, o alvo fica com −2 em Percepção e Reações'] : null,
+            _ef.indexOf('rt_e10') >= 0 ? ['Corte Irritante', 'cada corte penaliza a concentração do alvo em −2'] : null,
+            _ef.indexOf('rt_e11') >= 0 ? ['Estaca Furadeira', 'o dano ignora 5 de RD e metade da Cobertura'] : null,
+        ].filter(Boolean);
+        const _rigidez = _ef.indexOf('rt_e14') >= 0 ? ((h.specialChoices || {})['rt_e14'] || '') : '';
+        const _poligrafo = _ef.indexOf('rt_e3') >= 0;
+        if (!_apm.length && !_temP3 && !_noAlvo.length && !_rigidez && !_poligrafo) return;
+        const _ativo = !!((char.hatsusAtivos || {})[idx]);
+        let _corpo = '';
+        _apm.forEach(function (a) {
+            const tr = window.trechosAura(char, idx, a.id);
+            const m = window.metrosAura(char, idx, a.id);
+            const teto = a.maxTrechos ? ' / ' + (a.maxTrechos * (window.AURA_POR_METRO_TRECHO || 3)) + 'm' : '';
+            _corpo += `<div style="background:#0a0f1a;border:1px solid #1f2937;border-radius:9px;padding:8px;margin-bottom:6px">
+                <div style="font-size:9px;font-weight:700;color:#d1d5db">${a.icone} ${a.nome}</div>
+                <div style="font-size:8px;color:#6b7280;margin:1px 0 5px">${a.nota}</div>
+                <div style="display:flex;align-items:center;gap:6px">
+                    <button onclick="event.stopPropagation();window._recuarTrechoAura(${idx},'${a.id}')" ${tr > 0 ? '' : 'disabled'} style="width:28px;height:28px;border-radius:7px;border:1px solid ${tr > 0 ? '#374151' : '#1f2937'};background:transparent;color:${tr > 0 ? '#9ca3af' : '#374151'};font-weight:900;cursor:${tr > 0 ? 'pointer' : 'not-allowed'}">−</button>
+                    <div style="flex:1;text-align:center"><span style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:16px;color:#4ade80">${m}m</span><span style="font-size:8px;color:#4b5563">${teto}</span></div>
+                    <button onclick="event.stopPropagation();window._avancarTrechoAura(${idx},'${a.id}')" ${_ativo ? '' : 'disabled'} style="flex:1;padding:6px;border-radius:7px;border:1px solid ${_ativo ? '#4ade8066' : '#1f2937'};background:${_ativo ? '#4ade8022' : 'transparent'};color:${_ativo ? '#4ade80' : '#374151'};font-size:8px;font-weight:900;cursor:${_ativo ? 'pointer' : 'not-allowed'}">${a.verbo} +${window.AURA_POR_METRO_TRECHO || 3}m (−${window.AURA_POR_METRO_CUSTO || 5}%)</button>
+                </div>
+                ${_ativo ? '' : '<div style="font-size:8px;color:#4b5563;text-align:center;margin-top:3px">Ative o Hatsu para avançar.</div>'}</div>`;
+        });
+        if (_temP3) {
+            const _pago = ((char.hatsusAtivos || {})[idx] || {}).auraPaga || 0;
+            _corpo += `<div style="background:#0a0f1a;border:1px solid #1f2937;border-radius:9px;padding:8px;margin-bottom:6px">
+                <div style="font-size:9px;font-weight:700;color:#d1d5db">💸 Custo Duplo se Resistido</div>
+                <div style="font-size:8px;color:#6b7280;margin:1px 0 5px">Errou ou foi resistido? Paga de novo o que gastou na ativação e pode repetir a rolagem.</div>
+                <button onclick="event.stopPropagation();window._custoDuploResistido(${idx})" ${_pago ? '' : 'disabled'} style="width:100%;padding:7px;border-radius:7px;border:1px solid ${_pago ? '#fbbf2466' : '#1f2937'};background:${_pago ? '#fbbf2422' : 'transparent'};color:${_pago ? '#fbbf24' : '#374151'};font-size:9px;font-weight:900;cursor:${_pago ? 'pointer' : 'not-allowed'}">Errei — pagar −${_pago || '?'}% e repetir</button></div>`;
+        }
+        if (_rigidez) {
+            const _rot = { rigidez: ['Rigidez', '+1 nos Bloqueios — já entra no cálculo das Reações', '#4ade80'],
+                           dispersao: ['Dispersão', 'Spray de 1,5m — declarado, a mesa resolve', '#9ca3af'],
+                           explosivo: ['Explosivo', 'TR para os alvos não caírem — declarado, a mesa resolve', '#9ca3af'] }[_rigidez];
+            if (_rot) _corpo += `<div style="font-size:9px;color:#d1d5db;margin-bottom:4px">🌀 <b>Aura Perigosa Incomum — ${_rot[0]}</b> <span style="color:${_rot[2]};font-size:8px">${_rot[1]}</span></div>`;
+        }
+        if (_poligrafo) _corpo += `<div style="font-size:9px;color:#d1d5db;margin-bottom:4px">🔎 <b>Polígrafo</b> <span style="color:#4ade80;font-size:8px">enquanto ativo, você não pode ser enganado — a descoberta é automática</span></div>`;
+        _noAlvo.forEach(function (n) {
+            _corpo += `<div style="font-size:9px;color:#d1d5db;margin-bottom:4px">🎯 <b>${n[0]}</b> <span style="color:#9ca3af;font-size:8px">${n[1]} — é no alvo, então a ficha declara e a mesa resolve</span></div>`;
+        });
+        transmutacaoHtml = `<div style="background:#0d1117;border:1px solid ${tc}33;border-radius:12px;padding:14px;margin-bottom:20px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+                <span style="font-size:14px">⚗️</span>
+                <span style="font-size:10px;font-weight:900;color:#e5e7eb;text-transform:uppercase;letter-spacing:2px">Transmutação</span>
+            </div>${_corpo}</div>`;
+    })();
+
     // ── Manipulação: a fadiga da Marionete e o aviso da Mente Frágil ──────────
     // Dois efeitos que prometiam número e não tinham onde cair. Ficam juntos porque
     // são os dois do manipulador sobre si mesmo, não sobre o alvo.
@@ -3902,7 +3958,7 @@ function renderHatsuDetail(container) {
                 ${calcRangeDurHtml}
             </div>
 
-            ${manipulacaoHtml}${constructoCardHtml}
+            ${transmutacaoHtml}${manipulacaoHtml}${constructoCardHtml}
             ${copiaPerfeitaHtml}
 
             ${primeiroHatsuSection}

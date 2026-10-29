@@ -1457,6 +1457,13 @@ function renderHatsuCreator(container) {
                     // cobrado: virar uma moto custava o mesmo que virar um gato. O número
                     // de categorias é uma escolha do jogador, então vira picker — e o
                     // calcAuraCost lê daqui.
+                    // rt_e14 Aura Perigosa Incomum: três propriedades, uma escolha.
+                    // Só a Rigidez tem número (Bloqueio +1) e por isso é a única que
+                    // chega a um cálculo — ver calcBonusReacao.
+                    rt_e14: { icone: '🌀', titulo: 'Qual propriedade incomum?',
+                        nota: 'Rigidez soma +1 nos Bloqueios (entra no cálculo). Dispersão e Explosivo são de alcance e condição — a ficha declara, a mesa resolve.',
+                        opcoes: [['rigidez', 'Rigidez — Bloqueio +1'], ['dispersao', 'Dispersão — Spray 1,5m'],
+                                 ['explosivo', 'Explosivo — TR para não cair']] },
                     rm_e22: _TAMANHO_ACIMA, rm_e23: _TAMANHO_ACIMA,
                     rm_e24: _TAMANHO_ACIMA, rm_e25: _TAMANHO_ACIMA,
                     // ── Manipulação: quantas cargas de Intensidade Temporal ──────────

@@ -911,6 +911,22 @@ window.calcBonusReacao = function (char, k) {
         }
     });
 
+    // ── rt_e14 Aura Perigosa Incomum: a opção Rigidez ───────────────────────
+    // "Rigidez (Bloqueio+1)". O efeito oferece três propriedades e só uma delas tem
+    // número; as outras duas (Dispersão e Explosivo) são de alcance e condição, e
+    // aparecem declaradas na ficha do Hatsu. Vale só nos dois Bloqueios.
+    const _RIGIDEZ_REACOES = ['bdes', 'barm'];
+    if (_RIGIDEZ_REACOES.indexOf(k) >= 0) {
+        (char.hatsus || []).forEach(function (h, i) {
+            if (!ativos[i]) return;
+            if ((h.efeitos || []).indexOf('rt_e14') < 0) return;
+            const esc = (h.specialChoices || {})['rt_e14'];
+            if (esc !== 'rigidez') return;
+            const copias = (h.efeitos || []).filter(function (x) { return x === 'rt_e14'; }).length;
+            add('Aura Perigosa Incomum — Rigidez (' + (h.nome || ('Hatsu ' + (i + 1))) + ')', copias);
+        });
+    }
+
     // ── Instâncias Shingen-Ryu ──────────────────────────────────────────────
     // Ágil, nível 1: "+2 na Esquiva e na Esquiva Acrobática."
     const inst = char.instancias || {};
