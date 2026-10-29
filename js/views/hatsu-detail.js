@@ -28,6 +28,7 @@ window.DANO_GRAU_MAP = {
     'rg_l11': 1,  // Limitação de Alvos → +1 Grau/Passo (rev. Manual 2.0: era +1 dado)
     'rg_l16': 1,  // Tempo de Carregamento → +1 Grau/Passo (rev. Manual 2.0: era +1 dado)
     'rg_l17': 1,  // Condição Levemente Hostil → +1 Grau/Passo (só se escolheu "+1 Contra o Alvo" + sub-escolha "Dano")
+    'rt_m3':  1,  // Condição no Usuário (Transmutação) → +1 Grau/Passo (rev. 29/10: era +1 dado)
     'rg_m1':  2,  // Alvo Único em Combate → +2 Grau/Passo Dano
     'rg_m13': 2,  // Zetsu Protetivo → +2 Grau/Passo (inclui dano)
     'rg_p9':  3,  // Perda de Membros → +3 grau de potência
@@ -144,9 +145,12 @@ window.GRAU_ESCOLHA_PARA_CHAVE = {
 
 // +1 DADO: aumenta a QUANTIDADE de dados (ex: 2d6 → 3d6), aplicado ANTES dos graus
 // "o maior" = usa o maior dado atual; "o menor" = usa 1 dado do mesmo tipo
-window.DANO_DADO_MAP = {
-    'rt_m3':  { n: 1, tipo: 'maior' }, // Condição no Usuário (Transmutação)
-};
+// Vazio desde 29/10: o rt_m3 era o único morador e o livro diz "+1 Grau/passo de
+// dano/cura", não "+1 dado" — ele foi para o DANO_GRAU_MAP, onde os gêmeos rg_l11 e
+// rg_l16 já estavam desde a revisão do Manual 2.0. O mapa fica porque o mecanismo é
+// real e está ligado no cálculo (ver o laço de DANO_DADO_MAP abaixo): é onde entra
+// qualquer efeito futuro que some um DADO em vez de andar um degrau.
+window.DANO_DADO_MAP = {};
 
 // Efeitos que CONCEDEM dano próprio (tornam o hatsu "com dano" independente do tipo)
 // Estrutura: id → { dado, desc }
