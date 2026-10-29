@@ -400,7 +400,15 @@
                                     <button onclick="window._ativarHatsuDaFicha(${i})" style="flex-shrink:0;padding:3px 9px;border-radius:6px;background:${tc2};border:none;color:#000;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer">⚡ Ativar</button>
                                 </div>`;
                             }).join('');
-                            return `<div style="font-size:7px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">🌀 Hatsus${nAtivos ? ' — ' + nAtivos + ' ativo(s)' : ''}</div>${html}<div style="height:8px"></div>`;
+                            // Resumo das marcas de Emissão: quanta aura está empatada no
+                            // tabuleiro. Sem isso o jogador olha a barra de aura baixa e não
+                            // entende por quê — as marcas são colocadas fora do combate e
+                            // ficam esquecidas.
+                            const _rm = window.resumoMarcasEmissao ? window.resumoMarcasEmissao(char) : { marcas: 0 };
+                            const _rmHtml = _rm.marcas > 0
+                                ? `<div style="font-size:8px;color:#34d399;font-weight:700;margin-bottom:6px">📍 ${_rm.marcas} marca(s)/carga(s) no tabuleiro · ${_rm.aura}% de aura empatados</div>`
+                                : '';
+                            return `<div style="font-size:7px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">🌀 Hatsus${nAtivos ? ' — ' + nAtivos + ' ativo(s)' : ''}</div>${_rmHtml}${html}<div style="height:8px"></div>`;
                         })()}
                         ${(() => {
                             // ── CA vinda das Inclinações de Combate ────────────────
@@ -2483,6 +2491,50 @@
             };
             reader.readAsDataURL(input.files[0]);
         };
+        // ── Marcas e cargas da Emissão ──────────────────────────────────────────────
+        // Aplicar cobra 5% de aura; retirar devolve os mesmos 5%. Sem teto de
+        // quantidade: só a aura limita, por decisão de regra do Lucas.
+        //
+        // IMPORTANTE: a marca "com REN" do Plano Avançado é só o modo de aplicar.
+        // Ela NÃO liga o princípio REN — se ligasse, começaria a contagem de rodadas
+        // do REN, que não tem nada a ver com este efeito.
+        window._aplicarMarcaEmissao = function (idx, id) {
+            const char = state.currentChar;
+            const custo = window.MARCA_EMISSAO_CUSTO || 5;
+            const aura = char.vitals.aura || 0;
+            const cfg = window.marcaEmissao(id);
+            if (!cfg) return;
+            if (aura < custo) {
+                alert('Aura insuficiente\n\nAplicar uma ' + cfg.unidade + ' custa ' + custo + '% e você tem ' + aura + '%.');
+                return;
+            }
+            if (!char.marcasEmissao) char.marcasEmissao = {};
+            if (!char.marcasEmissao[idx]) char.marcasEmissao[idx] = {};
+            char.vitals.aura = Math.max(0, aura - custo);
+            char.marcasEmissao[idx][id] = window.contagemMarcas(char, idx, id) + 1;
+            saveCharacter(char);
+            render(true);
+        };
+        window._retirarMarcaEmissao = function (idx, id) {
+            const char = state.currentChar;
+            const atual = window.contagemMarcas(char, idx, id);
+            if (atual <= 0) return;
+            const custo = window.MARCA_EMISSAO_CUSTO || 5;
+            char.marcasEmissao[idx][id] = atual - 1;
+            // Devolve a aura, sem passar do máximo.
+            char.vitals.aura = Math.min(char.vitals.auraMax || 100, (char.vitals.aura || 0) + custo);
+            saveCharacter(char);
+            render(true);
+        };
+        window._setModoMarcaEmissao = function (idx, id, modo) {
+            const char = state.currentChar;
+            if (!char.marcasEmissao) char.marcasEmissao = {};
+            if (!char.marcasEmissao[idx]) char.marcasEmissao[idx] = {};
+            char.marcasEmissao[idx][id + '_modo'] = String(modo);
+            saveCharacter(char);
+            render(true);
+        };
+
         // Marca este Hatsu como de Ilusão, para o cartão de Sanidade do alvo somar
         // a linha certa. Fica na ficha do Hatsu porque não existe etiqueta de
         // "Ilusão" no banco de efeitos — quem sabe é a mesa.

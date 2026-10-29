@@ -789,6 +789,73 @@ window.statusUnificacao = function (h) {
 // regra lida na DAMAGE_TABLE: partindo de 1d6 (índice 1), cada 5% sobe um degrau e
 // 25% chega em 2d8 (índice 6). Não é uma escala paralela.
 window.AURA_CONDENSADA_PASSO = 5;    // % de aura por clique
+
+// ── Marcas e cargas da Emissão ───────────────────────────────────────────────
+// Três efeitos de Emissão cobram 5% de aura por unidade aplicada, e nenhum dos
+// três tinha onde ser contado — o jogador pagava (ou esquecia de pagar) de
+// cabeça, e nada na ficha dizia quantas marcas estavam no tabuleiro:
+//
+//   em_e3  Plano Avançado (Detonador) — "aplica marca prévia (5% aura)"
+//   em_e13 Lugar Marcado             — "aplica Ren em local/alvo (5%)"
+//   em_e4  Projétil de Aura          — "cria munições para armas (5% por carga)"
+//
+// Regras confirmadas com o Lucas (28/10):
+//   • Só a AURA limita quantas existem ao mesmo tempo — não há teto por compra.
+//   • Retirar uma marca DEVOLVE os 5%: dá para remanejar durante a cena.
+//   • A marca do Plano Avançado é, por padrão, aplicada "com REN", mas também
+//     pode ser um toque que suga 5%. É só o modo de aplicar: o REN aqui NÃO é o
+//     princípio sendo ativado, e por isso o app não chama _activatePrincipio
+//     nem começa contagem de rodadas de REN. Era a armadilha óbvia deste efeito.
+window.MARCA_EMISSAO_CUSTO = 5;
+
+window.MARCAS_EMISSAO = [
+    { id: 'em_e3',  icone: '📍', nome: 'Plano Avançado',  unidade: 'marca',   plural: 'marcas',
+      nota: 'Marca prévia de detonação. Não conta no tempo nem na duração do Hatsu.',
+      modos: [['ren', 'com REN'], ['toque', 'por toque']] },
+    { id: 'em_e13', icone: '🌀', nome: 'Lugar Marcado',   unidade: 'marca',   plural: 'marcas',
+      nota: 'Marca um local ou alvo para teletransporte, a qualquer distância.' },
+    { id: 'em_e4',  icone: '🔫', nome: 'Projétil de Aura', unidade: 'carga',  plural: 'cargas',
+      nota: 'Munição para armas. Cada carga é um disparo carregado de aura.' },
+];
+window.marcaEmissao = function (id) {
+    return (window.MARCAS_EMISSAO || []).filter(function (m) { return m.id === id; })[0] || null;
+};
+
+// Quais destes efeitos o Hatsu comprou. Aceita o Hatsu salvo (h.efeitos) e o
+// rascunho do criador (hb.eg + hb.ec), como o comprasAuraCondensada faz.
+window.marcasDoHatsu = function (h) {
+    if (!h) return [];
+    const ids = Array.isArray(h.efeitos) ? h.efeitos : [].concat(h.eg || [], h.ec || []);
+    return (window.MARCAS_EMISSAO || []).filter(function (m) { return ids.indexOf(m.id) >= 0; });
+};
+
+// O estado vivo. Fica em char.marcasEmissao[idx], e NÃO em char.hatsusAtivos[idx],
+// porque a marca do Plano Avançado é PRÉVIA: ela existe antes de o Hatsu ser
+// ativado, e some junto com ele seria o contrário da regra.
+window.contagemMarcas = function (char, idx, id) {
+    const m = (((char || {}).marcasEmissao) || {})[idx] || {};
+    return Math.max(0, parseInt(m[id]) || 0);
+};
+window.modoMarca = function (char, idx, id) {
+    const m = (((char || {}).marcasEmissao) || {})[idx] || {};
+    const cfg = window.marcaEmissao(id);
+    if (!cfg || !cfg.modos) return '';
+    return m[id + '_modo'] || cfg.modos[0][0];
+};
+
+// Total de marcas e de aura empatada em TODOS os Hatsus, para a ficha mostrar de
+// uma vez só quanta aura está presa no tabuleiro.
+window.resumoMarcasEmissao = function (char) {
+    const todos = ((char || {}).marcasEmissao) || {};
+    let marcas = 0;
+    Object.keys(todos).forEach(function (idx) {
+        (window.MARCAS_EMISSAO || []).forEach(function (m) {
+            marcas += Math.max(0, parseInt(todos[idx][m.id]) || 0);
+        });
+    });
+    return { marcas: marcas, aura: marcas * (window.MARCA_EMISSAO_CUSTO || 5) };
+};
+
 window.AURA_CONDENSADA_TETO_POR_COMPRA = 25;
 
 // Quantas vezes o Hatsu comprou rm_e12. Aceita o Hatsu salvo (h.efeitos) e o

@@ -2967,6 +2967,48 @@ function renderHatsuDetail(container) {
     const duracaoReservadoR = _duracaoClamp.reservado;
 
 
+
+            // ── Marcas e cargas da Emissão ──────────────────────────────────────
+            // Fica na tela do Hatsu, e não na aba Ficha como a Aura Condensada,
+            // porque a marca do Plano Avançado é PRÉVIA: ela é colocada antes de o
+            // Hatsu ser ativado, e o painel da Ficha só mostra Hatsus ligados.
+            const _marcasCfg = window.marcasDoHatsu ? window.marcasDoHatsu(h) : [];
+            const marcasHtml = _marcasCfg.length ? `
+                <div style="background:#0a0f1a;border:1px solid #34d39944;border-radius:12px;padding:12px;margin-top:10px">
+                    <div style="font-size:8px;font-weight:900;color:#34d399;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">📍 Marcas e cargas · ${window.MARCA_EMISSAO_CUSTO}% de aura cada</div>
+                    ${_marcasCfg.map(m => {
+                        const n = window.contagemMarcas(char, idx, m.id);
+                        const custo = window.MARCA_EMISSAO_CUSTO || 5;
+                        const temAura = (char.vitals.aura || 0) >= custo;
+                        const modo = m.modos ? window.modoMarca(char, idx, m.id) : '';
+                        return `<div style="margin-bottom:8px">
+                            <div style="display:flex;align-items:center;gap:8px">
+                                <span style="font-size:13px">${m.icone}</span>
+                                <div style="flex:1;line-height:1.35">
+                                    <div style="font-size:9px;font-weight:700;color:#d1d5db">${m.nome}</div>
+                                    <div style="font-size:8px;color:#6b7280">${m.nota}</div>
+                                </div>
+                                <button onclick="window._retirarMarcaEmissao(${idx},'${m.id}')" ${n > 0 ? '' : 'disabled'}
+                                    style="flex-shrink:0;width:26px;height:26px;border-radius:7px;font-family:'Orbitron',sans-serif;font-weight:900;font-size:13px;cursor:${n > 0 ? 'pointer' : 'not-allowed'};opacity:${n > 0 ? 1 : .35};border:1px solid #34d39955;background:transparent;color:#34d399">−</button>
+                                <span style="flex-shrink:0;min-width:24px;text-align:center;font-family:'Orbitron',sans-serif;font-weight:900;font-size:15px;color:${n > 0 ? '#34d399' : '#374151'}">${n}</span>
+                                <button onclick="window._aplicarMarcaEmissao(${idx},'${m.id}')" ${temAura ? '' : 'disabled'}
+                                    style="flex-shrink:0;width:26px;height:26px;border-radius:7px;font-family:'Orbitron',sans-serif;font-weight:900;font-size:13px;cursor:${temAura ? 'pointer' : 'not-allowed'};opacity:${temAura ? 1 : .35};border:none;background:#34d399;color:#000">+</button>
+                            </div>
+                            ${m.modos ? `<div style="display:flex;gap:4px;margin-top:5px;margin-left:21px">
+                                ${m.modos.map(o => {
+                                    const on = modo === o[0];
+                                    return `<button onclick="window._setModoMarcaEmissao(${idx},'${m.id}','${o[0]}')" style="padding:4px 9px;border-radius:6px;font-size:8px;font-weight:700;cursor:pointer;border:1px solid ${on ? '#34d399' : '#1f2937'};background:${on ? '#34d39918' : 'transparent'};color:${on ? '#34d399' : '#6b7280'}">${on ? '✓ ' : ''}${o[1]}</button>`;
+                                }).join('')}
+                                <span style="flex:1;font-size:7px;color:#4b5563;align-self:center;line-height:1.3">só o modo de aplicar — não liga o princípio REN</span>
+                            </div>` : ''}
+                            ${n > 0 ? `<div style="font-size:8px;color:#34d399;margin-top:4px;margin-left:21px">${n} ${n === 1 ? m.unidade : m.plural} no tabuleiro · ${n * (window.MARCA_EMISSAO_CUSTO || 5)}% de aura empatados</div>` : ''}
+                        </div>`;
+                    }).join('')}
+                    <div style="font-size:8px;color:#6b7280;border-top:1px dashed #1f2937;padding-top:6px;line-height:1.5">
+                        Retirar devolve os ${window.MARCA_EMISSAO_CUSTO}%. Só a aura limita quantas existem ao mesmo tempo.
+                    </div>
+                </div>` : '';
+
             // ── Sanidade que este Hatsu tira do ALVO ────────────────────────────
             // Informativo por natureza: a sanidade atingida está na ficha de outra
             // pessoa. O cartão existe porque a regra estava invisível — ninguém
@@ -3627,6 +3669,7 @@ function renderHatsuDetail(container) {
                     </div>
                 </div>
                 ${calcDanoHtml}
+                ${marcasHtml}
                 ${sanidadeAlvoHtml}
                 ${ilusaoToggleHtml}
                 ${calcCDHtml}
