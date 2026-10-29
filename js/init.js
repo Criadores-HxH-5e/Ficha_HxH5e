@@ -1310,6 +1310,10 @@ window._openPrimeiroHatsuModal = function() {
         window._desativarHatsu = function (idx) {
             const char = state.currentChar;
             if (char.hatsusAtivos) delete char.hatsusAtivos[idx];
+            // rm_e19: fundir/dividir é ação de mesa e vale enquanto o Hatsu está de pé.
+            // Sem isto, um constructo ficaria dividido para sempre, com metade do PV.
+            const _h = (char.hatsus || [])[idx];
+            if (_h && _h.fusaoDiv) delete _h.fusaoDiv;
             saveCharacter(char);
             render(true);
         };

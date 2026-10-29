@@ -91,7 +91,10 @@ window.CONSTRUCTO_DB = {
     ],
 
     ACOES_SIMPLES: [
-        { nome: 'Arma Natural', desc: 'Golpe corpo-a-corpo: 2d6 + atributo (normalmente FOR) em um acerto.' },
+        // Texto corrigido pelo Lucas no livro em 29/10: o 2d6 não é a regra, é a exceção
+        // — o golpe é 1d8 e só começa em 2d6 quando o Hatsu já tem dano próprio comprado
+        // (Dano/Cura Focal, Materialização que é uma arma, efeito envelopado equivalente).
+        { nome: 'Arma Natural', desc: 'Golpe corpo-a-corpo: 1d8 (ou 2d6, se comprado) + modificador de atributo de dano (normalmente FOR) em um acerto.' },
         { nome: 'Ataque Simples', desc: 'Realiza um ataque simples e direto.' },
         { nome: 'Auxílio Rápido', desc: 'Concede a ação de Ajuda a um aliado a até 1,5m para Testes ou Ataques.' },
         { nome: 'Desarme Simples', desc: 'Ataque vs Atletismo do alvo; vencendo, o alvo derruba o item em 1,5m.' },

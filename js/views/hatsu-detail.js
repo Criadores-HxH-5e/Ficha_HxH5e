@@ -984,6 +984,76 @@ function _hCst(h, c) {
 window._hCstList = _hCstList;
 window._hCst = _hCst;
 
+// ── Ataque do Constructo: acerto e dano ──────────────────────────────────────
+// Até aqui o constructo NÃO tinha rolagem de acerto. O botão rolava 1d6, somava o
+// atributo e mandava ao Discord com o rótulo "Dano": o d20 ficava na mão do jogador.
+// O livro diz o contrário, em "Criando a ficha da Materialização": "Ações de ataque
+// das Materializações seguem a mesma lógica que a de personagens comuns: Rolagens de
+// Ataque/Acerto, que irão em direção a alvos específicos". E as perícias do constructo
+// "aproveitam o valor de proficiência do Materializador" — "o constructo terá o bônus
+// do atributo+proficiência". Daí o acerto ser d20 + atributo DELE + proficiência do DONO.
+//
+// O DADO de dano também estava fixo em 1d6, e o 1d6 do livro é o PISO, não a regra:
+// "O dano normalmente será definido a partir dos efeitos e/ou restrições escolhidos
+// pelo usuário nas tabelas gerais ou de categorias. Caso contrário, apenas é calculado
+// o atributo de FOR ou DES do constructo + 1d6." Quando o Hatsu comprou dano próprio,
+// é esse dano que o constructo entrega.
+//
+// `comDanoDoHatsu` só pode ser verdadeiro quando ESTE Hatsu é o que está aberto:
+// window._hatsuRollState é montado por render, e usá-lo de outro Hatsu entregaria o
+// dado errado em silêncio.
+window.ataqueDoConstructo = function (char, h, c, comDanoDoHatsu) {
+    const cst = _hCst(h, c);
+    const atributos = Object.assign({ FOR: 0, DES: 0, CON: 0, INT: 0, SAB: 0, PRE: 0 }, cst.atributos || {});
+    const attr = (cst.atributoAtaque && atributos.hasOwnProperty(cst.atributoAtaque))
+        ? cst.atributoAtaque
+        : (atributos.FOR >= atributos.DES ? 'FOR' : 'DES');
+    const rs = (comDanoDoHatsu && window._hatsuRollState) ? window._hatsuRollState : null;
+    let dado = (rs && rs.hasBaseDmg && rs.dice) ? rs.dice : '1d6';
+    const doHatsu = dado !== '1d6';
+    const copias = Math.max(1, (h.efeitos || []).filter(function (id) { return id === 'rm_e2'; }).length);
+    const fd = window.statusFusaoDivisao ? window.statusFusaoDivisao(h, copias) : null;
+    let acertoExtra = 0, graus = 0;
+    if (fd && fd.modo && fd.graus) {
+        if (fd.alvo === 'acerto') {
+            acertoExtra = fd.graus;
+        } else {
+            const tab = window.DAMAGE_TABLE || [];
+            const i = tab.indexOf(dado);
+            // Fora da escada o grau não tem onde andar, e aí o efeito AVISA em vez de
+            // prometer um número. Acontece de verdade: o SHU soma um segundo termo
+            // ("2d6 + 1d4") e expressão composta não é degrau de tabela nenhuma.
+            if (i >= 0) { dado = tab[Math.max(0, Math.min(tab.length - 1, i + fd.graus))]; graus = fd.graus; }
+        }
+    }
+    return {
+        attr: attr,
+        atributo: atributos[attr] || 0,
+        proficiencia: getProficiencyBonus(parseInt((char || {}).level) || 1),
+        dado: dado,
+        doHatsu: doHatsu,
+        acertoExtra: acertoExtra,
+        graus: graus,
+        grauSemDestino: !!(fd && fd.modo && fd.graus && fd.alvo === 'dano' && !graus),
+        fusaoDiv: (fd && fd.modo) ? fd : null,
+    };
+};
+
+// ── rm_e19: liga/desliga a fusão ou a divisão ───────────────────────────────
+// Mora em h.fusaoDiv e NÃO em char.hatsusAtivos porque é escolha do Hatsu, não do
+// personagem — mas some junto com a desativação dele (ver _desativarHatsu).
+window._hSetFusaoDiv = function (idx, campo, valor) {
+    const char = state.currentChar;
+    const h = (char.hatsus || [])[idx];
+    if (!h) return;
+    const fd = Object.assign({ modo: null, alvo: 'dano', folga: 0 }, h.fusaoDiv || {});
+    if (campo === 'modo') fd.modo = (fd.modo === valor) ? null : valor;   // clicar de novo desliga
+    else fd[campo] = valor;
+    h.fusaoDiv = fd;
+    saveCharacter(char);
+    render(true);
+};
+
 // ── Setters da Ficha do Constructo (h.constructos[c]) ────────────────────────────
 window._hSetConstructoField = function(idx, c, field, value) {
     const char = state.currentChar;
@@ -2355,11 +2425,22 @@ function renderHatsuDetail(container) {
         // próprio; os demais efeitos de constructo (rm_e3 etc.) reforçam a primeira ficha,
         // que é a "principal". Sem isso, os PV de todas as cópias somavam num card só.
         const _copiasRm2 = constructEffectIds.filter(id => id === 'rm_e2').length;
-        const _totalCopias = Math.max(1, _copiasRm2);
+        const _copiasBase = Math.max(1, _copiasRm2);
+        // rm_e19 Fusão/Divisão: fundir junta duas fichas numa, dividir parte uma em
+        // duas. Por isso o número de fichas deixa de ser só a contagem de Golens.
+        const _fd = window.statusFusaoDivisao ? window.statusFusaoDivisao(h, _copiasBase) : null;
+        const _fdModo = _fd ? _fd.modo : null;
+        const _totalCopias = _fdModo === 'fundir' ? Math.max(1, _copiasBase - 1)
+                           : _fdModo === 'dividir' ? _copiasBase + 1
+                           : _copiasBase;
         const _outrosEfeitos = constructEffectIds.filter(id => id !== 'rm_e2');
         function _efeitosDaCopia(c) {
             const rm2 = _copiasRm2 > 0 ? ['rm_e2'] : [];
-            return c === 0 ? [].concat(rm2, _outrosEfeitos) : rm2;
+            // Fundidas, as duas viram uma: a ficha que sobra carrega o Golem de Aura
+            // das DUAS. É isso que soma os PV e junta as Características — o livro diz
+            // "unindo suas habilidades", e cada Golem concede um slot de Característica.
+            const dobra = _fdModo === 'fundir' ? rm2 : [];
+            return c === 0 ? [].concat(rm2, dobra, _outrosEfeitos) : rm2;
         }
         for (let _c = 0; _c < _totalCopias; _c++) {
         const cst = _hCst(h, _c);
@@ -2425,6 +2506,9 @@ function renderHatsuDetail(container) {
         // seguintes aplicam o que o jogador escolheu: mais massas (não mexe no PV) ou
         // um degrau no dado de dano e PV. Ver statusAuraViva em hatsu-db.js.
         const _av = window.statusAuraViva ? window.statusAuraViva(h) : null;
+        // Declarada AQUI, antes do PV e da CA: ela é lida nos dois blocos, e enquanto
+        // morava no bloco da CA a leitura do PV caía na zona morta do `const`.
+        const _un = window.statusUnificacao ? window.statusUnificacao(h) : null;
         if (_av) {
             pvEfeitos += _av.pv;
             pvFontes.push({ nome: 'Aura Viva (' + _av.dado + ' cheio · ' + _av.massas + ' massas)', bonus: _av.pv });
@@ -2457,8 +2541,21 @@ function renderHatsuDetail(container) {
         // A Unificação dobra o PV por cópia que escolheu PV — depois de tudo somado,
         // porque o livro diz "Dobre o PV", não "+X de PV".
         const _pvSomado = pvBase + pvEfeitos + pvRestricoes + robustezBonus;
-        const pvTotal = _un ? _pvSomado * _un.multPV : _pvSomado;
+        let pvTotal = _un ? _pvSomado * _un.multPV : _pvSomado;
         if (_un && _un.multPV > 1) pvFontes.push({ nome: 'Unificação de Constructos (×' + _un.multPV + ')', bonus: pvTotal - _pvSomado });
+        // ── rm_e19: o PV da fusão e o da divisão ───────────────────────────────
+        // Fundindo, o PV das duas fichas já veio somado (a cópia 0 carrega os dois
+        // Golens) e aqui entra o +10 por compra. Dividindo, "sempre será dividido por
+        // 2": cada metade fica com metade do total — é esse corte que faz o papel do
+        // "-10 PV" do texto, e por isso ele não é descontado de novo.
+        if (_fdModo === 'fundir' && _fd.pv) {
+            pvTotal += _fd.pv;
+            pvFontes.push({ nome: 'Fusão de Constructos (' + _fd.compras + '×)', bonus: _fd.pv });
+        } else if (_fdModo === 'dividir') {
+            const _antesPv = pvTotal;
+            pvTotal = Math.max(1, Math.floor(pvTotal / 2));
+            pvFontes.push({ nome: 'Divisão de Constructos (÷2)', bonus: pvTotal - _antesPv });
+        }
 
         // ── CA ──
         // NOTA: "Ficha do Constructo" (nome/imagem/atributos/PV/CA/ataque) ainda é 1 bloco só por
@@ -2481,7 +2578,6 @@ function renderHatsuDetail(container) {
             if (b) { caEfeitos += b; const efObj = efeitosSel.find(e => e.id === id); caFontes.push({ nome: efObj ? efObj.nome : id, bonus: b }); }
         });
         // ── Unificação de Constructos: +1 na CA por cópia que escolheu CA ──────
-        const _un = window.statusUnificacao ? window.statusUnificacao(h) : null;
         if (_un && _un.caExtra > 0) {
             caEfeitos += _un.caExtra;
             caFontes.push({ nome: 'Unificação de Constructos', bonus: _un.caExtra });
@@ -2503,7 +2599,17 @@ function renderHatsuDetail(container) {
         // mudança pode ter 'Gasoso' em specialChoices. Sem este ramo, a ficha dele quebraria
         // ao abrir. Não remova enquanto houver fichas antigas no Supabase.
         const caConBonus = atributosDist.CON;
-        const caTotal = (caBaseNum === null) ? null : (caBaseNum + caEfeitos + caRestricoes + caConBonus);
+        let caTotal = (caBaseNum === null) ? null : (caBaseNum + caEfeitos + caRestricoes + caConBonus);
+        // ── rm_e19: os -5 de CA da divisão, repartidos ─────────────────────────
+        // Não são -5 em CADA metade: são -5 no conjunto, divididos entre as duas (-3 e
+        // -2). O ponto que sobra fica com a metade que o jogador escolher — é o que o
+        // botão "ponto de CA" pergunta. Fundir não mexe na CA: o texto do efeito só
+        // cita CA na divisão.
+        if (caTotal !== null && _fdModo === 'dividir') {
+            const _pen = _fd.caPenalidade[_c === _fd.folga ? 1 : 0];
+            caTotal -= _pen;
+            caFontes.push({ nome: 'Divisão de Constructos', bonus: -_pen });
+        }
 
         if (!window._HATSU_STAT_INFO) window._HATSU_STAT_INFO = {};
         if (!window._HATSU_STAT_INFO[idx]) window._HATSU_STAT_INFO[idx] = {};
@@ -2555,6 +2661,36 @@ function renderHatsuDetail(container) {
                 </div>
             </div>
 
+            ${_fd && _c === 0 ? (() => {
+                const bt = (on, lbl, oc, cor) => `<button onclick="event.stopPropagation();${oc}" style="padding:6px 4px;border-radius:7px;font-size:8px;font-weight:900;cursor:pointer;border:1.5px solid ${on ? (cor || tc) : '#1f2937'};background:${on ? (cor || tc) + '22' : 'transparent'};color:${on ? (cor || tc) : '#6b7280'}">${lbl}</button>`;
+                const pen = _fd.caPenalidade;
+                return `<div style="background:#0a0f1a;border:1px solid ${tc}33;border-radius:10px;padding:10px;margin-bottom:12px">
+                    <div style="font-size:7px;color:#374151;text-transform:uppercase;font-weight:700;margin-bottom:6px">⚗️ Fusão / Divisão${_fd.compras > 1 ? ` · ${_fd.compras} compras` : ''}</div>
+                    <div style="display:grid;grid-template-columns:repeat(${1 + (_fd.podeFundir ? 1 : 0) + (_fd.podeDividir ? 1 : 0)},1fr);gap:4px">
+                        ${bt(!_fd.modo, 'Nenhum', `window._hSetFusaoDiv(${idx},'modo',null)`, '#6b7280')}
+                        ${_fd.podeFundir ? bt(_fd.modo === 'fundir', '🔗 Fundir', `window._hSetFusaoDiv(${idx},'modo','fundir')`, '#4ade80') : ''}
+                        ${_fd.podeDividir ? bt(_fd.modo === 'dividir', '✂️ Dividir', `window._hSetFusaoDiv(${idx},'modo','dividir')`, '#f87171') : ''}
+                    </div>
+                    ${_fd.modo ? `
+                    <div style="font-size:7px;color:#374151;text-transform:uppercase;font-weight:700;margin:8px 0 4px">${_fd.graus >= 0 ? '+' : ''}${_fd.graus} grau/passo em</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+                        ${bt(_fd.alvo === 'dano', 'Dano', `window._hSetFusaoDiv(${idx},'alvo','dano')`)}
+                        ${bt(_fd.alvo === 'acerto', 'Acerto (d20)', `window._hSetFusaoDiv(${idx},'alvo','acerto')`)}
+                    </div>` : ''}
+                    ${_fd.modo === 'dividir' ? `
+                    <div style="font-size:7px;color:#374151;text-transform:uppercase;font-weight:700;margin:8px 0 4px">Os −${window.DIVISAO_CA_PENALIDADE || 5} de CA se repartem (−${pen[0]} e −${pen[1]}). Fica com o −${pen[1]}:</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+                        ${bt(_fd.folga === 0, 'Ficha #1', `window._hSetFusaoDiv(${idx},'folga',0)`)}
+                        ${bt(_fd.folga === 1, 'Ficha #2', `window._hSetFusaoDiv(${idx},'folga',1)`)}
+                    </div>` : ''}
+                    <div style="font-size:8px;color:#4b5563;font-style:italic;margin-top:6px">${_fd.modo === 'fundir'
+                        ? 'Duas fichas viram uma: os PV somam, as Características das duas valem e entram +' + _fd.pv + ' PV.'
+                        : _fd.modo === 'dividir'
+                        ? 'Uma ficha vira duas, cada uma com metade do PV. Sai junto com o Hatsu.'
+                        : (_fd.podeFundir ? 'Escolha o que fazer com as fichas. A escolha some quando o Hatsu é desativado.'
+                                          : 'Com uma ficha só, dá para dividir. Fundir exige dois constructos (duas compras de Golem de Aura).')}</div>
+                </div>`;
+            })() : ''}
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
                 <div>
                     <div style="font-size:7px;color:#374151;text-transform:uppercase;font-weight:700;margin-bottom:4px">Durabilidade</div>
@@ -2651,7 +2787,17 @@ function renderHatsuDetail(container) {
                 </div>
             </div>
 
-            <button onclick="event.stopPropagation();window.rollConstructoAtaque(${idx},${_c})" style="width:100%;padding:10px;border-radius:10px;background:${tc}22;border:1px solid ${tc}66;color:${tc};font-family:'Orbitron',sans-serif;font-weight:900;font-size:10px;cursor:pointer;text-transform:uppercase;letter-spacing:1px">⚔️ Ataque do Constructo (1d6 ${atributosDist[attrAtaqueEfetivo] >= 0 ? '+' : ''}${atributosDist[attrAtaqueEfetivo]} ${attrAtaqueEfetivo})</button>
+            ${(() => {
+                // O dado e o acerto saem da MESMA função que a rolagem usa, para o botão
+                // nunca prometer um número diferente do que vai sair.
+                const _ai = window.ataqueDoConstructo ? window.ataqueDoConstructo(char, h, _c, true) : null;
+                if (!_ai) return '';
+                const _s = n => (n >= 0 ? '+' : '') + n;
+                const _acerto = _ai.atributo + _ai.proficiencia + _ai.acertoExtra;
+                return `<button onclick="event.stopPropagation();window.rollConstructoAtaque(${idx},${_c})" style="width:100%;padding:10px;border-radius:10px;background:${tc}22;border:1px solid ${tc}66;color:${tc};font-family:'Orbitron',sans-serif;font-weight:900;font-size:10px;cursor:pointer;text-transform:uppercase;letter-spacing:1px">⚔️ Ataque do Constructo</button>
+                <div style="font-size:8px;color:#6b7280;text-align:center;margin-top:4px">Acerto 1d20 ${_s(_acerto)} <span style="color:#4b5563">(${_ai.attr} ${_s(_ai.atributo)} · prof. ${_s(_ai.proficiencia)}${_ai.acertoExtra ? ' · Fusão/Divisão ' + _s(_ai.acertoExtra) : ''})</span> · Dano ${_ai.dado} ${_s(_ai.atributo)}${_ai.doHatsu ? ' <span style="color:#4b5563">(dano comprado do Hatsu)</span>' : ''}</div>
+                ${_ai.grauSemDestino ? `<div style="font-size:8px;color:#fbbf24;text-align:center;margin-top:3px">⚠ O grau/passo não tem onde andar com dano ${_ai.dado}: escolha "Acerto" acima, ou compre dano próprio para o Hatsu.</div>` : ''}`;
+            })()}
         </div>`;
         }
     }
