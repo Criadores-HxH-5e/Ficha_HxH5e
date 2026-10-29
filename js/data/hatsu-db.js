@@ -183,7 +183,7 @@
       efeitos: [
         { id:'rt_e1',  nome:"Aura Perigosa Comum",       desc:"Hatsu recebe propriedade: Cortante, Perfurante, Concussivo ou Energia (Aura pura)",  req:"Nível 1", pn:1 },
         { id:'rt_e2',  nome:"Memory Card",               desc:"Grava até 5s de estímulo sensorial e reproduz como projeção. Máx. 3 gravações",       req:"Nível 1", pn:1, repetivel:true },
-        { id:'rt_e3',  nome:"Polígrafo",                 desc:"Percebe micro-oscilação de emoções/mentiras. Vantagem em Intuição e +1 contra blefes", req:"Nível 1", pn:1 },
+        { id:'rt_e3',  nome:"Polígrafo",                 desc:"Percebe micro-oscilação de emoções e mentiras ao interagir com um ou mais alvos (conforme alcance/área). A descoberta é automática: você NÃO pode ser enganado enquanto o Hatsu estiver ativo", req:"Nível 1", pn:1 },
         { id:'rt_e4',  nome:"Transmutação Elemental",    desc:"Escolha um elemento, adicionando sua propriedade inicial. Evolui com novas escolhas",  req:"Nível 1", pn:1 },
         { id:'rt_e5',  nome:"Transmutação Versátil",     desc:"Escolha uma Propriedade de Utilidade (máx. 2). Evolui com novas escolhas",             req:"Nível 1", pn:1 },
         { id:'rt_e6',  nome:"Forma Esculpida Maleável",  desc:"Aura assume qualquer forma de até 1,5mx1,5m com densidade dos estados físicos",        req:"Nível 2", pn:1 },
@@ -807,6 +807,41 @@ window.AURA_CONDENSADA_PASSO = 5;    // % de aura por clique
 //     pode ser um toque que suga 5%. É só o modo de aplicar: o REN aqui NÃO é o
 //     princípio sendo ativado, e por isso o app não chama _activatePrincipio
 //     nem começa contagem de rodadas de REN. Era a armadilha óbvia deste efeito.
+// ── Aura por metro percorrido (Transmutação) ───────────────────────────────
+// Dois efeitos cobram aura por DISTÂNCIA, e nenhum dos dois tinha onde cobrar:
+//   rt_e7  Superfície Adesiva   — "escala superfícies verticais (9m), 5% aura/3m"
+//   rt_e13 Condutividade de Aura — "5% aura a cada 3m em linha, Cone ou Esfera"
+// O jogador pagava (ou esquecia de pagar) de cabeça. O molde é o mesmo das marcas
+// de Emissão: um contador vivo por Hatsu, que debita ao avançar e devolve ao recuar.
+// O teto do rt_e7 é do próprio texto (9m = 3 trechos); o rt_e13 não tem teto escrito,
+// então quem limita é a aura.
+window.AURA_POR_METRO_CUSTO = 5;
+window.AURA_POR_METRO_TRECHO = 3;
+window.AURA_POR_METRO = [
+    { id: 'rt_e7',  icone: '🧗', nome: 'Superfície Adesiva',   verbo: 'Escalar',
+      maxTrechos: 3, nota: 'Escala superfícies verticais até 9m, 5% de aura a cada 3m.' },
+    { id: 'rt_e13', icone: '⚡', nome: 'Condutividade de Aura', verbo: 'Percorrer',
+      maxTrechos: 0, nota: 'O Hatsu percorre superfícies em linha, Cone ou Esfera: 5% de aura a cada 3m.' },
+];
+window.auraPorMetro = function (id) {
+    return (window.AURA_POR_METRO || []).filter(function (a) { return a.id === id; })[0] || null;
+};
+window.auraPorMetroDoHatsu = function (h) {
+    if (!h) return [];
+    const ids = Array.isArray(h.efeitos) ? h.efeitos : [].concat(h.eg || [], h.ec || []);
+    return (window.AURA_POR_METRO || []).filter(function (a) { return ids.indexOf(a.id) >= 0; });
+};
+// Estado vivo em char.trechosAura[idx][id]. Fica fora de hatsusAtivos porque o
+// jogador pode subir a parede e o Hatsu continuar ativo depois — o que conta é
+// quanto ele já percorreu nesta cena.
+window.trechosAura = function (char, idx, id) {
+    const m = (((char || {}).trechosAura) || {})[idx] || {};
+    return Math.max(0, parseInt(m[id]) || 0);
+};
+window.metrosAura = function (char, idx, id) {
+    return window.trechosAura(char, idx, id) * (window.AURA_POR_METRO_TRECHO || 3);
+};
+
 window.MARCA_EMISSAO_CUSTO = 5;
 
 window.MARCAS_EMISSAO = [

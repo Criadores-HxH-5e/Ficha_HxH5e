@@ -2612,6 +2612,64 @@
         // IMPORTANTE: a marca "com REN" do Plano Avançado é só o modo de aplicar.
         // Ela NÃO liga o princípio REN — se ligasse, começaria a contagem de rodadas
         // do REN, que não tem nada a ver com este efeito.
+        // ── Transmutação: aura por metro percorrido (rt_e7 e rt_e13) ───────────
+        window._avancarTrechoAura = function (idx, id) {
+            const char = state.currentChar;
+            const cfg = window.auraPorMetro(id); if (!cfg) return;
+            const custo = window.AURA_POR_METRO_CUSTO || 5;
+            const metros = window.AURA_POR_METRO_TRECHO || 3;
+            const atual = window.trechosAura(char, idx, id);
+            if (cfg.maxTrechos && atual >= cfg.maxTrechos) {
+                alert('Limite do efeito\n\n' + cfg.nome + ' alcança no máximo ' + (cfg.maxTrechos * metros) + 'm.');
+                return;
+            }
+            const aura = char.vitals.aura || 0;
+            if (aura < custo) {
+                alert('Aura insuficiente\n\nAvançar ' + metros + 'm custa ' + custo + '% e você tem ' + aura + '%.');
+                return;
+            }
+            if (!char.trechosAura) char.trechosAura = {};
+            if (!char.trechosAura[idx]) char.trechosAura[idx] = {};
+            char.vitals.aura = Math.max(0, aura - custo);
+            char.trechosAura[idx][id] = atual + 1;
+            saveCharacter(char); render(true);
+        };
+        // Recuar devolve a aura: é o mesmo princípio das marcas de Emissão — o
+        // trecho não percorrido não fica preso.
+        window._recuarTrechoAura = function (idx, id) {
+            const char = state.currentChar;
+            const atual = window.trechosAura(char, idx, id);
+            if (atual <= 0) return;
+            const custo = window.AURA_POR_METRO_CUSTO || 5;
+            char.trechosAura[idx][id] = atual - 1;
+            char.vitals.aura = Math.min(char.vitals.auraMax || 100, (char.vitals.aura || 0) + custo);
+            saveCharacter(char); render(true);
+        };
+
+        // ── rt_p3 Custo Duplo se Resistido ─────────────────────────────────────
+        // "Custa o dobro de aura se o Hatsu não acertar o alvo ou for resistido" e,
+        // em troca, "pode repetir a rolagem de ataque/acerto". O app não sabe a CA
+        // do alvo, então quem diz que errou é o jogador — como no balão da falha de
+        // Ênfase. O que o app faz é cobrar e devolver a rolagem, sem depender da
+        // memória de ninguém.
+        window._custoDuploResistido = function (idx) {
+            const char = state.currentChar;
+            const h = (char.hatsus || [])[idx]; if (!h) return;
+            if ((h.restricoes || []).indexOf('rt_p3') < 0) return;
+            const ativo = (char.hatsusAtivos || {})[idx];
+            const pago = ativo ? (parseInt(ativo.auraPaga) || 0) : 0;
+            if (!pago) { alert('O Hatsu precisa estar ativo\n\nO dobro é cobrado em cima do que você pagou na ativação.'); return; }
+            const aura = char.vitals.aura || 0;
+            if (aura < pago) {
+                alert('Aura insuficiente\n\nO custo dobrado pede mais ' + pago + '% e você tem ' + aura + '%.');
+                return;
+            }
+            char.vitals.aura = Math.max(0, aura - pago);
+            saveCharacter(char);
+            if (window._showXpToast) window._showXpToast('💸 Custo dobrado: −' + pago + '% de aura. Role o ataque de novo.');
+            render(true);
+        };
+
         window._aplicarMarcaEmissao = function (idx, id) {
             const char = state.currentChar;
             const custo = window.MARCA_EMISSAO_CUSTO || 5;
