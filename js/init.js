@@ -1381,6 +1381,19 @@ window._openPrimeiroHatsuModal = function() {
                 if (k === 'gyo') delete char.gyoAlvo;
             });
 
+            // ── Consequência da falha de Ênfase, contada em rodadas ────────────────
+            // A penalidade de −3 e o dano dobrado dos inimigos duram 3 rodadas. Sem
+            // este desconto a penalidade valeria para sempre, que é pior do que não
+            // existir — o jogador deixaria de usar a Ênfase.
+            const _fe = char.enfaseFalha;
+            if (_fe && _fe.rodadas > 0) {
+                _fe.rodadas -= 1;
+                if (_fe.rodadas <= 0) {
+                    delete char.enfaseFalha;
+                    expirados.push('Falha de Ênfase (' + _fe.rotulo + ')');
+                }
+            }
+
             char.rodadaAtual = (parseInt(char.rodadaAtual) || 0) + 1;
             saveCharacter(char);
             render(true);

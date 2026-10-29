@@ -158,7 +158,7 @@
                     // rolagem de d20, que foi o pedido.
                     const _temAP = window.temAcaoProtagonista && window.temAcaoProtagonista(char);
                     const _usados = parseInt(char.enfaseUsos) || 0;
-                    if (!_temAP && _usados === 0) return '';
+                    if (!_temAP && _usados === 0 && !char.enfaseFalha) return '';
                     const _rest = window.enfaseUsosRestantes ? window.enfaseUsosRestantes(char) : 3;
                     const _max = window.ENFASE_USOS_POR_SESSAO || 3;
                     return `<div style="margin:0 12px 10px;padding:9px 12px;border-radius:11px;background:linear-gradient(90deg,#fbbf2418,#fbbf2405);border:1px solid #fbbf2455">
@@ -170,6 +170,15 @@
                             </div>
                             ${_temAP ? `<button onclick="window._abrirAcaoProtagonista()" style="flex-shrink:0;padding:7px 12px;border-radius:8px;background:#fbbf24;border:none;color:#000;font-family:'Orbitron',sans-serif;font-weight:900;font-size:9px;text-transform:uppercase;letter-spacing:1px;cursor:pointer">Usar</button>` : ''}
                         </div>
+                        ${(() => {
+                            // A consequência ativa precisa ficar à vista: ela muda TODAS as
+                            // rolagens enquanto durar, e nada mais na tela diria isso.
+                            const _fe = char.enfaseFalha;
+                            if (!_fe || !(_fe.rodadas > 0)) return '';
+                            return `<div style="margin-top:7px;padding:6px 9px;border-radius:8px;background:#f8717115;border:1px solid #f8717144;font-size:9px;color:#f87171;line-height:1.5">
+                                💥 <b>${_fe.rotulo}</b> — ${_fe.rodadas} rodada${_fe.rodadas !== 1 ? 's' : ''} restante${_fe.rodadas !== 1 ? 's' : ''}${_fe.penalidade ? ` · <b>${_fe.penalidade}</b> em todas as rolagens` : ''}
+                            </div>`;
+                        })()}
                         <div style="display:flex;align-items:center;gap:8px;margin-top:7px;padding-top:7px;border-top:1px dashed #fbbf2433">
                             <span style="flex:1;font-size:8px;color:#9ca3af">🎯 Ênfase: <b style="color:${_rest > 0 ? '#fbbf24' : '#f87171'}">${_rest}</b> de ${_max} usos nesta sessão</span>
                             <button onclick="window._novaSessaoEnfase()" style="flex-shrink:0;font-size:8px;color:#fbbf24;background:transparent;border:none;cursor:pointer;text-decoration:underline">nova sessão</button>
@@ -1129,7 +1138,8 @@
                 // ficaria sem cor no cartão.
                 const catColors = { 'CURTA DURAÇÃO':'#fbbf24', 'LONGA DURAÇÃO':'#f87171',
                     'INDETERMINADO LEVE':'#a78bfa', 'INDETERMINADO PESADO':'#ff4df7',
-                    'PERMANENTE LEVE':'#a78bfa', 'PERMANENTE PESADO':'#ff4df7' };
+                    'PERMANENTE LEVE':'#a78bfa', 'PERMANENTE PESADO':'#ff4df7',
+                    'FALHA DE ÊNFASE':'#f87171' };
 
                 const activeHtml = activeConditions.length === 0
                     ? '<div class="text-center text-gray-600 italic py-6 border-2 border-dashed border-gray-800 rounded-xl text-xs">Nenhuma condição ativa.<br><span class="text-gray-700">Reduza a Sanidade para registrar surtos.</span></div>'
@@ -1291,6 +1301,7 @@
                 ${renderRollModeModalHtml()}
                 ${renderRenPromptModalHtml()}
                 ${renderAcaoProtagonistaModalHtml()}
+                ${renderFalhaEnfaseModalHtml()}
                 ${renderRyuEntregaModalHtml()}
                 ${renderEscalaPrincipioModalHtml()}
                 ${renderMenuShuModalHtml()}
@@ -2270,7 +2281,8 @@
                     acertoBonus: acertoBonus, margem: mc.valor,
                     isCrit: attackRoll.total >= mc.valor,
                     isFumble: attackRoll.dice.length === 1 && attackRoll.dice[0] === 1,
-                    attackTotal: window.totalComEnfase(attackRoll, atkMod + pb + acertoBonus),
+                    attackTotal: window.totalComEnfase(attackRoll, atkMod + pb + acertoBonus,
+                        window.calcPenalidadeEnfase ? window.calcPenalidadeEnfase(char) : 0),
                 };
             })();
 
@@ -2947,6 +2959,70 @@
                 + '<button onclick="window._fecharRyuEntrega()" style="width:100%;margin-top:6px;padding:11px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Cancelar</button>'
                 + '</div></div>';
         }
+        // ── Balão: que tipo de ação falhou na Ênfase? ───────────────────────────────
+        // Abre no instante da falha, antes de qualquer outra coisa, porque a
+        // consequência muda tudo e só o jogador sabe o que a ação era.
+        window._abrirFalhaEnfase = function () { state.pendingFalhaEnfase = { tipo: null }; render(true); };
+        window._fecharFalhaEnfase = function () { state.pendingFalhaEnfase = null; render(true); };
+        window._aplicarFalhaEnfase = function (id) {
+            const char = state.currentChar;
+            const t = window.tipoFalhaEnfase(id);
+            if (!t) return;
+            let ambiental = null;
+            if (t.tabela) {
+                const r = Math.floor(Math.random() * 10) + 1;
+                ambiental = { roll: r, texto: (window.ENFASE_FALHA_AMBIENTAL || [])[r - 1] || '—' };
+            }
+            // O estado com duração vive aqui e é descontado pelo "Passar rodada".
+            if (t.rodadas > 0 || t.interacoes > 0) {
+                char.enfaseFalha = { tipo: t.id, rotulo: t.rotulo,
+                    rodadas: t.rodadas, penalidade: t.penalidade, interacoes: t.interacoes };
+            }
+            // Fica registrado no painel de Condições, junto dos surtos, para não
+            // depender de ninguém lembrar.
+            if (!char.conditions) char.conditions = [];
+            char.conditions.push({
+                categoria: 'FALHA DE ÊNFASE',
+                condicao: t.texto + (ambiental ? ' → 1d10 [' + ambiental.roll + ']: ' + ambiental.texto : ''),
+                roll: ambiental ? (ambiental.roll + ' (1d10)') : '—',
+                duracao: t.rodadas > 0 ? (t.rodadas + ' rodadas') : (t.interacoes > 0 ? (t.interacoes + ' interações') : 'imediata'),
+                sanPct: Math.round(((char.vitals.san || 100) / (char.vitals.sanMax || 100)) * 100),
+                data: new Date().toLocaleDateString('pt-BR'),
+                resolved: false,
+            });
+            state.pendingFalhaEnfase = null;
+            // A sanidade sai pelo updateVital para o surto de loucura disparar se a
+            // perda cruzar uma faixa — é o mesmo caminho de qualquer outro dano mental.
+            if (t.sanidade < 0) { saveCharacter(char); updateVital('san', t.sanidade); }
+            else { saveCharacter(char); render(true); }
+            window._showXpToast && window._showXpToast('💥 ' + t.rotulo + (t.sanidade ? (' — ' + t.sanidade + ' de Sanidade') : ''));
+        };
+        function renderFalhaEnfaseModalHtml() {
+            if (!state.pendingFalhaEnfase) return '';
+            const COR = '#f87171';
+            const opts = (window.ENFASE_FALHA_TIPOS || []).map(function (t) {
+                const custo = [];
+                if (t.sanidade) custo.push(t.sanidade + ' Sanidade');
+                if (t.penalidade) custo.push(t.penalidade + ' por ' + t.rodadas + ' rodadas');
+                else if (t.rodadas) custo.push(t.rodadas + ' rodadas');
+                if (t.interacoes) custo.push(t.interacoes + ' interações');
+                if (t.tabela) custo.push('rola 1d10');
+                return '<button onclick="window._aplicarFalhaEnfase(\'' + t.id + '\')" style="display:block;width:100%;text-align:left;padding:9px 11px;margin-bottom:6px;border-radius:9px;cursor:pointer;border:1px solid #1f2937;background:#0f1117">'
+                    + '<div style="font-size:10px;font-weight:700;color:#d1d5db">' + t.icone + ' ' + t.rotulo
+                    + (custo.length ? ' <span style="font-size:8px;color:' + COR + '">(' + custo.join(' · ') + ')</span>' : '') + '</div>'
+                    + '<div style="font-size:8px;color:#6b7280;margin-top:2px;line-height:1.45">' + t.texto + '</div>'
+                    + '</button>';
+            }).join('');
+            return '<div style="position:fixed;inset:0;background:#000000dd;display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;font-family:Rajdhani,sans-serif;overflow:auto">'
+                + '<div style="background:#0d1117;border:2px solid ' + COR + ';border-radius:18px;padding:20px;width:100%;max-width:380px;box-shadow:0 0 40px ' + COR + '44;text-align:center;max-height:92vh;overflow:auto">'
+                + '<div style="font-size:24px;margin-bottom:2px">💥</div>'
+                + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:12px;color:' + COR + ';text-transform:uppercase;letter-spacing:1.5px">Falha na Ênfase</div>'
+                + '<div style="font-size:9px;color:#6b7280;margin:6px 0 12px;line-height:1.5">A Ênfase cobra o preço na falha. <b style="color:#9ca3af">Que tipo de ação era?</b> A consequência muda conforme a resposta.</div>'
+                + '<div style="text-align:left">' + opts + '</div>'
+                + '<button onclick="window._fecharFalhaEnfase()" style="width:100%;margin-top:4px;padding:10px;border-radius:10px;background:transparent;border:1px solid #374151;color:#6b7280;font-family:Orbitron,sans-serif;font-weight:900;font-size:9px;text-transform:uppercase;cursor:pointer">O mestre resolve na mão</button>'
+                + '</div></div>';
+        }
+
         // ── Recuperar Sanidade pelas rotas de mesa ──────────────────────────────────
         // As quatro rotas não automáticas: um descanso longo, cumprir o que se ama,
         // o Foco de Caça e a Ação Protagonista BEM SUCEDIDA. Essa última depende de
@@ -3268,7 +3344,8 @@
                 ? window.calcBonusAcertoRyu(char, _ryuArmaOk) : { total: 0, ryu: null };
             const attackRoll = getRollResult(mode || state.rollMode);
             // Na falha da Ênfase todo esse pacote vira penalidade — ver totalComEnfase.
-            const attackTotal = window.totalComEnfase(attackRoll, mod + pb + _baW.total + _ryuW.total);
+            const attackTotal = window.totalComEnfase(attackRoll, mod + pb + _baW.total + _ryuW.total,
+                window.calcPenalidadeEnfase ? window.calcPenalidadeEnfase(char) : 0);
             // Margem de crítico da ficha, piso 18, comparada contra o d20 USADO.
             const _mcW = window.calcMargemCritico ? window.calcMargemCritico(char) : { valor: 20 };
             const isCrit = attackRoll.total >= _mcW.valor;
@@ -3333,7 +3410,7 @@
             const content = `🎲 **${charName}** rolou **${label}**\nDado: ${diceStr}${modStr} = **${total}**${suffix}`;
             fetch(getActiveWebhookUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content }) }).catch(() => {});
         }
-        function rollDice(attrName, mod, mode) { const roll = getRollResult(mode || state.rollMode); const total = window.totalComEnfase(roll, mod); const entry = { time: new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}), label: `${attrName} (${roll.label})`, dice: roll.dice.join(', '), mod: mod, total: total }; state.currentChar.history.push(entry); if (state.currentChar.history.length > 50) state.currentChar.history.shift(); saveCharacter(state.currentChar); state.rollResult = { name: attrName, total: total, diceVal: roll.total, mod: mod, label: roll.label }; if (state.activeTab !== 'DADOS') state.unreadRolls = true; sendToDiscord(`${attrName} (${roll.label})`, roll.dice, mod, total, state.currentChar.name || 'Personagem'); render(true); }
+        function rollDice(attrName, mod, mode) { const roll = getRollResult(mode || state.rollMode); const total = window.totalComEnfase(roll, mod, window.calcPenalidadeEnfase ? window.calcPenalidadeEnfase(state.currentChar) : 0); const entry = { time: new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}), label: `${attrName} (${roll.label})`, dice: roll.dice.join(', '), mod: mod, total: total }; state.currentChar.history.push(entry); if (state.currentChar.history.length > 50) state.currentChar.history.shift(); saveCharacter(state.currentChar); state.rollResult = { name: attrName, total: total, diceVal: roll.total, mod: mod, label: roll.label }; if (state.activeTab !== 'DADOS') state.unreadRolls = true; sendToDiscord(`${attrName} (${roll.label})`, roll.dice, mod, total, state.currentChar.name || 'Personagem'); render(true); }
         // Entrega o valor MÁXIMO de cada dado em vez de rolar. Usado pela Condição
         // Hostil, cuja regra diz "os dados de dano são maximizados (não rolados)".
         // Mesma tolerância a vários termos do rollDiceExpr: a Condição Hostil maximiza os
@@ -3356,7 +3433,7 @@
             return { total: total, rolls: rolls };
         }
 
-        function rollSkill(skillName, attrKey, mode, zetsuBonus) { const char = state.currentChar; const _efS = window.calcAtributoEfetivo ? window.calcAtributoEfetivo(char, attrKey) : null; const mod = _efS ? _efS.mod : getMod(char.attributes[attrKey].value); const isTrained = char.skills.includes(skillName); const isExpert = (char.expertise || []).includes(skillName); const pb = getProficiencyBonus(char.level); let totalMod = mod; if (isExpert) { totalMod += (pb * 2); } else if (isTrained) { totalMod += pb; } const zb = zetsuBonus || 0; totalMod += zb; const zetsuTag = zb > 0 ? ' 👁️Zetsu' : ''; const _ini = (skillName === 'Iniciativa' && window.calcIniciativaBonus) ? window.calcIniciativaBonus(char) : { total: 0, fontes: [] }; totalMod += _ini.total; const _nb = window.calcBonusPericiaNen ? window.calcBonusPericiaNen(char, skillName) : { total: 0 }; totalMod += _nb.total; const _ib = window.calcBonusPericiaInclinacao ? window.calcBonusPericiaInclinacao(char, skillName) : { total: 0 }; totalMod += _ib.total; const roll = getRollResult(mode || state.rollMode); const total = window.totalComEnfase(roll, totalMod); const entry = { time: new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}), label: `${skillName} ${isExpert ? "(Exp)" : ""}${zetsuTag} (${roll.label})`, dice: roll.dice.join(', '), mod: totalMod, total: total }; state.currentChar.history.push(entry); if (state.currentChar.history.length > 50) state.currentChar.history.shift(); saveCharacter(state.currentChar); state.rollResult = { name: skillName, total: total, diceVal: roll.total, mod: totalMod, label: roll.label }; if (state.activeTab !== 'DADOS') state.unreadRolls = true; sendToDiscord(`${skillName}${isExpert ? ' (Exp)' : ''}${zetsuTag} (${roll.label})`, roll.dice, totalMod, total, char.name || 'Personagem'); render(true); }
+        function rollSkill(skillName, attrKey, mode, zetsuBonus) { const char = state.currentChar; const _efS = window.calcAtributoEfetivo ? window.calcAtributoEfetivo(char, attrKey) : null; const mod = _efS ? _efS.mod : getMod(char.attributes[attrKey].value); const isTrained = char.skills.includes(skillName); const isExpert = (char.expertise || []).includes(skillName); const pb = getProficiencyBonus(char.level); let totalMod = mod; if (isExpert) { totalMod += (pb * 2); } else if (isTrained) { totalMod += pb; } const zb = zetsuBonus || 0; totalMod += zb; const zetsuTag = zb > 0 ? ' 👁️Zetsu' : ''; const _ini = (skillName === 'Iniciativa' && window.calcIniciativaBonus) ? window.calcIniciativaBonus(char) : { total: 0, fontes: [] }; totalMod += _ini.total; const _nb = window.calcBonusPericiaNen ? window.calcBonusPericiaNen(char, skillName) : { total: 0 }; totalMod += _nb.total; const _ib = window.calcBonusPericiaInclinacao ? window.calcBonusPericiaInclinacao(char, skillName) : { total: 0 }; totalMod += _ib.total; const roll = getRollResult(mode || state.rollMode); const total = window.totalComEnfase(roll, totalMod, window.calcPenalidadeEnfase ? window.calcPenalidadeEnfase(char) : 0); const entry = { time: new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}), label: `${skillName} ${isExpert ? "(Exp)" : ""}${zetsuTag} (${roll.label})`, dice: roll.dice.join(', '), mod: totalMod, total: total }; state.currentChar.history.push(entry); if (state.currentChar.history.length > 50) state.currentChar.history.shift(); saveCharacter(state.currentChar); state.rollResult = { name: skillName, total: total, diceVal: roll.total, mod: totalMod, label: roll.label }; if (state.activeTab !== 'DADOS') state.unreadRolls = true; sendToDiscord(`${skillName}${isExpert ? ' (Exp)' : ''}${zetsuTag} (${roll.label})`, roll.dice, totalMod, total, char.name || 'Personagem'); render(true); }
         function closeRollModal() { state.rollResult = null; render(true); }
         function copyToClipboard(idx) { const h = state.currentChar.history[idx]; if(!h) return; const text = `**${h.label}**\nRolagem: [${h.dice}] ${h.mod>=0?'+':''}${h.mod} = **${h.total}**`; navigator.clipboard.writeText(text).then(() => { const btn = document.activeElement; if(btn && btn.tagName === 'BUTTON') { const originalHTML = btn.innerHTML; btn.innerHTML = '<i data-lucide="check" size="14"></i>'; btn.classList.add('text-green-500'); setTimeout(() => { btn.innerHTML = originalHTML; btn.classList.remove('text-green-500'); lucide.createIcons(); }, 1000); } }); }
         // Devolve a sanidade do 20 natural: "Resultado 20 em qualquer rolagem →
@@ -3427,6 +3504,12 @@
                             ? '⚠ Falha na Ênfase, mas a Ação Protagonista anterior ainda não foi gasta.'
                             : '');
                     if (_msg) setTimeout(function () { window._showXpToast && window._showXpToast(_msg); }, 120);
+                    // As consequências valem em TODA falha de Ênfase — inclusive quando
+                    // a Ação Protagonista anterior ainda não foi gasta e nenhuma nova é
+                    // concedida. O preço é da rolagem, não do prêmio.
+                    if (out.total < (window.ENFASE_FALHA_ABAIXO_DE || 10)) {
+                        setTimeout(function () { window._abrirFalhaEnfase && window._abrirFalhaEnfase(); }, 420);
+                    }
                 }
                 return _sanidadeNatural20(out);
             }
@@ -3559,7 +3642,9 @@
                 if (!v.sanMax) v.sanMax = 100;
                 const prevSan = v.san;
                 const prevPct = Math.round((prevSan / v.sanMax) * 100);
-                v.san = Math.min(v.sanMax, v.san + delta); // cap at sanMax
+                // O piso 0 faltava: aura tinha Math.max(0,…) e sanidade não, então uma
+                // perda grande deixava a barra em número negativo.
+                v.san = Math.max(0, Math.min(v.sanMax, v.san + delta));
                 const newPct = Math.round((v.san / v.sanMax) * 100);
 
                 // Check if we crossed a threshold going DOWN
