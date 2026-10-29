@@ -1959,18 +1959,23 @@
   }
 
   /* ---------- Painel lateral ---------- */
+  // Abas que EXISTEM mas não aparecem na barra. 'dados' abre pelo botão acima do
+  // battlemap (ver o data-tool="dados" em renderStage) e 'mapa' passou a morar
+  // dentro de Cenas. Sem esta lista, o renderSide jogaria o jogador de volta para a
+  // primeira aba no instante em que o botão de dados abrisse o painel — porque ele
+  // valida S.tab contra abas().
+  const ABAS_OCULTAS = ['dados', 'mapa'];
   function abas() {
-    const dados = ['dados', '<i class="ph ph-dice-five"></i> Dados'];
     const chat = ['chat', `<i class="ph ph-chat-circle-dots"></i> Chat${S.naoLidas ? `<span class="badge">${S.naoLidas > 99 ? '99+' : S.naoLidas}</span>` : ''}`];
-    return S.gm ? [['cenas', 'Cenas'], ['mapa', 'Mapa'], ['tokens', 'Tokens'], ['best', '<i class="ph ph-paw-print"></i> Bestiário'], ['trilha', '<i class="ph ph-music-notes"></i> Trilha'], dados, chat, ['ninja', 'Personagem'], ['grupo', 'Grupo']]
-      : [dados, chat, ['ninja', 'Meu personagem'], ['tokens', 'Tokens'], ['grupo', 'Grupo']];
+    return S.gm ? [chat, ['tokens', 'Tokens'], ['best', '<i class="ph ph-paw-print"></i> Bestiário'], ['trilha', '<i class="ph ph-music-notes"></i> Trilha'], ['cenas', 'Cenas'], ['ninja', 'Personagem'], ['grupo', 'Grupo']]
+      : [chat, ['tokens', 'Tokens'], ['ninja', 'Meu personagem'], ['grupo', 'Grupo']];
   }
   function renderTabs() {
     $('#tabs').innerHTML = abas().map(([k, l]) => `<button data-t="${k}" class="${S.tab === k ? 'on' : ''}">${l}</button>`).join('');
     $$('#tabs button').forEach(b => b.onclick = () => { S.tab = b.dataset.t; renderSide(); });
   }
   function renderSide() {
-    if (!abas().some(t => t[0] === S.tab)) S.tab = abas()[0][0];
+    if (!abas().some(t => t[0] === S.tab) && ABAS_OCULTAS.indexOf(S.tab) < 0) S.tab = abas()[0][0];
     if (S.tab === 'chat') S.naoLidas = 0;
     renderTabs();
     P().classList.toggle('pane-chat', S.tab === 'chat');
@@ -2018,17 +2023,23 @@
     $$('[data-prev]').forEach(b => b.onclick = () => { S.view = 'cena'; S.previewCena = b.dataset.prev; renderStage(); });
     $$('[data-notas]').forEach(t => t.onchange = async () => { const { error } = await sb.from('cenas').update({ notas: t.value }).eq('id', t.dataset.notas); if (error) toast(errMsg(error), 'warning'); else { const c = S.cenas.find(x => x.id === t.dataset.notas); if (c) c.notas = t.value; toast('Anotação salva', 'note-pencil'); } });
     $$('[data-del]').forEach(b => b.onclick = async () => { if (!confirm('Apagar esta cena?')) return; const { error } = await sb.from('cenas').delete().eq('id', b.dataset.del); if (error) return toast(errMsg(error), 'warning'); S.cenas = S.cenas.filter(c => c.id !== b.dataset.del); paneCenas(); });
+    // O Battlemap virou uma secao DENTRO de Cenas (29/10): a aba "Mapa" saiu da barra.
+    // paneMapa liga os proprios handlers depois de escrever, entao basta anexar.
+    paneMapa(true);
   }
 
   /* ---------- Mapa: painel lateral + pop-up de criação ---------- */
   const IMG = { aberto: false };
-  function paneMapa() {
+  // `anexar` = escrever ABAIXO do que já está no painel, em vez de substituir. É o que
+  // permite o Battlemap virar uma seção dentro de Cenas sem duplicar o painel inteiro:
+  // os handlers continuam sendo ligados depois do innerHTML, como sempre foram.
+  function paneMapa(anexar) {
     const m = S.mapaPreview || S.mapa || null;
     const gen = m && m.config && m.config.gen;
     const tipo = gen && MapGen.TIPOS.find(t => t.id === MapGen.normaliza(gen).tipo);
     const ops = [10, 15, 20, 25, 30, 35, 40, 50, 60, 80, 100];
     const G = gridCfg();
-    P().innerHTML = `<h4>Battlemap</h4>
+    const _mapaHtml = `<h4>Battlemap</h4>
       <p class="hint" style="margin:0 0 12px">Cada quadrado tem 1,5 m. Um mapa por vez: salvar um novo substitui o atual (os tokens continuam).</p>
       <div class="item" style="display:flex;align-items:center;gap:10px">
         <span class="av" style="width:40px;height:40px;border-radius:12px"><i class="ph ph-${tipo ? tipo.ico : m && m.fundo_url ? 'image' : 'map-trifold'}" style="font-size:20px"></i></span>
@@ -2070,6 +2081,8 @@
       <div class="sep"></div>
       <button class="btn btn-orange" id="mpLive" style="width:100%" ${m ? '' : 'disabled'}><i class="ph ph-broadcast"></i> Exibir battlemap para os jogadores</button>
       ${S.mesa.exibindo !== 'nada' ? `<button class="btn btn-sm" id="stopLive" style="margin-top:10px;width:100%"><i class="ph ph-pause"></i> Parar de exibir</button>` : ''}`;
+    if (anexar) P().insertAdjacentHTML('beforeend', '<div class="sep"></div>' + _mapaHtml);
+    else P().innerHTML = _mapaHtml;
     $('#mpCriar').onclick = () => abrirCriador(gen ? Object.assign({ cols: m.cols, rows: m.rows }, gen) : null);
     $('#mpImgT').onclick = () => { IMG.aberto = !IMG.aberto; paneMapa(); };
     const up = $('#mpUp');
