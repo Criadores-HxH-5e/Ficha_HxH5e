@@ -400,7 +400,43 @@
                                     <button onclick="window._ativarHatsuDaFicha(${i})" style="flex-shrink:0;padding:3px 9px;border-radius:6px;background:${tc2};border:none;color:#000;font-size:8px;font-weight:900;text-transform:uppercase;cursor:pointer">⚡ Ativar</button>
                                 </div>`;
                             }).join('');
-                            return `<div style="font-size:7px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">🌀 Hatsus${nAtivos ? ' — ' + nAtivos + ' ativo(s)' : ''}</div>${html}<div style="height:8px"></div>`;
+                            // Resumo das marcas de Emissão: quanta aura está empatada no
+                            // tabuleiro. Sem isso o jogador olha a barra de aura baixa e não
+                            // entende por quê — as marcas são colocadas fora do combate e
+                            // ficam esquecidas.
+                            const _rm = window.resumoMarcasEmissao ? window.resumoMarcasEmissao(char) : { marcas: 0 };
+                            const _rmHtml = _rm.marcas > 0
+                                ? `<div style="font-size:8px;color:#34d399;font-weight:700;margin-bottom:6px">📍 ${_rm.marcas} marca(s)/carga(s) no tabuleiro · ${_rm.aura}% de aura empatados</div>`
+                                : '';
+                            return `<div style="font-size:7px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">🌀 Hatsus${nAtivos ? ' — ' + nAtivos + ' ativo(s)' : ''}</div>${_rmHtml}${html}<div style="height:8px"></div>`;
+                        })()}
+                        ${(() => {
+                            // ── Bônus que dependem de uma situação ─────────────────
+                            // Seis promessas numéricas de Instância e Inclinação que não
+                            // eram lidas por cálculo nenhum. Nenhuma pode entrar num
+                            // total — todas dependem de algo que a ficha não enxerga —
+                            // mas ficar como texto no cartão fazia o jogador somar de
+                            // cabeça. Aqui elas aparecem com o número E com a condição.
+                            const _sit = window.calcBonusSituacionais ? window.calcBonusSituacionais(char) : [];
+                            if (!_sit.length) return '';
+                            return `<div style="font-size:7px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">⚡ Bônus situacionais</div>
+                                <div style="background:#0a0f1a;border:1px solid #1f2937;border-radius:10px;padding:8px;margin-bottom:8px">
+                                    ${_sit.map(s => `<div style="display:flex;gap:7px;align-items:baseline;padding:3px 0;border-bottom:1px dashed #11182744">
+                                        <span style="flex-shrink:0;font-family:'Orbitron',sans-serif;font-weight:900;font-size:11px;color:#fbbf24;min-width:52px">${s.valor}</span>
+                                        <div style="flex:1;line-height:1.4">
+                                            <div style="font-size:9px;color:#d1d5db;font-weight:700">${s.nome} <span style="color:#6b7280;font-weight:600">em ${s.onde}</span></div>
+                                            <div style="font-size:8px;color:#6b7280">${s.condicao}</div>
+                                        </div>
+                                    </div>`).join('')}
+                                    <div style="font-size:7px;color:#4b5563;margin-top:5px">A ficha não soma estes: cada um depende de uma situação que só a mesa sabe.</div>
+                                </div>`;
+                        })()}
+                        ${(() => {
+                            // ── Decisiva armada ────────────────────────────────────
+                            if (!(window.decisivaArmada && window.decisivaArmada(char))) return '';
+                            return `<div style="margin-bottom:8px;padding:7px 10px;border-radius:9px;background:#f8717115;border:1px solid #f8717144;font-size:9px;color:#f87171;line-height:1.5">
+                                ⚔ <b>Decisiva armada</b> — o próximo ataque soma <b>+${window.DECISIVA_ACERTO || 2}</b> no acerto e <b>+${window.DECISIVA_GRAUS || 1}</b> grau de dano, e some depois dele.
+                            </div>`;
                         })()}
                         ${(() => {
                             // ── CA vinda das Inclinações de Combate ────────────────
@@ -2143,6 +2179,9 @@
             // O grau sobe no DADO BASE e o termo de dados extras é recolocado intacto:
             // 2d6 + 1d6 com +2 graus vira "2d10 + 1d6", não "3d10". Regra do Lucas —
             // escalar o pacote inteiro deixaria o REN bem mais forte do que deveria.
+            // Decisiva armada pela Ação Protagonista: consumida aqui, antes do dado
+            // ser montado, porque o +1 grau dela anda na mesma escada do REN.
+            const _decH = window.consumirDecisiva ? window.consumirDecisiva(char) : false;
             const _dBase = (rs.diceBase || rs.dice);
             const _dExtra = rs.diceExtra || '';
             let renDice = rs.dice;
@@ -2151,6 +2190,16 @@
                 if (_idxD >= 0) {
                     const _novoBase = window.DAMAGE_TABLE[Math.min(_idxD + _grausExtra, window.DAMAGE_TABLE.length - 1)];
                     renDice = _dExtra ? (_novoBase + ' + ' + _dExtra) : _novoBase;
+                }
+            }
+            if (_decH && window.DAMAGE_TABLE) {
+                // Um degrau a mais, em cima do que o REN já subiu. Fica FORA do teto de
+                // Grau de Potência do nível: não é grau comprado, é bônus de Inclinação.
+                const _bAtual = (renDice.split(' + ')[0] || renDice);
+                const _iDec = window.DAMAGE_TABLE.indexOf(_bAtual);
+                if (_iDec >= 0) {
+                    const _novo = window.DAMAGE_TABLE[Math.min(_iDec + (window.DECISIVA_GRAUS || 1), window.DAMAGE_TABLE.length - 1)];
+                    renDice = renDice.indexOf(' + ') >= 0 ? renDice.replace(_bAtual, _novo) : _novo;
                 }
             }
             if (acPerdidos > 0) {
@@ -2270,7 +2319,7 @@
                 // RYU entra aqui, e não no rs.acertoBonus montado em hatsu-detail.js:
                 // lá o Hatsu ainda não sabe se é corpo-a-corpo, porque os metros de
                 // alcance e de área são calculados depois do estado da rolagem.
-                const acertoBonus = (rs.acertoBonus || 0) + _ryuH.total;
+                const acertoBonus = (rs.acertoBonus || 0) + _ryuH.total + (_decH ? (window.DECISIVA_ACERTO || 2) : 0);
                 // Margem de crítico da ficha (Aura Afiada, Assassino Veterano, Executor),
                 // com piso 18. Comparada contra o d20 USADO — antes era
                 // dice.includes(20), que declarava crítico mesmo quando o 20 era o dado
@@ -2483,6 +2532,50 @@
             };
             reader.readAsDataURL(input.files[0]);
         };
+        // ── Marcas e cargas da Emissão ──────────────────────────────────────────────
+        // Aplicar cobra 5% de aura; retirar devolve os mesmos 5%. Sem teto de
+        // quantidade: só a aura limita, por decisão de regra do Lucas.
+        //
+        // IMPORTANTE: a marca "com REN" do Plano Avançado é só o modo de aplicar.
+        // Ela NÃO liga o princípio REN — se ligasse, começaria a contagem de rodadas
+        // do REN, que não tem nada a ver com este efeito.
+        window._aplicarMarcaEmissao = function (idx, id) {
+            const char = state.currentChar;
+            const custo = window.MARCA_EMISSAO_CUSTO || 5;
+            const aura = char.vitals.aura || 0;
+            const cfg = window.marcaEmissao(id);
+            if (!cfg) return;
+            if (aura < custo) {
+                alert('Aura insuficiente\n\nAplicar uma ' + cfg.unidade + ' custa ' + custo + '% e você tem ' + aura + '%.');
+                return;
+            }
+            if (!char.marcasEmissao) char.marcasEmissao = {};
+            if (!char.marcasEmissao[idx]) char.marcasEmissao[idx] = {};
+            char.vitals.aura = Math.max(0, aura - custo);
+            char.marcasEmissao[idx][id] = window.contagemMarcas(char, idx, id) + 1;
+            saveCharacter(char);
+            render(true);
+        };
+        window._retirarMarcaEmissao = function (idx, id) {
+            const char = state.currentChar;
+            const atual = window.contagemMarcas(char, idx, id);
+            if (atual <= 0) return;
+            const custo = window.MARCA_EMISSAO_CUSTO || 5;
+            char.marcasEmissao[idx][id] = atual - 1;
+            // Devolve a aura, sem passar do máximo.
+            char.vitals.aura = Math.min(char.vitals.auraMax || 100, (char.vitals.aura || 0) + custo);
+            saveCharacter(char);
+            render(true);
+        };
+        window._setModoMarcaEmissao = function (idx, id, modo) {
+            const char = state.currentChar;
+            if (!char.marcasEmissao) char.marcasEmissao = {};
+            if (!char.marcasEmissao[idx]) char.marcasEmissao[idx] = {};
+            char.marcasEmissao[idx][id + '_modo'] = String(modo);
+            saveCharacter(char);
+            render(true);
+        };
+
         // Marca este Hatsu como de Ilusão, para o cartão de Sanidade do alvo somar
         // a linha certa. Fica na ficha do Hatsu porque não existe etiqueta de
         // "Ilusão" no banco de efeitos — quem sabe é a mesa.
@@ -3092,6 +3185,10 @@
             // Gasta primeiro: assim uma falha de rede no Discord não devolve o recurso
             // sem o jogador perceber.
             char.acaoProtagonista = Math.max(0, (parseInt(char.acaoProtagonista) || 0) - 1);
+            // Inclinação Decisiva: "ao utilizar uma ação protagonista, o ataque ganha
+            // +2 no acerto e +1 grau de dano". É aqui que a condição acontece — e era
+            // a condição que faltava para o bônus sair do "sempre".
+            const _dec = window.armarDecisiva && window.armarDecisiva(char);
             let dados, total;
             if (uso.modo) {
                 // Rerolagem com Vantagem ou Desvantagem: 2d20, como qualquer outra.
@@ -3110,6 +3207,10 @@
             if (char.history.length > 50) char.history.shift();
             saveCharacter(char);
             sendToDiscord(rotulo + ' (' + uso.dado + ')', dados, 0, total, char.name);
+            if (_dec) setTimeout(function () {
+                window._showXpToast && window._showXpToast('⚔ Decisiva armada — o próximo ataque ganha +'
+                    + (window.DECISIVA_ACERTO || 2) + ' no acerto e +' + (window.DECISIVA_GRAUS || 1) + ' grau de dano.');
+            }, 300);
             state.pendingAcaoProt = { uso: pa.uso, resultado: { dados: dados, total: total, uso: uso } };
             render(true);
         };
@@ -3348,13 +3449,17 @@
             // Fica de fora de arco, besta, arma de fogo e arma de cerco — nelas a aura
             // do RYU não acompanha o projétil. findItemData acha a arma no ITEM_DB, que
             // já traz a categoria e as etiquetas.
+            // Decisiva armada: vale para ESTE ataque e some depois dele, tenha
+            // acertado ou não — o que ela condiciona é o uso da Ação Protagonista.
+            const _decW = window.consumirDecisiva ? window.consumirDecisiva(char) : false;
+            const _decAcerto = _decW ? (window.DECISIVA_ACERTO || 2) : 0;
             const _ryuArmaOk = window.ryuAlcancaArma
                 ? window.ryuAlcancaArma(findItemData(weaponName), weaponName) : false;
             const _ryuW = window.calcBonusAcertoRyu
                 ? window.calcBonusAcertoRyu(char, _ryuArmaOk) : { total: 0, ryu: null };
             const attackRoll = getRollResult(mode || state.rollMode);
             // Na falha da Ênfase todo esse pacote vira penalidade — ver totalComEnfase.
-            const attackTotal = window.totalComEnfase(attackRoll, mod + pb + _baW.total + _ryuW.total,
+            const attackTotal = window.totalComEnfase(attackRoll, mod + pb + _baW.total + _ryuW.total + _decAcerto,
                 window.calcPenalidadeEnfase ? window.calcPenalidadeEnfase(char) : 0);
             // Margem de crítico da ficha, piso 18, comparada contra o d20 USADO.
             const _mcW = window.calcMargemCritico ? window.calcMargemCritico(char) : { valor: 20 };
@@ -3365,6 +3470,8 @@
             const renGraus = Math.max(0, parseInt(grausRen) || 0);
             const useRen = renGraus > 0;
             let renDiceExpr = diceExpr;
+            // O +1 grau da Decisiva anda na MESMA escada do REN, então é um degrau a
+            // mais em cima do que o REN já subiu.
             let renCost = 0;
             let renUsedFree = false;
             if (useRen && window.DAMAGE_TABLE) {
@@ -3381,6 +3488,10 @@
             // SHU: o dado vai no item envolvido, então só entra quando a arma rolada é ela.
             // Só é possível somar como SEGUNDO TERMO porque o rollDiceExpr passou a aceitar
             // expressão de vários termos.
+            if (_decW && window.DAMAGE_TABLE) {
+                const _iD = window.DAMAGE_TABLE.indexOf(renDiceExpr);
+                if (_iD >= 0) renDiceExpr = window.DAMAGE_TABLE[Math.min(_iD + (window.DECISIVA_GRAUS || 1), window.DAMAGE_TABLE.length - 1)];
+            }
             const _shuR = (window.calcShuAtivo && window.principioAtivo && window.principioAtivo(char, 'shu'))
                 ? window.calcShuAtivo(char) : null;
             const _shuNaArma = !!(_shuR && _shuR.item && _shuR.item === weaponName);
