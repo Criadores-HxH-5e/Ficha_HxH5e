@@ -2856,6 +2856,12 @@
             const ps = state.pendingShu;
             const sup = !!((char.nenDominio || {}).shu_sup);
             const max = window.SHU_MENU_MAX || 6;
+            // SHU_MENU estava declarado e nunca lido, enquanto este balão reescrevia os
+            // quatro rótulos e o "+5%" na mão — dívida minha, do patch do menu do SHU.
+            // Agora o texto sai do banco: mudar a alternativa lá muda a tela.
+            const _sm = id => (window.SHU_MENU || []).filter(m => m.id === id)[0] || {};
+            const _rot = id => _sm(id).rotulo || '';
+            const _pct = id => '+' + (_sm(id).custo != null ? _sm(id).custo : 5) + '%';
             const custo = window.custoShu ? window.custoShu(char, ps) : 10;
             const cabe = (char.vitals.aura || 0) >= custo;
             // O 1d4 da CA só é rolado na confirmação, então o balão mostra "1d4 + N".
@@ -2902,7 +2908,7 @@
                 + itemOpts + '</select>'
                 + '<div style="font-size:7px;color:#6b7280;margin-top:3px">O dado de dano do SHU só entra na rolagem desta arma.</div></div>'
                 + '<div style="background:#0f1117;border:1px solid #1f2937;border-radius:9px;padding:8px;margin-bottom:6px;text-align:left">'
-                + '<div style="font-size:9px;font-weight:700;color:#d1d5db">Aumentar CA ou Dano (como REN)</div>'
+                + '<div style="font-size:9px;font-weight:700;color:#d1d5db">' + _rot('mais') + '</div>'
                 + '<div style="font-size:7px;color:#6b7280;margin-top:1px">No Dano, cada compra sobe 1 degrau na escada (como REN). Na CA, cada compra vale +1.</div>'
                 + '<div style="display:flex;gap:3px;margin-top:5px;flex-wrap:wrap">'
                 + (function () { let s = ''; for (let i = 0; i <= max; i++) {
@@ -2913,14 +2919,14 @@
                 + '</div>' + ((ps.mais || 0) > 0 ? alvoBtns : '') + '</div>'
                 + '<div style="background:#0f1117;border:1px solid #1f2937;border-radius:9px;padding:8px;margin-bottom:6px;text-align:left">'
                 + '<div style="display:flex;align-items:center;gap:8px">'
-                + '<div style="flex:1"><div style="font-size:9px;font-weight:700;color:#d1d5db">Propriedade Arma de Cerco</div>'
-                + '<div style="font-size:7px;color:#6b7280;margin-top:1px">+5%</div></div>'
+                + '<div style="flex:1"><div style="font-size:9px;font-weight:700;color:#d1d5db">' + _rot('cerco') + '</div>'
+                + '<div style="font-size:7px;color:#6b7280;margin-top:1px">' + _pct('cerco') + '</div></div>'
                 + '<button onclick="window._setShuCampo(\'cerco\')" style="flex-shrink:0;padding:6px 12px;border-radius:7px;font-size:9px;font-weight:900;cursor:pointer;border:1px solid '
                 + (ps.cerco ? '#a78bfa' : '#374151') + ';background:' + (ps.cerco ? '#a78bfa33' : '#1f2937')
                 + ';color:' + (ps.cerco ? '#a78bfa' : '#9ca3af') + '">' + (ps.cerco ? '✓ Sim' : 'Não') + '</button></div></div>'
-                + contador('duracao', '+1 rodada de duração', '+5% por rodada')
-                + contador('tamanho', 'Englobar +1m de tamanho',
-                    sup ? 'SHU Superior: grátis, a aura é a mesma em qualquer tamanho.' : '+5% por metro')
+                + contador('duracao', _rot('duracao'), _pct('duracao') + ' por rodada')
+                + contador('tamanho', _rot('tamanho'),
+                    sup ? 'SHU Superior: grátis, a aura é a mesma em qualquer tamanho.' : _pct('tamanho') + ' por metro')
                 + '<div style="background:#a78bfa10;border:1px solid #a78bfa33;border-radius:10px;padding:10px;margin-top:4px">'
                 + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:13px;color:#a78bfa">+'
                 + prev.dadoDano + ' Dano · +1d4' + ((prev.caPasso || 0) > 0 ? ' +' + prev.caPasso : '') + ' CA</div>'
@@ -5071,14 +5077,6 @@
             saveCharacter(char);
             render(true);
         }
-        window.handleArmorRepair = function () {
-            const char = state.currentChar;
-            const d = getDurabilidade(char);
-            if (!d.temArmadura) return;
-            char.armorDurability = d.max;
-            saveCharacter(char);
-            render(true);
-        };
         function uploadCharacterImage(input) { if (input.files && input.files[0]) { const reader = new FileReader(); reader.onload = function(e) { state.currentChar.imageUrl = e.target.result; state.currentChar.imagePosition = { x: 50, y: 50 }; saveCharacter(state.currentChar); render(true); }; reader.readAsDataURL(input.files[0]); } }
 
         // Modal pra escolher qual parte da imagem do personagem fica visível no recorte do header
