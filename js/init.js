@@ -1405,9 +1405,20 @@ window._openPrimeiroHatsuModal = function() {
             }
         };
 
+        // Novo combate. Estava definida e sem nenhum botão chamando — era um dos
+        // window.* mortos da auditoria. Agora tem dono: além de zerar a contagem,
+        // ela devolve os usos "1x por combate" (Carga de Energia, Vitalidade Extra).
         window._zerarRodadas = function () {
             const char = state.currentChar;
+            if (!confirm('Novo combate?\n\nZera a contagem de rodadas, desliga Hatsus e princípios e devolve os usos de 1× por combate.')) return;
             char.rodadaAtual = 0;
+            // Só os de combate: os de "1x por dia" seguem a data e não voltam aqui.
+            if (char.efeitosUsados) {
+                (window.EFEITOS_ARMAVEIS || []).concat(window.RECUPERACOES_PV || []).forEach(function (e) {
+                    if (e.escopo === 'combate') delete char.efeitosUsados[e.id];
+                });
+            }
+            char.efeitosArmados = {};
             char.hatsusAtivos = {};
             char.principiosAtivos = {};
             char.principiosRodadas = {};

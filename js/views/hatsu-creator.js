@@ -1445,6 +1445,11 @@ function renderHatsuCreator(container) {
                     em_e11: { icone: '🔗', titulo: 'O que esta compra acrescenta?',
                         nota: 'Dobrar o PV compõe: duas compras de PV quadruplicam.',
                         opcoes: [['pv', 'Dobrar o PV'], ['ca', '+1 na CA']] },
+                    // Stalker: o "ou" do texto é escolha de COMPRA. Cada cópia vale
+                    // localizar OU +1 no acerto, e só as de acerto somam (teto +3).
+                    em_e8: { icone: '🎯', titulo: 'O que esta compra do Stalker faz?',
+                        nota: 'Localizar não entra em cálculo — é informação de cena. O +1 no acerto soma no ataque deste Hatsu, até +3 no total.',
+                        opcoes: [['localizar', 'Localizar por 1h ou 100m'], ['acerto', '+1 para encontrar/acertar']] },
                     // ── Materialização: o +10% por categoria de tamanho ──────────────
                     // Os quatro efeitos de aparência/função dizem "Custo de aura +10% por
                     // categoria de tamanho acima do usuário", e esse acréscimo nunca era
