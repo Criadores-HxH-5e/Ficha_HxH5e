@@ -2482,32 +2482,53 @@
                 fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(() => {});
             }
         }
-        // Ataque básico do Constructo (Ficha do Constructo): sem efeito de dano próprio,
-        // o manual usa 1d6 + atributo (normalmente FOR/DES), mas o jogador pode escolher
-        // qual atributo do constructo entra na rolagem (guardado em h.constructo.atributoAtaque).
+        // Ataque do Constructo (Ficha do Constructo): ACERTO e DANO, como qualquer
+        // outro ataque da ficha. Antes isto rolava só 1d6 e mandava como dano — o d20
+        // ficava na mão do jogador. A composição (atributo do constructo + proficiência
+        // do Materializador) e o dado de dano vêm de ataqueDoConstructo; ver o comentário
+        // lá, com as duas passagens do livro que mandam nisso.
         window.rollConstructoAtaque = function(idx, cIdx) {
             const char = state.currentChar;
             const h = (char.hatsus || [])[idx];
             if (!h) return;
             // cIdx = qual cópia do constructo está atacando (0 = a primeira).
-            const cst = window._hCst ? window._hCst(h, parseInt(cIdx) || 0) : h.constructo;
+            const c = parseInt(cIdx) || 0;
+            const cst = window._hCst ? window._hCst(h, c) : h.constructo;
             if (!cst) return;
-            const atributos = Object.assign({ FOR: 0, DES: 0, CON: 0, INT: 0, SAB: 0, PRE: 0 }, cst.atributos || {});
-            const attrKey = (cst.atributoAtaque && atributos.hasOwnProperty(cst.atributoAtaque))
-                ? cst.atributoAtaque
-                : (atributos.FOR >= atributos.DES ? 'FOR' : 'DES');
-            const attrMod = atributos[attrKey] || 0;
-            const roll = rollDiceExpr('1d6');
+            // O dano comprado do Hatsu só está montado para o Hatsu ABERTO.
+            const info = window.ataqueDoConstructo
+                ? window.ataqueDoConstructo(char, h, c, state.hatsuDetailIdx === idx)
+                : null;
+            const attrKey = info ? info.attr : 'FOR';
+            const attrMod = info ? info.atributo : 0;
+            const pb = info ? info.proficiencia : 0;
+            const acertoExtra = info ? info.acertoExtra : 0;
+            const dado = info ? info.dado : '1d6';
+            // A ÊNFASE é recurso DO JOGADOR: são 3 por sessão e a falha dela concede
+            // Ação Protagonista a ele. O constructo nunca gasta uma. Vantagem e
+            // desvantagem continuam valendo normalmente.
+            const modo = state.rollMode === 'ÊNFASE' ? 'NORMAL' : state.rollMode;
+            const acerto = getRollResult(modo);
+            const acertoMod = attrMod + pb + acertoExtra;
+            const acertoTotal = acerto.total + acertoMod;
+            const roll = rollDiceExpr(dado);
             const total = roll.total + attrMod;
             const nome = cst.nome || `${h.nome} (Constructo)`;
+            const sinal = n => (n >= 0 ? '+' : '') + n;
+            const fdTxt = info && info.fusaoDiv
+                ? (info.fusaoDiv.modo === 'fundir' ? ' · 🔗 Fundido' : ' · ✂️ Dividido')
+                : '';
             const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-            char.history.push({ time, label: `🐣 ${nome} — Ataque`, dice: roll.rolls.join(', '), mod: attrMod, total, img: cst.imagemUrl || '' });
-            if (char.history.length > 50) char.history.shift();
+            char.history.push({ time, label: `🐣 ${nome} — Acerto (${acerto.label})`, dice: acerto.dice.join(', '), mod: acertoMod, total: acertoTotal, img: cst.imagemUrl || '' });
+            char.history.push({ time, label: `🐣 ${nome} — Dano`, dice: roll.rolls.join(', '), mod: attrMod, total, img: cst.imagemUrl || '' });
+            while (char.history.length > 50) char.history.shift();
             saveCharacter(char);
-            const content = `🐣 **${nome}** ataca!\nDano: [${roll.rolls.join('+')}] ${attrMod >= 0 ? '+' : ''}${attrMod} = **${total}** (1d6 + ${attrKey})`;
+            const content = `🐣 **${nome}** ataca!${fdTxt}\n`
+                + `Acerto: [${acerto.dice.join(', ')}] ${sinal(acertoMod)} = **${acertoTotal}** (1d20 ${sinal(attrMod)} ${attrKey} ${sinal(pb)} prof.${acertoExtra ? ' ' + sinal(acertoExtra) + ' Fusão/Divisão' : ''})\n`
+                + `Dano: [${roll.rolls.join('+')}] ${sinal(attrMod)} = **${total}** (${dado} + ${attrKey})`;
             sendRollToDiscord(content, cst.imagemUrl);
             if (state.activeTab !== 'DADOS') state.unreadRolls = true;
-            if (window._showXpToast) window._showXpToast(`🎲 ${nome}: ${total} de dano enviado ao Discord!`);
+            if (window._showXpToast) window._showXpToast(`🎲 ${nome}: acerto ${acertoTotal} · ${total} de dano`);
             render(true);
         };
         function openAttackModal(weaponName, diceExpr, tipoDano) {

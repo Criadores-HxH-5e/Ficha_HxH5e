@@ -856,6 +856,73 @@ window.resumoMarcasEmissao = function (char) {
     return { marcas: marcas, aura: marcas * (window.MARCA_EMISSAO_CUSTO || 5) };
 };
 
+// ── rm_e19 Fusão ou Divisão de Constructos ───────────────────────────────────
+// O banco descreve: "Ao fundir duas criaturas materializadas: +10 PV, unindo suas
+// habilidades e +1 grau/passo em acerto ou dano. Ao dividir: -10 PV, -5 CA e -1
+// grau/passo em acerto ou dano." Era o último efeito que prometia número e não
+// tinha para onde ir — nenhum arquivo fora do banco mencionava o id.
+//
+// Regras confirmadas com o Lucas (29/10):
+//   • É AÇÃO DE MESA, não escolha de compra: o jogador liga durante o uso e a
+//     escolha some quando o Hatsu é desativado (ver _desativarHatsu em init.js).
+//   • FUNDIR junta duas fichas numa só — os PV das duas somam, as Características
+//     das duas passam a valer ("unindo suas habilidades") e cada compra do efeito
+//     acrescenta +10 PV e +1 grau/passo.
+//   • DIVIDIR parte uma ficha em DUAS e aí "não importa quantos foram
+//     adicionados/acumulados, sempre será dividido por 2": o PV de cada metade é a
+//     METADE do total (é esse corte que faz o papel do "-10 PV" do texto) e os -5
+//     de CA são REPARTIDOS entre as duas, -3 e -2. O ponto que sobra vai para a
+//     metade que o jogador escolher — daí a pergunta na hora de dividir.
+//   • "+1 grau/passo em ACERTO" é +1 plano no d20 do constructo, não um degrau da
+//     tabela de dano. Em DANO é o degrau normal da DAMAGE_TABLE.
+window.FUSAO_DIVISAO_ID = 'rm_e19';
+window.FUSAO_PV_POR_COMPRA = 10;
+window.FUSAO_GRAUS_POR_COMPRA = 1;
+window.DIVISAO_CA_PENALIDADE = 5;
+
+window.comprasFusaoDivisao = function (h) {
+    if (!h) return 0;
+    const ids = Array.isArray(h.efeitos) ? h.efeitos : [].concat(h.eg || [], h.ec || []);
+    return ids.filter(function (id) { return id === window.FUSAO_DIVISAO_ID; }).length;
+};
+
+// O -5 de CA repartido entre as duas metades: devolve [maior, menor] = [3, 2].
+// A metade escolhida pelo jogador leva a MENOR, ficando 1 de CA acima da outra.
+window.repartirCaDivisao = function (total) {
+    const n = Math.max(0, parseInt(total) || 0);
+    return [Math.ceil(n / 2), Math.floor(n / 2)];
+};
+
+// Estado vivo, guardado em h.fusaoDiv = { modo, alvo, folga }.
+//   modo  'fundir' | 'dividir' | null (nenhum)
+//   alvo  'dano' | 'acerto'  — onde entra o grau/passo
+//   folga 0 | 1 — qual das duas metades fica com o ponto de CA que sobra
+// `copias` é quantas fichas de constructo o Hatsu tem hoje: fundir exige duas,
+// dividir exige uma. Um modo impossível é tratado como desligado, para que uma
+// ficha salva não mostre número que não vale.
+window.statusFusaoDivisao = function (h, copias) {
+    const compras = window.comprasFusaoDivisao(h);
+    if (!compras) return null;
+    const n = Math.max(1, parseInt(copias) || 1);
+    const fd = (h && h.fusaoDiv) || {};
+    let modo = (fd.modo === 'fundir' || fd.modo === 'dividir') ? fd.modo : null;
+    if (modo === 'fundir' && n < 2) modo = null;
+    if (modo === 'dividir' && n > 1) modo = null;
+    return {
+        compras: compras,
+        modo: modo,
+        alvo: fd.alvo === 'acerto' ? 'acerto' : 'dano',
+        folga: (parseInt(fd.folga) || 0) === 1 ? 1 : 0,
+        podeFundir: n >= 2,
+        podeDividir: n === 1,
+        // Fundindo acumula por compra; dividindo é sempre uma divisão só.
+        pv: modo === 'fundir' ? compras * window.FUSAO_PV_POR_COMPRA : 0,
+        graus: modo === 'fundir' ? compras * window.FUSAO_GRAUS_POR_COMPRA
+             : (modo === 'dividir' ? -1 : 0),
+        caPenalidade: window.repartirCaDivisao(window.DIVISAO_CA_PENALIDADE),
+    };
+};
+
 window.AURA_CONDENSADA_TETO_POR_COMPRA = 25;
 
 // Quantas vezes o Hatsu comprou rm_e12. Aceita o Hatsu salvo (h.efeitos) e o
