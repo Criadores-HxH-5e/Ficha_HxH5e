@@ -502,8 +502,9 @@ window.bonusDanoFragilizante = function (h) {
 //                                              sentido, alcance dobrado). Recomprar
 //                                              não dá nada, e o app avisa.
 // `base` é o valor da 1ª compra (o do livro) e `passo` o que cada recompra soma.
-window.POTENCIAL_LIBERADO_PASSO = { atributo: 1, deslocamento: 1.5, reacoes: 1 };
-
+// POTENCIAL_LIBERADO_PASSO saiu em 29/10: o passo real vem do `aplica.passo` de cada
+// entrada, e conferindo as 6 entradas uma a uma nenhuma divergia do mapa. Duas fontes
+// para o mesmo número só criam chance de uma envelhecer.
 window.POTENCIAL_LIBERADO_FISICO = [
     { id: 'pl_torso',      parte: 'Torso (Tronco)', variante: '',
       efeito: 'Adicione +2 ao seu bônus de Constituição',

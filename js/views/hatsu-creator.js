@@ -35,9 +35,10 @@ function renderHatsuCreator(container) {
 
     const pnBase = window.calcularPHBase(char.level);
     const pnBonus = window.calcPNBonusFromRestr(state.hatsuBuilder || {});
+    // pnSpentOthers continua aqui porque a TELA mostra o número ("−N em outros Hatsus"),
+    // em três lugares. O que saiu foi a conta repetida do pnBaseAvail, não o dado.
     const pnSpentOthers = window.calcPNSpentInOtherHatsus(char, hb.editingIdx);
-    const pnSpentDominio = window.calcPNSpentInDominio ? window.calcPNSpentInDominio(char) : 0;
-    const pnBaseAvail = Math.max(0, pnBase - pnSpentOthers - pnSpentDominio); // base pool disponível
+    const pnBaseAvail = window.calcPNDisponivelParaHatsu(char, hb.editingIdx); // base pool disponível
     let pnUsed = 0;
     hb.eg.forEach(id => { const e = window.HATSU_DB.efeitos_gerais.find(x=>x.id===id); if(e) pnUsed += e.pn; });
     hb.ec.forEach(id => {
@@ -3241,11 +3242,8 @@ window._hNext = function() {
     if (hb.step === 6) {
         // Bloqueia se há P.N não gastos — P.N não podem ser guardados para outro nível
         const _char5 = state.currentChar;
-        const _pnBase5 = window.calcularPHBase(_char5.level);
         const _pnBonus5 = window.calcPNBonusFromRestr(hb);
-        const _pnSpentOth5 = window.calcPNSpentInOtherHatsus(_char5, hb.editingIdx);
-        const _pnDom5 = window.calcPNSpentInDominio ? window.calcPNSpentInDominio(_char5) : 0;
-        const _pnBaseAvail5 = Math.max(0, _pnBase5 - _pnSpentOth5 - _pnDom5);
+        const _pnBaseAvail5 = window.calcPNDisponivelParaHatsu(_char5, hb.editingIdx);
         let _pnUsed5 = 0;
         hb.eg.forEach(id => { const e = window.HATSU_DB.efeitos_gerais.find(x=>x.id===id); if(e) _pnUsed5+=e.pn; });
         hb.ec.forEach(id => { for (const cat of Object.values(window.HATSU_DB.categorias||{})) { if (!cat||!cat.efeitos) continue; const e=cat.efeitos.find(x=>x.id===id); if(e){_pnUsed5+=e.pn;break;} } });
@@ -3433,7 +3431,7 @@ window._hAddDuplicateE = function(id, tipo, pn) {
             if (e) { used += e.pn; break; }
         }
     });
-    const _pnSpentOth = window.calcPNSpentInOtherHatsus(state.currentChar, hb.editingIdx); const _pnDom = window.calcPNSpentInDominio ? window.calcPNSpentInDominio(state.currentChar) : 0; const _pnBaseAvail = Math.max(0, window.calcularPHBase(state.currentChar.level) - _pnSpentOth - _pnDom); const _pnBonus = window.calcPNBonusFromRestr(hb); const _pnBaseUsed = Math.max(0, used - _pnBonus); if (_pnBaseUsed + pn > _pnBaseAvail && used + pn > _pnBaseAvail + _pnBonus) return;
+    const _pnBaseAvail = window.calcPNDisponivelParaHatsu(state.currentChar, hb.editingIdx); const _pnBonus = window.calcPNBonusFromRestr(hb); const _pnBaseUsed = Math.max(0, used - _pnBonus); if (_pnBaseUsed + pn > _pnBaseAvail && used + pn > _pnBaseAvail + _pnBonus) return;
     const arr = tipo === 'eg' ? hb.eg : hb.ec;
     // Guarda final: efeitos de ESPECIALIZAÇÃO só para ESPECIALIZAÇÃO, MANIPULAÇÃO e MATERIALIZAÇÃO
     if (tipo === 'ec') {
@@ -4411,7 +4409,7 @@ function _hTryComprarEfeito(hb, item, id, tipo, pn, isRepetivel) {
             if (e) { used += e.pn; break; }
         }
     });
-    const _pnSpentOth = window.calcPNSpentInOtherHatsus(state.currentChar, hb.editingIdx); const _pnDom = window.calcPNSpentInDominio ? window.calcPNSpentInDominio(state.currentChar) : 0; const _pnBaseAvail = Math.max(0, window.calcularPHBase(state.currentChar.level) - _pnSpentOth - _pnDom); const _pnBonus = window.calcPNBonusFromRestr(hb); const _pnBaseUsed = Math.max(0, used - _pnBonus); if (_pnBaseUsed + pn > _pnBaseAvail && used + pn > _pnBaseAvail + _pnBonus) return false;
+    const _pnBaseAvail = window.calcPNDisponivelParaHatsu(state.currentChar, hb.editingIdx); const _pnBonus = window.calcPNBonusFromRestr(hb); const _pnBaseUsed = Math.max(0, used - _pnBonus); if (_pnBaseUsed + pn > _pnBaseAvail && used + pn > _pnBaseAvail + _pnBonus) return false;
     // Guarda final: efeitos de ESPECIALIZAÇÃO só para ESPECIALIZAÇÃO, MANIPULAÇÃO e MATERIALIZAÇÃO
     if (tipo === 'ec') {
         const _espCatDB = window.HATSU_DB && window.HATSU_DB.categorias['ESPECIALIZAÇÃO'];

@@ -307,11 +307,11 @@ window.CATEGORIA_CARACTERISTICAS_GRAU = {
 window.CARACTERISTICAS_SEM_TETO = ['atributos', 'custo', 'alvos', 'acerto'];
 
 // Rótulo legível de cada característica, usado nos painéis.
-window.CARACTERISTICA_LABEL = {
-    dano: 'Dano/Cura', alcance: 'Alcance', area: 'Área', duracao: 'Duração',
-    acerto: 'Acerto', cd: 'CD do TR',
-    atributos: 'Atributos', custo: 'Redução de Custo', alvos: 'Número de Alvos',
-};
+// CARACTERISTICA_LABEL foi removida em 29/10: ela traduzia chaves internas
+// ('dano', 'alcance', 'area'...) para rótulos, e o resto do app nunca usou essas
+// chaves — trabalha direto com os nomes de exibição, inclusive com um 'Alcance/Área'
+// combinado que não existia no mapa. Religar daria rótulo errado; o vocabulário vivo
+// é o de CATEGORIA_CARACTERISTICAS_GRAU, logo abaixo.
 
 // Peculiaridades da Categoria: TODAS as características da lista acima (não só uma) já nascem com
 // piso de +5 no Grau de Potência, mesmo quando calcMaxGrauPorNivel ainda travaria em +3 (nível 1-2).
@@ -1149,23 +1149,6 @@ window._hOpenConstructoImagePositionModal = function(idx, c) {
         cleanup();
         renderHatsuInPlace();
     };
-};
-window._hSetConstructoAttr = function(idx, c, attr, delta) {
-    const char = state.currentChar;
-    const h = (char.hatsus || [])[idx];
-    if (!h) return;
-    const cst = _hCst(h, c);
-    if (!cst.atributos) cst.atributos = { FOR: 0, DES: 0, CON: 0, INT: 0, SAB: 0, PRE: 0 };
-    const atuais = cst.atributos;
-    const intMod = getMod((char.attributes.INT || {}).value || 10);
-    const maxPontos = Math.max(0, intMod);
-    const usados = Object.values(atuais).reduce((a, b) => a + (parseInt(b) || 0), 0);
-    const next = (atuais[attr] || 0) + delta;
-    if (next < 0) return;
-    if (delta > 0 && usados >= maxPontos) return;
-    atuais[attr] = next;
-    saveCharacter(char);
-    renderHatsuInPlace();
 };
 window._hAddConstructoCaracteristica = function(idx, c) {
     const char = state.currentChar;
@@ -3301,7 +3284,6 @@ function renderHatsuDetail(container) {
         if (r > 0) return { rodadas: r, constante: false, texto: r + (r === 1 ? ' rodada' : ' rodadas'), nota: '' };
         return { rodadas: 0, constante: false, texto: 'Instantâneo', nota: 'Nenhuma rodada comprada' };
     })();
-    window._HATSU_DURACAO_INFO = _duracaoInfo;
 
     const hasRangeOrDuration = alcanceBonus.length > 0 || areaBonus.length > 0 || duracaoBonus.length > 0 || alcanceDobrado || duracaoDobrada || _alvosQuer > 0;
     let calcRangeDurHtml = '';

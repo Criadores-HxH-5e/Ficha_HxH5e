@@ -975,6 +975,10 @@ window.calcPNSpentInOtherHatsus = function(char, editingIdx) {
     return spent;
 };
 
+// Quanto P.N. sobra para ESTE Hatsu. Estava declarada e nunca chamada enquanto o
+// criador refazia a mesma conta em quatro lugares — o risco apontado na auditoria de
+// 28/10 ("o criador recalcula por conta própria — risco de divergir"). Agora os quatro
+// chamam daqui.
 window.calcPNDisponivelParaHatsu = function(char, editingIdx) {
     const total = window.calcularPHBase ? window.calcularPHBase(char.level) : 6;
     const dominio = window.calcPNSpentInDominio(char);
