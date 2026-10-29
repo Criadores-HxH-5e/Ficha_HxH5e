@@ -1400,9 +1400,17 @@ window.calcBonusAcerto = function (char) {
     const inst = char.instancias || {};
     if ((parseInt(inst.observador) || 0) >= 1) add('Instância Observador', 3);
 
-    // Inclinação Decisiva, Básico: "+2 no acerto."
-    const ci = char.combatInclinations || {};
-    if ((parseInt(ci.decisiva) || 0) >= 1) add('Decisiva (Básico)', 2);
+    // A Decisiva SAIU daqui. O texto dela é "Ao utilizar uma ação protagonista, o
+    // ataque ganha +2 no acerto e +1 grau de dano" — e o app somava os +2 em TODO
+    // ataque, ignorando a condição. Era super-aplicação, não decoração: dava um
+    // bônus que a regra condiciona.
+    //
+    // Agora ela é ARMADA quando o jogador gasta a Ação Protagonista (que até
+    // ontem não existia no app, e é por isso que a condição não tinha como ser
+    // verificada) e CONSUMIDA pelo ataque seguinte. Ver decisivaArmada, abaixo.
+    //
+    // O Observador fica: o nível 1 dele é "+3 para acertar", sem condição nenhuma.
+    // (O nível 2 tem condição, e é um dos situacionais do painel novo.)
 
     // O RYU NÃO entra aqui. Esta função é compartilhada pela arma e pelo Hatsu, e o
     // RYU só vale em combate direto (corpo-a-corpo ou arremesso) — somar no cálculo
@@ -1424,6 +1432,190 @@ window.calcBonusAcertoRyu = function (char, alcanca) {
     return { total: r.ataqueDano, ryu: r };
 };
 
+
+// ── Efeitos que prometiam número e não tinham gatilho ────────────────────────
+// Cinco efeitos cujo texto traz um número e que, até aqui, eram lidos SÓ pelo
+// banco: `grep` de cada id devolvia um arquivo só. O jogador pagava o P.N e
+// recebia uma frase.
+//
+// Eles não são todos iguais, e é por isso que precisaram de desenhos diferentes:
+//
+//   ri_e24 Carga de Energia   — "dobra o dano do próximo ataque (1x por combate)"
+//   ri_e31 Força Descomunal   — "gasta 15% de aura: dobra o bônus de Força"
+//        → os dois são ARMADOS pelo jogador e consumidos pela rolagem seguinte,
+//          como a Decisiva. Quem decide qual golpe é "o próximo" é ele.
+//
+//   ri_e26 Vitalidade Extra   — "recupera 1d6+CON ao cair abaixo de 50% da vida"
+//   ri_e32 Resiliência Suprema— "quando cairia a 0 PV, recupera 30% do PV máximo"
+//        → esses dois têm gatilho MECÂNICO: o app enxerga o PV cruzando o limiar
+//          e aplica sozinho. Não há o que perguntar.
+//
+//   em_e8  Stalker            — "+1 para encontrar/acertar (máx. +3)"
+//        → entra no acerto do próprio Hatsu, com teto, uma vez por compra.
+window.EFEITOS_ARMAVEIS = [
+    { id: 'ri_e24', icone: '⚡', nome: 'Carga de Energia', escopo: 'combate',
+      custoAura: 0, rotulo: 'Dobra o dano do próximo ataque',
+      nota: 'Uma vez por combate.' },
+    { id: 'ri_e31', icone: '💪', nome: 'Força Descomunal', escopo: 'livre',
+      custoAura: 15, rotulo: 'Dobra o bônus de Força no próximo Teste ou Ataque',
+      nota: 'Custa 15% de aura por uso.' },
+];
+window.efeitoArmavel = function (id) {
+    return (window.EFEITOS_ARMAVEIS || []).filter(function (e) { return e.id === id; })[0] || null;
+};
+
+// Quantas vezes o personagem comprou um efeito, somando TODOS os Hatsus. Um
+// efeito comprado em dois Hatsus diferentes continua sendo o mesmo recurso do
+// personagem — é ele que arma, não o Hatsu.
+window.comprasDoEfeito = function (char, id) {
+    let n = 0;
+    ((char || {}).hatsus || []).forEach(function (h) {
+        n += ((h || {}).efeitos || []).filter(function (x) { return x === id; }).length;
+    });
+    return n;
+};
+window.temEfeito = function (char, id) { return window.comprasDoEfeito(char, id) > 0; };
+
+// Armados ficam em char.efeitosArmados. Usos gastos ficam em char.efeitosUsados,
+// por escopo: 'combate' zera no botão de novo combate; 'dia' segue a data, no
+// mesmo molde do uso grátis diário do REN (isRenFreeUsoDisponivel).
+window.efeitoArmado = function (char, id) { return !!(((char || {}).efeitosArmados) || {})[id]; };
+// O escopo pode estar em QUALQUER uma das duas listas — os armáveis e as
+// recuperações automáticas. Procurar só na primeira fazia a Resiliência Suprema,
+// que é de 1x por DIA, ser tratada como 1x por combate: uma vez usada, ela nunca
+// mais voltava, porque a data gravada era lida como "usado" para sempre.
+window.escopoDoEfeito = function (id) {
+    const e = (window.EFEITOS_ARMAVEIS || []).concat(window.RECUPERACOES_PV || [])
+        .filter(function (x) { return x.id === id; })[0];
+    return (e && e.escopo) || 'combate';
+};
+window.efeitoUsado = function (char, id) {
+    const u = ((char || {}).efeitosUsados) || {};
+    const escopo = window.escopoDoEfeito(id);
+    if (escopo === 'livre') return false;               // sem limite de uso: o limite é a aura
+    if (escopo === 'dia') return u[id] === new Date().toLocaleDateString('pt-BR');
+    return !!u[id];
+};
+window.marcarEfeitoUsado = function (char, id, escopo) {
+    if (!char.efeitosUsados) char.efeitosUsados = {};
+    char.efeitosUsados[id] = (escopo === 'dia') ? new Date().toLocaleDateString('pt-BR') : true;
+};
+window.armarEfeito = function (char, id) {
+    const e = window.efeitoArmavel(id);
+    if (!e || !window.temEfeito(char, id) || window.efeitoUsado(char, id)) return null;
+    if (e.custoAura > 0 && (char.vitals.aura || 0) < e.custoAura) return 'semAura';
+    if (e.custoAura > 0) char.vitals.aura = Math.max(0, (char.vitals.aura || 0) - e.custoAura);
+    if (!char.efeitosArmados) char.efeitosArmados = {};
+    char.efeitosArmados[id] = true;
+    if (e.escopo !== 'livre') window.marcarEfeitoUsado(char, id, e.escopo);
+    return 'ok';
+};
+window.consumirEfeito = function (char, id) {
+    if (!window.efeitoArmado(char, id)) return false;
+    delete char.efeitosArmados[id];
+    return true;
+};
+
+// ── Recuperações automáticas ─────────────────────────────────────────────────
+// Devolvem o quanto recuperar, ou 0. Quem chama é o updateVital, no instante em
+// que o PV cruza o limiar — é só ali que a condição existe.
+window.RECUPERACOES_PV = [
+    { id: 'ri_e26', icone: '❤️', nome: 'Vitalidade Extra', escopo: 'combate',
+      gatilho: 'abaixo de 50% da vida', formula: '1d6+CON' },
+    { id: 'ri_e32', icone: '🛡', nome: 'Resiliência Suprema', escopo: 'dia',
+      gatilho: 'quando cairia a 0 PV', formula: '30% do PV máximo' },
+];
+window.calcRecuperacaoPV = function (char, id, rng) {
+    if (!char || !window.temEfeito(char, id) || window.efeitoUsado(char, id)) return 0;
+    const r = rng || function (n) { return Math.floor(Math.random() * n) + 1; };
+    const max = (char.vitals || {}).hpMax || 0;
+    if (id === 'ri_e26') {
+        const con = window.calcAtributoEfetivo
+            ? window.calcAtributoEfetivo(char, 'CON').mod
+            : Math.floor(((((char.attributes || {}).CON || {}).value || 10) - 10) / 2);
+        return Math.max(1, r(6) + con);
+    }
+    if (id === 'ri_e32') return Math.max(1, Math.round(max * 0.3));
+    return 0;
+};
+
+// ── em_e8 Stalker: +1 para acertar por compra, teto +3 ───────────────────────
+// O texto é "Marca alvo e localiza-o por 1h ou 100m OU +1 para encontrar/acertar
+// (máx. +3)". O "ou" é escolha de compra: cada cópia vale uma coisa ou a outra.
+window.STALKER_TETO = 3;
+window.STALKER_ESCOLHA_ACERTO = 'acerto';
+window.bonusStalker = function (h) {
+    if (!h) return 0;
+    const sc = h.specialChoices || {};
+    const copias = (h.efeitos || []).filter(function (id) { return id === 'em_e8'; }).length;
+    let n = 0;
+    for (let i = 0; i < copias; i++) {
+        const k = (window.chaveCopia ? window.chaveCopia('em_e8', i) : (i ? 'em_e8#' + i : 'em_e8'));
+        if (sc[k] === window.STALKER_ESCOLHA_ACERTO) n++;
+    }
+    return Math.min(window.STALKER_TETO, n);
+};
+
+// ── Decisiva: armada pela Ação Protagonista ──────────────────────────────────
+// "Ao utilizar uma ação protagonista, o ataque ganha +2 no acerto e +1 grau de
+//  dano (se acertar)."
+// Fica guardada em char.decisivaArmada e vale para o PRÓXIMO ataque, seja com
+// arma ou com Hatsu. É assim porque a ficha não tem como saber sozinha qual dos
+// ataques do turno é "o da ação protagonista" — quem sabe é o jogador, e ele diz
+// ao gastar o recurso.
+window.DECISIVA_ACERTO = 2;
+window.DECISIVA_GRAUS = 1;
+window.temDecisiva = function (char) {
+    return (parseInt(((char || {}).combatInclinations || {}).decisiva) || 0) >= 1;
+};
+window.decisivaArmada = function (char) { return !!((char || {}).decisivaArmada); };
+window.armarDecisiva = function (char) {
+    if (!window.temDecisiva(char)) return false;
+    char.decisivaArmada = true;
+    return true;
+};
+window.consumirDecisiva = function (char) {
+    if (!window.decisivaArmada(char)) return false;
+    delete char.decisivaArmada;
+    return true;
+};
+
+// ── Bônus que dependem de uma situação ───────────────────────────────────────
+// Seis promessas numéricas de Instância e de Inclinação que não eram lidas por
+// cálculo nenhum — ficavam como texto no cartão e o jogador somava de cabeça, se
+// lembrasse. Nenhuma delas pode entrar num total: todas dependem de algo que a
+// ficha não enxerga (estar montado, o alvo estar agarrado, ter observado o alvo
+// por uma rodada). Então elas seguem o padrão que o app já usa nas Reações e na
+// margem de crítico: aparecem com o NÚMERO e com a CONDIÇÃO, para o jogador
+// aplicar na mão sabendo exatamente quanto é.
+//
+// O que NÃO está aqui, de propósito:
+//   Ágil N2       — virou CA de verdade (ver calcBonusCAInstancia)
+//   Decisiva      — virou gatilho da Ação Protagonista (acima)
+//   Observador N1 — é incondicional e já entra no calcBonusAcerto
+window.calcBonusSituacionais = function (char) {
+    const out = [];
+    if (!char) return out;
+    const inst = char.instancias || {};
+    const ci = char.combatInclinations || {};
+    const nvI = id => parseInt(inst[id]) || 0;
+    const nvC = id => parseInt(ci[id]) || 0;
+
+    if (nvI('domadora') >= 1) out.push({ nome: 'Domadora I', valor: '+2',
+        onde: 'testes', condicao: 'escalar, montar e se manter sobre criaturas e veículos' });
+    if (nvI('domadora') >= 2) out.push({ nome: 'Domadora II', valor: '+1 grau/passo',
+        onde: 'dano', condicao: 'corpo a corpo contra a criatura em que você está montado' });
+    if (nvI('observador') >= 2) out.push({ nome: 'Observador II', valor: '−3',
+        onde: 'no ataque do inimigo', condicao: 'alvos que você observou por 1 rodada inteira' });
+    if (nvC('investida_poderosa') >= 2) out.push({ nome: 'Investida Poderosa II', valor: '+5',
+        onde: 'dano', condicao: 'no ataque de Ação Bônus após Disparada de 6 m — ou empurre 4 m, à escolha' });
+    if (nvC('imobilizador') >= 2) out.push({ nome: 'Imobilizador (REN)', valor: '+2 graus/passos',
+        onde: 'dano', condicao: 'gastando REN contra alvo agarrado, no lugar do +1 no ataque' });
+    if (nvC('combate_montado') >= 3) out.push({ nome: 'Combate Montado III', valor: '+2',
+        onde: 'CA ou dano', condicao: 'do veículo ou da montaria que você conduz, à sua escolha' });
+    return out;
+};
+
 // ── +2 na CA da Instância Combatente Rápido ──────────────────────────────────
 // A outra metade da escolha do nível 2: "+2 na CA ou Ações de Esquivas". Se o
 // jogador escolheu CA, o bônus entra aqui; se escolheu Esquivas, entra no
@@ -1437,6 +1629,14 @@ window.calcBonusCAInstancia = function (char) {
         && ((char.instanciaEscolhas || {}).combatente_rapido_2 === 'ca')) {
         total += 2;
         fontes.push({ nome: 'Instância Combatente Rápido', valor: 2 });
+    }
+    // Ágil II: "quem te ataca tem −3 no acerto". O app não tem lado do atacante —
+    // ele nunca rola o ataque do inimigo — e −3 na rolagem de quem ataca é a mesma
+    // conta que +3 na CA de quem defende. É permanente e sem condição, então entra
+    // no total, com o rótulo dizendo de onde vem para ninguém achar que é bug.
+    if ((parseInt(inst.agil) || 0) >= 2) {
+        total += 3;
+        fontes.push({ nome: 'Instância Ágil II (quem te ataca tem −3)', valor: 3 });
     }
     return { total: total, fontes: fontes };
 };
