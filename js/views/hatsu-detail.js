@@ -1394,7 +1394,12 @@ function renderHatsuDetail(container) {
     // Map of items that deal sanity damage with their values
     const SANIDADE_MAP = {
         'rma_m2': { dado: '+2/rod', desc: 'Zetsu Interrompe' },
-        'ma_e7':  { dado: '+3',     desc: 'Mente Frágil' },
+        // ma_e7 Mente Frágil saiu daqui em 29/10. O livro diz "Fragilizado,
+        // Desorientado ou Sanidade -x (teto)", e o -3 era invenção do app. Confirmado
+        // com o Lucas: o x é o dano de sanidade que o próprio Hatsu já compra (Flagelo
+        // da Mente, eg10, e afins), respeitando o teto do nível. Ou seja, Mente Frágil
+        // ENTREGA o dano que o Hatsu já tem; não cria um número novo. Ver o aviso na
+        // ficha, abaixo, para quando o Hatsu não comprou nenhum.
         'rg_p3':  { dado: '+1d10',  desc: 'Dano Permanente (ativação)' },
         'rg_e4':  { dado: '+5',     desc: 'Dano Permanente Constante (ativação)' },
         'rg_v5':  { dado: '+1d10',  desc: 'Dano Momentâneo Variável (ativação)' },
@@ -2396,6 +2401,36 @@ function renderHatsuDetail(container) {
         </div>`;
     }
     // ── Fim toggle de Ataque ───────────────────────────────────────────────────
+
+    // ── Manipulação: a fadiga da Marionete e o aviso da Mente Frágil ──────────
+    // Dois efeitos que prometiam número e não tinham onde cair. Ficam juntos porque
+    // são os dois do manipulador sobre si mesmo, não sobre o alvo.
+    let manipulacaoHtml = '';
+    (function () {
+        const _fm = window.fadigaMarionete ? window.fadigaMarionete(h) : null;
+        const _temMenteFragil = (h.efeitos || []).indexOf('ma_e7') >= 0;
+        if (!_fm && !_temMenteFragil) return;
+        const _ativo = !!((char.hatsusAtivos || {})[idx]);
+        let _corpo = '';
+        if (_fm) {
+            _corpo += _fm.isento
+                ? `<div style="font-size:9px;color:#4ade80">🎭 <b>Toy Story</b> — o turno do alvo é seu e <b>não</b> há desgaste mental: usar aura com o corpo não custa Sanidade.</div>`
+                : `<div style="font-size:9px;color:#d1d5db;margin-bottom:6px">🎭 <b>Marionete</b> — cada uso de aura com o corpo possuído (princípio, técnica ou Hatsu) custa <b style="color:#f87171">${_fm.custo} de Sanidade</b> sua, pela fadiga mental.</div>
+                   <button onclick="event.stopPropagation();window._fadigaMarionete(${idx})" ${_ativo ? '' : 'disabled'} style="width:100%;padding:8px;border-radius:9px;background:${_ativo ? '#f8717122' : '#1f2937'};border:1px solid ${_ativo ? '#f8717166' : '#374151'};color:${_ativo ? '#f87171' : '#4b5563'};font-family:'Orbitron',sans-serif;font-weight:900;font-size:9px;cursor:${_ativo ? 'pointer' : 'not-allowed'};text-transform:uppercase;letter-spacing:1px">⚡ Usei aura com a marionete (−${_fm.custo} Sanidade)</button>
+                   ${_ativo ? '' : '<div style="font-size:8px;color:#4b5563;text-align:center;margin-top:3px">Ative o Hatsu para registrar a fadiga.</div>'}`;
+        }
+        if (_temMenteFragil) {
+            _corpo += `<div style="font-size:9px;color:#d1d5db;margin-top:${_fm ? '10px' : '0'}">🧠 <b>Mente Frágil</b> — a opção "perde Sanidade" entrega o dano de sanidade que <b>este Hatsu já causa</b>; ela não cria um número próprio.</div>`;
+            _corpo += temFlagelo
+                ? `<div style="font-size:8px;color:#4ade80;margin-top:3px">✓ Este Hatsu causa dano de Sanidade (Flagelo da Mente) — é esse valor que o alvo perde.</div>`
+                : `<div style="font-size:8px;color:#fbbf24;margin-top:3px">⚠ Este Hatsu não compra dano de Sanidade nenhum, então a opção "perde Sanidade" não tira nada. Compre <b>Flagelo da Mente</b> (eg10), ou use Fragilizado/Desorientado.</div>`;
+        }
+        manipulacaoHtml = `<div style="background:#0d1117;border:1px solid ${tc}33;border-radius:12px;padding:14px;margin-bottom:20px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+                <span style="font-size:14px">🪢</span>
+                <span style="font-size:10px;font-weight:900;color:#e5e7eb;text-transform:uppercase;letter-spacing:2px">Manipulação</span>
+            </div>${_corpo}</div>`;
+    })();
 
     // ── Ficha do Constructo (efeitos de Materialização/Emissão que criam constructos) ──
     // Ver HB-ManualdeHatsusHxH5eRPG2.0.txt, "Criando a ficha da Materialização".
@@ -3812,7 +3847,7 @@ function renderHatsuDetail(container) {
                 ${calcRangeDurHtml}
             </div>
 
-            ${constructoCardHtml}
+            ${manipulacaoHtml}${constructoCardHtml}
             ${copiaPerfeitaHtml}
 
             ${primeiroHatsuSection}

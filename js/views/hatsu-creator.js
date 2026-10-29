@@ -1459,6 +1459,16 @@ function renderHatsuCreator(container) {
                     // calcAuraCost lê daqui.
                     rm_e22: _TAMANHO_ACIMA, rm_e23: _TAMANHO_ACIMA,
                     rm_e24: _TAMANHO_ACIMA, rm_e25: _TAMANHO_ACIMA,
+                    // ── Manipulação: quantas cargas de Intensidade Temporal ──────────
+                    // "+10% de aura por carga (custo não redutível)". Cada carga sobe um
+                    // grau dentro da nova escala: 1min → 2min → 3min em combate, 2h → 3h
+                    // fora dele. Sem o seletor, o acréscimo não tinha quantidade e o
+                    // calcAuraCost não tinha o que cobrar.
+                    ma_e12: { icone: '⏳', titulo: 'Quantas cargas de Intensidade Temporal?',
+                        nota: '+10% de aura por carga, e este acréscimo NÃO é reduzido por restrição nenhuma.',
+                        opcoes: [['0', 'Nenhuma'], ['1', '1 carga — 1min / 2h (+10%)'],
+                                 ['2', '2 cargas — 2min / 3h (+20%)'], ['3', '3 cargas — 3min / 4h (+30%)'],
+                                 ['4', '4 cargas (+40%)'], ['5', '5 cargas (+50%)'], ['6', '6 cargas (+60%)']] },
                 };
                 if (_ESCOLHAS_REFORCO[item.id]) {
                     const _cfg = _ESCOLHAS_REFORCO[item.id];

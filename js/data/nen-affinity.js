@@ -193,6 +193,43 @@ window.CUSTO_AURA_QUANTIDADE = {
 // A quantidade é lida da PRIMEIRA compra e, se houver cópias, vale a MAIOR: a
 // categoria de tamanho é uma propriedade da forma final, não algo que some a cada
 // compra do efeito.
+// ── ma_e11 Marionete: a fadiga mental do manipulador ────────────────────────
+// O dicionário de Manipulação: "ao utilizar aura com o corpo possuído (princípios,
+// técnicas ou Hatsus) o usuário recebe 5 de dano de sanidade pela fadiga mental
+// causada". Confirmado com o Lucas em 29/10: é A CADA USO de aura, não por rodada.
+// ma_e18 Toy Story isenta — o dicionário dele diz "não recebe desgaste mental por isso".
+window.MARIONETE_ID = 'ma_e11';
+window.TOY_STORY_ID = 'ma_e18';
+window.MARIONETE_SANIDADE = 5;
+window.fadigaMarionete = function (h) {
+    if (!h) return null;
+    const ids = Array.isArray(h.efeitos) ? h.efeitos : [].concat(h.eg || [], h.ec || []);
+    if (ids.indexOf(window.MARIONETE_ID) < 0) return null;
+    const isento = ids.indexOf(window.TOY_STORY_ID) >= 0;
+    return { isento: isento, custo: isento ? 0 : (window.MARIONETE_SANIDADE || 5) };
+};
+
+// ── ma_e12 Intensidade Temporal: +10% por carga, NÃO redutível ──────────────
+// "O usuário pode gastar +10% de aura no momento da ativação para estender o tempo
+// de manipulação... por carga. (custo não redutível)". O dicionário completa: cada
+// +10% sobe um grau dentro da nova escala (1min → 2min; 2h → 3h).
+// Mora junto do CUSTO_AURA_TAMANHO porque é o mesmo lugar do cálculo: entra DEPOIS
+// de todos os descontos. A diferença é que este também fica fora do piso de redução.
+window.INTENSIDADE_TEMPORAL_ID = 'ma_e12';
+window.INTENSIDADE_TEMPORAL_PCT = 10;
+window.INTENSIDADE_TEMPORAL_MAX = 6;
+window.cargasIntensidadeTemporal = function (specialChoices) {
+    const sc = specialChoices || {};
+    const id = window.INTENSIDADE_TEMPORAL_ID;
+    let maior = 0;
+    Object.keys(sc).forEach(function (k) {
+        if (k !== id && k.indexOf(id + '#') !== 0) return;
+        const v = parseInt(sc[k]);
+        if (!isNaN(v) && v > maior) maior = v;
+    });
+    return Math.max(0, Math.min(window.INTENSIDADE_TEMPORAL_MAX || 6, maior));
+};
+
 window.CUSTO_AURA_TAMANHO = ['rm_e22', 'rm_e23', 'rm_e24', 'rm_e25'];
 window.CUSTO_AURA_TAMANHO_PCT = 10;
 window.CUSTO_AURA_TAMANHO_MAX = 4;
@@ -341,6 +378,15 @@ window.calcAuraCost = function(hb) {
     // silêncio o próprio piso de 5% do rg_p8 logo acima: um Hatsu que caísse para 5%
     // pela metade do rg_p8 voltava para 10% nesta linha.
     custo = Math.max(5, custo);
+
+    // ── ma_e12 Intensidade Temporal: depois até do piso ─────────────────────────
+    // O livro diz "custo não redutível". Somar antes do piso ou dos descontos deixaria
+    // uma restrição barata comendo este acréscimo — que é justamente o preço de esticar
+    // a manipulação para 1min/2h. Por isso é a ÚLTIMA linha do cálculo.
+    if ([].concat(hb.eg || [], hb.ec || []).indexOf(window.INTENSIDADE_TEMPORAL_ID) >= 0) {
+        custo += window.cargasIntensidadeTemporal(hb.specialChoices || {})
+               * (window.INTENSIDADE_TEMPORAL_PCT || 10);
+    }
     return { pct: custo, label: custo + '% de Aura' };
 };
 

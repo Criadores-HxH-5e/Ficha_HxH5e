@@ -3837,6 +3837,18 @@
             return (intMod * 2) + lvl;
         }
 
+        // ma_e11 Marionete: 5 de Sanidade do MANIPULADOR a cada uso de aura com o
+        // corpo possuído. Passa pelo updateVital, então cruzar faixa dispara o surto
+        // de loucura como qualquer outra perda — que é o ponto do efeito.
+        window._fadigaMarionete = function (idx) {
+            const char = state.currentChar;
+            const h = (char.hatsus || [])[idx];
+            if (!h) return;
+            const fm = window.fadigaMarionete ? window.fadigaMarionete(h) : null;
+            if (!fm || fm.isento || !fm.custo) return;
+            updateVital('san', -fm.custo);
+            if (window._showXpToast) window._showXpToast(`🎭 Fadiga da Marionete: −${fm.custo} de Sanidade`);
+        };
         function updateVital(type, delta) {
             const v = state.currentChar.vitals;
             const char = state.currentChar;
