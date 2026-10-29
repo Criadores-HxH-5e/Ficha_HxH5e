@@ -1025,6 +1025,232 @@ window.calcMargemCritico = function (char) {
 // em hatsu-detail.js). Instância e Inclinação não chegavam a nenhuma jogada — era a
 // lacuna "Acerto não lê combatInclinations" do backlog.
 // Vale para o ataque com arma E para o Hatsu, por isso fica aqui e não no detalhe.
+
+// ── Surtos de Loucura ────────────────────────────────────────────────────────
+// As quatro tabelas existiam no init.js, mas numa versão ANTIGA e diferente da do
+// livro: dez faixas em cada uma onde o livro tem cinco e seis, textos que não
+// batiam, e três dados errados —
+//
+//   Curta:              duração 1d6 rodadas  →  o livro diz 1d10 rodadas
+//   Indeterminado Leve: rolava 1d12          →  o livro diz 1d8
+//   Indeterminado Pesado: rolava 1d100       →  o livro diz 1d12
+//
+// A lista "Leve" do app também misturava as duas: Covardia, Dupla Personalidade,
+// Impulsividade e Instinto Assassino são do PESADO, e estavam entre as leves.
+// Um jogador a 50% podia tirar "Instinto Assassino", que é efeito de 25%.
+//
+// As tabelas mudaram de casa para cá, e não para o init.js, para poderem ser
+// conferidas contra o livro sem abrir a interface.
+//
+// O livro chama as duas últimas de "Indeterminado", e não "Permanente": elas
+// "permanecem até o ponto de sanidade ser restaurado". Fichas salvas antes disso
+// guardaram a categoria como texto, então SANIDADE_CATEGORIA_LEGADO traduz as
+// antigas para as novas na hora de pintar o cartão.
+window.SANIDADE_SURTOS = {
+    90: {
+        cat: 'CURTA DURAÇÃO', cor: '#fbbf24', dado: '1d100', faces: 100,
+        duracaoFaces: 10, duracaoUnidade: 'rodada',
+        tabela: [
+            [1, 20, 'Vontade avassaladora de comer coisas estranhas como terra, limo ou restos. Fica Envenenado.'],
+            [21, 40, 'Fica Amedrontado e deve usar sua ação para se mover a cada rodada, fugindo da fonte do medo.'],
+            [41, 60, 'Começa a balbuciar e fica incapaz de falar ou de usar um Hatsu que dependa de comandos verbais.'],
+            [61, 80, 'Deve usar sua ação a cada rodada para atacar a criatura mais próxima à sua frente ou à sua direita.'],
+            [81, 100, 'Faz o que qualquer um mandar, desde que não seja obviamente suicida.'],
+        ]
+    },
+    75: {
+        cat: 'LONGA DURAÇÃO', cor: '#f87171', dado: '1d100', faces: 100,
+        duracaoFaces: 10, duracaoUnidade: 'hora',
+        tabela: [
+            [1, 20, 'Sente-se obrigado a repetir uma atividade específica que custa sua ação principal e é irrelevante para o combate (lavar as mãos, contar moedas). Não gastar a ação a cada 3 rodadas custa −1 de sanidade a cada 3 rodadas.'],
+            [21, 40, 'Fica ligado a uma pessoa como um "talismã da sorte": desvantagem em ataques, testes de habilidade e testes de resistência enquanto estiver a mais de 1,5 m dela.'],
+            [41, 55, 'Experimenta uma alucinação poderosa e se vê sofrendo (ou apaixonado) por algo no contexto da cena, desligando-se do que acontece ao redor.'],
+            [56, 70, 'Começa a balbuciar e fica incapaz de falar ou de usar um Hatsu que dependa de comandos verbais.'],
+            [71, 86, 'Tremores e tiques incontroláveis: desvantagem em todas as jogadas que envolvam Força ou Destreza.'],
+            [87, 100, 'Amnésia parcial. Desconfia e não reconhece outras pessoas além de si mesmo, de suas habilidades e de seus equipamentos.'],
+        ]
+    },
+    50: {
+        cat: 'INDETERMINADO LEVE', cor: '#a78bfa', dado: '1d8', faces: 8,
+        duracaoFaces: null, duracaoUnidade: null,
+        lista: [
+            'Inclinação Negativa: Avareza',
+            'Inclinação Negativa: Cleptomania',
+            'Inclinação Negativa: Desvio de Atenção',
+            'Inclinação Negativa: Megalomania',
+            'Inclinação Negativa: Mente de Criança (penalidade de −5 em Intuição)',
+            'Inclinação Negativa: Paranoia',
+            'Inclinação Negativa: Pesadelos',
+            'Inclinação Negativa: Visões de Morte',
+        ]
+    },
+    25: {
+        cat: 'INDETERMINADO PESADO', cor: '#ff4df7', dado: '1d12', faces: 12,
+        duracaoFaces: null, duracaoUnidade: null,
+        lista: [
+            'Inclinação Negativa: Covardia',
+            'Inclinação Negativa: Dupla Personalidade',
+            'Inclinação Negativa: Impulsividade',
+            'Inclinação Negativa: Instinto Assassino',
+            'Não reconhece nenhum aliado, considera todos inimigos — OU reconhece o inimigo como seu melhor amigo.',
+            'Arranca os cabelos gritando de horror (Fascinado).',
+            'Machuca os olhos tentando arrancá-los enquanto grita (Ataque mirado).',
+            'Tenta estrangular um aliado, ou a si mesmo se estiver lutando sozinho.',
+            'Esquece a própria identidade, perdendo seu Hatsu até retomar a memória ou a sanidade.',
+            'Atitude suicida: tenta se matar ou se jogar no perigo que causou a insanidade.',
+            'Sem ação e totalmente sugestionável, faz o que os outros mandam e perde a vontade própria.',
+            'Sempre que sofrer dano, deve passar num teste de resistência de Sabedoria CD 15 ou o dano também reduz sua sanidade.',
+        ]
+    },
+};
+window.SANIDADE_CATEGORIA_LEGADO = {
+    'PERMANENTE LEVE': 'INDETERMINADO LEVE',
+    'PERMANENTE PESADO': 'INDETERMINADO PESADO',
+};
+
+// Sorteia o resultado de um surto na faixa dada. Separado da interface para poder
+// ser conferido contra o livro sem abrir a tela.
+window.rolarSurto = function (faixa, rng) {
+    const cfg = (window.SANIDADE_SURTOS || {})[faixa];
+    if (!cfg) return null;
+    const r = rng || function (n) { return Math.floor(Math.random() * n) + 1; };
+    const roll = r(cfg.faces);
+    const resultado = cfg.lista
+        ? (cfg.lista[roll - 1] || cfg.lista[0])
+        : ((cfg.tabela.filter(function (e) { return roll >= e[0] && roll <= e[1]; })[0] || [0, 0, '—'])[2]);
+    const durVal = cfg.duracaoFaces ? r(cfg.duracaoFaces) : null;
+    const duracao = durVal == null
+        ? 'Indeterminado'
+        : (durVal + ' ' + cfg.duracaoUnidade + (durVal !== 1 ? 's' : ''));
+    return { categoria: cfg.cat, cor: cfg.cor, dado: cfg.dado, roll: roll,
+             resultado: resultado, duracao: duracao, duracaoValor: durVal };
+};
+
+// ── Recuperando Sanidade ─────────────────────────────────────────────────────
+// Seis rotas, todas com +INT. Três delas dependem da Ação Protagonista, que até
+// hoje não existia no app — é por isso que a recuperação inteira estava de fora.
+//
+// 'auto' marca as que o app aplica sozinho, porque o gatilho é mecânico e o app
+// o enxerga: receber a Ação Protagonista e tirar 20 natural. As outras quatro
+// são de mesa (um descanso, cumprir o que ama, o Foco de Caça) ou dependem de um
+// julgamento que só o jogador faz — se a Ação Protagonista foi BEM SUCEDIDA.
+window.SANIDADE_RECUPERACAO = [
+    { id: 'receber_ap', dado: '1d4',  faces: 4,  qtd: 1, auto: true,  icone: '⭐',
+      rotulo: 'Ao receber uma Ação Protagonista' },
+    { id: 'descanso',   dado: '1d8',  faces: 8,  qtd: 1, auto: false, icone: '🛏',
+      rotulo: 'Descanso Longo' },
+    { id: 'usar_ap',    dado: '1d10', faces: 10, qtd: 1, auto: false, icone: '🎯',
+      rotulo: 'Ação Protagonista bem sucedida' },
+    { id: 'o_que_ama',  dado: '2d6',  faces: 6,  qtd: 2, auto: false, icone: '❤️',
+      rotulo: 'Cumprir o que gosta ou ama' },
+    { id: 'foco_caca',  dado: '2d12', faces: 12, qtd: 2, auto: false, icone: '🏹',
+      rotulo: 'Cumprir objetivos do Foco de Caça' },
+    { id: 'natural20',  dado: '1d20', faces: 20, qtd: 1, auto: true,  icone: '🎲',
+      rotulo: 'Resultado 20 em qualquer rolagem' },
+];
+window.rotaSanidade = function (id) {
+    return (window.SANIDADE_RECUPERACAO || []).filter(function (r) { return r.id === id; })[0] || null;
+};
+
+// Quanto uma rota devolve: os dados mais o modificador de INT.
+window.calcRecuperacaoSanidade = function (char, id, rng) {
+    const rota = window.rotaSanidade(id);
+    if (!rota || !char) return null;
+    const r = rng || function (n) { return Math.floor(Math.random() * n) + 1; };
+    const dados = [];
+    for (let i = 0; i < rota.qtd; i++) dados.push(r(rota.faces));
+    const _int = window.calcAtributoEfetivo
+        ? window.calcAtributoEfetivo(char, 'INT').mod
+        : Math.floor((((char.attributes || {}).INT || {}).value - 10) / 2) || 0;
+    const soma = dados.reduce(function (a, b) { return a + b; }, 0);
+    // O modificador de INT pode ser negativo; a recuperação nunca vira dano.
+    const total = Math.max(0, soma + _int);
+    return { rota: rota, dados: dados, int: _int, total: total };
+};
+
+// ── Rolagem com Ênfase ───────────────────────────────────────────────────────
+// "O jogador rola 2d20 e seleciona o resultado inferior ou superior mais distante
+//  do valor 10. Em caso de empate um novo dado é rolado. Caso o resultado seja
+//  superior, qualquer penalidade ou bônus cabível é adicionado. Caso o resultado
+//  seja inferior, qualquer bônus cabível se torna penalidade."
+//
+// O app tinha a Ênfase pela metade, e errada em três pontos:
+//   1. media a distância a partir de 10,5 (o meio do d20) e não de 10. Com 10,5
+//      nunca existe empate — as distâncias caem sempre em meios diferentes — e
+//      por isso o desempate do livro simplesmente não existia no código. Num 5 e
+//      15 o app escolhia o 5 em silêncio, em vez de rolar um dado novo.
+//   2. não havia desempate.
+//   3. a INVERSÃO DO BÔNUS não existia em lugar nenhum: no exemplo do livro, um 5
+//      com +3 dá 2, e o app dava 8.
+// A primeira é o que torna as outras duas visíveis.
+window.ENFASE_REFERENCIA = 10;
+window.ENFASE_USOS_POR_SESSAO = 3;
+
+// "Um jogador dispõe de apenas 3 usos de Ênfase por sessão."
+window.enfaseUsosRestantes = function (char) {
+    const max = window.ENFASE_USOS_POR_SESSAO || 3;
+    return Math.max(0, max - (parseInt((char || {}).enfaseUsos) || 0));
+};
+
+// Soma o bônus com o sinal certo. Na falha da Ênfase TUDO que somava passa a
+// subtrair — atributo, proficiência, Instâncias, Inclinações, RYU: o pacote
+// inteiro (decisão de regra do Lucas, 28/10).
+window.totalComEnfase = function (roll, bonusTotal) {
+    const b = parseInt(bonusTotal) || 0;
+    if (!roll) return b;
+    return (roll.enfaseInferior ? (roll.total - b) : (roll.total + b));
+};
+
+// ── Ação Protagonista ────────────────────────────────────────────────────────
+// "Sempre que um personagem falhar em uma Jogada de Ênfase... ele recebe uma Ação
+//  Protagonista."
+//
+// A economia não é por sessão nem por descanso: ela nasce do risco da Ênfase. E
+// não acumula — enquanto a anterior não for gasta, uma nova falha não concede
+// outra, e o app avisa isso ANTES de rolar (decisão do Lucas).
+window.ACAO_PROTAGONISTA_MAX = 1;
+window.ENFASE_FALHA_ABAIXO_DE = 10;
+
+window.temAcaoProtagonista = function (char) {
+    return ((parseInt((char || {}).acaoProtagonista) || 0) > 0);
+};
+
+// Chamado depois de cada rolagem em Ênfase. Devolve 'ganhou', 'jaTinha' (falhou
+// mas já tem uma guardada) ou null (não falhou, ou não era Ênfase).
+window.resolverEnfase = function (char, modo, total) {
+    if (!char || modo !== 'ÊNFASE') return null;
+    if (total >= (window.ENFASE_FALHA_ABAIXO_DE || 10)) return null;
+    const atual = parseInt(char.acaoProtagonista) || 0;
+    if (atual >= (window.ACAO_PROTAGONISTA_MAX || 1)) return 'jaTinha';
+    char.acaoProtagonista = atual + 1;
+    return 'ganhou';
+};
+
+// As TRÊS opções do livro. As duas primeiras são REROLAGENS com Vantagem ou
+// Desvantagem (2d20), e não a troca por um único d20 — é uma diferença grande de
+// probabilidade, e foi onde a primeira versão deste código errou.
+//
+// "Penalizar" e "subtrair do inimigo" rolam e mostram o número, mas não aplicam
+// nada sozinhas: a ficha não tem a rolagem do inimigo em mãos — quem tem é o
+// mestre. Elas entregam o dado pronto, no histórico e no Discord.
+window.ACAO_PROTAGONISTA_USOS = [
+    { id: 'virada', icone: '🎲', dado: '2d20', modo: 'VANTAGEM', alvo: 'voce',
+      rotulo: 'Virada do Protagonista',
+      nota: 'Role a SUA rolagem de novo, com Vantagem.' },
+    { id: 'penalizar', icone: '⬇️', dado: '2d20', modo: 'DESVANTAGEM', alvo: 'inimigo',
+      rotulo: 'Penalizar Ação do Inimigo',
+      nota: 'O inimigo rola de novo, com Desvantagem. O mestre aplica.' },
+    { id: 'impulso_somar', icone: '➕', dado: '3d6', modo: null, alvo: 'voce',
+      rotulo: 'Impulso Dramático — somar',
+      nota: 'Role 3d6 e SOME o resultado à sua rolagem anterior.' },
+    { id: 'impulso_subtrair', icone: '➖', dado: '3d6', modo: null, alvo: 'inimigo',
+      rotulo: 'Impulso Dramático — subtrair',
+      nota: 'Role 3d6 e SUBTRAIA o resultado da rolagem de um inimigo.' },
+];
+window.usoAcaoProtagonista = function (id) {
+    return (window.ACAO_PROTAGONISTA_USOS || []).filter(function (u) { return u.id === id; })[0] || null;
+};
+
 window.calcBonusAcerto = function (char) {
     const fontes = [];
     let total = 0;
@@ -1043,15 +1269,24 @@ window.calcBonusAcerto = function (char) {
     const ci = char.combatInclinations || {};
     if ((parseInt(ci.decisiva) || 0) >= 1) add('Decisiva (Básico)', 2);
 
-    // RYU: a linha vigente da tabela soma no Ataque E no Dano. O acerto entra aqui,
-    // que é o cálculo compartilhado pela arma e pelo Hatsu; o dano entra nos dois
-    // pontos de rolagem (rollAttack e rollHatsuDamage), porque lá não há função
-    // equivalente. Vale enquanto o princípio estiver ligado — nenhuma condição
-    // extra — por isso entra no total e não na lista de condicionais.
-    const _ryuA = window.calcRyuAtivo ? window.calcRyuAtivo(char) : null;
-    if (_ryuA) add('RYU (' + _ryuA.tabela + ', turno ' + _ryuA.turno + ')', _ryuA.ataqueDano);
+    // O RYU NÃO entra aqui. Esta função é compartilhada pela arma e pelo Hatsu, e o
+    // RYU só vale em combate direto (corpo-a-corpo ou arremesso) — somar no cálculo
+    // comum faria o bônus aparecer também num Hatsu de área a 30m. Quem decide é
+    // cada ponto de rolagem, com a arma ou o Hatsu em mãos: ver calcBonusAcertoRyu
+    // logo abaixo, e ryuAlcancaArma / ryuAlcancaHatsu (nen-affinity.js).
 
     return { total: total, fontes: fontes };
+};
+
+// ── A parte do acerto que depende de QUAL ataque é ───────────────────────────
+// Separada de calcBonusAcerto porque aquela não sabe com o que o jogador está
+// batendo, e o RYU precisa saber. Devolve 0 quando o princípio está desligado ou
+// quando o ataque está fora do alcance dele, então os dois pontos de rolagem
+// somam o resultado sem nenhum if por perto.
+window.calcBonusAcertoRyu = function (char, alcanca) {
+    const r = window.calcRyuAtivo ? window.calcRyuAtivo(char) : null;
+    if (!r || !alcanca) return { total: 0, ryu: r };
+    return { total: r.ataqueDano, ryu: r };
 };
 
 // ── +2 na CA da Instância Combatente Rápido ──────────────────────────────────

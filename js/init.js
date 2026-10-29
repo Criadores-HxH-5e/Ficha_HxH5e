@@ -835,63 +835,16 @@ window._openPrimeiroHatsuModal = function() {
         };
 
         window._showSanityModal = function(char, threshold, currentPct) {
-            const CURTA = [
-                [1,20,'Paralisia mental — paralisado. Termina ao sofrer qualquer dano.'],
-                [21,30,'Vontade avassaladora de comer coisas estranhas (terra, limo, restos). Envenenado.'],
-                [31,40,'Amedrontado — usa ação a cada rodada para fugir da fonte do medo.'],
-                [41,50,'Balbucia — incapaz de falar ou usar Hatsu com restrições verbais.'],
-                [51,60,'Usa ação a cada rodada para atacar a criatura mais próxima à frente ou direita.'],
-                [61,70,'Atordoado por 5 turnos, ignora a rolagem inicial de tempo.'],
-                [71,75,'Obedece qualquer ordem que não seja obviamente suicida.'],
-                [76,80,'Alucinações vívidas — desvantagem em testes de habilidade.'],
-                [81,90,'Incapacitado — passa o tempo gritando, rindo ou chorando.'],
-                [91,100,'Cai inconsciente.'],
-            ];
-            const LONGA = [
-                [1,10,'Compulsão repetitiva (lavar mãos, tocar objetos, rezar). Não fazê-la a cada 3 rodadas: −1 Sanidade/3 rodadas.'],
-                [11,20,'Perde a capacidade de falar. Hatsus verbais afetados.'],
-                [21,30,'Alucinação vívida — desvantagem em testes de habilidade.'],
-                [31,40,'Alucinação poderosa — vê-se sofrendo ou apaixonado por algo no contexto da cena.'],
-                [41,50,'Ligado a um "talismã da sorte". Desvantagem em ataques, testes e TRs a mais de 9m dele.'],
-                [51,60,'Tremores e tiques incontroláveis — desvantagem em jogadas de Força ou Destreza.'],
-                [61,70,'Amnésia parcial — não reconhece pessoas nem lembra de eventos anteriores à loucura.'],
-                [71,80,'Sem ação própria, totalmente sugestionável.'],
-                [81,90,'Ao sofrer dano: TR de Sabedoria CD 15 ou o dano conta para redução de Sanidade.'],
-                [91,100,'Cai inconsciente — nenhum empurrão ou dano o acorda.'],
-            ];
-            const PERM_LEVE = ['Avareza','Covardia','Cleptomania','Desvio de Atenção','Dupla Personalidade','Impulsividade','Instinto Assassino','Megalomania','Mente de Criança','Paranoia','Pesadelos','Visões de Morte'];
-            const PERM_PESADA = [
-                [1,10,'Medo incontrolável e paralisia.'],
-                [11,20,'Não reconhece aliados (todos são inimigos) OU reconhece inimigo como melhor amigo.'],
-                [21,30,'Atitude homicida — tenta matar um aliado que vê como causa do sofrimento.'],
-                [31,40,'Arranca os cabelos gritando com horror (Fascinado).'],
-                [41,50,'Machuca os olhos tentando arrancá-los (Golpe mirado).'],
-                [51,60,'Tenta estrangular um aliado.'],
-                [61,70,'Tenta estrangular a si mesmo.'],
-                [71,80,'Esquece a própria identidade — perde o Hatsu até retomar a memória.'],
-                [81,90,'Atitude suicida — tenta se matar ou se jogar no perigo que causou a insanidade.'],
-                [91,100,'Cai no chão e assume posição fetal, ignora tudo. (Incapacitado)'],
-            ];
-
-            const configs = {
-                90: { cat:'CURTA DURAÇÃO', dado:'1d100', cor:'#fbbf24', durRoll: () => Math.ceil(Math.random()*6), durLabel: v => v+' rodada'+(v!==1?'s':''), table: CURTA, roll: () => Math.ceil(Math.random()*100) },
-                75: { cat:'LONGA DURAÇÃO', dado:'1d100', cor:'#f87171', durRoll: () => Math.ceil(Math.random()*10), durLabel: v => v+' hora'+(v!==1?'s':''), table: LONGA, roll: () => Math.ceil(Math.random()*100) },
-                50: { cat:'PERMANENTE LEVE', dado:'1d12', cor:'#a78bfa', durRoll: () => null, durLabel: () => 'Permanente', table: PERM_LEVE, roll: () => Math.ceil(Math.random()*12) },
-                25: { cat:'PERMANENTE PESADO', dado:'1d100', cor:'#ff4df7', durRoll: () => null, durLabel: () => 'Permanente', table: PERM_PESADA, roll: () => Math.ceil(Math.random()*100) },
-            };
-
-            const cfg = configs[threshold];
-            const roll = cfg.roll();
-            const durVal = cfg.durRoll();
-            const duracao = cfg.durLabel(durVal);
-
-            let resultado = '';
-            if (threshold === 50) {
-                resultado = PERM_LEVE[roll - 1] || PERM_LEVE[0];
-            } else {
-                const entry = cfg.table.find(e => roll >= e[0] && roll <= e[1]);
-                resultado = entry ? entry[2] : '—';
-            }
+            // As quatro tabelas saíram daqui para o config.js (SANIDADE_SURTOS), onde
+            // podem ser conferidas contra o livro sem abrir a interface — e onde a
+            // versão antiga, com dados e textos que não batiam, foi substituída pela
+            // do livro. Esta função agora só desenha o resultado.
+            const _surto = window.rolarSurto ? window.rolarSurto(threshold) : null;
+            if (!_surto) return;
+            const cfg = { cat: _surto.categoria, cor: _surto.cor, dado: _surto.dado };
+            const roll = _surto.roll;
+            const duracao = _surto.duracao;
+            const resultado = _surto.resultado;
 
             const rdm = calcRDM(char);
 

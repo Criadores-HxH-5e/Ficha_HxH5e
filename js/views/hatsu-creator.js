@@ -300,6 +300,45 @@ function renderHatsuCreator(container) {
                     + '<div style="display:flex;flex-direction:column;gap:4px">' + optBtns + '</div></div>';
             }
 
+            // ── Quantidade, para os benefícios cobrados por unidade ──────────────
+            // rg_e1 (por membro), rg_v9 (por Reação) e rg_v12 (a cada 2 Graus) valem
+            // "por X", e até aqui não havia onde dizer quanto é X — o desconto saía
+            // errado ou não saía. O seletor só aparece depois que a opção de AURA foi
+            // escolhida, nos dois que têm escolha; o rg_v12 não tem " ou " no benefício,
+            // então aparece direto.
+            var qtdHtml = '';
+            var _cfgQ = (window.CUSTO_AURA_QUANTIDADE || {})[item.id];
+            if (sel && !isPure && _cfgQ) {
+                var _escQ = String(choiceKey || '').toLowerCase();
+                var _liberado = !_cfgQ.exigeEscolhaAura
+                    || _escQ.indexOf('aura') >= 0 || _escQ.indexOf('%') >= 0;
+                if (_liberado) {
+                    var _qAtual = parseInt((hb && hb.specialChoices && hb.specialChoices[item.id + '_qtd'])) || 0;
+                    var _passo = _cfgQ.porUnidade || 1;
+                    var _btns = '';
+                    for (var _q = 0; _q <= _cfgQ.max; _q += _passo) {
+                        var _on = _qAtual === _q;
+                        _btns += '<button onclick="event.stopPropagation();window._hSetSpecialChoice(\''
+                            + item.id + '_qtd\',' + _q + ');return false"'
+                            + ' style="width:28px;height:28px;border-radius:7px;font-family:Orbitron,sans-serif;font-weight:900;font-size:11px;cursor:pointer;border:1.5px solid '
+                            + (_on ? '#4ade80' : '#1f2937') + ';background:' + (_on ? '#4ade8018' : '#0d1117')
+                            + ';color:' + (_on ? '#4ade80' : '#9ca3af') + '">' + (_q === 0 ? '\u2013' : _q) + '</button>';
+                    }
+                    var _efeito = window.custoAuraQuantidade
+                        ? window.custoAuraQuantidade(item.id, (hb && hb.specialChoices) || {}) : 0;
+                    qtdHtml = '<div style="margin-top:8px;padding:8px;background:#060a10;border-radius:8px;border:1px solid #1f2937">'
+                        + '<div style="font-size:8px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:1px">'
+                        + _cfgQ.rotulo + '</div>'
+                        + '<div style="font-size:8px;color:#6b7280;margin-top:1px">' + _cfgQ.nota + '</div>'
+                        + '<div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap">' + _btns + '</div>'
+                        + '<div style="font-size:9px;font-weight:900;margin-top:5px;color:'
+                        + (_efeito === 0 ? '#6b7280' : (_efeito < 0 ? '#4ade80' : '#f87171')) + '">'
+                        + (_efeito === 0 ? 'Sem efeito no custo'
+                            : (_efeito < 0 ? _efeito + '% de aura' : '+' + _efeito + '% de aura')) + '</div>'
+                        + '</div>';
+                }
+            }
+
             // Restrições com P.N automático: exibe badge fixo, sem toggle pura
             var AUTO_PN = { 'rg_e9': 7, 'rg_p3': 3, 'ri_p3': 3 };
             var pureToggleHtml = '';
@@ -582,6 +621,7 @@ function renderHatsuCreator(container) {
                     : '<div style="font-size:8px;font-weight:700;color:' + p.bt + ';margin-top:4px">⚡ ' + item.bnf + '</div>')
                 + '</div></div>'
                 + (isPure ? '' : choiceHtml)
+                + (isPure ? '' : qtdHtml)
                 + pureToggleHtml
                 + specialInputHtml
                 + (item.lore
@@ -1372,6 +1412,14 @@ function renderHatsuCreator(container) {
                 // jogador comprava e a opção ficava só na cabeça dele. Todos usam o mesmo
                 // formato de botões, uma linha por compra (os quatro são repetíveis).
                 // Chaves: 'ri_eNN' na 1ª compra, 'ri_eNN#1', '#2'… nas extras.
+                // Compartilhado pelos quatro efeitos de Materialização abaixo: o
+                // acréscimo é o mesmo texto nos quatro, então a configuração é uma só.
+                const _TAMANHO_ACIMA = {
+                    icone: '📏', titulo: 'Quantas categorias de tamanho acima de você?',
+                    nota: 'Custo de aura +10% por categoria acima da sua. Mesma categoria não acrescenta nada.',
+                    opcoes: [['0', 'Mesma categoria'], ['1', '+1 (+10%)'],
+                             ['2', '+2 (+20%)'], ['3', '+3 (+30%)'], ['4', '+4 (+40%)']]
+                };
                 const _ESCOLHAS_REFORCO = {
                     // 10 RD contra UM tipo de dano. A escolha é lida pelo calcFontesRD,
                     // que monta a fonte de Redução de Dano com a condição certa.
@@ -1397,6 +1445,14 @@ function renderHatsuCreator(container) {
                     em_e11: { icone: '🔗', titulo: 'O que esta compra acrescenta?',
                         nota: 'Dobrar o PV compõe: duas compras de PV quadruplicam.',
                         opcoes: [['pv', 'Dobrar o PV'], ['ca', '+1 na CA']] },
+                    // ── Materialização: o +10% por categoria de tamanho ──────────────
+                    // Os quatro efeitos de aparência/função dizem "Custo de aura +10% por
+                    // categoria de tamanho acima do usuário", e esse acréscimo nunca era
+                    // cobrado: virar uma moto custava o mesmo que virar um gato. O número
+                    // de categorias é uma escolha do jogador, então vira picker — e o
+                    // calcAuraCost lê daqui.
+                    rm_e22: _TAMANHO_ACIMA, rm_e23: _TAMANHO_ACIMA,
+                    rm_e24: _TAMANHO_ACIMA, rm_e25: _TAMANHO_ACIMA,
                 };
                 if (_ESCOLHAS_REFORCO[item.id]) {
                     const _cfg = _ESCOLHAS_REFORCO[item.id];

@@ -151,6 +151,31 @@
                 const _showAttrBtns = state.isAdmin || (_attrPts !== null && _attrPts > 0);
                 const attributesHtml = `${_attrBanner}<div class="grid grid-cols-2 gap-3 p-4 pt-0">${Object.entries(char.attributes).map(([key, attr]) => { const _ef = window.calcAtributoEfetivo ? window.calcAtributoEfetivo(char, key) : { valor: attr.value, mod: getMod(attr.value), bonusValor: 0, bonusMod: 0, fontes: [] }; const mod = _ef.mod; const fullName = ATTR_FULL_NAMES[key]; const icons = ATTR_ICONS_MAP[key] || ["star","star"]; const saveSkillName = `TR de ${key}`; const isTrained = char.skills.includes(saveSkillName); const isExpert = (char.expertise || []).includes(saveSkillName); const pb = getProficiencyBonus(char.level); let saveBonus = mod; if(isExpert) saveBonus += pb * 2; else if(isTrained) saveBonus += pb; const saveBonusStr = saveBonus >= 0 ? `+${saveBonus}` : `${saveBonus}`; return `<div class="bg-gray-900 border border-gray-800 rounded-3xl p-3 relative overflow-hidden transition-all duration-300 hover:border-[${themeColor}] hover:shadow-[0_0_20px_rgba(var(--theme-rgb),0.1)] h-full flex flex-col justify-between group" onclick="handleAttributeClick('${key}')"><div class="relative w-full flex justify-center items-center mb-1 min-h-[30px]"><div class="flex items-center gap-2 text-[${themeColor}] bg-black/40 px-3 py-1 rounded-full border border-white/5 backdrop-blur-sm z-10 shadow-[0_0_15px_${themeColor}40]"><i data-lucide="${icons[0]}" size="10" class="drop-shadow-[0_0_8px_${themeColor}]"></i><span class="text-[9px] font-black text-white uppercase tracking-[0.15em] drop-shadow-[0_0_5px_rgba(0,0,0,0.8)]">${fullName}</span><i data-lucide="${icons[1]}" size="10" class="drop-shadow-[0_0_8px_${themeColor}]"></i></div></div><div class="flex items-center justify-center my-0 relative flex-1">${_showAttrBtns ? `<button onclick="event.stopPropagation(); updateSheetAttr('${key}', -1)" class="absolute left-0 text-gray-600 hover:text-white p-1"><i data-lucide="minus" size="14"></i></button>` : ''}<span class="text-4xl font-display font-bold text-white tracking-tighter drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">${attr.value}</span>${_showAttrBtns ? `<button onclick="event.stopPropagation(); updateSheetAttr('${key}', 1)" class="absolute right-0 text-gray-600 hover:text-white p-1"><i data-lucide="plus" size="14"></i></button>` : ''}</div><div class="flex justify-center mt-1 mb-1"><div class="px-4 py-0.5 rounded-full border border-[${themeColor}]/30 bg-[${themeColor}]/5 text-[${themeColor}] text-xs font-bold shadow-[0_0_10px_rgba(var(--theme-rgb),0.2)]">${mod >= 0 ? '+'+mod : mod}</div></div><div onclick="event.stopPropagation(); handleShieldClick('${key}')" class="absolute right-2 bottom-2 cursor-pointer z-20 hover:scale-110 transition-transform flex items-center justify-center" title="TR de ${fullName}: ${saveBonusStr}"><i data-lucide="shield" size="18" class="${isTrained ? (isExpert ? 'text-neon-yellow fill-neon-yellow/10 drop-shadow-[0_0_5px_rgba(255,230,0,0.8)]' : `text-[${themeColor}] fill-[${themeColor}]/10 drop-shadow-[0_0_5px_${themeColor}]`) : 'text-gray-800 fill-gray-900'} transition-colors"></i><span class="absolute text-[7px] font-bold ${isTrained ? 'text-white' : 'text-gray-500'}" style="padding-top: 1px;">${saveBonusStr}</span></div></div>`; }).join('')}${state.openAttrPopup ? (() => { const key = state.openAttrPopup; const attr = char.attributes[key]; const mod = getMod(attr.value); const skillsList = SKILL_MAP[key] || []; return `<div class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" onclick="toggleAttrPopup(null)"><div class="bg-gray-900 border-2 border-[${themeColor}] rounded-2xl p-6 w-[85%] max-w-[320px] shadow-[0_0_50px_rgba(0,0,0,0.8)] relative transform scale-100 animate-in zoom-in-95 duration-200" onclick="event.stopPropagation()"><button onclick="toggleAttrPopup(null)" class="absolute top-4 right-4 text-gray-500 hover:text-white"><i data-lucide="x" size="20"></i></button><div class="text-center mb-6"><h2 class="text-2xl font-display font-black text-white uppercase tracking-widest drop-shadow-[0_0_10px_${themeColor}]">${ATTR_FULL_NAMES[key]}</h2><div class="flex justify-center items-center gap-4 mt-2"><div class="text-4xl font-display font-bold text-[${themeColor}]">${attr.value}</div><div class="bg-gray-800 px-4 py-1 rounded-full text-sm font-bold text-white border border-gray-700">Mod ${mod >= 0 ? '+'+mod : mod}</div></div></div><div class="space-y-3 mb-6"><h4 class="text-[10px] font-bold text-gray-500 uppercase border-b border-gray-800 pb-2 text-center">Perícias Associadas</h4><div class="flex flex-col gap-2 max-h-[200px] overflow-y-auto custom-scrollbar">${skillsList.length > 0 ? skillsList.map(s => { const isTrained = char.skills.includes(s); const isExpert = (char.expertise || []).includes(s); const pb = getProficiencyBonus(char.level); let totalBonus = mod; if (isExpert) totalBonus += (pb * 2); else if (isTrained) totalBonus += pb; const _nbS = window.calcBonusPericiaNen ? window.calcBonusPericiaNen(char, s) : { total: 0 }; totalBonus += _nbS.total; const _ibS = window.calcBonusPericiaInclinacao ? window.calcBonusPericiaInclinacao(char, s) : { total: 0 }; totalBonus += _ibS.total; /* Iniciativa: soma os bônus de inclinação no número mostrado no botão. */ const _iniB = (s === 'Iniciativa' && window.calcIniciativaBonus) ? window.calcIniciativaBonus(char) : { total: 0, fontes: [] }; totalBonus += _iniB.total; let iconName = 'circle'; let iconColorClass = 'text-gray-600'; if (isExpert) { iconName = 'badge-check'; iconColorClass = 'text-neon-yellow fill-neon-yellow/20'; } else if (isTrained) { iconName = 'check-circle-2'; iconColorClass = `text-[${themeColor}]`; } return `<div class="flex items-center justify-between p-3 rounded-xl border transition-all group ${isTrained ? `bg-[${themeColor}]/10 border-[${themeColor}]/30` : 'bg-gray-950 border-gray-800 hover:border-gray-600'}"><div class="flex items-center gap-3 cursor-pointer" onclick="handleSkillStatus('${s}')"><i data-lucide="${iconName}" size="20" class="${iconColorClass} hover:scale-110 transition-transform"></i><span class="text-xs font-bold uppercase tracking-wide ${isTrained ? 'text-white' : 'text-gray-400'}">${s}</span></div><button class="flex items-center gap-2 px-2 py-1 rounded-lg border ${isExpert ? 'border-neon-yellow/40 bg-neon-yellow/10' : (isTrained ? `border-[${themeColor}]/40 bg-[${themeColor}]/10` : 'border-gray-700 bg-gray-900')} hover:brightness-125 transition-all cursor-pointer" onclick="toggleAttrPopup(null); openRollModeModal('skill', '${s}', '${key}')"><span class="text-xs font-mono font-bold ${isExpert ? 'text-neon-yellow' : (isTrained ? `text-[${themeColor}]` : 'text-gray-400')}">${totalBonus >= 0 ? '+'+totalBonus : totalBonus}</span><i data-lucide="dices" size="14" class="${isExpert ? 'text-neon-yellow' : (isTrained ? `text-[${themeColor}]` : 'text-gray-400')} transition-colors"></i></button></div>` }).join('') : '<span class="text-xs text-gray-600 italic block text-center py-2">Nenhuma perícia associada.</span>'}</div></div><button onclick="toggleAttrPopup(null); openRollModeModal('dice', '${key}', ${mod})" class="w-full py-3 bg-[${themeColor}] text-black font-black font-display tracking-widest rounded-xl hover:brightness-110 transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_${themeColor}40]"><i data-lucide="dices" size="18"></i> ROLAR ATRIBUTO PURO</button></div></div>${state.skillSelectionModal ? `<div class="fixed inset-0 z-[110] flex items-center justify-center bg-black/90 animate-in fade-in duration-200" onclick="closeSkillModal()"><div class="bg-gray-900 border border-gray-700 rounded-xl p-6 w-[85%] max-w-[300px] shadow-2xl relative" onclick="event.stopPropagation()"><h3 class="text-lg font-display font-bold text-white mb-1">${state.skillSelectionModal}</h3><p class="text-xs text-gray-400 mb-4 uppercase tracking-widest">Selecione o nível de treinamento</p><div class="space-y-2"><button onclick="setSkillLevel('${state.skillSelectionModal}', 'remove')" class="w-full p-3 rounded-lg border border-red-900/50 bg-red-500/10 text-red-500 font-bold text-xs uppercase hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="x" size="16"></i> Remover Proficiência</button><button onclick="setSkillLevel('${state.skillSelectionModal}', 'trained')" class="w-full p-3 rounded-lg border border-gray-700 bg-gray-800 text-gray-300 font-bold text-xs uppercase hover:bg-gray-700 hover:text-white transition-colors flex items-center gap-2"><i data-lucide="check-circle-2" size="16"></i> Normal (1x Bônus)</button><button onclick="setSkillLevel('${state.skillSelectionModal}', 'expert')" class="w-full p-3 rounded-lg border border-neon-yellow/30 bg-neon-yellow/10 text-neon-yellow font-bold text-xs uppercase hover:bg-neon-yellow hover:text-black transition-colors flex items-center gap-2"><i data-lucide="badge-check" size="16"></i> Especialização (2x Bônus)</button></div><button onclick="closeSkillModal()" class="mt-4 w-full py-2 text-xs text-gray-500 hover:text-white uppercase font-bold tracking-widest">Cancelar</button></div></div>` : ''}`; })() : ''}</div>`;
                 tabContent = `${infoGridHtml}${vitalsGridHtml}${(() => {
+                    // ── Cartão da Ênfase e da Ação Protagonista ─────────────────────────
+                    // O gasto da Ação Protagonista acontece DEPOIS de ver o d20 — só se
+                    // troca um resultado que já se conhece — por isso o botão fica solto
+                    // na Ficha, e não dentro do balão de rolagem. Vale para qualquer
+                    // rolagem de d20, que foi o pedido.
+                    const _temAP = window.temAcaoProtagonista && window.temAcaoProtagonista(char);
+                    const _usados = parseInt(char.enfaseUsos) || 0;
+                    if (!_temAP && _usados === 0) return '';
+                    const _rest = window.enfaseUsosRestantes ? window.enfaseUsosRestantes(char) : 3;
+                    const _max = window.ENFASE_USOS_POR_SESSAO || 3;
+                    return `<div style="margin:0 12px 10px;padding:9px 12px;border-radius:11px;background:linear-gradient(90deg,#fbbf2418,#fbbf2405);border:1px solid #fbbf2455">
+                        <div style="display:flex;align-items:center;gap:10px">
+                            <span style="font-size:17px">${_temAP ? '⭐' : '🎯'}</span>
+                            <div style="flex:1;line-height:1.4">
+                                <div style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:9px;color:#fbbf24;text-transform:uppercase;letter-spacing:1px">${_temAP ? 'Ação Protagonista' : 'Ênfase'}</div>
+                                <div style="font-size:8px;color:#9ca3af">${_temAP ? 'Reroll com Vantagem, ou 3d6 num resultado' : 'Guardada: nenhuma'}</div>
+                            </div>
+                            ${_temAP ? `<button onclick="window._abrirAcaoProtagonista()" style="flex-shrink:0;padding:7px 12px;border-radius:8px;background:#fbbf24;border:none;color:#000;font-family:'Orbitron',sans-serif;font-weight:900;font-size:9px;text-transform:uppercase;letter-spacing:1px;cursor:pointer">Usar</button>` : ''}
+                        </div>
+                        <div style="display:flex;align-items:center;gap:8px;margin-top:7px;padding-top:7px;border-top:1px dashed #fbbf2433">
+                            <span style="flex:1;font-size:8px;color:#9ca3af">🎯 Ênfase: <b style="color:${_rest > 0 ? '#fbbf24' : '#f87171'}">${_rest}</b> de ${_max} usos nesta sessão</span>
+                            <button onclick="window._novaSessaoEnfase()" style="flex-shrink:0;font-size:8px;color:#fbbf24;background:transparent;border:none;cursor:pointer;text-decoration:underline">nova sessão</button>
+                        </div>
+                    </div>`;
+                })()}${(() => {
                     // Active Nen principles quick-use buttons
                     const d = char.nenDominio || {};
                     const aura = char.vitals.aura || 0;
@@ -1099,7 +1124,12 @@
                 const sanBarColor = sanPct >= 90 ? '#4ade80' : sanPct >= 75 ? '#fbbf24' : sanPct >= 50 ? '#f97316' : '#a78bfa';
                 const activeConditions = conditions.filter(c => !c.resolved);
                 const resolvedConditions = conditions.filter(c => c.resolved);
-                const catColors = { 'CURTA DURAÇÃO':'#fbbf24', 'LONGA DURAÇÃO':'#f87171', 'PERMANENTE LEVE':'#a78bfa', 'PERMANENTE PESADO':'#ff4df7' };
+                // Os dois nomes "PERMANENTE" continuam aqui por causa das fichas salvas
+                // antes da troca para "INDETERMINADO" — sem eles, uma condição antiga
+                // ficaria sem cor no cartão.
+                const catColors = { 'CURTA DURAÇÃO':'#fbbf24', 'LONGA DURAÇÃO':'#f87171',
+                    'INDETERMINADO LEVE':'#a78bfa', 'INDETERMINADO PESADO':'#ff4df7',
+                    'PERMANENTE LEVE':'#a78bfa', 'PERMANENTE PESADO':'#ff4df7' };
 
                 const activeHtml = activeConditions.length === 0
                     ? '<div class="text-center text-gray-600 italic py-6 border-2 border-dashed border-gray-800 rounded-xl text-xs">Nenhuma condição ativa.<br><span class="text-gray-700">Reduza a Sanidade para registrar surtos.</span></div>'
@@ -1153,6 +1183,38 @@
                         </div>
                         ${rdmVal > 0 ? '<div class="mt-2 text-center text-[10px] font-bold text-blue-400">🛡️ RDM '+rdmVal+' — reduz dano mental recebido</div>' : ''}
                     </div>
+                    ${(() => {
+                        // ── Recuperando Sanidade ────────────────────────────────────
+                        // As seis rotas do livro, todas com +INT. Nenhuma existia no app:
+                        // a única recuperação era a do level-up (RDM). Três delas
+                        // dependiam da Ação Protagonista, que até agora não existia.
+                        //
+                        // As duas automáticas (receber a Ação Protagonista e tirar 20
+                        // natural) não aparecem como botão — o app já as aplicou sozinho,
+                        // e um botão delas convidaria a cobrar duas vezes. Ficam listadas
+                        // apagadas, para o jogador saber que existem e são automáticas.
+                        const _rotas = window.SANIDADE_RECUPERACAO || [];
+                        if (!_rotas.length) return '';
+                        const _cheia = (char.vitals.san || 100) >= (char.vitals.sanMax || 100);
+                        return `<div class="bg-gray-900 border border-gray-800 rounded-xl p-3 mb-4">
+                            <div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">🔮 Recuperar Sanidade</div>
+                            ${_cheia ? '<div class="text-[9px] text-gray-600 italic mb-2">Sanidade cheia — nada a recuperar.</div>' : ''}
+                            <div style="display:flex;flex-direction:column;gap:5px">
+                                ${_rotas.map(r => r.auto
+                                    ? `<div style="display:flex;align-items:center;gap:7px;padding:6px 9px;border-radius:8px;border:1px dashed #1f2937;opacity:.55">
+                                        <span style="font-size:12px">${r.icone}</span>
+                                        <span style="flex:1;font-size:9px;color:#6b7280">${r.rotulo}</span>
+                                        <span style="font-size:8px;color:#4b5563;font-weight:700">automático · ${r.dado}+INT</span>
+                                    </div>`
+                                    : `<button onclick="window._recuperarSanidade('${r.id}')" ${_cheia ? 'disabled' : ''}
+                                        style="display:flex;align-items:center;gap:7px;padding:6px 9px;border-radius:8px;border:1px solid #c084fc33;background:#c084fc0d;cursor:${_cheia ? 'not-allowed' : 'pointer'};opacity:${_cheia ? .4 : 1};text-align:left">
+                                        <span style="font-size:12px">${r.icone}</span>
+                                        <span style="flex:1;font-size:9px;color:#d1d5db;font-weight:600">${r.rotulo}</span>
+                                        <span style="font-size:8px;color:#c084fc;font-weight:900">${r.dado}+INT</span>
+                                    </button>`).join('')}
+                            </div>
+                        </div>`;
+                    })()}
                     <div class="flex-1 overflow-y-auto custom-scrollbar pb-4">
                         ${activeHtml}
                         ${resolvedHtml}
@@ -1228,6 +1290,8 @@
                 }
                 ${renderRollModeModalHtml()}
                 ${renderRenPromptModalHtml()}
+                ${renderAcaoProtagonistaModalHtml()}
+                ${renderRyuEntregaModalHtml()}
                 ${renderEscalaPrincipioModalHtml()}
                 ${renderMenuShuModalHtml()}
                 ${renderTabelaRyuModalHtml()}
@@ -2159,14 +2223,24 @@
                 }
             });
 
-            // ── RYU: a linha da tabela soma no Dano ────────────────────────────────
-            // O acerto já recebe esse mesmo valor por calcBonusAcerto (config.js). Aqui
-            // entra como bônus plano, junto dos outros extras fixos, para o crítico não
-            // dobrá-lo e para aparecer na fórmula que vai ao Discord.
-            const _ryuH = window.calcRyuAtivo ? window.calcRyuAtivo(char) : null;
-            if (_ryuH && _ryuH.ataqueDano > 0) {
-                flatBonus += _ryuH.ataqueDano;
-                flatParts.push('RYU ' + _ryuH.ataqueDano);
+            // ── RYU: só em Hatsu de corpo-a-corpo ──────────────────────────────────
+            // rs.corpoACorpo é gravado pela tela de detalhe (hatsu-detail.js) e vale
+            // quando o Hatsu não comprou alcance nem área e não é Projétil de Aura.
+            // O bônus é plano, então entra junto dos outros extras fixos: o crítico
+            // não o dobra, e ele aparece na fórmula que vai ao Discord.
+            // A arma guardada é reconferida contra o inventário a cada rolagem: se ela
+            // foi vendida ou renomeada, o bônus para de valer sozinho.
+            const _ryuOkH = window.ryuAlcancaHatsu
+                ? window.ryuAlcancaHatsu(rs, h, function (nome) {
+                    return !!(window.ryuAlcancaArma && window.ryuAlcancaArma(findItemData(nome), nome));
+                })
+                : false;
+            const _ryuH = window.calcBonusAcertoRyu
+                ? window.calcBonusAcertoRyu(char, _ryuOkH)
+                : { total: 0 };
+            if (_ryuH.total > 0) {
+                flatBonus += _ryuH.total;
+                flatParts.push('RYU ' + _ryuH.total);
             }
 
             // ── Rolagem de ATAQUE, antecipada ──────────────────────────────────────
@@ -2182,7 +2256,10 @@
                 // Segredo Mortal: força vantagem se modo for Normal
                 const attackMode = (rs.acertoVantagem && effectiveMode === 'NORMAL') ? 'VANTAGEM' : effectiveMode;
                 const attackRoll = getRollResult(attackMode);
-                const acertoBonus = rs.acertoBonus || 0;
+                // RYU entra aqui, e não no rs.acertoBonus montado em hatsu-detail.js:
+                // lá o Hatsu ainda não sabe se é corpo-a-corpo, porque os metros de
+                // alcance e de área são calculados depois do estado da rolagem.
+                const acertoBonus = (rs.acertoBonus || 0) + _ryuH.total;
                 // Margem de crítico da ficha (Aura Afiada, Assassino Veterano, Executor),
                 // com piso 18. Comparada contra o d20 USADO — antes era
                 // dice.includes(20), que declarava crítico mesmo quando o 20 era o dado
@@ -2193,7 +2270,7 @@
                     acertoBonus: acertoBonus, margem: mc.valor,
                     isCrit: attackRoll.total >= mc.valor,
                     isFumble: attackRoll.dice.length === 1 && attackRoll.dice[0] === 1,
-                    attackTotal: attackRoll.total + atkMod + pb + acertoBonus,
+                    attackTotal: window.totalComEnfase(attackRoll, atkMod + pb + acertoBonus),
                 };
             })();
 
@@ -2452,6 +2529,15 @@
             const rs = window._hatsuRollState;
             const char = state.currentChar;
             const h = (char.hatsus||[])[state.hatsuDetailIdx];
+            // ── RYU: perguntar como o Hatsu é entregue, uma vez por Hatsu ──────────
+            // Vem antes do balão do REN para a ordem ficar: o que é o golpe → quanto
+            // de aura gastar nele → rolar. Depois de responder, _gravarRyuEntrega
+            // chama esta mesma função de novo e o fluxo continua normalmente.
+            if (window.ryuPrecisaPerguntar && window.ryuPrecisaPerguntar(char, h, rs)) {
+                state.pendingRyuEntrega = { idx: state.hatsuDetailIdx, mode: mode || state.rollMode || 'NORMAL' };
+                render(true);
+                return;
+            }
             // grauDanoDisponivel em vez de calcRenGrauDisponivel: o segundo exige o REN já
             // ATIVO na ficha, e por decisão do Lucas escolher um grau AQUI é um caminho de
             // ativação do REN. A conta do teto de grau é idêntica nos dois.
@@ -2775,6 +2861,222 @@
                 + (cabe ? 'pointer' : 'not-allowed') + ';opacity:' + (cabe ? '1' : '0.5') + '">Ativar</button>'
                 + '</div></div></div>';
         }
+        // ── Balão: como este Hatsu é entregue? ──────────────────────────────────────
+        // O RYU só vale em combate direto, mas um Hatsu que comprou ALCANCE pode ser
+        // tanto uma rajada quanto uma adaga arremessada — os metros são os mesmos nos
+        // dois casos. Quem sabe é o jogador, então o app pergunta UMA VEZ por Hatsu e
+        // guarda a resposta: como o Hatsu é entregue não muda de golpe para golpe, e
+        // perguntar a cada rolagem seria o terceiro balão do mesmo ataque (os outros
+        // dois são o modo de rolagem e o REN).
+        //
+        // A lista oferece só as armas do inventário que de fato qualificam — nada de
+        // mostrar o arco para depois recusar o bônus em silêncio.
+        function ryuArmasDoInventario(char) {
+            const vistos = {};
+            return ((char || {}).inventory || [])
+                .map(function (it) { return it && it.name; })
+                .filter(function (nome) {
+                    if (!nome || vistos[nome]) return false;
+                    vistos[nome] = 1;
+                    return !!(window.ryuAlcancaArma && window.ryuAlcancaArma(findItemData(nome), nome));
+                });
+        }
+        window._trocarRyuEntrega = function (idx) {
+            // Chamado pelo link "trocar" na tela do Hatsu: abre o balão sem nenhuma
+            // rolagem em andamento (mode null), então confirmar só grava e fecha.
+            state.pendingRyuEntrega = { idx: idx, mode: null };
+            render(true);
+        };
+        window._fecharRyuEntrega = function () { state.pendingRyuEntrega = null; render(true); };
+        function _gravarRyuEntrega(valor) {
+            const p = state.pendingRyuEntrega;
+            state.pendingRyuEntrega = null;
+            if (!p) return;
+            const char = state.currentChar;
+            const h = (char.hatsus || [])[p.idx];
+            if (h) { h.ryuEntrega = String(valor); saveCharacter(char); }
+            render(true);
+            // Retoma a rolagem de onde ela parou. O render acima refez o
+            // _hatsuRollState, então o maybeAskRenThenRoll segue com o estado novo.
+            if (p.mode) setTimeout(function () { maybeAskRenThenRoll(p.mode); }, 0);
+        }
+        window._confirmarRyuEntrega = function (valor) { _gravarRyuEntrega(valor); };
+        // Por ÍNDICE, e não por nome: nome de item pode ter aspas e acento, e montar
+        // isso dentro de um onclick é pedir para quebrar.
+        window._confirmarRyuEntregaArma = function (i) {
+            const armas = ryuArmasDoInventario(state.currentChar);
+            const nome = armas[parseInt(i)];
+            if (!nome) return;
+            _gravarRyuEntrega(nome);
+        };
+        function renderRyuEntregaModalHtml() {
+            if (!state.pendingRyuEntrega) return '';
+            const char = state.currentChar;
+            const h = (char.hatsus || [])[state.pendingRyuEntrega.idx] || {};
+            const armas = ryuArmasDoInventario(char);
+            const COR = '#38bdf8';
+            const atual = h.ryuEntrega || '';
+            const botao = function (acao, rotulo, nota, ligado) {
+                return '<button onclick="' + acao + '" style="display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:9px 11px;margin-bottom:6px;border-radius:9px;cursor:pointer;border:1px solid '
+                    + (ligado ? COR : '#1f2937') + ';background:' + (ligado ? COR + '15' : '#0f1117') + '">'
+                    + '<span style="flex:1;font-size:10px;font-weight:700;color:' + (ligado ? COR : '#d1d5db') + '">' + rotulo + '</span>'
+                    + (nota ? '<span style="font-size:8px;color:#6b7280">' + nota + '</span>' : '')
+                    + '</button>';
+            };
+            const DESARM = window.RYU_ENTREGA_DESARMADO || 'desarmado';
+            const NENHUM = window.RYU_ENTREGA_NENHUM || 'nenhum';
+            let lista = botao("window._confirmarRyuEntrega('" + DESARM + "')", '✊ Desarmado', 'corpo-a-corpo', atual === DESARM);
+            lista += armas.map(function (nome, i) {
+                const d = findItemData(nome) || {};
+                const arremesso = (d.tags || []).some(function (t) { return /^arremesso/i.test(String(t).trim()); });
+                return botao('window._confirmarRyuEntregaArma(' + i + ')', '⚔️ ' + nome,
+                    arremesso ? 'arremesso' : 'corpo-a-corpo', atual === nome);
+            }).join('');
+            lista += botao("window._confirmarRyuEntrega('" + NENHUM + "')",
+                '✖ Nenhum dos dois', 'o RYU não entra', atual === NENHUM);
+            const semArmas = armas.length === 0
+                ? '<div style="font-size:8px;color:#6b7280;margin:-2px 0 8px">Nenhuma arma de corpo-a-corpo ou de arremesso no seu inventário.</div>'
+                : '';
+            return '<div style="position:fixed;inset:0;background:#000000cc;display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;font-family:Rajdhani,sans-serif;overflow:auto">'
+                + '<div style="background:#0d1117;border:2px solid ' + COR + ';border-radius:18px;padding:20px;width:100%;max-width:360px;box-shadow:0 0 40px ' + COR + '44;text-align:center;max-height:92vh;overflow:auto">'
+                + '<div style="font-size:22px;margin-bottom:4px">🌊</div>'
+                + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:12px;color:' + COR + ';text-transform:uppercase;letter-spacing:1.5px">Esse ataque é desarmado ou usa arma?</div>'
+                + '<div style="font-size:9px;color:#6b7280;margin:7px 0 12px;line-height:1.5">O RYU só vale em combate direto. Este Hatsu tem alcance, então pode ser tanto um arremesso quanto uma rajada — a ficha não tem como saber. <b style="color:#9ca3af">A resposta fica salva neste Hatsu</b> e dá para trocar depois.</div>'
+                + '<div style="text-align:left">' + lista + '</div>'
+                + semArmas
+                + '<button onclick="window._fecharRyuEntrega()" style="width:100%;margin-top:6px;padding:11px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Cancelar</button>'
+                + '</div></div>';
+        }
+        // ── Recuperar Sanidade pelas rotas de mesa ──────────────────────────────────
+        // As quatro rotas não automáticas: um descanso longo, cumprir o que se ama,
+        // o Foco de Caça e a Ação Protagonista BEM SUCEDIDA. Essa última depende de
+        // um julgamento que só o jogador faz — o app sabe que ela foi gasta, não que
+        // ela deu certo.
+        window._recuperarSanidade = function (id) {
+            const char = state.currentChar;
+            const v = char.vitals || {};
+            if ((v.san || 0) >= (v.sanMax || 100)) return;
+            const rec = window.calcRecuperacaoSanidade ? window.calcRecuperacaoSanidade(char, id) : null;
+            if (!rec) return;
+            const antes = v.san || 0;
+            v.san = Math.min(v.sanMax || 100, antes + rec.total);
+            const ganho = v.san - antes;
+            const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            char.history.push({ time, label: '🔮 Sanidade — ' + rec.rota.rotulo,
+                dice: rec.dados.join(', '), mod: rec.int, total: rec.total });
+            if (char.history.length > 50) char.history.shift();
+            saveCharacter(char);
+            render(true);
+            window._showXpToast && window._showXpToast('🔮 +' + ganho + ' de Sanidade — '
+                + rec.rota.rotulo + ' (' + rec.rota.dado + ' [' + rec.dados.join(', ') + ']'
+                + (rec.int ? (rec.int > 0 ? ' +' : ' ') + rec.int : '') + ')');
+        };
+
+        // ── Nova sessão: devolve os 3 usos de Ênfase ────────────────────────────────
+        // Não mexe na Ação Protagonista guardada: ela é fruto de uma falha que
+        // aconteceu, e não um recurso que recarrega.
+        window._novaSessaoEnfase = function () {
+            const char = state.currentChar;
+            const _max = window.ENFASE_USOS_POR_SESSAO || 3;
+            if (!confirm('Nova sessão?\n\nIsso devolve os ' + _max + ' usos de Ênfase. A Ação Protagonista guardada, se houver, continua.')) return;
+            char.enfaseUsos = 0;
+            saveCharacter(char);
+            render(true);
+            window._showXpToast && window._showXpToast('🎯 Nova sessão — ' + _max + ' usos de Ênfase disponíveis.');
+        };
+
+        // ── Balão da Ação Protagonista ──────────────────────────────────────────────
+        window._abrirAcaoProtagonista = function () {
+            if (!window.temAcaoProtagonista || !window.temAcaoProtagonista(state.currentChar)) return;
+            state.pendingAcaoProt = { uso: 'virada', resultado: null };
+            render(true);
+        };
+        window._setUsoAcaoProtagonista = function (id) {
+            if (!state.pendingAcaoProt) return;
+            state.pendingAcaoProt.uso = String(id);
+            render(true);
+        };
+        window._fecharAcaoProtagonista = function () { state.pendingAcaoProt = null; render(true); };
+        window._rolarAcaoProtagonista = function () {
+            const pa = state.pendingAcaoProt;
+            if (!pa) return;
+            const char = state.currentChar;
+            const uso = window.usoAcaoProtagonista(pa.uso);
+            if (!uso) return;
+            // Gasta primeiro: assim uma falha de rede no Discord não devolve o recurso
+            // sem o jogador perceber.
+            char.acaoProtagonista = Math.max(0, (parseInt(char.acaoProtagonista) || 0) - 1);
+            let dados, total;
+            if (uso.modo) {
+                // Rerolagem com Vantagem ou Desvantagem: 2d20, como qualquer outra.
+                // Passa pelo mesmo getRollResult para não existirem duas regras de
+                // Vantagem no app.
+                const r = getRollResult(uso.modo);
+                dados = r.dice; total = r.total;
+            } else {
+                dados = [];
+                for (let i = 0; i < 3; i++) dados.push(Math.floor(Math.random() * 6) + 1);
+                total = dados.reduce(function (a, b) { return a + b; }, 0);
+            }
+            const rotulo = '⭐ Ação Protagonista — ' + uso.rotulo;
+            const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            char.history.push({ time, label: rotulo, dice: dados.join(', '), mod: 0, total: total });
+            if (char.history.length > 50) char.history.shift();
+            saveCharacter(char);
+            sendToDiscord(rotulo + ' (' + uso.dado + ')', dados, 0, total, char.name);
+            state.pendingAcaoProt = { uso: pa.uso, resultado: { dados: dados, total: total, uso: uso } };
+            render(true);
+        };
+        function renderAcaoProtagonistaModalHtml() {
+            if (!state.pendingAcaoProt) return '';
+            const pa = state.pendingAcaoProt;
+            const COR = '#fbbf24';
+            if (pa.resultado) {
+                const r = pa.resultado;
+                const explica = r.uso.id === 'virada'
+                    ? 'Este é o seu novo resultado. Some os seus bônus normalmente.'
+                    : (r.uso.id === 'penalizar'
+                        ? 'Passe este número ao mestre: é a nova rolagem do inimigo.'
+                        : (r.uso.alvo === 'inimigo'
+                            ? 'Passe ao mestre: este total sai da rolagem do inimigo.'
+                            : 'Some este total ao resultado que você tinha rolado.'));
+                return '<div style="position:fixed;inset:0;background:#000000cc;display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;font-family:Rajdhani,sans-serif">'
+                    + '<div style="background:#0d1117;border:2px solid ' + COR + ';border-radius:18px;padding:22px;width:100%;max-width:330px;box-shadow:0 0 40px ' + COR + '44;text-align:center">'
+                    + '<div style="font-size:26px;margin-bottom:4px">⭐</div>'
+                    + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:11px;color:' + COR + ';text-transform:uppercase;letter-spacing:1.5px">' + r.uso.rotulo + '</div>'
+                    + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:40px;color:#fff;margin:10px 0 2px;text-shadow:0 0 18px ' + COR + '88">'
+                    + (r.uso.id === 'impulso_subtrair' ? '−' : '') + r.total + '</div>'
+                    + '<div style="font-size:9px;color:#6b7280">' + r.uso.dado + ': [' + r.dados.join(', ') + ']</div>'
+                    + '<div style="font-size:10px;color:#9ca3af;margin-top:10px;line-height:1.5">' + explica + '</div>'
+                    // "Após o uso/gasto de uma Ação Protagonista BEM SUCEDIDA: 1d10+INT."
+                    // O app sabe que ela foi gasta, não que deu certo — então pergunta
+                    // aqui, no momento em que o jogador acabou de ver o resultado.
+                    + ((state.currentChar.vitals.san || 100) < (state.currentChar.vitals.sanMax || 100)
+                        ? '<button onclick="window._recuperarSanidade(\'usar_ap\');window._fecharAcaoProtagonista()" style="width:100%;margin-top:12px;padding:10px;border-radius:10px;background:#c084fc18;border:1px solid #c084fc55;color:#c084fc;font-family:Orbitron,sans-serif;font-weight:900;font-size:9px;text-transform:uppercase;cursor:pointer">🔮 Foi bem sucedida (+1d10+INT de Sanidade)</button>'
+                        : '')
+                    + '<button onclick="window._fecharAcaoProtagonista()" style="width:100%;margin-top:8px;padding:12px;border-radius:10px;background:' + COR + ';border:none;color:#000;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Fechar</button>'
+                    + '</div></div>';
+            }
+            const opts = (window.ACAO_PROTAGONISTA_USOS || []).map(function (u) {
+                const on = pa.uso === u.id;
+                return '<button onclick="window._setUsoAcaoProtagonista(\'' + u.id + '\')" style="display:block;width:100%;text-align:left;padding:9px 11px;margin-bottom:6px;border-radius:9px;cursor:pointer;border:1px solid '
+                    + (on ? COR : '#1f2937') + ';background:' + (on ? COR + '15' : '#0f1117') + '">'
+                    + '<div style="font-size:10px;font-weight:700;color:' + (on ? COR : '#d1d5db') + '">'
+                    + u.icone + ' ' + u.rotulo + ' <span style="font-size:8px;color:#6b7280">(' + u.dado + ')</span></div>'
+                    + '<div style="font-size:8px;color:#6b7280;margin-top:2px">' + u.nota + '</div>'
+                    + '</button>';
+            }).join('');
+            return '<div style="position:fixed;inset:0;background:#000000cc;display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;font-family:Rajdhani,sans-serif;overflow:auto">'
+                + '<div style="background:#0d1117;border:2px solid ' + COR + ';border-radius:18px;padding:20px;width:100%;max-width:360px;box-shadow:0 0 40px ' + COR + '44;text-align:center;max-height:92vh;overflow:auto">'
+                + '<div style="font-size:24px;margin-bottom:2px">⭐</div>'
+                + '<div style="font-family:Orbitron,sans-serif;font-weight:900;font-size:12px;color:' + COR + ';text-transform:uppercase;letter-spacing:1.5px">Ação Protagonista</div>'
+                + '<div style="font-size:9px;color:#6b7280;margin:6px 0 12px;line-height:1.5">Use depois de ver o resultado. Gasta a sua única Ação Protagonista — a próxima só vem na próxima falha de Ênfase.</div>'
+                + '<div style="text-align:left">' + opts + '</div>'
+                + '<div style="display:flex;gap:8px;margin-top:10px">'
+                + '<button onclick="window._fecharAcaoProtagonista()" style="flex:1;padding:12px;border-radius:10px;background:#1f2937;border:1px solid #374151;color:#9ca3af;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Cancelar</button>'
+                + '<button onclick="window._rolarAcaoProtagonista()" style="flex:2;padding:12px;border-radius:10px;background:' + COR + ';border:none;color:#000;font-family:Orbitron,sans-serif;font-weight:900;font-size:10px;text-transform:uppercase;cursor:pointer">Rolar</button>'
+                + '</div></div></div>';
+        }
         function renderRenPromptModalHtml() {
             if (!state.pendingRenRoll) return '';
             const char = state.currentChar;
@@ -2877,7 +3179,10 @@
                 { id: 'NORMAL',      label: 'Normal',      icon: '🎲', desc: '1d20',       bg: '#1f2937', col: '#9ca3af' },
                 { id: 'VANTAGEM',    label: 'Vantagem',    icon: '⬆️', desc: '2d20 maior',  bg: '#14532d', col: '#4ade80' },
                 { id: 'DESVANTAGEM', label: 'Desvantagem', icon: '⬇️', desc: '2d20 menor',  bg: '#7f1d1d', col: '#f87171' },
-                { id: 'ÊNFASE',      label: 'Ênfase',      icon: '🎯', desc: '2d20 ≈ 10',   bg: '#1e1b4b', col: '#a78bfa' },
+                // O rótulo dizia "2d20 ≈ 10", o OPOSTO do que o getRollResult faz: ele fica
+                // com o dado MAIS DISTANTE de 10. O bestiario já descrevia certo ("o mais
+                // extremo"); era a ficha que mentia para o jogador.
+                { id: 'ÊNFASE',      label: 'Ênfase',      icon: '🎯', desc: '2d20, o mais extremo', bg: '#1e1b4b', col: '#a78bfa' },
             ];
             const _mwhs = loadWebhooks();
             // Só mostra o seletor se há múltiplos webhooks E nenhum padrão definido
@@ -2916,13 +3221,32 @@
                     ${_imageAttachHtml}
                     <div style="font-size:9px;font-weight:900;color:#4b5563;text-transform:uppercase;letter-spacing:2px;margin-bottom:14px;text-align:center">🎲 Modo de Rolagem</div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
-                        ${MODES.map(m => `<button onclick="executePendingRoll('${m.id}')"
-                            style="display:flex;flex-direction:column;align-items:center;padding:14px 8px;border-radius:12px;background:${m.bg};border:2px solid ${m.col}44;color:${m.col};cursor:pointer;font-family:'Rajdhani',sans-serif">
+                        ${MODES.map(m => {
+                            // A Ênfase tem 3 usos por sessão e é o único modo contado.
+                            // Sem usos, o botão apaga e deixa de ser clicável — senão o
+                            // jogador gastaria um 4º sem o app dizer nada.
+                            const _enf = m.id === 'ÊNFASE';
+                            const _rest = _enf && window.enfaseUsosRestantes
+                                ? window.enfaseUsosRestantes(state.currentChar) : null;
+                            const _off = _enf && _rest === 0;
+                            return `<button ${_off ? '' : `onclick="executePendingRoll('${m.id}')"`}
+                            style="display:flex;flex-direction:column;align-items:center;padding:14px 8px;border-radius:12px;background:${m.bg};border:2px solid ${m.col}44;color:${m.col};cursor:${_off ? 'not-allowed' : 'pointer'};opacity:${_off ? 0.4 : 1};font-family:'Rajdhani',sans-serif">
                             <span style="font-size:20px;margin-bottom:4px">${m.icon}</span>
                             <span style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:9px;text-transform:uppercase;letter-spacing:1px">${m.label}</span>
-                            <span style="font-size:8px;opacity:.6;margin-top:2px">${m.desc}</span>
-                        </button>`).join('')}
+                            <span style="font-size:8px;opacity:.6;margin-top:2px">${_enf ? (_off ? 'sem usos' : m.desc + ' · ' + _rest + '/' + (window.ENFASE_USOS_POR_SESSAO || 3)) : m.desc}</span>
+                        </button>`; }).join('')}
                     </div>
+                    ${(() => {
+                        // Aviso ANTES de rolar: com uma Ação Protagonista ainda guardada, a
+                        // falha da Ênfase não concede outra — e esse é justamente o motivo
+                        // de alguém escolher Ênfase de propósito. Sem o aviso, o jogador
+                        // arriscaria a rolagem mais extrema do jogo por um prêmio que não viria.
+                        const _c = state.currentChar;
+                        if (!(window.temAcaoProtagonista && window.temAcaoProtagonista(_c))) return '';
+                        return `<div style="margin:-4px 0 12px;padding:8px 10px;border-radius:9px;background:#fbbf2412;border:1px solid #fbbf2444;font-size:9px;color:#fbbf24;line-height:1.5;text-align:left">
+                            ⭐ Você ainda tem uma <b>Ação Protagonista</b> guardada — falhar na Ênfase <b>não</b> vai conceder outra até gastar esta.
+                        </div>`;
+                    })()}
                     <button onclick="cancelPendingRoll()" style="width:100%;padding:10px;border-radius:10px;background:transparent;border:1px solid #374151;color:#6b7280;font-size:9px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:1px">Cancelar</button>
                 </div>
             </div>`;
@@ -2934,8 +3258,17 @@
             // Instâncias e Inclinações de acerto (Observador, Decisiva) — o mesmo
             // calcBonusAcerto que o Hatsu usa, para os dois caminhos não divergirem.
             const _baW = window.calcBonusAcerto ? window.calcBonusAcerto(char) : { total: 0, fontes: [] };
+            // RYU: vale com o punho, com arma de corpo-a-corpo e com arma de arremesso.
+            // Fica de fora de arco, besta, arma de fogo e arma de cerco — nelas a aura
+            // do RYU não acompanha o projétil. findItemData acha a arma no ITEM_DB, que
+            // já traz a categoria e as etiquetas.
+            const _ryuArmaOk = window.ryuAlcancaArma
+                ? window.ryuAlcancaArma(findItemData(weaponName), weaponName) : false;
+            const _ryuW = window.calcBonusAcertoRyu
+                ? window.calcBonusAcertoRyu(char, _ryuArmaOk) : { total: 0, ryu: null };
             const attackRoll = getRollResult(mode || state.rollMode);
-            const attackTotal = attackRoll.total + mod + pb + _baW.total;
+            // Na falha da Ênfase todo esse pacote vira penalidade — ver totalComEnfase.
+            const attackTotal = window.totalComEnfase(attackRoll, mod + pb + _baW.total + _ryuW.total);
             // Margem de crítico da ficha, piso 18, comparada contra o d20 USADO.
             const _mcW = window.calcMargemCritico ? window.calcMargemCritico(char) : { valor: 20 };
             const isCrit = attackRoll.total >= _mcW.valor;
@@ -2968,12 +3301,10 @@
             const dmgResult = rollDiceExpr(renDiceExpr);
             // Crítico dobra os DADOS; o KO multiplica o dano inteiro depois disso.
             const _koMultW = window.multiplicadorDanoKo ? window.multiplicadorDanoKo(char) : 1;
-            // RYU: o mesmo número que calcBonusAcerto já somou no acerto entra também no
-            // dano, porque a coluna da tabela é "Ataque e Dano". É valor fixo, então fica
-            // FORA da dobra do crítico — o crítico dobra os dados.
-            const _ryuW = window.calcRyuAtivo ? window.calcRyuAtivo(char) : null;
-            const _ryuWDano = _ryuW ? _ryuW.ataqueDano : 0;
-            const dmgTotal = ((isCrit ? dmgResult.total * 2 : dmgResult.total) + mod + _ryuWDano) * _koMultW;
+            // RYU: o mesmo número que entrou no acerto entra também no dano, porque a
+            // coluna da tabela é "Ataque e Dano". É valor fixo, então fica FORA da dobra
+            // do crítico — o crítico dobra os dados.
+            const dmgTotal = ((isCrit ? dmgResult.total * 2 : dmgResult.total) + mod + _ryuW.total) * _koMultW;
             const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
             const renLabel = useRen ? ' 💪REN' : '';
             char.history.push({ time, label: `⚔️ ${weaponName} (${attrKey})${renLabel}`, dice: attackRoll.dice.join(', '), mod: mod + pb, total: attackTotal, img: state.pendingRollImage || '' });
@@ -3002,7 +3333,7 @@
             const content = `🎲 **${charName}** rolou **${label}**\nDado: ${diceStr}${modStr} = **${total}**${suffix}`;
             fetch(getActiveWebhookUrl(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content }) }).catch(() => {});
         }
-        function rollDice(attrName, mod, mode) { const roll = getRollResult(mode || state.rollMode); const total = roll.total + mod; const entry = { time: new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}), label: `${attrName} (${roll.label})`, dice: roll.dice.join(', '), mod: mod, total: total }; state.currentChar.history.push(entry); if (state.currentChar.history.length > 50) state.currentChar.history.shift(); saveCharacter(state.currentChar); state.rollResult = { name: attrName, total: total, diceVal: roll.total, mod: mod, label: roll.label }; if (state.activeTab !== 'DADOS') state.unreadRolls = true; sendToDiscord(`${attrName} (${roll.label})`, roll.dice, mod, total, state.currentChar.name || 'Personagem'); render(true); }
+        function rollDice(attrName, mod, mode) { const roll = getRollResult(mode || state.rollMode); const total = window.totalComEnfase(roll, mod); const entry = { time: new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}), label: `${attrName} (${roll.label})`, dice: roll.dice.join(', '), mod: mod, total: total }; state.currentChar.history.push(entry); if (state.currentChar.history.length > 50) state.currentChar.history.shift(); saveCharacter(state.currentChar); state.rollResult = { name: attrName, total: total, diceVal: roll.total, mod: mod, label: roll.label }; if (state.activeTab !== 'DADOS') state.unreadRolls = true; sendToDiscord(`${attrName} (${roll.label})`, roll.dice, mod, total, state.currentChar.name || 'Personagem'); render(true); }
         // Entrega o valor MÁXIMO de cada dado em vez de rolar. Usado pela Condição
         // Hostil, cuja regra diz "os dados de dano são maximizados (não rolados)".
         // Mesma tolerância a vários termos do rollDiceExpr: a Condição Hostil maximiza os
@@ -3025,10 +3356,82 @@
             return { total: total, rolls: rolls };
         }
 
-        function rollSkill(skillName, attrKey, mode, zetsuBonus) { const char = state.currentChar; const _efS = window.calcAtributoEfetivo ? window.calcAtributoEfetivo(char, attrKey) : null; const mod = _efS ? _efS.mod : getMod(char.attributes[attrKey].value); const isTrained = char.skills.includes(skillName); const isExpert = (char.expertise || []).includes(skillName); const pb = getProficiencyBonus(char.level); let totalMod = mod; if (isExpert) { totalMod += (pb * 2); } else if (isTrained) { totalMod += pb; } const zb = zetsuBonus || 0; totalMod += zb; const zetsuTag = zb > 0 ? ' 👁️Zetsu' : ''; const _ini = (skillName === 'Iniciativa' && window.calcIniciativaBonus) ? window.calcIniciativaBonus(char) : { total: 0, fontes: [] }; totalMod += _ini.total; const _nb = window.calcBonusPericiaNen ? window.calcBonusPericiaNen(char, skillName) : { total: 0 }; totalMod += _nb.total; const _ib = window.calcBonusPericiaInclinacao ? window.calcBonusPericiaInclinacao(char, skillName) : { total: 0 }; totalMod += _ib.total; const roll = getRollResult(mode || state.rollMode); const total = roll.total + totalMod; const entry = { time: new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}), label: `${skillName} ${isExpert ? "(Exp)" : ""}${zetsuTag} (${roll.label})`, dice: roll.dice.join(', '), mod: totalMod, total: total }; state.currentChar.history.push(entry); if (state.currentChar.history.length > 50) state.currentChar.history.shift(); saveCharacter(state.currentChar); state.rollResult = { name: skillName, total: total, diceVal: roll.total, mod: totalMod, label: roll.label }; if (state.activeTab !== 'DADOS') state.unreadRolls = true; sendToDiscord(`${skillName}${isExpert ? ' (Exp)' : ''}${zetsuTag} (${roll.label})`, roll.dice, totalMod, total, char.name || 'Personagem'); render(true); }
+        function rollSkill(skillName, attrKey, mode, zetsuBonus) { const char = state.currentChar; const _efS = window.calcAtributoEfetivo ? window.calcAtributoEfetivo(char, attrKey) : null; const mod = _efS ? _efS.mod : getMod(char.attributes[attrKey].value); const isTrained = char.skills.includes(skillName); const isExpert = (char.expertise || []).includes(skillName); const pb = getProficiencyBonus(char.level); let totalMod = mod; if (isExpert) { totalMod += (pb * 2); } else if (isTrained) { totalMod += pb; } const zb = zetsuBonus || 0; totalMod += zb; const zetsuTag = zb > 0 ? ' 👁️Zetsu' : ''; const _ini = (skillName === 'Iniciativa' && window.calcIniciativaBonus) ? window.calcIniciativaBonus(char) : { total: 0, fontes: [] }; totalMod += _ini.total; const _nb = window.calcBonusPericiaNen ? window.calcBonusPericiaNen(char, skillName) : { total: 0 }; totalMod += _nb.total; const _ib = window.calcBonusPericiaInclinacao ? window.calcBonusPericiaInclinacao(char, skillName) : { total: 0 }; totalMod += _ib.total; const roll = getRollResult(mode || state.rollMode); const total = window.totalComEnfase(roll, totalMod); const entry = { time: new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}), label: `${skillName} ${isExpert ? "(Exp)" : ""}${zetsuTag} (${roll.label})`, dice: roll.dice.join(', '), mod: totalMod, total: total }; state.currentChar.history.push(entry); if (state.currentChar.history.length > 50) state.currentChar.history.shift(); saveCharacter(state.currentChar); state.rollResult = { name: skillName, total: total, diceVal: roll.total, mod: totalMod, label: roll.label }; if (state.activeTab !== 'DADOS') state.unreadRolls = true; sendToDiscord(`${skillName}${isExpert ? ' (Exp)' : ''}${zetsuTag} (${roll.label})`, roll.dice, totalMod, total, char.name || 'Personagem'); render(true); }
         function closeRollModal() { state.rollResult = null; render(true); }
         function copyToClipboard(idx) { const h = state.currentChar.history[idx]; if(!h) return; const text = `**${h.label}**\nRolagem: [${h.dice}] ${h.mod>=0?'+':''}${h.mod} = **${h.total}**`; navigator.clipboard.writeText(text).then(() => { const btn = document.activeElement; if(btn && btn.tagName === 'BUTTON') { const originalHTML = btn.innerHTML; btn.innerHTML = '<i data-lucide="check" size="14"></i>'; btn.classList.add('text-green-500'); setTimeout(() => { btn.innerHTML = originalHTML; btn.classList.remove('text-green-500'); lucide.createIcons(); }, 1000); } }); }
-        function getRollResult(mode) { const r1 = Math.floor(Math.random() * 20) + 1; const r2 = Math.floor(Math.random() * 20) + 1; if (mode === 'NORMAL') return { total: r1, dice: [r1], label: 'Normal' }; if (mode === 'VANTAGEM') return { total: Math.max(r1, r2), dice: [r1, r2], label: 'Vantagem' }; if (mode === 'DESVANTAGEM') return { total: Math.min(r1, r2), dice: [r1, r2], label: 'Desvantagem' }; if (mode === 'ÊNFASE') { const dist1 = Math.abs(r1 - 10.5); const dist2 = Math.abs(r2 - 10.5); return { total: dist1 > dist2 ? r1 : r2, dice: [r1, r2], label: 'Ênfase' }; } return { total: r1, dice: [r1], label: 'Normal' }; }
+        // Devolve a sanidade do 20 natural: "Resultado 20 em qualquer rolagem →
+        // recupere 1d20+INT". Fica num lugar só porque o getRollResult tem saída
+        // única — era por isso que ele foi reescrito assim.
+        function _sanidadeNatural20(res) {
+            const char = state.currentChar;
+            if (!char || !res || res.total !== 20) return res;
+            const v = char.vitals || {};
+            if ((v.san || 0) >= (v.sanMax || 100)) return res;   // já está cheia
+            const rec = window.calcRecuperacaoSanidade ? window.calcRecuperacaoSanidade(char, 'natural20') : null;
+            if (!rec || rec.total <= 0) return res;
+            v.san = Math.min(v.sanMax || 100, (v.san || 0) + rec.total);
+            saveCharacter(char);
+            setTimeout(function () {
+                window._showXpToast && window._showXpToast('🎲 20 natural — +' + rec.total
+                    + ' de Sanidade (1d20 [' + rec.dados.join(', ') + ']'
+                    + (rec.int ? (rec.int > 0 ? ' +' : ' ') + rec.int : '') + ')');
+            }, 260);
+            return res;
+        }
+        function getRollResult(mode) {
+            const d20 = function () { return Math.floor(Math.random() * 20) + 1; };
+            const r1 = d20(), r2 = d20();
+            if (mode === 'NORMAL') return _sanidadeNatural20({ total: r1, dice: [r1], label: 'Normal' });
+            if (mode === 'VANTAGEM') return _sanidadeNatural20({ total: Math.max(r1, r2), dice: [r1, r2], label: 'Vantagem' });
+            if (mode === 'DESVANTAGEM') return _sanidadeNatural20({ total: Math.min(r1, r2), dice: [r1, r2], label: 'Desvantagem' });
+            if (mode === 'ÊNFASE') {
+                // Distância a partir de 10 — ver ENFASE_REFERENCIA (config.js). Era
+                // 10,5, e com 10,5 o empate do livro nunca acontecia.
+                const REF = window.ENFASE_REFERENCIA || 10;
+                const dados = [r1, r2];
+                let escolhido;
+                if (Math.abs(r1 - REF) === Math.abs(r2 - REF)) {
+                    // "Em caso de empate um novo dado é rolado." Vale tanto para o
+                    // empate de distância (5 e 15) quanto para dados iguais (7 e 7).
+                    escolhido = d20();
+                    dados.push(escolhido);
+                } else {
+                    escolhido = Math.abs(r1 - REF) > Math.abs(r2 - REF) ? r1 : r2;
+                }
+                const out = {
+                    total: escolhido, dice: dados, label: 'Ênfase',
+                    // É isto que o totalComEnfase lê para virar o bônus em penalidade.
+                    enfaseInferior: escolhido < REF
+                };
+                const _c = state.currentChar;
+                if (_c) {
+                    _c.enfaseUsos = (parseInt(_c.enfaseUsos) || 0) + 1;
+                    // A concessão mora aqui porque o getRollResult é o funil de TODAS
+                    // as rolagens de d20 da ficha — ataque, Hatsu, atributo e perícia.
+                    window._resultadoEnfase = window.resolverEnfase ? window.resolverEnfase(_c, mode, out.total) : null;
+                    saveCharacter(_c);
+                    // "Ao receber uma Ação Protagonista: recupere 1d4+INT." É automática
+                    // porque o gatilho é mecânico e o app o enxerga no mesmo instante.
+                    let _sanTxt = '';
+                    if (window._resultadoEnfase === 'ganhou') {
+                        const _rec = window.calcRecuperacaoSanidade ? window.calcRecuperacaoSanidade(_c, 'receber_ap') : null;
+                        const _v = _c.vitals || {};
+                        if (_rec && _rec.total > 0 && (_v.san || 0) < (_v.sanMax || 100)) {
+                            _v.san = Math.min(_v.sanMax || 100, (_v.san || 0) + _rec.total);
+                            _sanTxt = ' (+' + _rec.total + ' de Sanidade)';
+                        }
+                    }
+                    const _msg = window._resultadoEnfase === 'ganhou'
+                        ? '⭐ Falha na Ênfase — você ganhou uma Ação Protagonista!' + _sanTxt
+                        : (window._resultadoEnfase === 'jaTinha'
+                            ? '⚠ Falha na Ênfase, mas a Ação Protagonista anterior ainda não foi gasta.'
+                            : '');
+                    if (_msg) setTimeout(function () { window._showXpToast && window._showXpToast(_msg); }, 120);
+                }
+                return _sanidadeNatural20(out);
+            }
+            return _sanidadeNatural20({ total: r1, dice: [r1], label: 'Normal' });
+        }
         function buyStat(attr, delta) { lockAttributeMethod(); const current = state.tempChar.attributes[attr]; const next = current + delta; if (next >= 1 && next <= 30) { const currentCost = calculateTotalCost(state.tempChar.attributes); const costDiff = getPointBuyCost(next) - getPointBuyCost(current); const MAX = 20; if (costDiff > 0 && (currentCost + costDiff > MAX)) { const totalEl = document.getElementById('buy-total'); totalEl.classList.add('text-red-500', 'shake'); setTimeout(() => totalEl.classList.remove('shake'), 500); return; } state.tempChar.attributes[attr] = next; render(true); } }
         function setAttrTab(mode) { if (state.attrMethodLocked) return; state.attrTab = mode; state.selectedPoolIdx = null; if(mode === 'COMPRA') { Object.keys(state.tempChar.attributes).forEach(k => state.tempChar.attributes[k] = 10); state.attrPool = []; } else { Object.keys(state.tempChar.attributes).forEach(k => state.tempChar.attributes[k] = null); state.attrPool = []; } render(true); }
         function lockAttributeMethod() { if(!state.attrMethodLocked) { state.attrMethodLocked = true; render(true); } }
