@@ -1459,6 +1459,16 @@ function renderHatsuCreator(container) {
                     // calcAuraCost lê daqui.
                     rm_e22: _TAMANHO_ACIMA, rm_e23: _TAMANHO_ACIMA,
                     rm_e24: _TAMANHO_ACIMA, rm_e25: _TAMANHO_ACIMA,
+                    // ── Manipulação: quantas cargas de Intensidade Temporal ──────────
+                    // "+10% de aura por carga (custo não redutível)". Cada carga sobe um
+                    // grau dentro da nova escala: 1min → 2min → 3min em combate, 2h → 3h
+                    // fora dele. Sem o seletor, o acréscimo não tinha quantidade e o
+                    // calcAuraCost não tinha o que cobrar.
+                    ma_e12: { icone: '⏳', titulo: 'Quantas cargas de Intensidade Temporal?',
+                        nota: '+10% de aura por carga, e este acréscimo NÃO é reduzido por restrição nenhuma.',
+                        opcoes: [['0', 'Nenhuma'], ['1', '1 carga — 1min / 2h (+10%)'],
+                                 ['2', '2 cargas — 2min / 3h (+20%)'], ['3', '3 cargas — 3min / 4h (+30%)'],
+                                 ['4', '4 cargas (+40%)'], ['5', '5 cargas (+50%)'], ['6', '6 cargas (+60%)']] },
                 };
                 if (_ESCOLHAS_REFORCO[item.id]) {
                     const _cfg = _ESCOLHAS_REFORCO[item.id];
@@ -1725,6 +1735,37 @@ function renderHatsuCreator(container) {
                         + '</div>';
                 }
 
+                // ma_e16 Marionete Tática: DUAS Características, entre as 7 que o
+                // efeito libera. Dois seletores por compra, porque escolher a mesma
+                // duas vezes seria uma escolha só com cara de duas.
+                if (item.id === 'ma_e16') {
+                    const _mtOps = ((window.CONSTRUCTO_DB || {}).MARIONETE_TATICA_OPCOES) || [];
+                    const _mtCop = [].concat(hb.eg || [], hb.ec || []).filter(function (x) { return x === 'ma_e16'; }).length;
+                    let _mtHtml = '';
+                    for (let _m = 0; _m < Math.max(1, _mtCop); _m++) {
+                        const _suf = _m > 0 ? '#' + _m : '';
+                        _mtHtml += '<div style="' + (_m > 0 ? 'margin-top:8px;padding-top:8px;border-top:1px dashed ' + color + '33;' : '') + '">'
+                            + (_mtCop > 1 ? '<div style="font-size:8px;font-weight:700;color:#9ca3af;margin-bottom:4px">Compra ' + (_m + 1) + '</div>' : '');
+                        [1, 2].forEach(function (_n) {
+                            const _k = 'ma_e16_c' + _n + _suf;
+                            const _outra = specialChoices['ma_e16_c' + (_n === 1 ? 2 : 1) + _suf] || '';
+                            _mtHtml += '<div style="font-size:8px;color:#6b7280;margin:4px 0 3px">Característica ' + _n + '</div>'
+                                + '<select onchange="event.stopPropagation();window._hSetSpecialChoice(\'' + _k + '\', this.value)" '
+                                + 'style="width:100%;background:#111827;border:1px solid #374151;border-radius:7px;padding:5px;color:#e5e7eb;font-size:9px">'
+                                + '<option value="">— escolher —</option>'
+                                + _mtOps.map(function (o) {
+                                    // A outra metade já levou esta: some da lista desta.
+                                    if (o === _outra) return '';
+                                    return '<option value="' + o + '"' + (specialChoices[_k] === o ? ' selected' : '') + '>' + o + '</option>';
+                                }).join('') + '</select>';
+                        });
+                        _mtHtml += '</div>';
+                    }
+                    specialHtml = '<div style="margin-top:8px;background:#0a0f1a;border:1px solid ' + color + '33;border-radius:10px;padding:10px" onclick="event.stopPropagation()">'
+                        + '<div style="font-size:9px;font-weight:700;color:' + color + ';margin-bottom:2px">🎎 Marionete Tática</div>'
+                        + '<div style="font-size:8px;color:#6b7280;margin-bottom:6px">Duas Características da Tabela de Materializações, entre as 7 que este efeito libera.</div>'
+                        + _mtHtml + '</div>';
+                }
                 // rma_m2: Zetsu Interrompe — ask which benefit
                 if (item.id === 'rma_m2') {
                     const chosen = specialChoices['rma_m2'] || '';

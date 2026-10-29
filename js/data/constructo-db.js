@@ -73,7 +73,55 @@ window.CONSTRUCTO_DB = {
         'Perturbador':       [2, 3, 4, 5],
         'Defensor':          [2, 3, 4, 5],
         'Móvel/Veloz':       [3, 4.5, 6, 7.5, 9],
+        // Curandeira entrou em 29/10, com a escala do livro: "a cura é aumentada em +1
+        // para cada dado rolado... esse aumento se torna 2 e 3 no máximo".
+        'Curandeira':        [1, 2, 3],
     },
+
+    // ── Onde cada Característica cai, de verdade ────────────────────────────────
+    // A lista CARACTERISTICAS_INVOCACAO tem as 20 do livro e o jogador escolhe todas
+    // elas, mas só Robustez (PV) e Grande/Pequeno (tamanho) chegavam a um cálculo:
+    // `valorEscala` existia e era chamada uma vez só, para Robustez. As outras 17
+    // viravam texto, e o jogador gastava um slot por nada.
+    //
+    // Este mapa é o que a ficha usa para dizer a verdade sobre cada uma, em vez de
+    // mostrar um número que não vai a lugar nenhum:
+    //   'pv' | 'tamanho' | 'dano' | 'cura'  → entra em cálculo hoje
+    //   'falta:<campo>'                     → tem número, mas a ficha do constructo
+    //                                         ainda não tem esse campo
+    //   'alvo'                              → o número é em OUTRA criatura; a mesa resolve
+    //   'tag'                               → é descritivo por natureza
+    CARACTERISTICA_DESTINO: {
+        'Robustez':          'pv',
+        'Grande':            'tamanho',
+        'Pequeno':           'tamanho',
+        'Destruidor':        'dano',
+        'Curandeira':        'cura',
+        'Carapaça/Armadura': 'falta:Redução de Danos',
+        'Móvel/Veloz':       'falta:Deslocamento',
+        'Movimento Variável':'falta:Deslocamento',
+        'Reativo':           'falta:Reações',
+        'Perito':            'falta:Perícias',
+        'Furtivo':           'falta:Perícias',
+        'Atento':            'alvo',
+        'Defensor':          'alvo',
+        'Perturbador':       'alvo',
+        'Investida':         'alvo',
+        'Sangue Ruim':       'alvo',
+        'Imparável':         'tag',
+        'Montaria':          'tag',
+        'Enxame':            'tag',
+        'Dimensão':          'tag',
+    },
+
+    // ma_e16 Marionete Tática: "Escolha 2 Características da Tabela de Materializações
+    // entre: Carapaça/Armadura, Curandeira, Defensor, Destruidor, Dimensão, Movimento
+    // Variável ou Robustez". São 7 das 20 — as outras 13 não estão disponíveis a ela.
+    MARIONETE_TATICA_OPCOES: [
+        'Carapaça/Armadura', 'Curandeira', 'Defensor', 'Destruidor',
+        'Dimensão', 'Movimento Variável', 'Robustez',
+    ],
+    MARIONETE_TATICA_QTD: 2,
 
     PERICIA_SLOTS: 5,
     PERICIA_TIPOS: [
