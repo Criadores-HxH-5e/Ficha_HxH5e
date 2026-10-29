@@ -1195,10 +1195,62 @@ window.enfaseUsosRestantes = function (char) {
 // Soma o bônus com o sinal certo. Na falha da Ênfase TUDO que somava passa a
 // subtrair — atributo, proficiência, Instâncias, Inclinações, RYU: o pacote
 // inteiro (decisão de regra do Lucas, 28/10).
-window.totalComEnfase = function (roll, bonusTotal) {
+window.totalComEnfase = function (roll, bonusTotal, penalidadePlana) {
     const b = parseInt(bonusTotal) || 0;
-    if (!roll) return b;
-    return (roll.enfaseInferior ? (roll.total - b) : (roll.total + b));
+    // A penalidade da falha anterior entra DEPOIS da inversão e nunca troca de
+    // sinal: inverter uma penalidade a transformaria em prêmio exatamente na
+    // rolagem seguinte à falha, que é o oposto do que o livro descreve.
+    const p = parseInt(penalidadePlana) || 0;
+    if (!roll) return b + p;
+    return (roll.enfaseInferior ? (roll.total - b) : (roll.total + b)) + p;
+};
+
+// ── Resultados de Falhas de Ênfase ───────────────────────────────────────────
+// A Ênfase já concedia a Ação Protagonista ao falhar, mas o outro lado do trato
+// — "traz impactos negativos imediatos" — não existia. Na prática a Ênfase era
+// uma aposta sem risco: o jogador escolhia o modo mais extremo do jogo e, na
+// falha, só ganhava coisa.
+//
+// A consequência depende do que a ação ERA, e isso o app não tem como saber:
+// a mesma rolagem de Carisma pode ser uma negociação ou um blefe no meio do
+// combate. Por isso ele pergunta, uma vez, no instante da falha.
+window.ENFASE_FALHA_TIPOS = [
+    { id: 'social', icone: '💬', rotulo: 'Ação Social',
+      texto: 'Sua fala e compreensão ficam confusas e você continua piorando as coisas. As próximas 3 interações (com alvos diferentes ou falas importantes) são mal expressadas e interpretadas, gerando desconfiança e hostilidade sempre que possível.',
+      sanidade: 0, rodadas: 0, penalidade: 0, interacoes: 3 },
+    { id: 'combate_ativa', icone: '⚔️', rotulo: 'Ação Ativa em Combate',
+      texto: 'Além de falhar no ataque/ação, suas próximas ações em combate recebem penalidade de −3 por 3 rodadas e você perde 7 de sanidade.',
+      sanidade: -7, rodadas: 3, penalidade: -3, interacoes: 0 },
+    { id: 'combate_passiva', icone: '🛡', rotulo: 'Ação Passiva/Reativa em Combate',
+      texto: 'Os inimigos envolvidos no combate causam dano dobrado sobre você por 3 rodadas e recebem +3 em ataques e testes.',
+      sanidade: 0, rodadas: 3, penalidade: 0, interacoes: 0 },
+    { id: 'ambiental', icone: '🌍', rotulo: 'Ação Ambiental/Contextual',
+      texto: 'O mestre rola na tabela de consequências do contexto da cena.',
+      sanidade: 0, rodadas: 0, penalidade: 0, interacoes: 0, tabela: true },
+];
+window.ENFASE_FALHA_AMBIENTAL = [
+    'Você deixa pistas da sua presença.',
+    'O ambiente muda contra você.',
+    'Você perde tempo ou um item precioso.',
+    'Um detalhe importante passa despercebido.',
+    'Você recebe informação demais e se confunde.',
+    'Surge um custo financeiro ou material inesperado.',
+    'Uma testemunha entende errado o ocorrido.',
+    'Você atrai alguém curioso.',
+    'Seu objetivo atual gera outro problema imediato.',
+    'Surge um inimigo de poder similar ao último.',
+];
+window.tipoFalhaEnfase = function (id) {
+    return (window.ENFASE_FALHA_TIPOS || []).filter(function (t) { return t.id === id; })[0] || null;
+};
+
+// A penalidade de −3 da Ação Ativa em Combate, enquanto durar. Fica fora da
+// inversão da Ênfase de propósito: penalidade é penalidade, e inverter uma
+// penalidade a transformaria em prêmio justamente na rolagem seguinte à falha.
+window.calcPenalidadeEnfase = function (char) {
+    const f = (char || {}).enfaseFalha;
+    if (!f || !(f.rodadas > 0) || !(f.penalidade < 0)) return 0;
+    return f.penalidade;
 };
 
 // ── Ação Protagonista ────────────────────────────────────────────────────────
