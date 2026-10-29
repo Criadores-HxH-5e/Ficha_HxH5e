@@ -245,12 +245,22 @@
   .area { position: absolute; left: 0; top: 0; border-radius: 6px; box-shadow: 0 0 0 2px rgba(255,255,255,.12), 0 40px 120px -30px rgba(0,0,0,.8);
     background: #3b4a3a center / 100% 100% no-repeat; }
   .area.blank { background-color: #2d3548; background-image: radial-gradient(120% 90% at 30% 20%, rgba(255,255,255,.06), transparent 60%); }
-  .area.blank .gl { background-image: linear-gradient(rgba(255,255,255,.09) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.09) 1px, transparent 1px); }
+  /* ── A camada de grid que fica SOBRE o mapa ────────────────────────────────
+     Esta é a que o jogador vê em cima da imagem. Ela existia, mas com tudo fixo:
+     64px, traço de 1px e preto a 28% — que num mapa escuro some. Os controles do
+     painel mexiam só no fundo do .vp, que fica ATRÁS da imagem, então ligar,
+     desligar ou engrossar não mudava nada sobre o mapa.
+     Agora ela lê as mesmas variáveis, e a cor virou escolha: preto para mapas
+     claros, branco para mapas escuros.
+     Aqui NÃO entra o zoom: a .gl vive dentro do #world, que já está escalado. */
   .area .gl { position: absolute; inset: 0; pointer-events: none;
-    background-image: linear-gradient(rgba(0,0,0,.28) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,.28) 1px, transparent 1px);
-    background-size: 64px 64px; }
+    --gl-c: rgba(0,0,0,.28); --gl-w: 1px; --gl-s: 64px; --gl-x: 0px; --gl-y: 0px;
+    background-image: linear-gradient(var(--gl-c) var(--gl-w), transparent var(--gl-w)), linear-gradient(90deg, var(--gl-c) var(--gl-w), transparent var(--gl-w));
+    background-size: var(--gl-s) var(--gl-s); background-position: var(--gl-x) var(--gl-y); }
+  .area.sem-grid .gl { background-image: none; }
+  .area.blank .gl { --gl-c: rgba(255,255,255,.09); }
   .area.gen { box-shadow: 0 0 0 1px rgba(31,45,82,.25), 0 40px 120px -30px rgba(0,0,0,.8); }
-  .area.gen .gl { background-image: linear-gradient(rgba(31,45,82,.11) 1px, transparent 1px), linear-gradient(90deg, rgba(31,45,82,.11) 1px, transparent 1px); }
+  .area.gen .gl { --gl-c: rgba(31,45,82,.11); }
   .mlegend { position: absolute; top: 60px; left: 50%; transform: translateX(-50%); z-index: 5; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; max-width: min(760px, calc(100% - 140px)); padding: 7px 14px; border-radius: var(--r-pill); background: rgba(247,245,240,.92); backdrop-filter: blur(8px); color: #3b3f52; box-shadow: 0 6px 20px -8px rgba(0,0,0,.5); font: 700 11px/1.2 var(--f-body); pointer-events: none; }
   .mlegend span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
   .mlegend i { width: 12px; height: 12px; border-radius: 4px; border: 2px solid var(--c); background: color-mix(in srgb, var(--c) 18%, transparent); }
@@ -985,6 +995,7 @@
     vp.style.setProperty('--gw', (G.forca || 1) + 'px');
     vp.style.setProperty('--ga', String(Math.min(0.6, 0.05 * (G.forca || 1))));
     vp.classList.toggle('sem-grid', G.on === false);
+    aplicarGridArea(G);
     clearTimeout(aplicarCam.t);
     aplicarCam.t = setTimeout(() => { try { localStorage.setItem('hxh-mesa-cam-' + S.mesa.id, JSON.stringify(cam)); } catch (e) {} }, 400);
   }
@@ -997,10 +1008,32 @@
      existia e já carregava o config.gen do gerador de mapas. Nenhuma mudança de
      banco foi necessária para isto.
      { on: true, forca: 1, dx: 0, dy: 0, escala: 1 } */
-  const GRID_PADRAO = { on: true, forca: 1, dx: 0, dy: 0, escala: 1 };
+  // `cor`: 'auto' deixa como sempre foi (preto sobre imagem, branco em mapa
+  // branco), 'claro' força branco e 'escuro' força preto. Existe porque o traço
+  // preto padrão desaparece num battlemap escuro — era parte do motivo de o grid
+  // parecer que não estava respondendo.
+  const GRID_PADRAO = { on: true, forca: 1, dx: 0, dy: 0, escala: 1, cor: 'auto' };
+  const GRID_CORES = { claro: 'rgba(255,255,255,.55)', escuro: 'rgba(0,0,0,.45)' };
   function gridCfg() {
     const m = (S.gm && S.mapaPreview) || S.mapa;
     return Object.assign({}, GRID_PADRAO, (m && m.config && m.config.grid) || {});
+  }
+
+  /* O grid DE CIMA do mapa (.gl, dentro da .area). Fica em coordenadas de MUNDO,
+     então o zoom não entra na conta — o #world já está escalado. É por isso que
+     o mesmo dx/dy serve aos dois: no .vp ele é multiplicado pelo zoom, aqui não. */
+  function aplicarGridArea(G) {
+    const gl = document.querySelector('#area .gl'), area = $('#area');
+    if (!gl || !area) return;
+    const g = G || gridCfg();
+    area.classList.toggle('sem-grid', g.on === false);
+    gl.style.setProperty('--gl-s', (CELL * (g.escala || 1)) + 'px');
+    gl.style.setProperty('--gl-x', (g.dx || 0) + 'px');
+    gl.style.setProperty('--gl-y', (g.dy || 0) + 'px');
+    gl.style.setProperty('--gl-w', (g.forca || 1) + 'px');
+    // 'auto' não mexe na cor: deixa o CSS decidir pelo tipo de mapa, como antes.
+    if (g.cor && GRID_CORES[g.cor]) gl.style.setProperty('--gl-c', GRID_CORES[g.cor]);
+    else gl.style.removeProperty('--gl-c');
   }
 
   function mapaVisivel() { return (S.gm && S.mapaPreview && vistaAtual() === 'mapa') ? S.mapaPreview : (S.mapa || { cols: 30, rows: 30, fundo_url: null, config: {} }); }
@@ -1998,6 +2031,10 @@
         <button class="btn btn-sm ${G.on === false ? '' : 'btn-primary'}" id="gdOn"><i class="ph ph-grid-nine"></i> ${G.on === false ? 'Ligar' : 'Ligado'}</button>
         ${[['Fino', 1], ['Médio', 2], ['Grosso', 3]].map(([lbl, v]) => `<button class="btn btn-sm ${(G.forca || 1) === v ? 'btn-primary' : ''}" data-gw="${v}">${lbl}</button>`).join('')}
       </div>
+      <div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap">
+        ${[['Automático', 'auto'], ['Claro', 'claro'], ['Escuro', 'escuro']].map(([lbl, v]) => `<button class="btn btn-sm ${(G.cor || 'auto') === v ? 'btn-primary' : ''}" data-gc="${v}">${lbl}</button>`).join('')}
+      </div>
+      <p class="hint" style="margin:6px 0 0">Num battlemap escuro o traço preto some — aí use <b>Claro</b>.</p>
       <p class="hint" style="margin:10px 0 6px">Alinhar com a imagem: empurre e estique até as linhas caírem em cima do grid desenhado no mapa.</p>
       <div class="sel2"><div class="field"><label class="tiny">Deslocar ↔</label><input class="input" id="gdX" type="number" step="1" value="${G.dx || 0}"></div>
       <div class="field"><label class="tiny">Deslocar ↕</label><input class="input" id="gdY" type="number" step="1" value="${G.dy || 0}"></div></div>
@@ -2039,6 +2076,7 @@
     };
     const gOn = $('#gdOn'); if (gOn) gOn.onclick = () => salvarGrid({ on: G.on === false });
     $$('#pane [data-gw]').forEach(b => b.onclick = () => salvarGrid({ forca: +b.dataset.gw }));
+    $$('#pane [data-gc]').forEach(b => b.onclick = () => salvarGrid({ cor: b.dataset.gc }));
     const gx = $('#gdX'); if (gx) gx.onchange = () => salvarGrid({ dx: parseInt(gx.value, 10) || 0 });
     const gy = $('#gdY'); if (gy) gy.onchange = () => salvarGrid({ dy: parseInt(gy.value, 10) || 0 });
     const ge = $('#gdE');
@@ -2049,7 +2087,7 @@
         cfg.grid = Object.assign({}, GRID_PADRAO, cfg.grid || {}, { escala: (+ge.value || 100) / 100 });
         if (S.mapa) S.mapa.config = cfg;
         if (S.mapaPreview) S.mapaPreview.config = cfg;
-        aplicarCam();
+        aplicarCam();   // redesenha os dois grids: o do fundo e o de cima do mapa
       };
       ge.onchange = () => salvarGrid({ escala: (+ge.value || 100) / 100 });
     }
