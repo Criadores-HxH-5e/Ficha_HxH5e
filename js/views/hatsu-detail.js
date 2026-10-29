@@ -819,7 +819,9 @@ window.calcHatsuAuraCostFinal = function(h, idx, idsModo) {
     };
     const cc = window.calcAuraCost(fakeHb);
     const phgCusto = (idx === 0 && h.primeiroHatsuGraus && h.primeiroHatsuGraus.custo) ? h.primeiroHatsuGraus.custo : 0;
-    const pct = Math.max(10, cc.pct - phgCusto * 5);
+    // Piso de 5%, igual ao do calcAuraCost. Com 10% aqui, os Graus de Potência do 1º
+    // Hatsu mandados para Redução de Custo paravam de valer a partir dos 10%.
+    const pct = Math.max(5, cc.pct - phgCusto * 5);
     return { pct, reduced: pct < 50, phgCusto };
 };
 
@@ -2942,6 +2944,24 @@ function renderHatsuDetail(container) {
     const totalAlcanceM = _alcClamp.total;
     const totalAreaM = _areaClamp.total;
     const totalDuracaoR = _duracaoClamp.total;
+    // ── O Hatsu é corpo-a-corpo? ──────────────────────────────────────────────
+    // Decide se o RYU alcança este Hatsu. Fica aqui, e não junto do _hatsuRollState
+    // lá em cima, porque os metros de alcance e de área só existem a partir desta
+    // linha — o estado da rolagem é montado antes deles.
+    // Sem alcance e sem área comprados, o Hatsu é "Pessoal / Toque": acontece no
+    // corpo. O Projétil de Aura sai fora mesmo assim, porque quem atinge o alvo é
+    // o projétil.
+    if (window._hatsuRollState) {
+        window._hatsuRollState.corpoACorpo =
+            totalAlcanceM === 0 && totalAreaM === 0 && !_temProjetilAura;
+        // Com ÁREA ou com Projétil de Aura não há o que perguntar: é explosão ou é
+        // projétil, e o RYU não entra de jeito nenhum. Já um Hatsu que comprou só
+        // ALCANCE pode perfeitamente ser uma adaga arremessada — os metros não
+        // distinguem as duas coisas, então esse é o caso em que o app pergunta.
+        window._hatsuRollState.ryuPodePerguntar =
+            totalAreaM === 0 && !_temProjetilAura;
+    }
+
     const alcanceReservadoM = _alcClamp.reservado;
     const areaReservadoM = _areaClamp.reservado;
     const duracaoReservadoR = _duracaoClamp.reservado;
@@ -3630,6 +3650,22 @@ function renderHatsuDetail(container) {
                     </div>` : ''}
                 </div>`;
             })() : ''}
+            ${(function () {
+                // Resposta guardada do RYU. Aparece só depois que o jogador respondeu
+                // uma vez, para ele conferir e trocar sem precisar refazer o Hatsu.
+                const _re = h.ryuEntrega;
+                if (!_re) return '';
+                const _rot = _re === (window.RYU_ENTREGA_DESARMADO || 'desarmado')
+                    ? '✊ Desarmado'
+                    : (_re === (window.RYU_ENTREGA_NENHUM || 'nenhum')
+                        ? 'À distância — o RYU não entra neste Hatsu'
+                        : '⚔️ ' + _re);
+                return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:7px 10px;border-radius:9px;background:#38bdf810;border:1px solid #38bdf833">
+                    <span style="flex-shrink:0;font-family:'Orbitron',sans-serif;font-size:8px;color:#38bdf8;font-weight:900;text-transform:uppercase;letter-spacing:1px">RYU</span>
+                    <span style="flex:1;font-size:9px;color:#9ca3af">${_rot}</span>
+                    <button onclick="window._trocarRyuEntrega(${idx})" style="flex-shrink:0;font-size:9px;color:#38bdf8;background:transparent;border:none;cursor:pointer;text-decoration:underline">trocar</button>
+                </div>`;
+            })()}
             ${hasBaseDmg ? `<button onclick="openRollModeModal('hatsu')"
                 style="width:100%;margin-bottom:8px;padding:13px;border-radius:10px;background:#22c55e22;border:2px solid #22c55e66;color:#22c55e;font-family:'Orbitron',sans-serif;font-weight:900;font-size:11px;text-transform:uppercase;cursor:pointer;letter-spacing:1px;box-shadow:0 0 16px #22c55e22">🎲 Rolar Hatsu no Discord</button>` : ''}
             <div style="display:flex;gap:8px">
@@ -3643,6 +3679,7 @@ function renderHatsuDetail(container) {
         </div>
         ${renderRollModeModalHtml()}
         ${renderRenPromptModalHtml()}
+        ${renderRyuEntregaModalHtml()}
     </div>`;
 
     if (window.lucide) lucide.createIcons();

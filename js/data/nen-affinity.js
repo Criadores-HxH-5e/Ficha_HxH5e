@@ -157,6 +157,67 @@ window._hCleanDuplicatesIfNeeded = function(hb) {
 };
 
 // Calcula o custo real de aura do Hatsu com base nas restrições e efeitos selecionados
+// ── Custo de aura cobrado POR UNIDADE ────────────────────────────────────────
+// Alguns benefícios não são um desconto fechado: eles valem "por membro", "por
+// Reação", "a cada 2 Graus". O app não tinha onde o jogador dizer QUANTOS, e o
+// resultado era um desconto errado ou nenhum:
+//
+//   rg_e1  Condição Alheia ou Simbiótica — "−10% de custo por membro"
+//          Nunca foi lido. O jogador escolhia a opção de aura e o custo não mudava.
+//   rg_v9  Troca Perigosa — "−5% por Reação"
+//          Era lido extraindo os dígitos do RÓTULO da opção ("...em 5% por
+//          reação"), o que dava sempre 5 → −25% fixo, independente de quantas
+//          Reações o jogador trocasse.
+//   rg_v12 Cálculo Pensado Variável 2 — "−5% a cada 2 Graus/Passos"
+//          O bnf não tem " ou ", então beneficioChoices nunca era preenchido e o
+//          desconto era sempre 0.
+//
+// Agora a quantidade mora em specialChoices[id + '_qtd'], escolhida num seletor
+// no criador do Hatsu, e o desconto sai daqui.
+window.CUSTO_AURA_QUANTIDADE = {
+    rg_e1:  { pct: -10, porUnidade: 1, max: 8,
+              rotulo: 'Membros da condição',
+              nota: '\u221210% de custo por membro.', exigeEscolhaAura: true },
+    rg_v9:  { pct: -5,  porUnidade: 1, max: 10,
+              rotulo: 'Reações trocadas',
+              nota: '\u22125% de custo por Reação trocada.', exigeEscolhaAura: true },
+    rg_v12: { pct: -5,  porUnidade: 2, max: 20,
+              rotulo: 'Graus/Passos reduzidos',
+              nota: '\u22125% a cada 2 Graus/Passos reduzidos.', exigeEscolhaAura: false },
+};
+
+// Efeitos de Materialização que ACRESCENTAM custo: "+10% por categoria de tamanho
+// acima do usuário". Nunca foram cobrados — o jogador virava um avião pelo mesmo
+// preço de virar um gato.
+//
+// A quantidade é lida da PRIMEIRA compra e, se houver cópias, vale a MAIOR: a
+// categoria de tamanho é uma propriedade da forma final, não algo que some a cada
+// compra do efeito.
+window.CUSTO_AURA_TAMANHO = ['rm_e22', 'rm_e23', 'rm_e24', 'rm_e25'];
+window.CUSTO_AURA_TAMANHO_PCT = 10;
+window.CUSTO_AURA_TAMANHO_MAX = 4;
+
+window.custoAuraQuantidade = function (id, specialChoices) {
+    const cfg = (window.CUSTO_AURA_QUANTIDADE || {})[id];
+    if (!cfg) return 0;
+    const bruto = parseInt((specialChoices || {})[id + '_qtd']) || 0;
+    const n = Math.max(0, Math.min(cfg.max, bruto));
+    return cfg.pct * Math.floor(n / cfg.porUnidade);
+};
+
+// Quantas categorias de tamanho acima o jogador declarou, somando sobre as cópias
+// pela MAIOR (ver acima). Aceita a chave por cópia 'id#1', 'id#2'.
+window.categoriasTamanhoDeclaradas = function (id, specialChoices) {
+    const sc = specialChoices || {};
+    let maior = 0;
+    Object.keys(sc).forEach(function (k) {
+        if (k !== id && k.indexOf(id + '#') !== 0) return;
+        const v = parseInt(sc[k]);
+        if (!isNaN(v) && v > maior) maior = v;
+    });
+    return Math.max(0, Math.min(window.CUSTO_AURA_TAMANHO_MAX || 4, maior));
+};
+
 window.calcAuraCost = function(hb) {
     if (!hb) return { pct: 50, label: '50%' };
     let custo = 50; // base 50%
@@ -194,7 +255,7 @@ window.calcAuraCost = function(hb) {
         // rg_m2: Área Definida — Reduz custo em 10%
         if (id === 'rg_m2') custo -= 10;
         // ri_e18 (Intensificação): Estabilização de Aura — Diminui 15%
-        if (id === 'ri_e18') custo = Math.max(10, custo - 15);
+        // ri_e18 saiu daqui: ele é EFEITO, não restrição — ver o bloco abaixo.
 
         // ── Benefícios de CUSTO DE AURA que nunca eram lidos ────────────────────
         // O cálculo reconhecia só três identificadores. Restrições com benefício de
@@ -212,15 +273,14 @@ window.calcAuraCost = function(hb) {
         // (Leitura anterior estava errada: eu cortava o custo do Hatsu pela metade.
         //  A regra diz "o Hatsu depende de uma Técnica" e "A TÉCNICA custa metade
         //  da aura" — o desconto é aplicado na ativação da técnica, ver _ativConfirmar.)
-        // rg_v9: Troca Perigosa — −5% por reação trocada (nº definido em beneficioChoices)
-        if (id === 'rg_v9' && escolheuAura) {
-            const reacoes = parseInt(String((hb.beneficioChoices || {})[id] || '').replace(/\D/g, '')) || 0;
-            custo -= reacoes * 5;
-        }
-        // rg_v12: Cálculo Pensado Variável 2 — −5% a cada 2 Graus/Passos reduzidos
-        if (id === 'rg_v12') {
-            const graus = parseInt(String((hb.beneficioChoices || {})[id] || '').replace(/\D/g, '')) || 0;
-            custo -= Math.floor(graus / 2) * 5;
+        // rm_p2: Conjuração Controlável — "... ou custo −15% ou ..."
+        if (id === 'rm_p2' && escolheuAura) custo -= 15;
+
+        // Benefícios cobrados POR UNIDADE (rg_e1, rg_v9, rg_v12). A quantidade vem do
+        // seletor do criador, em specialChoices[id + '_qtd'] — ver CUSTO_AURA_QUANTIDADE.
+        const _cfgQtd = (window.CUSTO_AURA_QUANTIDADE || {})[id];
+        if (_cfgQtd && (!_cfgQtd.exigeEscolhaAura || escolheuAura)) {
+            custo += window.custoAuraQuantidade(id, hb.specialChoices || {});
         }
     });
 
@@ -252,8 +312,35 @@ window.calcAuraCost = function(hb) {
     // (ex: rg_p8 dividindo por 2) precisa ser arredondada pro múltiplo de 5 mais próximo.
     custo = Math.round(custo / 5) * 5;
 
-    // Garante mínimo de 10%
-    custo = Math.max(10, custo);
+    // ── ri_e18 Estabilização de Aura: −15%, mínimo 10% ──────────────────────────
+    // Estava escrito DENTRO do laço das restrições, e o `ri_e18` é um EFEITO de
+    // Intensificação: aquele laço varre `hb.rg` + `hb.rc` e procura o id no banco de
+    // RESTRIÇÕES, então o `if` nunca chegava a rodar. Na prática o jogador gastava
+    // 1 P.N em "Diminui custo de aura do Hatsu em 15%" e o custo não mudava nada.
+    //
+    // O mínimo de 10% é do texto do próprio efeito, e não o piso geral de 5% — por
+    // isso ele fica aqui, com o número que o livro imprime.
+    if ([].concat(hb.eg || [], hb.ec || []).indexOf('ri_e18') >= 0) {
+        custo = Math.max(10, custo - 15);
+    }
+
+    // ── Efeitos que ACRESCENTAM custo por categoria de tamanho ──────────────────
+    // "+10% por categoria de tamanho acima do usuário" (rm_e22…rm_e25). Entra depois
+    // dos descontos, e por isso pode levar um Hatsu barato de volta para cima — é o
+    // único ponto do cálculo que sobe o preço.
+    (function () {
+        const _todosEf = [].concat(hb.eg || [], hb.ec || []);
+        (window.CUSTO_AURA_TAMANHO || []).forEach(function (id) {
+            if (_todosEf.indexOf(id) < 0) return;
+            const cat = window.categoriasTamanhoDeclaradas(id, hb.specialChoices || {});
+            custo += cat * (window.CUSTO_AURA_TAMANHO_PCT || 10);
+        });
+    })();
+
+    // Piso de 5%, decisão de regra do Lucas (28/10). Era 10% aqui, e isso anulava em
+    // silêncio o próprio piso de 5% do rg_p8 logo acima: um Hatsu que caísse para 5%
+    // pela metade do rg_p8 voltava para 10% nesta linha.
+    custo = Math.max(5, custo);
     return { pct: custo, label: custo + '% de Aura' };
 };
 
@@ -575,6 +662,78 @@ window.calcRyuAtivo = function (char) {
         reacoes: linha.reacoes == null ? 0 : (linha.reacoes + extra),
         extra: extra
     };
+};
+
+// ── O RYU só alcança combate direto ──────────────────────────────────────────
+// O RYU é GYO em tempo real espalhado pelo corpo: ele é a evolução máxima do
+// combate DIRETO, não um multiplicador geral de dano. Por decisão de regra do
+// Lucas, o bônus da tabela vale em:
+//   • ataque corpo-a-corpo, desarmado ou armado;
+//   • arma de arremesso (a aura acompanha a arma que a mão lançou);
+// e NÃO vale em projétil, alcance ou área — nem em arma de disparo (arco,
+// besta, arma de fogo, arma de cerco), porque nelas a aura fica na arma e não
+// no projétil que sai dela.
+//
+// Sem este recorte o RYU somava em tudo, inclusive num Hatsu de explosão a 30m,
+// e virava o princípio mais eficiente do jogo justamente longe do corpo-a-corpo.
+
+// Armas: a decisão sai do ITEM_DB, que já separa corpo-a-corpo de distância na
+// própria categoria e marca o arremesso por etiqueta. "Ataque Desarmado" não é
+// item nenhum, então entra por nome.
+window.RYU_CATEGORIAS_ARMA = ['simples_corpo_a_corpo', 'marciais_corpo_a_corpo'];
+
+window.ryuAlcancaArma = function (dadosDoItem, nomeDaArma) {
+    // Punho é corpo-a-corpo por definição — e é o caso mais comum do princípio.
+    if (/^ataque desarmado/i.test(String(nomeDaArma || '').trim())) return true;
+    if (!dadosDoItem) return false;   // item fora do ITEM_DB: não dá para afirmar
+    const sub = dadosDoItem.sub || '';
+    if ((window.RYU_CATEGORIAS_ARMA || []).indexOf(sub) >= 0) return true;
+    // Arremesso: a adaga lançada, a azagaia, o shuriken. A etiqueta é a mesma que
+    // o livro usa, e vem com o alcance entre parênteses — por isso o teste é por
+    // prefixo, e não por igualdade.
+    return (dadosDoItem.tags || []).some(function (t) {
+        return /^arremesso/i.test(String(t).trim());
+    });
+};
+
+// Hatsus: aqui o app sozinho não consegue decidir, e por isso há três faixas.
+//
+// A ficha calcula quantos metros de ALCANCE e de ÁREA o Hatsu comprou:
+//
+//   sem alcance e sem área  → "Pessoal / Toque": acontece no corpo. RYU entra
+//                             direto, sem perguntar nada ao jogador.
+//   com ÁREA, ou Projétil   → explosão ou projétil. RYU nunca entra, e não há
+//   de Aura                   o que perguntar.
+//   só com ALCANCE          → pode ser uma adaga arremessada tanto quanto uma
+//                             rajada. Os metros não distinguem as duas, e só o
+//                             jogador sabe — então o app PERGUNTA, uma vez por
+//                             Hatsu, e guarda a resposta em h.ryuEntrega.
+//
+// A resposta guardada é revalidada a cada rolagem pelo classificaArma: se o
+// jogador vender a arma ou renomear o item, o bônus para de valer sozinho em vez
+// de ficar preso a um nome que não existe mais.
+window.RYU_ENTREGA_DESARMADO = 'desarmado';
+window.RYU_ENTREGA_NENHUM = 'nenhum';
+
+window.ryuAlcancaHatsu = function (rollState, hatsu, classificaArma) {
+    if (!rollState) return false;
+    if (rollState.corpoACorpo) return true;
+    if (!rollState.ryuPodePerguntar) return false;
+    const e = hatsu && hatsu.ryuEntrega;
+    if (!e || e === window.RYU_ENTREGA_NENHUM) return false;
+    if (e === window.RYU_ENTREGA_DESARMADO) return true;
+    return typeof classificaArma === 'function' ? !!classificaArma(e) : false;
+};
+
+// Só pergunta quando a pergunta muda alguma coisa: ataque de Hatsu, RYU ligado,
+// Hatsu na faixa duvidosa e jogador ainda não respondeu por este Hatsu.
+window.ryuPrecisaPerguntar = function (char, hatsu, rollState) {
+    if (!char || !hatsu || !rollState) return false;
+    if (!rollState.hasAttack) return false;
+    if (!(((char.principiosAtivos) || {}).ryu)) return false;
+    if (rollState.corpoACorpo) return false;
+    if (!rollState.ryuPodePerguntar) return false;
+    return !hatsu.ryuEntrega;
 };
 
 // Quantas graduações extras de dano do REN saem "de graça" (sem custo de aura) por conta da
