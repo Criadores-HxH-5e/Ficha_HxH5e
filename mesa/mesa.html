@@ -232,10 +232,13 @@
 
   /* battlemap */
   .vp { position: absolute; inset: 0; overflow: hidden; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none;
-    --g: 64px; --gx: 0px; --gy: 0px;
+    --g: 64px; --gx: 0px; --gy: 0px; --gw: 1px; --ga: .05;
     background-color: #171925;
-    background-image: linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+    /* A espessura e a opacidade viraram variáveis: o traço era fixo em 1px e .05,
+       e num mapa claro ele sumia, enquanto num mapa escuro atrapalhava. */
+    background-image: linear-gradient(rgba(255,255,255,var(--ga)) var(--gw), transparent var(--gw)), linear-gradient(90deg, rgba(255,255,255,var(--ga)) var(--gw), transparent var(--gw));
     background-size: var(--g) var(--g); background-position: var(--gx) var(--gy); }
+  .vp.sem-grid { background-image: none; }
   .vp.panning, .vp.grab.panning { cursor: grabbing; }
   .vp.grab, .vp.grab .tok { cursor: grab; }
   .world { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
@@ -253,6 +256,10 @@
   .mlegend i { width: 12px; height: 12px; border-radius: 4px; border: 2px solid var(--c); background: color-mix(in srgb, var(--c) 18%, transparent); }
   @media (max-width: 860px) { .mlegend { top: 56px; max-width: calc(100% - 24px); border-radius: 14px; } }
   .tok { position: absolute; touch-action: none; user-select: none; }
+  /* Token esticado (6×2, 1×3…) vira retângulo arredondado: uma elipse muito
+     comprida fica estranha e não sugere o que a peça é — um muro, um veículo,
+     uma serpente. O quadrado continua redondo, como sempre foi. */
+  .tok.retang .disc { border-radius: 18px; }
   .tok .disc { position: absolute; inset: 6%; border-radius: 50%; overflow: hidden; background: var(--c); box-shadow: 0 0 0 3px var(--c), 0 0 0 5px rgba(0,0,0,.45), 0 8px 18px rgba(0,0,0,.5); display: grid; place-items: center; color: #fff; font: 700 22px/1 var(--f-display); transition: box-shadow var(--t-fast); }
   .tok .disc img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
   .tok.mine { cursor: grab; }
@@ -966,8 +973,18 @@
     if (!world) return;
     world.style.transform = `translate(${cam.x}px, ${cam.y}px) scale(${cam.z})`;
     world.style.setProperty('--z', cam.z);
-    vp.style.setProperty('--g', CELL * cam.z + 'px');
-    vp.style.setProperty('--gx', cam.x + 'px'); vp.style.setProperty('--gy', cam.y + 'px');
+    // O grid é desenhado no .vp, que vive em coordenadas de TELA — por isso tudo
+    // aqui é multiplicado pelo zoom. `escala` e o deslocamento existem para casar
+    // o grid do app com o grid já desenhado numa imagem enviada: o mestre empurra
+    // e estica até as linhas coincidirem, em vez de ter que recortar a imagem.
+    const G = gridCfg();
+    const cel = CELL * cam.z * (G.escala || 1);
+    vp.style.setProperty('--g', cel + 'px');
+    vp.style.setProperty('--gx', (cam.x + (G.dx || 0) * cam.z) + 'px');
+    vp.style.setProperty('--gy', (cam.y + (G.dy || 0) * cam.z) + 'px');
+    vp.style.setProperty('--gw', (G.forca || 1) + 'px');
+    vp.style.setProperty('--ga', String(Math.min(0.6, 0.05 * (G.forca || 1))));
+    vp.classList.toggle('sem-grid', G.on === false);
     clearTimeout(aplicarCam.t);
     aplicarCam.t = setTimeout(() => { try { localStorage.setItem('hxh-mesa-cam-' + S.mesa.id, JSON.stringify(cam)); } catch (e) {} }, 400);
   }
@@ -976,6 +993,16 @@
     const k = z / cam.z;
     cam.x = px - (px - cam.x) * k; cam.y = py - (py - cam.y) * k; cam.z = z; aplicarCam(); desenharOverlay();
   }
+  /* Configuração do grid, guardada em mapas.config.grid — coluna JSONB que já
+     existia e já carregava o config.gen do gerador de mapas. Nenhuma mudança de
+     banco foi necessária para isto.
+     { on: true, forca: 1, dx: 0, dy: 0, escala: 1 } */
+  const GRID_PADRAO = { on: true, forca: 1, dx: 0, dy: 0, escala: 1 };
+  function gridCfg() {
+    const m = (S.gm && S.mapaPreview) || S.mapa;
+    return Object.assign({}, GRID_PADRAO, (m && m.config && m.config.grid) || {});
+  }
+
   function mapaVisivel() { return (S.gm && S.mapaPreview && vistaAtual() === 'mapa') ? S.mapaPreview : (S.mapa || { cols: 30, rows: 30, fundo_url: null, config: {} }); }
   function centralizar() {
     const m = mapaVisivel();
@@ -1057,14 +1084,23 @@
   }
   function podeMover(t) { return S.gm || t.owner === NV.user.id; }
   function barrasVisiveis(t) { return t.barras_publicas || S.gm || t.owner === NV.user.id; }
+  /* Largura e altura do token, em quadrados.
+     `tamanho` sempre foi um número só — o token era obrigatoriamente quadrado, e o
+     seletor ia só até 4. Agora `tamanho` é a LARGURA e `tam_y` é a altura; quando
+     `tam_y` não existe (todo token criado até hoje) ele vale o mesmo que a largura,
+     e nada muda para quem já tinha token no mapa. */
+  const tamX = t => Math.max(1, parseInt((t || {}).tamanho) || 1);
+  const tamY = t => Math.max(1, parseInt((t || {}).tam_y) || tamX(t));
+  const TOK_TAM_MAX = 12;
+
   function tokenHTML(t) {
-    const sz = (t.tamanho || 1) * CELL;
+    const lg = tamX(t) * CELL, al = tamY(t) * CELL;
     const vis = barrasVisiveis(t);
     const pct = (a, b) => Math.max(0, Math.min(100, b ? a / b * 100 : 0));
     const ini = (t.nome || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
     if (vis && t.tipo === 'pj' && t.personagem_id && FICHAS[t.personagem_id] === undefined) carregaFicha(t.personagem_id);   // para o selo de Reações
     const nenAt = (t.principios || {}).ativos || {};
-    return `<div class="tok ${t.tipo} ${nenAt.zetsu ? 'zetsu' : ''} ${podeMover(t) ? 'mine' : ''} ${S.sel === t.id ? 'sel' : ''} ${turno().vez === t.id ? 'vez' : ''}" data-id="${t.id}" style="left:${t.x * CELL}px;top:${t.y * CELL}px;width:${sz}px;height:${sz}px;--c:${esc(t.cor || '#1f5ae0')};--ac:${esc(corAura(t))}">
+    return `<div class="tok ${t.tipo} ${tamX(t) !== tamY(t) ? 'retang' : ''} ${nenAt.zetsu ? 'zetsu' : ''} ${podeMover(t) ? 'mine' : ''} ${S.sel === t.id ? 'sel' : ''} ${turno().vez === t.id ? 'vez' : ''}" data-id="${t.id}" style="left:${t.x * CELL}px;top:${t.y * CELL}px;width:${lg}px;height:${al}px;--c:${esc(t.cor || '#1f5ae0')};--ac:${esc(corAura(t))}">
       ${vis ? `<div class="bars ${t.barras_publicas ? '' : 'priv'}"><i class="hp"><b style="width:${pct(t.hp, t.hp_max)}%"></b></i>${t.aura_max > 0 ? `<i class="au"><b style="width:${pct(t.aura, t.aura_max)}%"></b></i>` : ''}</div>` : ''}
       ${auraHTML(t)}
       <div class="disc">${t.img_url ? `<img src="${esc(t.img_url)}" alt="" draggable="false">` : esc(ini)}</div>
@@ -1261,8 +1297,10 @@
     if (tokEl) {
       const t = S.tokens[tokEl.dataset.id];
       const w = toWorld(e.clientX, e.clientY);
-      const tam = (t.tamanho || 1) / 2;
-      drag = { kind: 'tok', id: t.id, el: tokEl, ox: w.x - t.x * CELL, oy: w.y - t.y * CELL, sx: e.clientX, sy: e.clientY, x0: t.x, y0: t.y, moved: false, can: podeMover(t), path: [{ x: t.x + tam, y: t.y + tam }], cur: { x: t.x + tam, y: t.y + tam } };
+      // Centro do token: com largura e altura diferentes, os dois eixos têm meio
+      // diferente — era isso que o `/2` de um número só escondia.
+      const cx = tamX(t) / 2, cy = tamY(t) / 2;
+      drag = { kind: 'tok', id: t.id, el: tokEl, ox: w.x - t.x * CELL, oy: w.y - t.y * CELL, sx: e.clientX, sy: e.clientY, x0: t.x, y0: t.y, moved: false, can: podeMover(t), path: [{ x: t.x + cx, y: t.y + cy }], cur: { x: t.x + tam, y: t.y + tam } };
       return;
     }
     e.preventDefault(); const sel = getSelection(); if (sel && !sel.isCollapsed) sel.removeAllRanges();
@@ -1294,8 +1332,8 @@
     const px = w.x - drag.ox, py = w.y - drag.oy;
     drag.el.classList.add('drag');
     drag.el.style.left = px + 'px'; drag.el.style.top = py + 'px';
-    const tam = (S.tokens[drag.id].tamanho || 1) / 2;
-    drag.cur = { x: Math.round(px / CELL) + tam, y: Math.round(py / CELL) + tam };
+    const _t = S.tokens[drag.id];
+    drag.cur = { x: Math.round(px / CELL) + tamX(_t) / 2, y: Math.round(py / CELL) + tamY(_t) / 2 };
     desenharOverlay(); rotuloMedida(e.clientX, e.clientY, drag.path.concat([drag.cur]));
     const now = performance.now();
     if (channel && now - lastBroadcast > 70) { lastBroadcast = now; channel.send({ type: 'broadcast', event: 'move', payload: { id: drag.id, x: px / CELL, y: py / CELL } }); }
@@ -1754,7 +1792,11 @@
       nen: () => nenHTML(t, pode),
       cfg: () => `<label class="chk"><input type="checkbox" id="tpPub" ${t.barras_publicas ? 'checked' : ''}> Barras visíveis para todos</label>
         <div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap">
-        ${S.gm ? `<select class="input" id="tpSz" style="height:34px;width:auto;font-size:13px;padding:0 30px 0 10px">${[1, 2, 3, 4].map(n => `<option value="${n}" ${t.tamanho === n ? 'selected' : ''}>${n}×${n}</option>`).join('')}</select>` : ''}
+        ${S.gm ? `<span style="display:inline-flex;align-items:center;gap:4px">
+          <select class="input" id="tpSz" title="Largura em quadrados" style="height:34px;width:auto;font-size:13px;padding:0 26px 0 10px">${Array.from({ length: TOK_TAM_MAX }, (_, i) => i + 1).map(n => `<option value="${n}" ${tamX(t) === n ? 'selected' : ''}>${n}</option>`).join('')}</select>
+          <span class="tiny" style="opacity:.7">×</span>
+          <select class="input" id="tpSzY" title="Altura em quadrados" style="height:34px;width:auto;font-size:13px;padding:0 26px 0 10px">${Array.from({ length: TOK_TAM_MAX }, (_, i) => i + 1).map(n => `<option value="${n}" ${tamY(t) === n ? 'selected' : ''}>${n}</option>`).join('')}</select>
+        </span>` : ''}
         <button class="btn btn-sm" id="tpAv"><i class="ph ph-image"></i> Avatar</button>
         ${t.owner === NV.user.id && (NV.perfil() || {}).avatar ? '<button class="btn btn-sm btn-ghost" id="tpG" title="Usar a foto da sua conta (Discord ou Google)">Usar minha foto</button>' : ''}</div>
         <div class="sep"></div><button class="btn btn-sm btn-ghost" id="tpDel" style="color:var(--red-6)"><i class="ph ph-trash"></i> Remover do mapa</button>`,
@@ -1843,7 +1885,11 @@
     $$('#tokPanel .ctl button').forEach(b => b.onclick = () => { const k = b.dataset.k; salvar({ [k]: Math.max(0, Math.min(t[k + '_max'], t[k] + +b.dataset.d)) }); });
     $$('#tokPanel .ctl input').forEach(i => i.onchange = () => { const k = i.dataset.k; const v = parseInt(i.value, 10); if (!isNaN(v)) salvar({ [k]: Math.max(0, Math.min(t[k + '_max'], v)) }); });
     const pub = $('#tpPub'); if (pub) pub.onchange = () => salvar({ barras_publicas: pub.checked });
+    // Largura e altura separadas. Gravar `tam_y` exige a coluna no banco (ver o
+    // comentário em tamX/tamY); sem ela o update devolve erro e o toast avisa —
+    // o desenho na tela continua certo, só não persiste.
     const sz = $('#tpSz'); if (sz) sz.onchange = () => salvar({ tamanho: +sz.value });
+    const szY = $('#tpSzY'); if (szY) szY.onchange = () => salvar({ tam_y: +szY.value });
     // Só o token muda: a foto da ficha no HxH5e continua a mesma.
     const trocaAvatar = async url => {
       await salvar({ img_url: url });
@@ -1923,6 +1969,7 @@
     const gen = m && m.config && m.config.gen;
     const tipo = gen && MapGen.TIPOS.find(t => t.id === MapGen.normaliza(gen).tipo);
     const ops = [10, 15, 20, 25, 30, 35, 40, 50, 60, 80, 100];
+    const G = gridCfg();
     P().innerHTML = `<h4>Battlemap</h4>
       <p class="hint" style="margin:0 0 12px">Cada quadrado tem 1,5 m. Um mapa por vez: salvar um novo substitui o atual (os tokens continuam).</p>
       <div class="item" style="display:flex;align-items:center;gap:10px">
@@ -1938,6 +1985,27 @@
         <p class="hint">A imagem estica para cobrir o grid inteiro. Ajuste colunas e linhas para bater com o desenho.</p>
       </div>
       <div class="sep"></div>
+      ${m ? `
+      <h4>Proporção do mapa atual</h4>
+      <p class="hint" style="margin:0 0 8px">Mudar colunas e linhas depois do mapa pronto — antes só dava para escolher na hora de enviar a imagem, e corrigir exigia enviar tudo de novo. Os tokens ficam onde estão.</p>
+      <div class="sel2"><div class="field"><label class="tiny">Colunas</label><select class="input" id="mpC2">${ops.map(n => `<option ${m.cols === n ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
+      <div class="field"><label class="tiny">Linhas</label><select class="input" id="mpR2">${ops.map(n => `<option ${m.rows === n ? 'selected' : ''}>${n}</option>`).join('')}</select></div></div>
+      <button class="btn btn-sm" id="mpProp" style="width:100%;margin-top:8px"><i class="ph ph-frame-corners"></i> Aplicar proporção</button>
+
+      <div class="sep"></div>
+      <h4>Grid</h4>
+      <div class="row" style="gap:6px;flex-wrap:wrap">
+        <button class="btn btn-sm ${G.on === false ? '' : 'btn-primary'}" id="gdOn"><i class="ph ph-grid-nine"></i> ${G.on === false ? 'Ligar' : 'Ligado'}</button>
+        ${[['Fino', 1], ['Médio', 2], ['Grosso', 3]].map(([lbl, v]) => `<button class="btn btn-sm ${(G.forca || 1) === v ? 'btn-primary' : ''}" data-gw="${v}">${lbl}</button>`).join('')}
+      </div>
+      <p class="hint" style="margin:10px 0 6px">Alinhar com a imagem: empurre e estique até as linhas caírem em cima do grid desenhado no mapa.</p>
+      <div class="sel2"><div class="field"><label class="tiny">Deslocar ↔</label><input class="input" id="gdX" type="number" step="1" value="${G.dx || 0}"></div>
+      <div class="field"><label class="tiny">Deslocar ↕</label><input class="input" id="gdY" type="number" step="1" value="${G.dy || 0}"></div></div>
+      <div class="field" style="margin-top:8px"><label class="tiny">Tamanho do quadrado — ${Math.round((G.escala || 1) * 100)}%</label>
+        <input id="gdE" type="range" min="50" max="200" step="1" value="${Math.round((G.escala || 1) * 100)}" style="width:100%"></div>
+      <button class="btn btn-ghost btn-sm" id="gdZero" style="width:100%;margin-top:6px">Voltar o grid ao padrão</button>
+      ` : ''}
+      <div class="sep"></div>
       <button class="btn btn-orange" id="mpLive" style="width:100%" ${m ? '' : 'disabled'}><i class="ph ph-broadcast"></i> Exibir battlemap para os jogadores</button>
       ${S.mesa.exibindo !== 'nada' ? `<button class="btn btn-sm" id="stopLive" style="margin-top:10px;width:100%"><i class="ph ph-pause"></i> Parar de exibir</button>` : ''}`;
     $('#mpCriar').onclick = () => abrirCriador(gen ? Object.assign({ cols: m.cols, rows: m.rows }, gen) : null);
@@ -1947,6 +2015,46 @@
       e.preventDefault(); const f = await pickFile(); if (!f) return; $('#mpLbl').textContent = 'Enviando…';
       try { const url = await NV.enviarImagem(f, 4096); await salvarMapa({ cols: +$('#mpC').value, rows: +$('#mpR').value, fundo_url: url, config: {} }); IMG.aberto = false; toast('Mapa salvo', 'map-trifold'); paneMapa(); } catch (err) { toast(errMsg(err), 'warning'); $('#mpLbl').textContent = 'Escolher imagem do mapa'; }
     };
+    // ── Proporção do mapa que já está na mesa ──────────────────────────────
+    // salvarMapa faz UPSERT: a linha inteira é reescrita, então fundo_url e config
+    // precisam ir junto — senão mudar a proporção apagaria a imagem do mapa.
+    const prop = $('#mpProp');
+    if (prop) prop.onclick = async () => {
+      const c = +$('#mpC2').value, r = +$('#mpR2').value;
+      if (c === m.cols && r === m.rows) return toast('A proporção já é essa.', 'info');
+      const ok = await salvarMapa({ cols: c, rows: r, fundo_url: m.fundo_url || null, config: m.config || {} });
+      if (ok) { toast(`Mapa agora é ${c} × ${r}`, 'frame-corners'); paneMapa(); }
+    };
+
+    // ── Grid ───────────────────────────────────────────────────────────────
+    // Grava só o pedaço `grid` do config, preservando o `gen` do gerador de mapas.
+    const salvarGrid = async patch => {
+      const cfg = Object.assign({}, m.config || {});
+      cfg.grid = Object.assign({}, GRID_PADRAO, cfg.grid || {}, patch);
+      // A tela responde na hora; o banco vem atrás.
+      if (S.mapa) S.mapa.config = cfg;
+      if (S.mapaPreview) S.mapaPreview.config = cfg;
+      aplicarCam(); paneMapa();
+      await salvarMapa({ cols: m.cols, rows: m.rows, fundo_url: m.fundo_url || null, config: cfg });
+    };
+    const gOn = $('#gdOn'); if (gOn) gOn.onclick = () => salvarGrid({ on: G.on === false });
+    $$('#pane [data-gw]').forEach(b => b.onclick = () => salvarGrid({ forca: +b.dataset.gw }));
+    const gx = $('#gdX'); if (gx) gx.onchange = () => salvarGrid({ dx: parseInt(gx.value, 10) || 0 });
+    const gy = $('#gdY'); if (gy) gy.onchange = () => salvarGrid({ dy: parseInt(gy.value, 10) || 0 });
+    const ge = $('#gdE');
+    if (ge) {
+      // Enquanto arrasta, só o desenho muda — gravar a cada pixel encheria o banco.
+      ge.oninput = () => {
+        const cfg = Object.assign({}, m.config || {});
+        cfg.grid = Object.assign({}, GRID_PADRAO, cfg.grid || {}, { escala: (+ge.value || 100) / 100 });
+        if (S.mapa) S.mapa.config = cfg;
+        if (S.mapaPreview) S.mapaPreview.config = cfg;
+        aplicarCam();
+      };
+      ge.onchange = () => salvarGrid({ escala: (+ge.value || 100) / 100 });
+    }
+    const gz = $('#gdZero'); if (gz) gz.onclick = () => salvarGrid(Object.assign({}, GRID_PADRAO));
+
     $('#mpLive').onclick = () => exibir('mapa');
     const st = $('#stopLive'); if (st) st.onclick = () => exibir('nada');
   }
