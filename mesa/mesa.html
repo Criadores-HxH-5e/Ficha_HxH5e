@@ -1914,7 +1914,20 @@
       const k = b.dataset.reac, max = reacMax(t), atual = reacAtual(t);
       salvarReac(t, k === 'cheio' ? max : Math.max(0, Math.min(max, atual + +k)));
     });
-    const salvar = async patch => { Object.assign(t, patch); atualizarToken(t); renderTokPanel(); if (channel) channel.send({ type: 'broadcast', event: 'tok', payload: Object.assign({ id: t.id }, patch) }); const { error } = await sb.from('tokens').update(patch).eq('id', t.id); if (error) toast(errMsg(error), 'warning'); };
+    const salvar = async patch => {
+      // `_avisoColuna` não é campo do banco: serve para trocar a mensagem de erro por
+      // uma que diga o que fazer, em vez do texto cru do Supabase.
+      const avisa = patch._avisoColuna; delete patch._avisoColuna;
+      Object.assign(t, patch); atualizarToken(t); renderTokPanel();
+      if (channel) channel.send({ type: 'broadcast', event: 'tok', payload: Object.assign({ id: t.id }, patch) });
+      const { error } = await sb.from('tokens').update(patch).eq('id', t.id);
+      if (error) {
+        const semColuna = avisa && /tam_y/.test(errMsg(error));
+        toast(semColuna
+          ? 'A altura vale nesta sessão, mas não fica salva: falta a coluna <b>tam_y</b> na tabela de tokens.'
+          : errMsg(error), 'warning');
+      }
+    };
     $$('#tokPanel .ctl button').forEach(b => b.onclick = () => { const k = b.dataset.k; salvar({ [k]: Math.max(0, Math.min(t[k + '_max'], t[k] + +b.dataset.d)) }); });
     $$('#tokPanel .ctl input').forEach(i => i.onchange = () => { const k = i.dataset.k; const v = parseInt(i.value, 10); if (!isNaN(v)) salvar({ [k]: Math.max(0, Math.min(t[k + '_max'], v)) }); });
     const pub = $('#tpPub'); if (pub) pub.onchange = () => salvar({ barras_publicas: pub.checked });
@@ -1922,7 +1935,7 @@
     // comentário em tamX/tamY); sem ela o update devolve erro e o toast avisa —
     // o desenho na tela continua certo, só não persiste.
     const sz = $('#tpSz'); if (sz) sz.onchange = () => salvar({ tamanho: +sz.value });
-    const szY = $('#tpSzY'); if (szY) szY.onchange = () => salvar({ tam_y: +szY.value });
+    const szY = $('#tpSzY'); if (szY) szY.onchange = () => salvar({ tam_y: +szY.value, _avisoColuna: true });
     // Só o token muda: a foto da ficha no HxH5e continua a mesma.
     const trocaAvatar = async url => {
       await salvar({ img_url: url });
@@ -2202,7 +2215,7 @@
   function centroLivre(tam = 1) {
     const m = S.mapa || { cols: 30, rows: 30 };
     const ocup = new Set();
-    Object.values(S.tokens).forEach(t => { const n = t.tamanho || 1, x0 = Math.round(t.x), y0 = Math.round(t.y); for (let a = 0; a < n; a++) for (let b = 0; b < n; b++) ocup.add(`${x0 + a},${y0 + b}`); });
+    Object.values(S.tokens).forEach(t => { const nx = tamX(t), ny = tamY(t), x0 = Math.round(t.x), y0 = Math.round(t.y); for (let a = 0; a < nx; a++) for (let b = 0; b < ny; b++) ocup.add(`${x0 + a},${y0 + b}`); });
     const cabe = (x, y) => { for (let a = 0; a < tam; a++) for (let b = 0; b < tam; b++) if (ocup.has(`${x + a},${y + b}`)) return false; return true; };
     const cx = Math.floor(m.cols / 2), cy = Math.floor(m.rows / 2);
     for (let r = 0; r < 16; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) if (cabe(cx + dx, cy + dy)) return { x: cx + dx, y: cy + dy };
@@ -2957,7 +2970,11 @@
         if (eventType === 'DELETE') { delete S.tokens[o.id]; if (S.sel === o.id) S.sel = null; if ($('#tokLayer')) renderTokens(); }
         else {
           // Sem a coluna no banco, a linha chega sem reacoes/principios: mantém o valor ao vivo.
-          const velho = S.tokens[n.id]; if (velho) ['reacoes', 'principios'].forEach(k => { if (!(k in n) && k in velho) n[k] = velho[k]; });
+          // `tam_y` (altura do token) entrou na mesma lista pelo mesmo motivo: enquanto a
+          // coluna não existir, a linha volta do banco sem ela e o token perderia a altura
+          // no instante em que o Supabase avisasse a mudança — virando quadrado sozinho,
+          // logo depois de aparecer certo na tela.
+          const velho = S.tokens[n.id]; if (velho) ['reacoes', 'principios', 'tam_y'].forEach(k => { if (!(k in n) && k in velho) n[k] = velho[k]; });
           S.tokens[n.id] = n; if ($('#tokLayer')) atualizarToken(n); if (S.sel === n.id) renderTokPanel();
         }
         if (!$('#tokLayer')) renderOrdem();   // na cena não há mapa, mas a ordem continua no palco
