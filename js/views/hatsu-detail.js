@@ -2966,6 +2966,39 @@ function renderHatsuDetail(container) {
     const areaReservadoM = _areaClamp.reservado;
     const duracaoReservadoR = _duracaoClamp.reservado;
 
+
+            // ── Sanidade que este Hatsu tira do ALVO ────────────────────────────
+            // Informativo por natureza: a sanidade atingida está na ficha de outra
+            // pessoa. O cartão existe porque a regra estava invisível — ninguém
+            // somava 1 por condição no meio do combate.
+            const _sanH = window.calcSanidadeDoHatsu ? window.calcSanidadeDoHatsu(h, 100) : null;
+            const sanidadeAlvoHtml = (_sanH && _sanH.temAlgo) ? `
+                <div style="background:#0a0f1a;border:1px solid #c084fc44;border-radius:12px;padding:12px;margin-top:10px">
+                    <div style="font-size:8px;font-weight:900;color:#c084fc;text-transform:uppercase;letter-spacing:1px;margin-bottom:7px">🧠 Sanidade do alvo</div>
+                    ${_sanH.condicoes.length ? `
+                        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:5px">
+                            <span style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:20px;color:#c084fc">−${_sanH.base}</span>
+                            <span style="flex:1;font-size:9px;color:#9ca3af;line-height:1.45">por aplicar ${_sanH.condicoes.join(', ')} <span style="color:#6b7280">(−${_sanH.porCondicao} por condição)</span></span>
+                        </div>` : ''}
+                    ${_sanH.ilusao ? `<div style="font-size:9px;color:#c084fc;margin-bottom:5px">🌀 Ilusão: ${_sanH.ilusaoRotulo}</div>` : ''}
+                    <div style="font-size:8px;color:#6b7280;line-height:1.5;border-top:1px dashed #1f2937;padding-top:6px">
+                        Teto do livro: um Hatsu nunca tira mais que <b style="color:#9ca3af">${_sanH.tetoPct}%</b> da sanidade do alvo — ${_sanH.teto} pontos num alvo com 100.
+                    </div>
+                </div>` : '';
+
+            // Marca de Hatsu de Ilusão. Fica aqui, e não no criador, porque não existe
+            // uma etiqueta de "Ilusão" no banco: quem sabe é a mesa.
+            const ilusaoToggleHtml = `
+                <div style="background:#0a0f1a;border:1px solid #1f2937;border-radius:12px;padding:10px;margin-top:8px">
+                    <div style="font-size:8px;font-weight:900;color:#6b7280;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">🌀 É um Hatsu de Ilusão?</div>
+                    <div style="display:flex;gap:5px;flex-wrap:wrap">
+                        ${[['', 'Não']].concat(window.ILUSAO_SANIDADE_OPCOES || []).map(o => {
+                            const on = ((h.ilusaoSanidade || '') === o[0]);
+                            return `<button onclick="window._hSetIlusaoHatsu(${idx},'${o[0]}')" style="flex:1;min-width:92px;padding:6px;border-radius:8px;font-size:8px;font-weight:700;cursor:pointer;border:1px solid ${on ? '#c084fc' : '#1f2937'};background:${on ? '#c084fc18' : 'transparent'};color:${on ? '#c084fc' : '#9ca3af'}">${on ? '✓ ' : ''}${o[1]}</button>`;
+                        }).join('')}
+                    </div>
+                </div>`;
+
     // Store info for alcance/área/duração popups
     if (!window._HATSU_STAT_INFO) window._HATSU_STAT_INFO = {};
     if (!window._HATSU_STAT_INFO[idx]) window._HATSU_STAT_INFO[idx] = {};
@@ -3594,6 +3627,8 @@ function renderHatsuDetail(container) {
                     </div>
                 </div>
                 ${calcDanoHtml}
+                ${sanidadeAlvoHtml}
+                ${ilusaoToggleHtml}
                 ${calcCDHtml}
                 ${ataqueToggleHtml}
                 ${calcRangeDurHtml}

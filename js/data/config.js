@@ -1205,6 +1205,89 @@ window.totalComEnfase = function (roll, bonusTotal, penalidadePlana) {
     return (roll.enfaseInferior ? (roll.total - b) : (roll.total + b)) + p;
 };
 
+// ── Perdendo Sanidade ────────────────────────────────────────────────────────
+// "Hatsus que aplicam as seguintes condições reduzem a sanidade em 1 (valor
+//  mínimo), por padrão." São onze, e todas as onze já existiam em
+//  CONDICOES_POR_NIVEL — o que faltava era alguém ligar as duas coisas. Hoje um
+//  Hatsu que aplica Abalado e Confuso tira 2 de sanidade do alvo, e nada na tela
+//  dizia isso: a conta ficava na memória da mesa.
+//
+// A sanidade atingida é a do ALVO, que está em OUTRA ficha — então o app informa,
+// ele não aplica. O que ele pode fazer, e faz, é não deixar a regra invisível.
+//
+// Os nomes aqui são os do CONDICOES_POR_NIVEL, não os do livro: o livro escreve
+// "Amedrontado / Assustado / Aterrorizado" e "Enfeitiçado/Manipulado", e o banco
+// do app chama de 'Amedrontado/Assustado' e 'Manipulado'. São as mesmas.
+window.CONDICOES_QUE_REDUZEM_SANIDADE = [
+    'Abalado',
+    'Amedrontado/Assustado',
+    'Condenado',
+    'Confuso',
+    'Desorientado',
+    'Manipulado',
+    'Exposto',
+    'Fragilizado',
+    'Incapacitado',
+    'Queimado',
+    'Vulnerável',
+];
+window.SANIDADE_POR_CONDICAO = 1;
+
+// "A redução máxima da sanidade em um Hatsu será 75% da sanidade do alvo."
+window.SANIDADE_TETO_POR_HATSU_PCT = 75;
+
+// "Hatsus de Ilusão: −1 de sanidade por rodada OU dano psíquico determinado no
+//  Hatsu." O app não tem uma marca formal de "Hatsu de Ilusão" — o mais perto é
+//  o ma_e6 (Jogos Mentais), e as categorias que mais usariam ilusão ainda não
+//  foram importadas. Então quem marca é o jogador, no próprio Hatsu.
+window.ILUSAO_SANIDADE_OPCOES = [
+    ['rodada',   '−1 de sanidade por rodada'],
+    ['psiquico', 'Dano psíquico determinado no Hatsu'],
+];
+
+// Quais condições deste Hatsu cobram sanidade. Varre TODAS as escolhas gravadas
+// em specialChoices, em vez de olhar efeito por efeito: assim qualquer picker que
+// guarde um nome de condição — o eg3, o rt_m1, e os que ainda vão existir nas
+// categorias que faltam — entra na conta sem precisar ser listado aqui.
+//
+// Conta por condição DISTINTA, e não por rodada comprada: o livro diz "Hatsus que
+// aplicam as seguintes condições reduzem a sanidade em 1", uma vez por condição.
+window.condicoesDeSanidadeDoHatsu = function (h) {
+    const lista = window.CONDICOES_QUE_REDUZEM_SANIDADE || [];
+    const sc = (h || {}).specialChoices || {};
+    const achadas = {};
+    const olhar = function (v) {
+        if (typeof v === 'string') { if (lista.indexOf(v) >= 0) achadas[v] = true; return; }
+        if (Array.isArray(v)) v.forEach(olhar);
+    };
+    Object.keys(sc).forEach(function (k) { olhar(sc[k]); });
+    return Object.keys(achadas).sort();
+};
+
+// O resumo que a tela do Hatsu mostra. sanidadeAlvo é opcional e serve só para o
+// teto virar um número concreto; sem ele, o teto fica em porcentagem.
+window.calcSanidadeDoHatsu = function (h, sanidadeAlvo) {
+    const condicoes = window.condicoesDeSanidadeDoHatsu(h);
+    const porCondicao = window.SANIDADE_POR_CONDICAO || 1;
+    const ilusao = (h || {}).ilusaoSanidade || '';
+    const base = condicoes.length * porCondicao;
+    const tetoPct = window.SANIDADE_TETO_POR_HATSU_PCT || 75;
+    const san = parseInt(sanidadeAlvo);
+    const teto = isNaN(san) ? null : Math.floor((san * tetoPct) / 100);
+    return {
+        condicoes: condicoes,
+        porCondicao: porCondicao,
+        base: base,
+        ilusao: ilusao,
+        ilusaoRotulo: (window.ILUSAO_SANIDADE_OPCOES || [])
+            .filter(function (o) { return o[0] === ilusao; }).map(function (o) { return o[1]; })[0] || '',
+        tetoPct: tetoPct,
+        teto: teto,
+        // Só vale a pena desenhar o cartão se houver alguma coisa a dizer.
+        temAlgo: condicoes.length > 0 || !!ilusao,
+    };
+};
+
 // ── Resultados de Falhas de Ênfase ───────────────────────────────────────────
 // A Ênfase já concedia a Ação Protagonista ao falhar, mas o outro lado do trato
 // — "traz impactos negativos imediatos" — não existia. Na prática a Ênfase era

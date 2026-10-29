@@ -2483,6 +2483,16 @@
             };
             reader.readAsDataURL(input.files[0]);
         };
+        // Marca este Hatsu como de Ilusão, para o cartão de Sanidade do alvo somar
+        // a linha certa. Fica na ficha do Hatsu porque não existe etiqueta de
+        // "Ilusão" no banco de efeitos — quem sabe é a mesa.
+        window._hSetIlusaoHatsu = function (idx, val) {
+            const h = (state.currentChar.hatsus || [])[idx];
+            if (!h) return;
+            if (val) h.ilusaoSanidade = String(val); else delete h.ilusaoSanidade;
+            saveCharacter(state.currentChar);
+            render(true);
+        };
         window._hClearHatsuAttachImage = function(idx) {
             const h = (state.currentChar.hatsus || [])[idx];
             if (!h) return;
