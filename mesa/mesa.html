@@ -647,6 +647,8 @@
 <!-- config.js do HxH5e: ADMIN_USERS e as cores das categorias de Nen (SYSTEM_DB.classes) -->
 <script src="../js/data/config.js"></script>
 <script src="../js/data/nen-affinity.js"></script>
+<!-- hatsu-db.js: bonusPotencialLiberado, que o calcBonusReacao usa para o "Pernas — Ágil" -->
+<script src="../js/data/hatsu-db.js"></script>
 <!-- Bestiário do HxH5e (window.BESTIARY_DATA): a aba Bestiário do narrador -->
 <script src="../js/data/bestiary-data.js"></script>
 <script src="assets/nuvem-hxh.js"></script>
@@ -1654,6 +1656,13 @@
     { k: 'contra', n: 'Contra-ataque', atk: true, nota: 'Escolha o ataque. Gasta a próxima ação principal.' },
     { k: 'ado', n: 'Ataque de Oportunidade', atk: true, nota: 'Inimigo saiu do seu alcance corpo a corpo. Não gasta ação principal.' },
   ];
+  // Bônus de Nen/Instâncias/Inclinações no resultado: o modAt é de propósito "sem Hatsu/princípios",
+  // então eles vêm da ficha por calcBonusReacao (js/data/config.js). Criatura: 0.
+  function bonusReacao(t, k) {
+    const d = !bestDe(t) && t.personagem_id && FICHAS[t.personagem_id];
+    return (d && window.calcBonusReacao) ? window.calcBonusReacao(d, k) : { total: 0, fontes: [] };
+  }
+  const modReacao = (t, x) => x.mod(t) + bonusReacao(t, x.k).total;
   function reacoesHTML(t, pode) {
     const max = reacMax(t); if (max == null) return '';
     const atual = reacAtual(t), temAtk = temFicha(t);
@@ -1662,7 +1671,7 @@
       ${pode ? `<div class="reac-b"><button data-reac="-1" ${atual < 1 ? 'disabled' : ''} title="Gastar 1 Reação">−1</button><button data-reac="1" ${atual >= max ? 'disabled' : ''}>+1</button>
         <button data-reac="cheio" ${atual >= max ? 'disabled' : ''}><i class="ph-bold ph-arrow-counter-clockwise"></i> Recuperar (Zetsu / descanso)</button></div>
       <div class="rx">${REACOES.map(x => `<button class="rx-i" data-rx="${x.k}" ${atual < 1 ? 'disabled' : ''}><span class="rx-n"><b>${x.n}</b><small>${x.nota}</small></span>
-        <span class="rx-v">${x.atk ? (temAtk ? 'Atacar <i class="ph-bold ph-caret-right"></i>' : '−1') : x.d6 ? `1d6 + ${x.mod(t)}` : sinal(x.mod(t))}</span></button>`).join('')}</div>` : ''}
+        <span class="rx-v">${x.atk ? (temAtk ? 'Atacar <i class="ph-bold ph-caret-right"></i>' : '−1') : x.d6 ? `1d6 + ${modReacao(t, x)}` : sinal(modReacao(t, x))}</span></button>`).join('')}</div>` : ''}
       <p class="hint">7 + SAB. Cada Reação gasta 1; elas voltam com Zetsu ou descanso.${bestDe(t) || t.tipo !== 'pj' ? '' : ' Assumir Lugar usa CA 10 + CON: some a armadura, se tiver.'}</p>`;
   }
   async function usarReacao(t, x) {
@@ -1673,8 +1682,11 @@
       return toast(esc(`Escolha o ataque do ${x.n}`), 'sword');
     }
     if (!(await gastarReacao(t, x.n))) return;
-    if (x.d6) rolarDano('1d6', x.mod(t), `Reação · ${x.n} (${x.f})`, t.nome);
-    else rolarD20(x.mod(t), `Reação · ${x.n} (${x.f})`, t.nome);
+    const bn = bonusReacao(t, x.k);
+    const mod = x.mod(t) + bn.total;
+    const rot = `Reação · ${x.n} (${x.f}${bn.total ? ' +' + bn.total : ''})`;
+    if (x.d6) rolarDano('1d6', mod, rot, t.nome);
+    else rolarD20(mod, rot, t.nome);
   }
   /* ---------- Nen: princípios ativados pelo token ----------
      Mesma lista, custos e efeitos da ficha (sheet.js / _activatePrincipio), com as contas do
