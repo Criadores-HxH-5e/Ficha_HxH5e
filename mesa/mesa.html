@@ -706,6 +706,13 @@
     msg() { this.nota(660, 0, 0.1, 0.05); this.nota(880, 0.08, 0.14, 0.05); },
     // Menção: três notas, mais alto — é para ser notado.
     mencao() { this.nota(784, 0, 0.1, 0.09); this.nota(988, 0.09, 0.1, 0.09); this.nota(1319, 0.18, 0.2, 0.09); },
+    // Passagem de iniciativa: duas notas graves e curtas. Todo mundo ouve a cada
+    // troca de vez, então precisa ser discreto — senão vira ruído numa mesa cheia.
+    turno() { this.nota(330, 0, 0.09, 0.035); this.nota(392, 0.07, 0.11, 0.035); },
+    // SUA vez: registro mais alto e três notas, para destacar das outras. Este mesmo
+    // som vai servir para "você é alvo e pode reagir" (fatia 2), por pedido do Lucas:
+    // nos dois casos o que ele quer dizer é "a mesa está esperando VOCÊ".
+    vez() { this.nota(523, 0, 0.11, 0.1); this.nota(659, 0.1, 0.11, 0.1); this.nota(880, 0.2, 0.26, 0.11); },
   };
   function montarBotaoSom() {
     const b = $('#somAviso'); if (!b) return;
@@ -1190,8 +1197,10 @@
   }
   function avisoVez() {
     const t = S.tokens[turno().vez]; if (!t) return;
-    if (t.owner === NV.user.id && !S.gm) toast('<b>É a sua vez!</b>', 'sword');
-    else toast(esc(`Vez de ${t.nome}`), 'sword');
+    // A função já existia e já era chamada nos dois caminhos (quem passa o turno e
+    // quem recebe pelo realtime). Só faltava o som.
+    if (t.owner === NV.user.id && !S.gm) { toast('<b>É a sua vez!</b>', 'sword'); Avisos.vez(); }
+    else { toast(esc(`Vez de ${t.nome}`), 'sword'); Avisos.turno(); }
   }
   async function salvarTurno(novo) {
     const ant = S.mesa.turno;
@@ -1497,11 +1506,22 @@
       const max = reacMax(t), atual = reacAtual(t);
       const pre = vantagem && DADO.modo === 'Normal' ? 'Vantagem' : DADO.modo;
       let tipo = max != null && atual >= 1 && S.atkReacao ? S.atkReacao : '';
+      // Alvo declarado: todo token do mapa menos quem ataca. Fica opcional — um
+      // ataque sem alvo continua rolando como sempre. É o que a fatia 2 vai usar
+      // para perguntar ao atingido se ele reage.
+      let alvo = '';
+      const alvos = Object.values(S.tokens).filter(x => x.id !== t.id)
+        .sort((a, b) => (a.tipo === 'npc') - (b.tipo === 'npc') || String(a.nome).localeCompare(String(b.nome)));
       const ov = document.createElement('div'); ov.className = 'mm-ov';
       ov.innerHTML = `<div class="am" role="dialog" aria-modal="true" aria-labelledby="amT">
         <div class="am-h"><div><div class="tiny">${esc(t.nome)} ataca</div><h3 id="amT">${esc(titulo)}</h3></div><button class="btn btn-icon btn-ghost" data-x aria-label="Cancelar"><i class="ph-bold ph-x"></i></button></div>
         <div class="am-m">${MODOS_ATK.map(([m, ic, d]) => `<button data-am="${m}" class="${m === pre ? 'on' : ''}"><i class="ph-bold ph-${ic}"></i><b>${m}</b><small>${d}</small></button>`).join('')}</div>
         ${vantagem ? '<p class="hint">Este ataque já tem vantagem: Normal rola com vantagem.</p>' : ''}
+        ${alvos.length ? `<div class="am-t"><span class="tiny">Alvo (opcional)</span>
+          <select class="input" id="amAlvo" style="width:100%;margin-top:4px">
+            <option value="">— sem alvo declarado —</option>
+            ${alvos.map(a => `<option value="${esc(a.id)}">${esc(a.nome)}${a.tipo === 'npc' ? ' (NPC)' : ''}</option>`).join('')}
+          </select></div>` : ''}
         ${max != null ? `<div class="am-t"><span class="tiny">Tipo de ataque · Reações ${atual}/${max}</span>
           <div class="seg">${TIPOS_ATK.map(([k, l]) => `<button data-atipo="${k}" class="${k === tipo ? 'on' : ''}" ${k && atual < 1 ? 'disabled' : ''}>${l}</button>`).join('')}</div>
           <small id="amTip"></small></div>` : ''}
@@ -1518,17 +1538,26 @@
       addEventListener('keydown', tecla);
       ov.onclick = e => { if (e.target === ov || e.target.closest('[data-x]')) fim(null); };
       $$('[data-atipo]', ov).forEach(b => b.onclick = () => { tipo = b.dataset.atipo; $$('[data-atipo]', ov).forEach(x => x.classList.toggle('on', x === b)); dica(); });
-      $$('[data-am]', ov).forEach(b => b.onclick = () => fim({ modo: b.dataset.am, reacao: tipo }));
+      const selAlvo = $('#amAlvo', ov); if (selAlvo) selAlvo.onchange = () => { alvo = selAlvo.value; };
+      $$('[data-am]', ov).forEach(b => b.onclick = () => fim({ modo: b.dataset.am, reacao: tipo, alvo: alvo }));
       ($('[data-am].on', ov) || $('[data-am]', ov)).focus();
     });
   }
   const TIPOS_ATK = [['', 'Ataque', 'Ataque comum, na sua ação.'], ['contra', 'Contra-ataque', 'Reação: gasta 1 Reação e a sua próxima ação principal.'], ['ado', 'AdO', 'Ataque de Oportunidade (inimigo saiu do seu alcance): gasta 1 Reação, não gasta ação principal.']];
   // Abre a escolha e, se confirmada, gasta a Reação (contra-ataque / AdO) e rola.
+  // Alvo declarado do ataque em curso. Fica aqui, e não no parâmetro de cada
+  // rolarFn, porque são quatro caminhos de ataque (arma, Hatsu, ação de bestiário e
+  // bônus avulso) e todos terminam no mesmo gravarRolagem — marcar num lugar só
+  // evita que um deles fique de fora.
+  let alvoAtaque = null;
   async function atacar(t, titulo, vantagem, rolarFn) {
     const c = await escolherAtaque(t, titulo, vantagem); if (!c) return;
     const nomeR = { contra: 'Contra-ataque', ado: 'AdO' }[c.reacao];
     if (nomeR && !(await gastarReacao(t, nomeR))) return;
-    await rolarFn(c.modo, nomeR ? nomeR + ' · ' : '');
+    const alvoTok = c.alvo ? S.tokens[c.alvo] : null;
+    alvoAtaque = alvoTok ? { id: alvoTok.id, nome: alvoTok.nome } : null;
+    try { await rolarFn(c.modo, nomeR ? nomeR + ' · ' : ''); }
+    finally { alvoAtaque = null; }
   }
   async function rolarDano(expr, mod, rotulo, nome, opts = {}) {
     const e = dadosExpr(expr, opts.maximizar);
@@ -2634,7 +2663,11 @@
     return tok ? tok.nome : ((NV.perfil() || {}).nome || 'Hunter').split(' ')[0];
   }
   async function gravarRolagem(r, rotulo, nome) {
-    const row = { mesa_id: S.mesa.id, user_id: NV.user.id, nome: nome || meuNome(), rotulo: rotulo || '', formula: r.formula, total: r.total, detalhe: r.det, secreta: DADO.secreta };
+    // O alvo entra no RÓTULO, não numa coluna nova: assim ele aparece no log, no chat
+    // e no Discord sem tocar no banco, e herda o `secreta` da própria rolagem — uma
+    // rolagem secreta não denuncia quem era o alvo.
+    const comAlvo = alvoAtaque ? (rotulo || '') + ' → ' + alvoAtaque.nome : rotulo;
+    const row = { mesa_id: S.mesa.id, user_id: NV.user.id, nome: nome || meuNome(), rotulo: comAlvo || '', formula: r.formula, total: r.total, detalhe: r.det, secreta: DADO.secreta };
     const { data, error } = await sb.from('rolagens').insert(row).select('*').single();
     if (error) { toast(errMsg(error), 'warning'); return null; }
     if (!S.rolagens.some(x => x.id === data.id)) { S.rolagens.unshift(data); mostrarRolagem(data); }
