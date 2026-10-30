@@ -1202,6 +1202,97 @@
     if (t.owner === NV.user.id && !S.gm) { toast('<b>É a sua vez!</b>', 'sword'); Avisos.vez(); }
     else { toast(esc(`Vez de ${t.nome}`), 'sword'); Avisos.turno(); }
   }
+  /* ---------- Pedido de reação ----------
+     Quando um ataque declara alvo, o alvo precisa dizer se reage. Isso mora dentro
+     de `mesas.turno`, que já é JSONB — sem coluna nova e sem tabela nova. E é de
+     propósito que NÃO é um broadcast: o pedido tem de sobreviver a um F5, senão o
+     jogador recarrega, a pergunta some e ninguém fica sabendo que a mesa parou.
+
+     Regras combinadas com o Lucas (29/10):
+       • 10 segundos de espera, com o som tocando de novo faltando 5.
+       • Estourou e ninguém tocou? O impasse NÃO se resolve sozinho: espera o mestre,
+         e ele é avisado com uma menção de verdade no chat.
+       • O som do pedido é o mesmo de "é a sua vez" — nos dois casos a mesa está
+         esperando VOCÊ. */
+  const PEDIDO_SEGUNDOS = 10;
+  const PEDIDO_AVISO_EM = 5;
+  let pedidoTimer = null, pedidoEl = null, pedidoAvisado = false, pedidoChat = false;
+  const pendente = () => turno().pendente || null;
+
+  async function limparPendente() {
+    const tu = turno(); if (!tu.pendente) return;
+    const novo = Object.assign({}, tu); delete novo.pendente;
+    await salvarTurno(novo);
+  }
+  async function marcarPendente(alvoTok, atacanteTok, rotulo, total) {
+    const tu = turno();
+    await salvarTurno(Object.assign({}, tu, {
+      pendente: { alvo: alvoTok.id, atacante: atacanteTok.id, por: NV.user.id,
+                  rotulo: rotulo || '', total: total == null ? null : total, em: Date.now() },
+    }));
+  }
+
+  // O aviso ao mestre é uma MENSAGEM de verdade: assim ele reusa a máquina de menção
+  // que o chat já tem (som, destaque, autocomplete) e fica registro do que travou a
+  // mesa. Quem publica é o cliente de QUEM ATACOU — um só, e presente por construção,
+  // já que acabou de rolar. Se fosse o cliente do mestre, a mensagem seria dele mesmo
+  // e o `!meu` do chat engoliria o próprio destaque.
+  async function avisarMestrePendente(pd) {
+    const dono = S.perfis[S.mesa.owner] || {};
+    const alvo = S.tokens[pd.alvo], atac = S.tokens[pd.atacante];
+    const quem = alvo ? alvo.nome : 'O alvo';
+    const texto = `⏳ ${quem} não respondeu ao ataque de ${atac ? atac.nome : 'alguém'} em ${PEDIDO_SEGUNDOS}s.`
+      + (dono.nome ? ` @${String(dono.nome).trim().split(/\s+/)[0]}` : '');
+    try { await sb.from('mensagens').insert({ mesa_id: S.mesa.id, user_id: NV.user.id, nome: meuNome(), texto: texto.slice(0, 500) }); }
+    catch (e) {}
+    // Quando quem atacou É o mestre, a menção não se destaca para ele (o chat ignora
+    // a própria mensagem). Aí o aviso é local.
+    if (S.gm) { toast('<b>Ninguém respondeu</b> — destrave quando resolver', 'hourglass'); Avisos.mencao(); }
+  }
+
+  function fecharPedido() {
+    if (pedidoTimer) { clearInterval(pedidoTimer); pedidoTimer = null; }
+    if (pedidoEl) { pedidoEl.remove(); pedidoEl = null; }
+  }
+  function renderPedidoReacao() {
+    const pd = pendente();
+    if (!pd) { fecharPedido(); pedidoAvisado = false; pedidoChat = false; return; }
+    const alvo = S.tokens[pd.alvo];
+    // Alvo sumiu do mapa: não dá para esperar resposta de quem não existe mais.
+    if (!alvo) { if (S.gm) limparPendente(); return; }
+    // Quem atacou avisa o mestre quando o tempo estoura. Um cliente só, sem corrida.
+    if (pd.por === NV.user.id && !pedidoChat && Date.now() - pd.em > PEDIDO_SEGUNDOS * 1000) {
+      pedidoChat = true; avisarMestrePendente(pd);
+    }
+    const meuAlvo = podeMover(alvo);
+    if (!meuAlvo) { fecharPedido(); return; }   // não é comigo: só o atacante e o mestre esperam
+    if (pedidoEl) return;                       // já está aberto
+    pedidoAvisado = false;
+    const atac = S.tokens[pd.atacante];
+    const ov = document.createElement('div'); ov.className = 'mm-ov on';
+    ov.innerHTML = `<div class="am" role="dialog" aria-modal="true">
+      <div class="am-h"><div><div class="tiny">${esc(atac ? atac.nome : 'Alguém')} atacou</div><h3>${esc(alvo.nome)} vai reagir?</h3></div></div>
+      <p class="hint" style="margin:0 0 10px">${esc(pd.rotulo || 'Ataque')}${pd.total != null ? ` · resultado <b>${pd.total}</b>` : ''}</p>
+      <p class="hint" id="pdT" style="margin:0 0 10px"></p>
+      <div class="row"><button class="btn btn-orange" id="pdSim" style="flex:1"><i class="ph-fill ph-shield-chevron"></i> Reagir</button>
+        <button class="btn" id="pdNao" style="flex:1">Não reagir</button></div>
+      ${S.gm ? '<button class="btn btn-sm btn-ghost" id="pdOff" style="width:100%;margin-top:8px">Destravar sem resposta</button>' : ''}
+    </div>`;
+    document.body.appendChild(ov); pedidoEl = ov;
+    Avisos.vez();
+    const relogio = () => {
+      const resta = Math.max(0, PEDIDO_SEGUNDOS - Math.floor((Date.now() - pd.em) / 1000));
+      const d = $('#pdT', ov);
+      if (d) d.innerHTML = resta ? `Respondendo em <b>${resta}s</b> — depois disso o mestre é avisado.` : 'O mestre foi avisado. A mesa espera a resolução dele.';
+      // Faltando 5s, toca de novo: é a segunda chance que o Lucas pediu.
+      if (resta === PEDIDO_AVISO_EM && !pedidoAvisado) { pedidoAvisado = true; Avisos.vez(); }
+    };
+    relogio(); pedidoTimer = setInterval(relogio, 1000);
+    $('#pdSim', ov).onclick = async () => { await limparPendente(); S.sel = alvo.id; S.painel = alvo.id; S.tpAba = 'reac'; renderTokens(); };
+    $('#pdNao', ov).onclick = () => limparPendente();
+    const off = $('#pdOff', ov); if (off) off.onclick = () => limparPendente();
+  }
+
   async function salvarTurno(novo) {
     const ant = S.mesa.turno;
     S.mesa.turno = novo; renderTokens(); if (novo.vez && novo.vez !== (ant || {}).vez) avisoVez();
@@ -1228,6 +1319,7 @@
     await salvarTurno({});
   }
   function renderOrdem() {
+    renderPedidoReacao();   // todo caminho de atualização passa por aqui
     const old = $('#ordem'); if (old) old.remove();
     const st = $('#stage'); if (!st || !temIni()) return;
     const L = ordem(), tu = turno();
@@ -1555,9 +1647,18 @@
     const nomeR = { contra: 'Contra-ataque', ado: 'AdO' }[c.reacao];
     if (nomeR && !(await gastarReacao(t, nomeR))) return;
     const alvoTok = c.alvo ? S.tokens[c.alvo] : null;
-    alvoAtaque = alvoTok ? { id: alvoTok.id, nome: alvoTok.nome } : null;
+    // `total` e preenchido pelo gravarRolagem na PRIMEIRA rolagem deste ataque — ou
+    // seja, o acerto, nao o dano. As rolarFn nao devolvem a rolagem, entao pegar pelo
+    // retorno traria undefined em todos os quatro caminhos de ataque.
+    const marca = alvoTok ? { id: alvoTok.id, nome: alvoTok.nome, total: null } : null;
+    alvoAtaque = marca;
     try { await rolarFn(c.modo, nomeR ? nomeR + ' · ' : ''); }
     finally { alvoAtaque = null; }
+    // Rolagem secreta não abre pedido: o balão no alvo denunciaria o ataque que o
+    // mestre quis esconder. Mesma razão de o alvo morar no rótulo, na fatia 1.
+    if (alvoTok && !DADO.secreta) {
+      await marcarPendente(alvoTok, t, `${nomeR ? nomeR + ' · ' : ''}${titulo}`, marca.total);
+    }
   }
   async function rolarDano(expr, mod, rotulo, nome, opts = {}) {
     const e = dadosExpr(expr, opts.maximizar);
@@ -2667,6 +2768,9 @@
     // e no Discord sem tocar no banco, e herda o `secreta` da própria rolagem — uma
     // rolagem secreta não denuncia quem era o alvo.
     const comAlvo = alvoAtaque ? (rotulo || '') + ' → ' + alvoAtaque.nome : rotulo;
+    // O primeiro total deste ataque e o do ACERTO: e ele que o alvo precisa ver para
+    // decidir se reage. O dano vem depois e nao deve sobrescrever.
+    if (alvoAtaque && alvoAtaque.total == null) alvoAtaque.total = r.total;
     const row = { mesa_id: S.mesa.id, user_id: NV.user.id, nome: nome || meuNome(), rotulo: comAlvo || '', formula: r.formula, total: r.total, detalhe: r.det, secreta: DADO.secreta };
     const { data, error } = await sb.from('rolagens').insert(row).select('*').single();
     if (error) { toast(errMsg(error), 'warning'); return null; }
