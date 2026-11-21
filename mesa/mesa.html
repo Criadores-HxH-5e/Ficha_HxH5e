@@ -482,6 +482,8 @@
   .ordem-h { display: flex; align-items: center; gap: 8px; }
   .ordem-h b { font: 700 12px/1 var(--f-display); letter-spacing: .08em; text-transform: uppercase; display: inline-flex; align-items: center; gap: 6px; }
   .ordem-h .rod { font: 800 11px/1 var(--f-body); letter-spacing: .06em; padding: 4px 7px; border-radius: 7px; background: var(--blue-1); color: var(--blue-7); }
+  .ordem-h .pend { font: 800 11px/1 var(--f-body); letter-spacing: .06em; padding: 4px 7px; border-radius: 7px; background: var(--orange-1); color: var(--orange-7); border: 1px solid var(--orange-3); display: inline-flex; align-items: center; gap: 4px; }
+  .ordem-h button.pend { cursor: pointer; }
   .ordem-h .min { margin-left: auto; width: 26px; height: 26px; border-radius: 8px; border: 1px solid var(--border-2); background: transparent; color: var(--text-2); cursor: pointer; display: grid; place-items: center; }
   .ordem-l { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; max-height: 46vh; overflow-y: auto; overflow-x: hidden; }
   .ordem-l li { display: flex; align-items: center; gap: 8px; padding: 5px 6px 5px 5px; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--border); cursor: pointer; }
@@ -1260,6 +1262,14 @@
     const alvo = S.tokens[pd.alvo];
     // Alvo sumiu do mapa: não dá para esperar resposta de quem não existe mais.
     if (!alvo) { if (S.gm) limparPendente(); return; }
+    // Ficou sem estoque, ou reagiu, DEPOIS de o pedido abrir — inclusive reagindo a
+    // este mesmo ataque pelo painel. O pedido se resolve sozinho em vez de travar a
+    // ordem num alvo que já não tem o que gastar.
+    const _raPd = reacAtual(alvo);
+    if ((_raPd != null && _raPd < 1)
+      || (!!turno().rodada && reagiuNaRodada(alvo) >= reacPorRodadaMax(alvo))) {
+      fecharPedido(); if (podeMover(alvo)) limparPendente(); return;
+    }
     // Quem atacou avisa o mestre quando o tempo estoura. Um cliente só, sem corrida.
     if (pd.por === NV.user.id && !pedidoChat && Date.now() - pd.em > PEDIDO_SEGUNDOS * 1000) {
       pedidoChat = true; avisarMestrePendente(pd);
@@ -1301,6 +1311,17 @@
   }
   function passarTurno(dir) {
     const L = ordem(); if (!L.length) return;
+    // ── A ordem espera quem pode reagir ────────────────────────────────────────
+    // Era o furo do pedido de reação: quem atacava e clicava em passar na mesma
+    // batida empurrava a mesa para o turno seguinte com o balão do alvo ainda
+    // aberto, e a reação chegava depois da vez dele. Agora ninguém avança — nem o
+    // mestre, que em vez disso tem o Destravar no cabeçalho da ordem.
+    const pd = pendente();
+    if (pd) {
+      const al = S.tokens[pd.alvo];
+      return toast('<b>A mesa está esperando</b><br>' + esc(al ? al.nome : 'o alvo') + ' ainda pode reagir.'
+        + (S.gm ? ' Use <b>Destravar</b> para seguir sem a resposta.' : ''), 'hourglass');
+    }
     const tu = turno(); let i = L.findIndex(t => t.id === tu.vez), rodada = tu.rodada || 1;
     if (i < 0) i = 0;   // a vez era de alguém que saiu da ordem: recomeça do topo
     else {
@@ -1308,7 +1329,12 @@
       if (i >= L.length) { i = 0; rodada++; }
       if (i < 0) { i = L.length - 1; rodada = Math.max(1, rodada - 1); }
     }
-    salvarTurno({ rodada, vez: L[i].id });
+    // A conta de ações de reação é POR RODADA: atravessa as vezes de uma mesma
+    // rodada e cai fora quando a rodada vira. Como o salvarTurno substitui o objeto
+    // inteiro, carregar `reagiu` aqui é o que faz o limite durar a rodada toda.
+    const novo = { rodada, vez: L[i].id };
+    if (rodada === (tu.rodada || 1) && tu.reagiu) novo.reagiu = tu.reagiu;
+    salvarTurno(novo);
   }
   async function encerrarCombate() {
     if (!confirm('Encerrar o combate? A ordem de iniciativa é apagada.')) return;
@@ -1323,6 +1349,10 @@
     const old = $('#ordem'); if (old) old.remove();
     const st = $('#stage'); if (!st || !temIni()) return;
     const L = ordem(), tu = turno();
+    // O selo de travamento fica no CABEÇALHO, que é a única parte visível quando a
+    // ordem está minimizada: se o botão de destravar morasse só no corpo, o mestre
+    // podia ficar com a mesa parada e o botão escondido atrás do minimizar.
+    const pdOrd = pendente(), pdNome = pdOrd ? ((S.tokens[pdOrd.alvo] || {}).nome || 'o alvo') : '';
     const fora = Object.values(S.tokens).filter(t => t.iniciativa == null);
     const rolaveis = fora.filter(podeMover);   // narrador: todos; jogador: os próprios tokens
     const vezTok = S.tokens[tu.vez], minhaVez = vezTok && vezTok.owner === NV.user.id && !S.gm;
@@ -1330,7 +1360,9 @@
     const min = S.ordemMin != null ? S.ordemMin : !L.length;
     const ava = t => t.img_url ? `<img class="oa" src="${esc(t.img_url)}" alt="">` : `<span class="oa" style="background:${esc(t.cor || '#374151')}">${esc((t.nome || '?')[0])}</span>`;
     const el = document.createElement('div'); el.className = 'ordem'; el.id = 'ordem';
-    el.innerHTML = `<div class="ordem-h"><b><i class="ph-bold ph-sword"></i> Iniciativa</b>${tu.vez ? `<span class="rod">Rodada ${tu.rodada || 1}</span>` : L.length ? `<span class="rod">${L.length}</span>` : ''}
+    el.innerHTML = `<div class="ordem-h"><b><i class="ph-bold ph-sword"></i> Iniciativa</b>${tu.vez ? `<span class="rod">Rodada ${tu.rodada || 1}</span>` : L.length ? `<span class="rod">${L.length}</span>` : ''}${pdOrd ? (S.gm
+          ? `<button class="rod pend" id="ordDes" title="Destravar: seguir sem a reação de ${esc(pdNome)}">Destravar</button>`
+          : `<span class="rod pend" title="A ordem está travada até ${esc(pdNome)} responder ao ataque"><i class="ph-fill ph-hourglass"></i> ${esc(pdNome)}</span>`) : ''}
         <button class="min" id="ordMin" title="${min ? 'Abrir' : 'Minimizar'}" aria-label="${min ? 'Abrir' : 'Minimizar'} a ordem de iniciativa"><i class="ph-bold ph-caret-${min ? 'down' : 'up'}"></i></button></div>
       ${min ? '' : `${L.length ? `<ol class="ordem-l">${L.map(t => `<li class="${t.id === tu.vez ? 'vez' : ''}" data-osel="${t.id}">
           <span class="ov" ${S.gm ? `data-oval="${t.id}" title="Duplo clique para mudar o valor"` : ''}>${t.iniciativa}</span>${ava(t)}<span class="on" title="${esc(t.nome)}">${esc(t.nome)}</span>
@@ -1357,6 +1389,7 @@
     const nx = $('#ordNext'); if (nx) nx.onclick = () => passarTurno(1);
     const pv = $('#ordPrev'); if (pv) pv.onclick = () => passarTurno(-1);
     const fim = $('#ordFim'); if (fim) fim.onclick = encerrarCombate;
+    const des = $('#ordDes'); if (des) des.onclick = () => limparPendente();
   }
   /* ---------- Régua e rotas quebradas ---------- */
   let rul = null, lastRul = 0;
@@ -1657,7 +1690,22 @@
     // Rolagem secreta não abre pedido: o balão no alvo denunciaria o ataque que o
     // mestre quis esconder. Mesma razão de o alvo morar no rótulo, na fatia 1.
     if (alvoTok && !DADO.secreta) {
-      await marcarPendente(alvoTok, t, `${nomeR ? nomeR + ' · ' : ''}${titulo}`, marca.total);
+      // Dois motivos para NÃO perguntar: o alvo está sem estoque de Reação, ou já
+      // usou a ação de reação desta rodada. Nos dois casos não há o que responder e,
+      // com a trava do passarTurno, a ordem ficaria parada esperando o impossível.
+      // Estoque null (ficha não carregada, ou criatura sem o descritor de Reações)
+      // não bloqueia: o pedido abre, como antes.
+      const _ra = reacAtual(alvoTok);
+      const _semEstoque = _ra != null && _ra < 1;
+      const _jaReagiu = !!turno().rodada && reagiuNaRodada(alvoTok) >= reacPorRodadaMax(alvoTok);
+      if (_semEstoque || _jaReagiu) {
+        // O motivo só é dito a quem já via as Reações do alvo no mapa (barrasVisiveis).
+        toast(barrasVisiveis(alvoTok)
+          ? `<b>${esc(alvoTok.nome)}</b> ${_semEstoque ? 'está sem Reações' : 'já reagiu nesta rodada'} — nenhum pedido enviado.`
+          : `Nenhum pedido de reação para <b>${esc(alvoTok.nome)}</b>.`, 'shield-chevron');
+      } else {
+        await marcarPendente(alvoTok, t, `${nomeR ? nomeR + ' · ' : ''}${titulo}`, marca.total);
+      }
     }
   }
   async function rolarDano(expr, mod, rotulo, nome, opts = {}) {
@@ -1752,12 +1800,46 @@
     }
   }
   const salvarReac = (t, v) => salvarTok(t, { reacoes: v });
+  /* ---------- Limite de GASTO por rodada (≠ estoque) ----------
+     O estoque (reacMax/reacAtual) é quanta Reação o personagem ainda tem no combate
+     e volta com ZETSU ou descanso. O limite daqui é outra coisa: quantas AÇÕES DE
+     REAÇÃO — as 7 do REACOES — ele pode usar dentro de UMA rodada.
+     Gastar Reação como RECURSO não entra nesta conta: expandir o EN, por exemplo,
+     consome Reações mas a ação é "ativar/expandir o EN", não "reagir". No código
+     isso já era separado — o ativarPrincipio debita por `patch.reacoes` no salvarTok
+     e nunca passa pelo gastarReacao, que é usado só pelas 7. Por isso a marcação
+     mora no gastarReacao: é o ponto por onde passa exatamente o que conta.
+     O número vive em mesas.turno.reagiu = { tokenId: usadas } — mesmo JSONB do
+     `pendente`, então sem coluna nova e sem tabela nova, e sobrevive a um F5. */
+  function reagiuNaRodada(t) { return ((turno().reagiu || {})[t.id]) || 0; }
+  function reacPorRodadaMax(t) {
+    // Uma por rodada, como as outras ações de reação do sistema. Recurso que aumente
+    // esse número (atributo evoluído, por exemplo) entra aqui quando estiver
+    // descrito — hoje nenhum chega ao app, então vale 1 para todos. O `t` fica no
+    // parâmetro justamente porque o teto passa a depender do personagem.
+    return t ? 1 : 1;
+  }
+  async function marcarReagiu(t) {
+    const tu = turno(); if (!tu.rodada) return;   // fora de combate não há rodada para contar
+    const r = Object.assign({}, tu.reagiu || {}); r[t.id] = (r[t.id] || 0) + 1;
+    await salvarTurno(Object.assign({}, tu, { reagiu: r }));
+  }
   async function gastarReacao(t, motivo) {
     const atual = reacAtual(t);
-    if (atual == null) return true;
-    if (atual < 1) { toast(esc(`${t.nome} está sem Reações`), 'warning'); return false; }
-    await salvarReac(t, atual - 1);
-    toast(esc(`${t.nome}: ${motivo} · −1 Reação (${atual - 1} restantes)`), 'shield-chevron');
+    if (atual != null && atual < 1) { toast(esc(`${t.nome} está sem Reações`), 'warning'); return false; }
+    // Passou do limite da rodada: AVISA e deixa passar. As exceções do livro (recurso
+    // que dá mais de uma ação de reação por rodada) não chegam ao app, e travar aqui
+    // bloquearia uma reação legítima. Quem consome o limite de verdade é o pedido
+    // automático, que deixa de ser disparado — ali errar só custa um aviso a menos.
+    const _ja = reagiuNaRodada(t), _lim = reacPorRodadaMax(t);
+    if (turno().rodada && _ja >= _lim) {
+      toast(`<b>${esc(t.nome)}</b> já usou a ação de reação desta rodada (${_ja}/${_lim}).`, 'warning');
+    }
+    if (atual != null) {
+      await salvarReac(t, atual - 1);
+      toast(esc(`${t.nome}: ${motivo} · −1 Reação (${atual - 1} restantes)`), 'shield-chevron');
+    }
+    await marcarReagiu(t);
     return true;
   }
   // Modificadores base (sem Hatsu/princípios, como o resto da mesa).
@@ -1796,13 +1878,15 @@
   function reacoesHTML(t, pode) {
     const max = reacMax(t); if (max == null) return '';
     const atual = reacAtual(t), temAtk = temFicha(t);
+    const emCombate = !!turno().rodada, jaRod = reagiuNaRodada(t), limRod = reacPorRodadaMax(t);
     return `<div class="reac"><span><i class="ph-fill ph-shield-chevron"></i> REAÇÕES</span>
         <span class="reac-pips">${Math.max(max, atual) <= 24 ? Array.from({ length: Math.max(max, atual) }, (_, i) => `<i class="${i < atual ? '' : 'gasta'}"></i>`).join('') : ''}</span><b>${atual}/${max}</b></div>
       ${pode ? `<div class="reac-b"><button data-reac="-1" ${atual < 1 ? 'disabled' : ''} title="Gastar 1 Reação">−1</button><button data-reac="1" ${atual >= max ? 'disabled' : ''}>+1</button>
         <button data-reac="cheio" ${atual >= max ? 'disabled' : ''}><i class="ph-bold ph-arrow-counter-clockwise"></i> Recuperar (Zetsu / descanso)</button></div>
       <div class="rx">${REACOES.map(x => `<button class="rx-i" data-rx="${x.k}" ${atual < 1 ? 'disabled' : ''}><span class="rx-n"><b>${x.n}</b><small>${x.nota}</small></span>
         <span class="rx-v">${x.atk ? (temAtk ? 'Atacar <i class="ph-bold ph-caret-right"></i>' : '−1') : x.d6 ? `1d6 + ${modReacao(t, x)}` : sinal(modReacao(t, x))}</span></button>`).join('')}</div>` : ''}
-      <p class="hint">7 + SAB. Cada Reação gasta 1; elas voltam com Zetsu ou descanso.${bestDe(t) || t.tipo !== 'pj' ? '' : ' Assumir Lugar usa CA 10 + CON: some a armadura, se tiver.'}</p>`;
+      ${emCombate ? `<p class="hint" style="margin-top:8px">Ação de reação nesta rodada: <b>${jaRod}/${limRod}</b>${jaRod >= limRod ? ' — já reagiu; não recebe mais pedido automático nesta rodada.' : ''}</p>` : ''}
+      <p class="hint">7 + SAB é o ESTOQUE: cada Reação gasta 1 e elas voltam com Zetsu ou descanso. O limite por rodada é separado — ${limRod} ação de reação (das 7); gastar Reação como recurso, como expandir o EN, não conta nesse limite.${bestDe(t) || t.tipo !== 'pj' ? '' : ' Assumir Lugar usa CA 10 + CON: some a armadura, se tiver.'}</p>`;
   }
   async function usarReacao(t, x) {
     if (x.atk) {
