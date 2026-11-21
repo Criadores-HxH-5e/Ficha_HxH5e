@@ -602,6 +602,15 @@
   @keyframes pingnome { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
   @media (prefers-reduced-motion: reduce) { .ping i, .ping b { animation: none; opacity: .7; transform: scale(.5); } .ping i ~ i { display: none; } }
   .tok .tok-reac.zero { background: #4b5563; color: #fff; }
+  /* Selo de condições: do lado oposto ao de Reações, para os dois conviverem. */
+  .tok .tok-cond { position: absolute; left: -2px; bottom: 2px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; display: grid; place-items: center; background: var(--orange-6); color: #fff; font: 800 11px/1 var(--f-body); border: 2px solid var(--surface); cursor: help; }
+  .tok .tok-cond.oculto { background: #4b5563; }
+  .cond-g { margin: 0 0 10px; }
+  .cond-g > span { display: block; font: 800 10px/1 var(--f-display); letter-spacing: .1em; text-transform: uppercase; color: var(--text-2); margin: 0 0 5px; }
+  .cond-l { display: flex; flex-wrap: wrap; gap: 5px; }
+  .cond-c { font: 600 12px/1 var(--f-body); padding: 6px 9px; border-radius: 999px; border: 1px solid var(--border-2); background: transparent; color: var(--text-1); cursor: pointer; }
+  .cond-c.on { background: var(--orange-1); border-color: var(--orange-3); color: var(--orange-8); font-weight: 800; }
+  .cond-c:disabled { cursor: default; opacity: .55; }
   /* escolha do modo do ataque */
   .am { width: min(420px, 100%); padding: 16px; border-radius: 22px; background: var(--surface); border: 1px solid var(--border); box-shadow: var(--sh-3); transform: translateY(10px); transition: transform .25s var(--ease-out); }
   .mm-ov.on .am { transform: none; }
@@ -986,6 +995,13 @@
     if (e.key === 'r' || e.key === 'R') setTool(S.tool === 'regua' ? 'mover' : 'regua');
     if (e.key === 'm' || e.key === 'M') setTool('mover');
     if (e.key === 'Escape' && rul) { rul = null; desenharOverlay(); enviarRegua(null); }
+    // Apagar o token selecionado. Mesma permissão do "Remover do mapa" em Ajustes
+    // (dono ou narrador), e com a mesma confirmação — Delete sem pergunta apagaria
+    // o boneco de alguém por um toque errado.
+    if ((e.key === 'Delete' || e.key === 'Del') && S.sel) {
+      const tk = S.tokens[S.sel];
+      if (tk && podeMover(tk)) { e.preventDefault(); apagarToken(tk); }
+    }
   });
 
   /* ---------- Battlemap ---------- */
@@ -1094,6 +1110,7 @@
     // Sem isso o navegador seleciona os tokens ao arrastar o mapa e passa a arrastar a seleção como imagem.
     vp.addEventListener('dragstart', e => e.preventDefault());
     vp.addEventListener('dblclick', onPing);
+    vp.addEventListener('dblclick', onCondDbl);
     vp.addEventListener('pointermove', onMove);
     vp.addEventListener('pointerup', onUp);
     vp.addEventListener('pointercancel', onUp);
@@ -1127,6 +1144,64 @@
     }
   }
   function podeMover(t) { return S.gm || t.owner === NV.user.id; }
+  /* ---------- Condições no token ----------
+     Os nomes e as 4 faixas saem do CONDICOES_POR_NIVEL / CONDICAO_FAIXAS do
+     hatsu-db.js, que a mesa já carrega — nenhuma lista nova, nenhum nome inventado.
+     Aqui a mesa só guarda QUAIS condições o token tem; o que cada uma faz continua
+     no livro, e entra no app na etapa em que as mecânicas forem revisadas.
+     Mora em tokens.cond (array de nomes). A coluna pode não existir ainda: o
+     salvarTok avisa e mantém o valor ao vivo, como já faz com reacoes/principios. */
+  const condDe = t => Array.isArray(t && t.cond) ? t.cond : [];
+  const temCond = (t, nome) => condDe(t).indexOf(nome) >= 0;
+  // Quem está escondido não acende no mapa quando alguém clica na iniciativa — era
+  // justamente o pedido do item 3. Invisível entra junto: esconde pelo mesmo motivo.
+  const CONDICOES_SEM_PING = ['Furtivo/Oculto', 'Invisível'];
+  const estaOculto = t => CONDICOES_SEM_PING.some(c => temCond(t, c));
+  function abrirCondicoes(tok) {
+    if ($('.mm-ov.cond-ov')) return;            // já aberto
+    const pode = podeMover(tok);
+    const faixas = window.CONDICAO_FAIXAS || [];
+    const banco = window.CONDICOES_POR_NIVEL || {};
+    if (!faixas.length) return toast('Lista de condições não carregou', 'warning');
+    let atuais = condDe(tok).slice();
+    const ov = document.createElement('div'); ov.className = 'mm-ov on cond-ov';
+    const pinta = () => {
+      $$('.cond-c', ov).forEach(b => b.classList.toggle('on', atuais.indexOf(b.dataset.cond) >= 0));
+      const c = $('#cdQ', ov); if (c) c.textContent = atuais.length ? atuais.join(' · ') : 'Nenhuma';
+    };
+    ov.innerHTML = `<div class="am" role="dialog" aria-modal="true" style="max-width:560px">
+      <div class="am-h"><div><div class="tiny">${esc(tok.nome)}</div><h3>Condições</h3></div></div>
+      <p class="hint" style="margin:0 0 10px">Agora: <b id="cdQ"></b></p>
+      ${faixas.map(f => `<div class="cond-g"><span>${esc(f.nome)} · nível ${f.min}${f.max > f.min ? '–' + f.max : ''}</span>
+        <div class="cond-l">${(banco[f.tier] || []).map(c => `<button class="cond-c" data-cond="${esc(c)}" ${pode ? '' : 'disabled'}>${esc(c)}</button>`).join('')}</div></div>`).join('')}
+      <div class="row">${pode ? '<button class="btn btn-sm btn-ghost" id="cdZero" style="flex:1">Limpar todas</button>' : ''}
+        <button class="btn btn-sm btn-primary" id="cdFim" style="flex:1">Fechar</button></div>
+    </div>`;
+    document.body.appendChild(ov);
+    pinta();
+    // `tecla` nasce declarada para o fechar() poder removê-la sem referência
+    // adiantada — o mesmo tropeço do `_un`, que o no-use-before-define pegou.
+    let tecla = null;
+    function fechar() { removeEventListener('keydown', tecla); ov.remove(); }
+    tecla = e => { if (e.key === 'Escape') fechar(); };
+    addEventListener('keydown', tecla);
+    ov.onclick = e => { if (e.target === ov) fechar(); };
+    $('#cdFim', ov).onclick = fechar;
+    const zero = $('#cdZero', ov);
+    if (zero) zero.onclick = () => { atuais = []; pinta(); salvarTok(tok, { cond: [] }); };
+    if (pode) $$('.cond-c', ov).forEach(b => b.onclick = () => {
+      const c = b.dataset.cond, i = atuais.indexOf(c);
+      if (i < 0) atuais.push(c); else atuais.splice(i, 1);
+      pinta(); salvarTok(tok, { cond: atuais.slice() });
+    });
+  }
+  // Duplo clique no token abre as Condições. Estava livre: o onPing ignora `.tok` de
+  // propósito, e segurar 2s é o gesto do reenquadramento da foto.
+  function onCondDbl(e) {
+    const el = e.target.closest('.tok'); if (!el) return;
+    const tok = S.tokens[el.dataset.id]; if (!tok) return;
+    abrirCondicoes(tok);
+  }
   function barrasVisiveis(t) { return t.barras_publicas || S.gm || t.owner === NV.user.id; }
   /* Largura e altura do token, em quadrados.
      `tamanho` sempre foi um número só — o token era obrigatoriamente quadrado, e o
@@ -1135,6 +1210,24 @@
      e nada muda para quem já tinha token no mapa. */
   const tamX = t => Math.max(1, parseInt((t || {}).tamanho) || 1);
   const tamY = t => Math.max(1, parseInt((t || {}).tam_y) || tamX(t));
+  /* Acende o token no mapa para a mesa inteira — serve para achar o boneco de quem
+     está na lista de iniciativa mesmo fora da vez dele. Reusa a "gota na água" do
+     duplo clique; o que muda é que a origem é o token, então leva cor e nome dele.
+     Quem está Furtivo/Oculto não acende: o ping entregaria a posição de quem se
+     escondeu. O mesmo estrangulamento de 300ms do ping do mapa vale aqui. */
+  function pingDoToken(t) {
+    if (estaOculto(t)) {
+      // Só conta o motivo a quem já podia ver o estado do token no mapa.
+      if (barrasVisiveis(t)) toast(`<b>${esc(t.nome)}</b> está oculto — sem ping.`, 'eye-closed');
+      return;
+    }
+    const x = t.x + tamX(t) / 2, y = t.y + tamY(t) / 2;
+    mostrarPing(x, y, t.cor || '#00ff9d', t.nome || '');
+    if (channel && S.mesa.exibindo === 'mapa' && !S.mapaPreview && Date.now() - ultimoPing > 300) {
+      ultimoPing = Date.now();
+      channel.send({ type: 'broadcast', event: 'pingtok', payload: { x, y, cor: t.cor || '#00ff9d', nome: t.nome || '' } });
+    }
+  }
   const TOK_TAM_MAX = 12;
 
   function tokenHTML(t) {
@@ -1150,6 +1243,7 @@
       <div class="disc">${t.img_url ? `<img src="${esc(t.img_url)}" alt="" draggable="false">` : esc(ini)}</div>
       <div class="lbl">${esc(t.nome)}</div>
       ${vis && reacAtual(t) != null ? `<span class="tok-reac ${reacAtual(t) < 1 ? 'zero' : ''}" title="Reações">${reacAtual(t)}</span>` : ''}
+      ${condDe(t).length ? `<span class="tok-cond ${estaOculto(t) ? 'oculto' : ''}" title="${esc(condDe(t).join(' · '))}">${condDe(t).length}</span>` : ''}
       ${S.sel === t.id && S.painel !== t.id ? `<button class="tok-abrir" data-abrir="${t.id}"><i class="ph-bold ph-identification-card"></i> Abrir ficha</button>` : ''}</div>`;
   }
   function renderTokens() {
@@ -1303,6 +1397,20 @@
     const off = $('#pdOff', ov); if (off) off.onclick = () => limparPendente();
   }
 
+  /* Um caminho só para apagar: a tecla Delete, o ícone do cabeçalho e o botão de
+     Ajustes passam por aqui, então a confirmação e o tratamento de erro não ficam
+     escritos em três lugares que podem divergir. */
+  async function apagarToken(t) {
+    if (!podeMover(t)) return toast('Esse token não é seu', 'hand');
+    if (!confirm(`Remover ${t.nome} do mapa?`)) return;
+    const { error } = await sb.from('tokens').delete().eq('id', t.id);
+    if (error) return toast(esc(errMsg(error)), 'warning');
+    delete S.tokens[t.id];
+    if (S.sel === t.id) S.sel = null;
+    if (S.painel === t.id) S.painel = null;
+    renderTokens();
+    toast(esc(`${t.nome} saiu do mapa`), 'hand-waving');
+  }
   async function salvarTurno(novo) {
     const ant = S.mesa.turno;
     S.mesa.turno = novo; renderTokens(); if (novo.vez && novo.vez !== (ant || {}).vez) avisoVez();
@@ -1383,7 +1491,10 @@
       const v = parseInt(prompt(`Iniciativa de ${t.nome}:`, t.iniciativa), 10); if (!isNaN(v)) salvarIni(t, v);
     });
     // Clicar numa linha seleciona o token no mapa (narrador ou dono).
-    $$('#ordem [data-osel]').forEach(li => li.onclick = () => { const t = S.tokens[li.dataset.osel]; if (t && $('#tokLayer')) { S.sel = t.id; renderTokens(); } });
+    $$('#ordem [data-osel]').forEach(li => li.onclick = () => {
+      const t = S.tokens[li.dataset.osel]; if (!t || !$('#tokLayer')) return;
+      S.sel = t.id; renderTokens(); pingDoToken(t);
+    });
     const npc = $('#ordNpc'); if (npc) npc.onclick = async () => { npc.disabled = true; for (const t of Object.values(S.tokens).filter(x => x.tipo === 'npc' && x.iniciativa == null)) await rolarIniciativa(t); };
     const ini = $('#ordIni'); if (ini) ini.onclick = () => salvarTurno({ rodada: 1, vez: ordem()[0].id });
     const nx = $('#ordNext'); if (nx) nx.onclick = () => passarTurno(1);
@@ -1793,10 +1904,10 @@
     while (Object.keys(db).length) {
       const { error } = await sb.from('tokens').update(db).eq('id', t.id);
       if (!error) return;
-      const col = ['reacoes', 'principios'].find(k => k in db && errMsg(error).includes(k));
+      const col = ['reacoes', 'principios', 'cond'].find(k => k in db && errMsg(error).includes(k));
       if (!col) return toast(esc(errMsg(error)), 'warning');
       semColuna.add(col); delete db[col];
-      toast(`${col === 'reacoes' ? 'Reações' : 'Princípios de Nen'} só ao vivo: falta a coluna <b>${col}</b> na tabela tokens.`, 'warning');
+      toast(`${{ reacoes: 'Reações', principios: 'Princípios de Nen', cond: 'Condições' }[col]} só ao vivo: falta a coluna <b>${col}</b> na tabela tokens.`, 'warning');
     }
   }
   const salvarReac = (t, v) => salvarTok(t, { reacoes: v });
@@ -2064,6 +2175,7 @@
       <div class="tp-n"><b title="${esc(t.nome)}">${esc(t.nome)}</b><div class="tiny">${t.tipo === 'npc' ? 'NPC do narrador' : esc((S.perfis[t.owner] || {}).nome || 'Jogador')}</div></div>
       ${min ? '' : `<button class="tp-ic" id="tpBig" title="${S.tpAntes ? 'Voltar ao tamanho anterior' : 'Expandir a ficha'}" aria-label="${S.tpAntes ? 'Voltar ao tamanho anterior' : 'Expandir a ficha'}"><i class="ph-bold ph-corners-${S.tpAntes ? 'in' : 'out'}"></i></button>`}
       <button class="tp-ic" id="tpMin" title="${min ? 'Abrir a ficha' : 'Diminuir'}" aria-label="${min ? 'Abrir a ficha' : 'Diminuir'}"><i class="ph-bold ph-${min ? 'arrows-out-simple' : 'minus'}"></i></button>
+      ${pode ? '<button class="tp-ic" id="tpDelH" title="Remover do mapa (tecla Delete)" aria-label="Remover do mapa" style="color:var(--red-6)"><i class="ph-bold ph-trash"></i></button>' : ''}
       <button class="tp-ic" id="tpX" title="Fechar" aria-label="Fechar"><i class="ph-bold ph-x"></i></button></div>
       ${min ? mini : `<div class="tp-body">
         ${vis ? res('hp', 'PV', COR_PV) + (t.aura_max > 0 ? res('aura', 'AURA', COR_AURA) : '') + (pode ? `<div class="tiny" style="margin:-2px 0 10px">Máximo: ${t.hp_max} PV${t.aura_max > 0 ? ` · ${t.aura_max} Aura` : ''}${t.tipo === 'pj' ? ' · não altera a ficha' : ''}</div>` : '') : '<p class="hint" style="margin:0 0 10px">As barras deste token estão escondidas.</p>'}
@@ -2169,6 +2281,7 @@
     };
     const av = $('#tpAv'); if (av) av.onclick = async () => { const f = await pickFile(); if (!f) return; toast('Enviando avatar…', 'hourglass'); try { await trocaAvatar(await NV.enviarToken(f)); } catch (err) { toast(errMsg(err), 'warning'); } };
     const gg = $('#tpG'); if (gg) gg.onclick = () => trocaAvatar(NV.perfil().avatar);
+    const delH = $('#tpDelH'); if (delH) delH.onclick = () => apagarToken(t);
     const del = $('#tpDel'); if (del) del.onclick = async () => { if (!confirm(`Remover ${t.nome} do mapa?`)) return; const { error } = await sb.from('tokens').delete().eq('id', t.id); if (error) return toast(errMsg(error), 'warning'); delete S.tokens[t.id]; S.sel = null; renderTokens(); };
   }
 
@@ -3220,7 +3333,7 @@
           // coluna não existir, a linha volta do banco sem ela e o token perderia a altura
           // no instante em que o Supabase avisasse a mudança — virando quadrado sozinho,
           // logo depois de aparecer certo na tela.
-          const velho = S.tokens[n.id]; if (velho) ['reacoes', 'principios', 'tam_y'].forEach(k => { if (!(k in n) && k in velho) n[k] = velho[k]; });
+          const velho = S.tokens[n.id]; if (velho) ['reacoes', 'principios', 'tam_y', 'cond'].forEach(k => { if (!(k in n) && k in velho) n[k] = velho[k]; });
           S.tokens[n.id] = n; if ($('#tokLayer')) atualizarToken(n); if (S.sel === n.id) renderTokPanel();
         }
         if (!$('#tokLayer')) renderOrdem();   // na cena não há mapa, mas a ordem continua no palco
@@ -3253,6 +3366,9 @@
         const t = S.tokens[p.id]; if (!t) return; Object.assign(t, p); if ($('#tokLayer')) atualizarToken(t); else renderOrdem(); if (S.sel === t.id) renderTokPanel();
       })
       .on('broadcast', { event: 'ping' }, ({ payload: p }) => mostrarPing(p.x, p.y, COR_PING_GM, 'Narrador'))
+      // Evento próprio: o ping do mapa é sempre do narrador, o do token carrega de
+      // quem é. Separados para o ping antigo continuar exatamente como estava.
+      .on('broadcast', { event: 'pingtok' }, ({ payload: p }) => mostrarPing(p.x, p.y, p.cor || COR_PING_GM, p.nome || ''))
       .on('broadcast', { event: 'ruler' }, ({ payload: p }) => {
         if (p.pts) S.rulers[p.u] = { pts: p.pts, nome: (p.nome || '').split(' ')[0], t: Date.now() }; else delete S.rulers[p.u];
         desenharOverlay();
