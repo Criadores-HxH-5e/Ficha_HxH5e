@@ -1195,8 +1195,11 @@
       pinta(); salvarTok(tok, { cond: atuais.slice() });
     });
   }
-  // Duplo clique no token abre as Condições. Estava livre: o onPing ignora `.tok` de
-  // propósito, e segurar 2s é o gesto do reenquadramento da foto.
+  // Rede de segurança, não o caminho principal: o vp.setPointerCapture() do onDown
+  // faz o click chegar no vp, então este handler não acha o `.tok` e não faz nada.
+  // Ele volta a valer onde a captura falha (o setPointerCapture está em try/catch),
+  // e o abrirCondicoes já se protege de abrir duas vezes. Quem abre o balão no caso
+  // normal é a contagem de toque duplo do onUp.
   function onCondDbl(e) {
     const el = e.target.closest('.tok'); if (!el) return;
     const tok = S.tokens[el.dataset.id]; if (!tok) return;
@@ -1558,6 +1561,13 @@
   }
   let lastBroadcast = 0;
   let espaco = false;
+  // Dois toques no mesmo token, medidos aqui e não pelo evento `dblclick`. Motivo:
+  // o onDown chama vp.setPointerCapture() em todo pointerdown, e com a captura ativa
+  // o navegador entrega o click no elemento que capturou — o próprio vp. Medido no
+  // Chromium: com captura, e.target é "vp" e closest('.tok') devolve null; sem
+  // captura, é o token. Era por isso que o balão de Condições nunca abria.
+  let ultimoToque = { id: null, t: 0 };
+  const TOQUE_DUPLO_MS = 350;
   function onDown(e) {
     if (e.button === 2) return;
     if (e.target.closest('.zoombar, .tools, .viewsw, .tokpanel, .tok-abrir, .ordem')) return;
@@ -1631,10 +1641,23 @@
     // Assim, no celular, o painel não cobre o mapa a cada toque e o arraste fica livre.
     if (S.painel && S.painel !== d.id) S.painel = null;
     const t = S.tokens[d.id];
-    if (!d.moved || !d.can) { S.sel = d.id; renderTokens(); if (!d.can && d.moved) toast('Esse token não é seu', 'hand'); return; }
+    if (!d.moved || !d.can) {
+      S.sel = d.id; renderTokens();
+      if (!d.can && d.moved) toast('Esse token não é seu', 'hand');
+      // Só conta como toque duplo se for o MESMO token e sem arraste no meio: dois
+      // toques em bonecos diferentes, ou um arraste entre eles, não abrem nada.
+      // Funciona igual no mouse e no dedo, que era o furo do dblclick no celular.
+      const agora = performance.now();
+      if (!d.moved && ultimoToque.id === d.id && agora - ultimoToque.t < TOQUE_DUPLO_MS) {
+        ultimoToque = { id: null, t: 0 };
+        if (t) abrirCondicoes(t);
+      } else ultimoToque = { id: d.moved ? null : d.id, t: agora };
+      return;
+    }
     const w = toWorld(e.clientX, e.clientY);
     const nx = Math.round((w.x - d.ox) / CELL), ny = Math.round((w.y - d.oy) / CELL);
     t.x = nx; t.y = ny; S.sel = t.id;
+    ultimoToque = { id: null, t: 0 };   // arrastou: o toque anterior não vale mais
     renderTokens();
     if (channel) channel.send({ type: 'broadcast', event: 'move', payload: { id: t.id, x: nx, y: ny } });
     const { error } = await sb.from('tokens').update({ x: nx, y: ny }).eq('id', t.id);
