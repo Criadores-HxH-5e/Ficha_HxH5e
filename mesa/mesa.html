@@ -1363,7 +1363,7 @@
     // este mesmo ataque pelo painel. O pedido se resolve sozinho em vez de travar a
     // ordem num alvo que já não tem o que gastar.
     const _raPd = reacAtual(alvo);
-    if ((_raPd != null && _raPd < 1)
+    if ((_raPd != null && _raPd < 1) || !podeReagirAgora(alvo)
       || (!!turno().rodada && reagiuNaRodada(alvo) >= reacPorRodadaMax(alvo))) {
       fecharPedido(); if (podeMover(alvo)) limparPendente(); return;
     }
@@ -1832,10 +1832,11 @@
       const _ra = reacAtual(alvoTok);
       const _semEstoque = _ra != null && _ra < 1;
       const _jaReagiu = !!turno().rodada && reagiuNaRodada(alvoTok) >= reacPorRodadaMax(alvoTok);
-      if (_semEstoque || _jaReagiu) {
+      const _naVez = !podeReagirAgora(alvoTok);
+      if (_semEstoque || _jaReagiu || _naVez) {
         // O motivo só é dito a quem já via as Reações do alvo no mapa (barrasVisiveis).
         toast(barrasVisiveis(alvoTok)
-          ? `<b>${esc(alvoTok.nome)}</b> ${_semEstoque ? 'está sem Reações' : 'já reagiu nesta rodada'} — nenhum pedido enviado.`
+          ? `<b>${esc(alvoTok.nome)}</b> ${_semEstoque ? 'está sem Reações' : _naVez ? 'está na vez dele e não reage' : 'já reagiu nesta rodada'} — nenhum pedido enviado.`
           : `Nenhum pedido de reação para <b>${esc(alvoTok.nome)}</b>.`, 'shield-chevron');
       } else {
         await marcarPendente(alvoTok, t, `${nomeR ? nomeR + ' · ' : ''}${titulo}`, marca.total);
@@ -1946,6 +1947,14 @@
      O número vive em mesas.turno.reagiu = { tokenId: usadas } — mesmo JSONB do
      `pendente`, então sem coluna nova e sem tabela nova, e sobrevive a um F5. */
   function reagiuNaRodada(t) { return ((turno().reagiu || {})[t.id]) || 0; }
+  /* Quem age no próprio turno não reage. As 7 ações de reação respondem a algo que
+     acontece FORA do turno de quem reage — se é a sua vez, você está agindo.
+     Na prática: A ataca B no turno de A; B pode reagir e contra-atacar; A NÃO pode
+     reagir ao contra-ataque, porque a vez é de A. Fora de combate não há vez de
+     ninguém, então a regra não se aplica e todos podem reagir.
+     Diferente do teto por rodada, esta regra não tem exceção escrita, então aqui o
+     app TRAVA em vez de só avisar. Se aparecer uma exceção, ela entra nesta função. */
+  function podeReagirAgora(t) { const tu = turno(); return !tu.vez || tu.vez !== t.id; }
   function reacPorRodadaMax(t) {
     // Uma por rodada, como as outras ações de reação do sistema. Recurso que aumente
     // esse número (atributo evoluído, por exemplo) entra aqui quando estiver
@@ -1961,6 +1970,10 @@
   async function gastarReacao(t, motivo) {
     const atual = reacAtual(t);
     if (atual != null && atual < 1) { toast(esc(`${t.nome} está sem Reações`), 'warning'); return false; }
+    if (!podeReagirAgora(t)) {
+      toast(`<b>${esc(t.nome)}</b> está na vez dele — quem age no próprio turno não reage.`, 'hand');
+      return false;
+    }
     // Passou do limite da rodada: AVISA e deixa passar. As exceções do livro (recurso
     // que dá mais de uma ação de reação por rodada) não chegam ao app, e travar aqui
     // bloquearia uma reação legítima. Quem consome o limite de verdade é o pedido
@@ -2013,13 +2026,15 @@
     const max = reacMax(t); if (max == null) return '';
     const atual = reacAtual(t), temAtk = temFicha(t);
     const emCombate = !!turno().rodada, jaRod = reagiuNaRodada(t), limRod = reacPorRodadaMax(t);
+    const naVez = !podeReagirAgora(t);
     return `<div class="reac"><span><i class="ph-fill ph-shield-chevron"></i> REAÇÕES</span>
         <span class="reac-pips">${Math.max(max, atual) <= 24 ? Array.from({ length: Math.max(max, atual) }, (_, i) => `<i class="${i < atual ? '' : 'gasta'}"></i>`).join('') : ''}</span><b>${atual}/${max}</b></div>
       ${pode ? `<div class="reac-b"><button data-reac="-1" ${atual < 1 ? 'disabled' : ''} title="Gastar 1 Reação">−1</button><button data-reac="1" ${atual >= max ? 'disabled' : ''}>+1</button>
         <button data-reac="cheio" ${atual >= max ? 'disabled' : ''}><i class="ph-bold ph-arrow-counter-clockwise"></i> Recuperar (Zetsu / descanso)</button></div>
-      <div class="rx">${REACOES.map(x => `<button class="rx-i" data-rx="${x.k}" ${atual < 1 ? 'disabled' : ''}><span class="rx-n"><b>${x.n}</b><small>${x.nota}</small></span>
+      <div class="rx">${REACOES.map(x => `<button class="rx-i" data-rx="${x.k}" ${atual < 1 || naVez ? 'disabled' : ''}><span class="rx-n"><b>${x.n}</b><small>${x.nota}</small></span>
         <span class="rx-v">${x.atk ? (temAtk ? 'Atacar <i class="ph-bold ph-caret-right"></i>' : '−1') : x.d6 ? `1d6 + ${modReacao(t, x)}` : sinal(modReacao(t, x))}</span></button>`).join('')}</div>` : ''}
-      ${emCombate ? `<p class="hint" style="margin-top:8px">Ação de reação nesta rodada: <b>${jaRod}/${limRod}</b>${jaRod >= limRod ? ' — já reagiu; não recebe mais pedido automático nesta rodada.' : ''}</p>` : ''}
+      ${naVez ? '<p class="hint" style="margin-top:8px">É a vez dele: quem age no próprio turno não reage. As Reações voltam quando o turno passar.</p>'
+        : emCombate ? `<p class="hint" style="margin-top:8px">Ação de reação nesta rodada: <b>${jaRod}/${limRod}</b>${jaRod >= limRod ? ' — já reagiu; não recebe mais pedido automático nesta rodada.' : ''}</p>` : ''}
       <p class="hint">7 + SAB é o ESTOQUE: cada Reação gasta 1 e elas voltam com Zetsu ou descanso. O limite por rodada é separado — ${limRod} ação de reação (das 7); gastar Reação como recurso, como expandir o EN, não conta nesse limite.${bestDe(t) || t.tipo !== 'pj' ? '' : ' Assumir Lugar usa CA 10 + CON: some a armadura, se tiver.'}</p>`;
   }
   async function usarReacao(t, x) {
