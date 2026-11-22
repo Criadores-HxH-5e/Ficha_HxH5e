@@ -1388,16 +1388,7 @@
             </div>`;
         }
 
-        function findItemData(itemName) {
-            const cleanName = itemName.toLowerCase();
-            for (const cat in ITEM_DB.armas) { const found = ITEM_DB.armas[cat].find(i => i.nome.toLowerCase() === cleanName || cleanName.includes(i.nome.toLowerCase())); if(found) return { ...found, category: 'Armas', sub: cat }; }
-            for (const cat in ITEM_DB.armaduras) { const found = ITEM_DB.armaduras[cat].find(i => i.nome.toLowerCase() === cleanName || cleanName.includes(i.nome.toLowerCase())); if(found) return { ...found, category: 'Armaduras', sub: cat }; }
-            const foundMun = ITEM_DB.municoes.find(i => i.nome.toLowerCase() === cleanName); if(foundMun) return { ...foundMun, category: 'Munições' };
-            const foundMed = ITEM_DB.itens_medicos.find(i => i.nome.toLowerCase() === cleanName); if(foundMed) return { ...foundMed, category: 'Médicos' };
-            const foundKit = ITEM_DB.kits.find(i => i.nome.toLowerCase() === cleanName); if(foundKit) return { ...foundKit, category: 'Kits' };
-            for (const cat in ITEM_DB.equipamentos_gerais) { const found = ITEM_DB.equipamentos_gerais[cat].find(i => i.nome.toLowerCase() === cleanName); if(found) return { ...found, category: 'Gerais', sub: cat }; }
-            return null;
-        }
+
 
         // --- NEW CONTROLLERS FOR INVENTORY ---
         function toggleInvMode(mode) { state.invMode = mode; state.searchTerm = ''; render(true); }
@@ -4967,130 +4958,7 @@
         }
         function toggleSheetAccordion() { state.sheetOtherSkillsOpen = !state.sheetOtherSkillsOpen; render(true); }
         function toggleHatsuAccordion() { state.hatsuListOpen = !state.hatsuListOpen; render(true); }
-        // ── CA calculada na hora, nunca gravada ──────────────────────────────────────
-        // Antes a CA era gravada em char.vitals.ca na criação (10 + mod CON) e nunca mais
-        // recalculada: se o CON subisse, a CA continuava a mesma. Agora é sempre conta.
-        // Sem armadura: 10 + mod CON. Com armadura: vale a MAIOR das duas.
-        // CA de objeto de Hatsu não entra aqui — ela tem lugar próprio na ficha do Hatsu.
-        // A CA sem armadura usa o modificador EFETIVO de CON, que já inclui GYO (+3 no
-        // modificador, conforme o livro) e Aumento de Atributo dos Hatsus ativos (+2 no
-        // valor). Antes o GYO era somado ao valor, o que dava só +1 de modificador.
-        function calcCASemArmadura(char) {
-            const ef = window.calcAtributoEfetivo ? window.calcAtributoEfetivo(char, 'CON') : null;
-            return 10 + (ef ? ef.mod : getMod(((char.attributes || {}).CON || {}).value || 10));
-        }
-        // O campo ca do ITEM_DB é texto: "16", "12 + DES", "14 + DES (max. 3)" para armaduras
-        // e "+1", "+3", "+5" para escudos. Escudo é BÔNUS: soma por cima, com armadura ou sem.
-        function _parseCAItem(txt) {
-            const s = String(txt || '').trim();
-            if (!s) return null;
-            if (s[0] === '+') {
-                const b = parseInt(s.slice(1));
-                return isNaN(b) ? null : { tipo: 'escudo', bonus: b };
-            }
-            const base = parseInt(s);
-            if (isNaN(base)) return null;
-            const usaDes = /DES/i.test(s);
-            const mx = s.match(/max\.?\s*(\d+)/i);
-            return { tipo: 'armadura', base: base, usaDes: usaDes, teto: mx ? parseInt(mx[1]) : null };
-        }
-        // Melhor armadura vestida (uma só) + soma de TODOS os escudos do inventário.
-        function calcCAArmadura(char) {
-            const modDes = getMod(((char.attributes || {}).DES || {}).value || 10);
-            // Maestrias de armadura, que até aqui não chegavam à CA. As duas mexem na CA
-            // DA PEÇA, então entram ANTES da escolha da "melhor armadura": aplicadas depois,
-            // uma média com o teto de DES ampliado poderia perder a comparação para uma
-            // pesada sem o +2 e o jogador veria a CA errada.
-            // O tipo da peça vem do findItemData, que devolve sub = 'leves'|'medias'|'pesadas'.
-            // Peça com CA digitada à mão e fora do ITEM_DB não tem sub: as maestrias não
-            // se aplicam, porque não há como saber o tipo.
-            const _ci = (char && char.combatInclinations) || {};
-            const _mMedia  = (parseInt(_ci.maestria_armadura_media) || 0) >= 2;   // tier 2
-            const _mPesada = (parseInt(_ci.maestria_armadura_pesada) || 0) >= 1;  // tier 1
-            let melhorArmadura = 0, bonusEscudo = 0;
-            (char.inventory || []).forEach(function (item) {
-                const data = (typeof findItemData === 'function') ? findItemData(item && item.name) : null;
-                const info = _parseCAItem((item && item.ca) || (data && data.ca));
-                if (!info) return;
-                if (info.tipo === 'escudo') { bonusEscudo += info.bonus; return; }
-                const sub = (data && data.sub) || '';
-                let total = info.base;
-                let teto = info.teto;
-                // "Some até 4 de DES na CA, em vez do máximo 3." O livro assume que média
-                // tem teto 3; o ITEM_DB também tem médias de teto 2. Subimos 1, com 4 de
-                // limite: dá exatamente o 4 do livro no caso dele e nunca mais de +1.
-                if (_mMedia && sub === 'medias' && teto != null) teto = Math.min(4, teto + 1);
-                if (info.usaDes) total += (teto != null) ? Math.min(modDes, teto) : modDes;
-                if (_mPesada && sub === 'pesadas') total += 2;   // "+2 na CA da armadura"
-                if (total > melhorArmadura) melhorArmadura = total;
-            });
-            return { armadura: melhorArmadura, escudo: bonusEscudo };
-        }
-        // ── Princípios ativos que mexem na CA ───────────────────────────────────────
-        // KEN multiplica a CA, KO reduz 80%, RYU soma a linha da tabela do turno e SHU
-        // soma o 1d4 rolado na ativação. (O comentário antigo descrevia duas médias que
-        // não existem mais: nem o RYU é fixo em 3, nem o SHU usa a média 2 do 1d4.)
-        // O GYO concentrado em CON entra pela porta normal, no 10 + modificador.
-        function calcCAPrincipios(char, caBase) {
-            const at = (char && char.principiosAtivos) || {};
-            const fontes = [];
-            let ca = caBase;
-            if (at.ken) {
-                // 1 pacote dobra, 2 triplicam, 3 quadruplicam — "gastar o dobro de aura e
-                // Reações para triplicar a CA original no lugar de dobrar".
-                const _mk = window.multiplicadorKen ? window.multiplicadorKen(char) : 2;
-                ca = ca * _mk; fontes.push('KEN (×' + _mk + ')');
-            }
-            if (at.ko) {
-                const koB = window.calcAvancadoBonus ? window.calcAvancadoBonus(char, 'ko') : { caBonus: 0 };
-                ca = Math.round(ca * 0.2) + (koB.caBonus || 0);
-                fontes.push('KO (−80%' + ((koB.caBonus || 0) > 0 ? ', +' + koB.caBonus : '') + ')');
-            }
-            if (at.ryu) {
-                // Era +3 fixo, o valor dos 3 turnos iniciais, para sempre. Agora vem da
-                // linha vigente: nos turnos 4-6 ela vale 3, 4 ou 5 conforme a ordem da
-                // tabela que o jogador escolheu.
-                const _r = window.calcRyuAtivo ? window.calcRyuAtivo(char) : null;
-                const v = _r ? _r.ca : 3;
-                ca += v;
-                fontes.push('RYU (+' + v + (_r ? ', ' + _r.tabela + ' turno ' + _r.turno : '') + ')');
-            }
-            if (at.shu) {
-                // Antes era fixo em 2, a média do 1d4. O livro manda somar o RESULTADO do
-                // 1d4, que agora é rolado na ativação (char.shuCaRolado), mais +1 por cada
-                // 5% do item 1 do menu. No SHU Superior esse +1 vem junto com o degrau
-                // de escada do Dano, sem precisar escolher entre os dois.
-                const _s = window.calcShuAtivo ? window.calcShuAtivo(char) : { caBonus: 0, caRolado: 0, caPasso: 0 };
-                ca += _s.caBonus;
-                fontes.push('SHU (1d4 rolou ' + _s.caRolado
-                    + (_s.caPasso > 0 ? ' +' + _s.caPasso : '') + ')');
-            }
-            return { ca: Math.max(0, ca), fontes: fontes };
-        }
 
-        function calcCAAtual(char) {
-            if (!char) return 10;
-            const arm = calcCAArmadura(char);
-            // ── Armadura quebrada não protege mais ──────────────────────────────────
-            // A durabilidade é o número de golpes que a armadura aguenta, e esse número
-            // É a CA que ela concede: uma armadura de CA 13 aguenta 13 golpes. Zerada,
-            // o personagem cai para a CA natural. Antes a durabilidade era só um
-            // contador na tela — dava para zerar e a CA não mudava um ponto.
-            // Sem recursão: getDurabilidade chama calcCAArmadura, nunca calcCAAtual.
-            const _dur = getDurabilidade(char);
-            const _caArmadura = _dur.quebrada ? 0 : arm.armadura;
-            // A maior entre "sem armadura" e a armadura vestida, e o escudo soma dos dois
-            // jeitos — escudo é item à parte e não tem durabilidade.
-            const base = Math.max(calcCASemArmadura(char), _caArmadura) + arm.escudo;
-            // Instância Combatente Rápido nível 2, quando o jogador escolheu CA.
-            // Primeiro bônus de CA vindo de Instância/Inclinação a entrar no cálculo —
-            // antes nada disso chegava aqui (ver a lacuna de CA no backlog).
-            const _bci = window.calcBonusCAInstancia ? window.calcBonusCAInstancia(char).total : 0;
-            // Inclinações: só o que é permanente. O condicional fica no painel da Ficha.
-            const _bcl = window.calcBonusCAInclinacao ? window.calcBonusCAInclinacao(char).total : 0;
-            return calcCAPrincipios(char, base + _bci + _bcl).ca;
-        }
-        window.calcCAAtual = calcCAAtual;
 
         // Escolha de uma Instância que oferece "ou" na descrição (hoje só o
         // Combatente Rápido nível 2). Guarda em char.instanciaEscolhas para os
@@ -5104,24 +4972,7 @@
             render(true);
         };
 
-        // ── Durabilidade de Equipamentos de Proteção ─────────────────────────────────
-        // Regra: a durabilidade de uma armadura é igual à CA que ela concede — Colete de
-        // Resposta Rápida (CA 15) aguenta 15 golpes, Colete Fino de Kevlar (CA 12+DES) é
-        // destruído em 12. Reduz 1 por golpe recebido sem TEN, KEN ou RYU; golpes de rajada
-        // ou explosivos reduzem 2. Escudos NÃO entram: só quebram por balístico, explosivo,
-        // arma de cerco ou golpe mirado com aura.
-        // Por decisão de mesa, a redução é MANUAL: clicar no ícone tira 1. Nada automático,
-        // porque o app não acompanha a rodada e clicar no PV não significa golpe recebido.
-        function calcDurabilidadeMax(char) {
-            const arm = calcCAArmadura(char);
-            return arm.armadura > 0 ? arm.armadura : 0;
-        }
-        function getDurabilidade(char) {
-            const max = calcDurabilidadeMax(char);
-            if (max <= 0) return { max: 0, atual: 0, quebrada: false, temArmadura: false };
-            const atual = (char.armorDurability != null) ? char.armorDurability : max;
-            return { max: max, atual: Math.max(0, Math.min(atual, max)), quebrada: atual <= 0, temArmadura: true };
-        }
+
         // ── Sair da ficha para a lista ───────────────────────────────────────────────
         // Precisa DESLIGAR o modo de visualização. Antes, abrir uma ficha pelo painel de
         // admin ligava state._viewingMode e o desligamento só acontecia no botão da faixa
