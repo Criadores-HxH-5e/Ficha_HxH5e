@@ -1323,11 +1323,79 @@
     const novo = Object.assign({}, tu); delete novo.pendente;
     await salvarTurno(novo);
   }
-  async function marcarPendente(alvoTok, atacanteTok, rotulo, total) {
+  /* ════════════════ Resolução do ataque sem reação ════════════════════════════
+     Acerto >= CA acerta. Acerto EXATAMENTE igual à CA causa metade do dano,
+     arredondada para baixo — salvo dano perfurante, que passa inteiro.
+     A RD entra depois da metade: primeiro se decide quanto dano o golpe entrega,
+     depois a proteção desconta.
+     RD: calcFontesRD devolve a lista de fontes, cada uma com `condicao` quando não
+     vale sempre. Aplicamos as sem condição e a do TEN, cuja condição o app sabe ler
+     (tipo de dano). As de condição em texto livre ficam DECLARADAS no aviso e no
+     chat, sem entrar na conta — chutar aqui seria inventar proteção. */
+  const TEN_TIPOS = ['corte', 'impacto', 'explosivo', 'explosão', 'explosao'];
+  function rdAplicavel(f, tipo) {
+    if (!f.condicao) return true;
+    if (f.id === 'principio_ten') {
+      const td = String(tipo || '').toLowerCase().trim();
+      return !!td && TEN_TIPOS.indexOf(td) >= 0;
+    }
+    return false;
+  }
+  function contaDano(alvo, pd) {
+    const ca = caDe(alvo);
+    const acerto = pd.total == null ? null : parseInt(pd.total);
+    const bruto = pd.dano == null ? null : parseInt(pd.dano);
+    const ficha = alvo.personagem_id ? FICHAS[alvo.personagem_id] : null;
+    const fontes = (ficha && window.calcFontesRD) ? (window.calcFontesRD(ficha) || []) : [];
+    const usadas = fontes.filter(f => rdAplicavel(f, pd.tipo));
+    const deFora = fontes.filter(f => !rdAplicavel(f, pd.tipo));
+    const rd = usadas.reduce((a, f) => a + (parseInt(f.valor) || 0), 0);
+    const r = { ca: ca, acerto: acerto, bruto: bruto, rd: rd, usadas: usadas, deFora: deFora,
+                caConhecida: caConhecida(alvo), meio: false, acertou: null, final: null };
+    if (acerto == null) return r;
+    r.acertou = acerto >= ca;
+    if (!r.acertou || bruto == null) return r;
+    r.meio = acerto === ca && !pd.perfura;
+    r.final = Math.max(0, (r.meio ? Math.floor(bruto / 2) : bruto) - rd);
+    return r;
+  }
+  function textoDano(c, pd) {
+    if (c.acerto == null) return 'Sem rolagem de acerto registrada — resolvam na mão.';
+    if (!c.acertou) return `Acerto <b>${c.acerto}</b> contra CA <b>${c.ca}</b>: <b>errou</b>.`;
+    const cab = `Acerto <b>${c.acerto}</b> contra CA <b>${c.ca}</b>: <b>acertou</b>`
+      + (c.meio ? ' na CA exata, então <b>metade do dano</b>' : '') + '.';
+    if (c.bruto == null) return cab + ' Nenhum dano foi rolado.';
+    const partes = [`dano <b>${c.bruto}</b>`];
+    if (c.meio) partes.push(`metade <b>${Math.floor(c.bruto / 2)}</b>`);
+    if (c.rd) partes.push(`RD <b>${c.rd}</b> (${c.usadas.map(f => esc(f.nome)).join(', ')})`);
+    return cab + ' ' + partes.join(' · ') + ` = <b>${c.final}</b> de PV.`
+      + (c.deFora.length ? ` Fora da conta, confiram: ${c.deFora.map(f => esc(f.nome) + ' (' + esc(f.condicao) + ')').join('; ')}.` : '')
+      + (c.caConhecida ? '' : ' <b>CA aproximada</b>: a ficha do alvo não carregou.');
+  }
+  async function resolverSemReacao(alvo, pd) {
+    const c = contaDano(alvo, pd);
+    const txt = textoDano(c, pd);
+    if (c.final != null && c.final > 0) {
+      const antes = parseInt(alvo.hp);
+      if (!isNaN(antes)) await salvarTok(alvo, { hp: Math.max(0, antes - c.final) });
+    }
+    toast(txt, c.acertou === false ? 'shield-chevron' : 'heartbeat');
+    // Registro no chat para a mesa inteira ver a conta, não só quem clicou.
+    try {
+      await sb.from('mensagens').insert({ mesa_id: S.mesa.id, user_id: NV.user.id, nome: meuNome(),
+        texto: (`${pd.rotulo || 'Ataque'} em ${alvo.nome} · ` + txt.replace(/<[^>]+>/g, '')).slice(0, 500) });
+    } catch (e) {}
+  }
+  async function marcarPendente(alvoTok, atacanteTok, rotulo, marca) {
     const tu = turno();
+    const m = marca || {};
     await salvarTurno(Object.assign({}, tu, {
       pendente: { alvo: alvoTok.id, atacante: atacanteTok.id, por: NV.user.id,
-                  rotulo: rotulo || '', total: total == null ? null : total, em: Date.now() },
+                  rotulo: rotulo || '', total: m.total == null ? null : m.total,
+                  // dano, tipo e perfura viajam no mesmo JSONB do pendente: quem resolve
+                  // é o cliente do ALVO, que não assistiu às rolagens do atacante.
+                  dano: m.dano == null ? null : m.dano, tipo: m.tipo || '', perfura: !!m.perfura,
+                  em: Date.now() },
     }));
   }
 
@@ -1380,6 +1448,7 @@
     ov.innerHTML = `<div class="am" role="dialog" aria-modal="true">
       <div class="am-h"><div><div class="tiny">${esc(atac ? atac.nome : 'Alguém')} atacou</div><h3>${esc(alvo.nome)} vai reagir?</h3></div></div>
       <p class="hint" style="margin:0 0 10px">${esc(pd.rotulo || 'Ataque')}${pd.total != null ? ` · resultado <b>${pd.total}</b>` : ''}</p>
+      <p class="hint" style="margin:0 0 10px">${textoDano(contaDano(alvo, pd), pd)}</p>
       <p class="hint" id="pdT" style="margin:0 0 10px"></p>
       <div class="row"><button class="btn btn-orange" id="pdSim" style="flex:1"><i class="ph-fill ph-shield-chevron"></i> Reagir</button>
         <button class="btn" id="pdNao" style="flex:1">Não reagir</button></div>
@@ -1396,7 +1465,10 @@
     };
     relogio(); pedidoTimer = setInterval(relogio, 1000);
     $('#pdSim', ov).onclick = async () => { await limparPendente(); S.sel = alvo.id; S.painel = alvo.id; S.tpAba = 'reac'; renderTokens(); };
-    $('#pdNao', ov).onclick = () => limparPendente();
+    // Reagir continua na mão: cada uma das 7 tem resolução própria (a Esquiva soma a
+    // DES do alvo ao dano na falha, o Bloqueio Desarmado tira 1d6 de CA, o Armado rola
+    // 1d10 para desarme/quebra), e nada disso está no app ainda.
+    $('#pdNao', ov).onclick = async () => { const a = alvo, q = pd; await limparPendente(); await resolverSemReacao(a, q); };
     const off = $('#pdOff', ov); if (off) off.onclick = () => limparPendente();
   }
 
@@ -1697,6 +1769,8 @@
     </div>`;
   }
 
+  const ehPerfurante = x => /perfura/i.test(String((x || {}).tipo_dano || ''))
+    || ((x || {}).tags || []).some(tg => /perfura/i.test(String(tg)));
   /* ---------- Ataques: armas e Hatsus da ficha ---------- */
   // Armas: mesma regra da seção de Ataques da ficha (sheet.js) — itens do inventário
   // que existem no ITEM_DB com dano, mais o Ataque Desarmado (1d6 com Artista Marcial/Monge).
@@ -1711,11 +1785,14 @@
     const armas = (d.inventory || []).map(it => {
       const x = acha(it.name);
       if (!x || !x.dano || x.dano === '-' || String(x.dano).startsWith('+')) return null;
-      return { nome: it.name, dano: x.dano, tipo: x.tipo_dano || '' };
+      // `perfura` sai do tipo_dano OU da tag: Azagaia e Arco Curto são "Perfuração"
+      // nos dois lugares, mas há arma de tipo_dano diferente com a tag. Importa porque
+      // acerto exatamente igual à CA causa metade do dano, menos se perfurar.
+      return { nome: it.name, dano: x.dano, tipo: x.tipo_dano || '', perfura: ehPerfurante(x) };
     }).filter(Boolean);
     const feat = typeof d.backgroundFeature === 'string' ? d.backgroundFeature : ((d.backgroundFeature || {}).nome || '');
     const marcial = ['Artista Marcial', 'Monge'].includes(String(feat).trim());
-    return [{ nome: 'Ataque Desarmado' + (marcial ? ' (Marcial)' : ''), dano: marcial ? '1d6' : '1d4', tipo: 'Impacto' }, ...armas];
+    return [{ nome: 'Ataque Desarmado' + (marcial ? ' (Marcial)' : ''), dano: marcial ? '1d6' : '1d4', tipo: 'Impacto', perfura: false }, ...armas];
   }
   function ataquesHTML(d, r) {
     const armas = armasDaFicha(d), hatsus = d.hatsus || [];
@@ -1839,7 +1916,7 @@
           ? `<b>${esc(alvoTok.nome)}</b> ${_semEstoque ? 'está sem Reações' : _naVez ? 'está na vez dele e não reage' : 'já reagiu nesta rodada'} — nenhum pedido enviado.`
           : `Nenhum pedido de reação para <b>${esc(alvoTok.nome)}</b>.`, 'shield-chevron');
       } else {
-        await marcarPendente(alvoTok, t, `${nomeR ? nomeR + ' · ' : ''}${titulo}`, marca.total);
+        await marcarPendente(alvoTok, t, `${nomeR ? nomeR + ' · ' : ''}${titulo}`, marca);
       }
     }
   }
@@ -1850,13 +1927,14 @@
     const total = (opts.critico ? e.dadosSoma * 2 + (e.soma - e.dadosSoma) : e.soma) + mod + extra;
     const det = e.det.slice(); if (mod + extra) det.push({ k: mod + extra });
     const formula = expr + (mod + extra ? sinal(mod + extra) : '') + (opts.maximizar ? ' · maximizado' : opts.critico ? ' · crítico (dados ×2)' : '');
-    return gravarRolagem({ total, det, formula }, rotulo, nome);
+    return gravarRolagem({ total, det, formula }, rotulo, nome, 'dano', { tipo: opts.tipo, perfura: opts.perfura });
   }
   async function rolarArma(t, w, at) {
     const r = NV.resumo(FICHAS[t.personagem_id] || {});
     await atacar(t, `${w.nome} (${at})`, false, async (modo, pre) => {
       await rolarAtaque(r.attrs[at].mod + r.pb, `${pre}Ataque · ${w.nome} (${at})`, t.nome, false, modo);
-      await rolarDano(w.dano, r.attrs[at].mod, `Dano · ${w.nome}${w.tipo ? ' · ' + w.tipo : ''}`, t.nome);
+      await rolarDano(w.dano, r.attrs[at].mod, `Dano · ${w.nome}${w.tipo ? ' · ' + w.tipo : ''}`, t.nome,
+        { tipo: w.tipo, perfura: !!w.perfura });
     });
   }
   // Hatsu: usa o resumo gravado pela ficha (h.mesaRolagem, ver hatsu-detail.js).
@@ -2002,10 +2080,20 @@
     return r.attrs.DES.mod + (ex.includes('Acrobacia') ? r.pb * 2 : sk.includes('Acrobacia') ? r.pb : 0);
   }
   // CA para Assumir Lugar: a da criatura, ou 10 + CON (armadura fica de fora: some à parte).
+  /* A CA de verdade, agora que a cadeia de cálculo mora no config.js — que a mesa
+     carrega. Até aqui esta função devolvia 10 + CON para PJ, ignorando armadura de
+     propósito porque não tinha como saber. Isso também conserta o Assumir Lugar, que
+     rola 1d6 + CA por aqui e vinha subestimado desde sempre.
+     Ficha ainda não carregada: cai no aproximado antigo, em vez de mentir um 10. */
   function caDe(t) {
     const bm = bestDe(t); if (bm) return parseInt(bm.ca) || 10;
+    const d = t && t.personagem_id ? FICHAS[t.personagem_id] : null;
+    if (d && window.calcCAAtual) return window.calcCAAtual(d);
     return 10 + modAt(t, 'CON');
   }
+  // Declaração de função, não arrow: o contaDano chama isto de um ponto acima daqui
+  // no arquivo, e `const` ali é referência adiantada — a mesma pegadinha do `_un`.
+  function caConhecida(t) { return !!(bestDe(t) || (t && t.personagem_id && FICHAS[t.personagem_id] && window.calcCAAtual)); }
   const REACOES = [
     { k: 'esq', n: 'Esquiva', f: '1d20 + DES', mod: t => modAt(t, 'DES'), nota: 'Supere o ataque. Falha: dano inteiro + a sua DES.' },
     { k: 'acro', n: 'Esquiva Acrobática', f: '1d20 + Acrobacia', mod: modAcrobacia, nota: 'De pé e com um quadrado livre ao lado. Mesma regra da Esquiva.' },
@@ -2998,14 +3086,22 @@
     const tok = Object.values(S.tokens).find(t => t.tipo === 'pj' && t.owner === NV.user.id);
     return tok ? tok.nome : ((NV.perfil() || {}).nome || 'Hunter').split(' ')[0];
   }
-  async function gravarRolagem(r, rotulo, nome) {
+  async function gravarRolagem(r, rotulo, nome, papel, meta) {
     // O alvo entra no RÓTULO, não numa coluna nova: assim ele aparece no log, no chat
     // e no Discord sem tocar no banco, e herda o `secreta` da própria rolagem — uma
     // rolagem secreta não denuncia quem era o alvo.
     const comAlvo = alvoAtaque ? (rotulo || '') + ' → ' + alvoAtaque.nome : rotulo;
     // O primeiro total deste ataque e o do ACERTO: e ele que o alvo precisa ver para
     // decidir se reage. O dano vem depois e nao deve sobrescrever.
-    if (alvoAtaque && alvoAtaque.total == null) alvoAtaque.total = r.total;
+    if (alvoAtaque && papel !== 'dano' && alvoAtaque.total == null) alvoAtaque.total = r.total;
+    // O dano se anuncia (papel = 'dano') em vez de ser deduzido pela ordem: um Hatsu
+    // sem ataque rola só dano, e pela ordem ele seria lido como acerto. Vários danos
+    // no mesmo ataque somam — extras de Hatsu entram como rolagens separadas.
+    if (alvoAtaque && papel === 'dano') {
+      alvoAtaque.dano = (alvoAtaque.dano || 0) + (parseInt(r.total) || 0);
+      if (meta && meta.tipo && !alvoAtaque.tipo) alvoAtaque.tipo = meta.tipo;
+      if (meta && meta.perfura) alvoAtaque.perfura = true;
+    }
     const row = { mesa_id: S.mesa.id, user_id: NV.user.id, nome: nome || meuNome(), rotulo: comAlvo || '', formula: r.formula, total: r.total, detalhe: r.det, secreta: DADO.secreta };
     const { data, error } = await sb.from('rolagens').insert(row).select('*').single();
     if (error) { toast(errMsg(error), 'warning'); return null; }
